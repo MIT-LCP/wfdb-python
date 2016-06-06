@@ -1,2 +1,2 @@
 # wfdb-python
-New native Python WFDB package
+Native python scripts for reading and writing WFDB signals and annotations. 
