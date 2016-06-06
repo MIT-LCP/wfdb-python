@@ -1,4 +1,7 @@
-
+import numpy as np
+import re
+import os
+import math
 
 def rdsamp(recordname, sampfrom=0, sampto=[]):
     # to do: add channel selection, to and from, physicaldigital (and nan removal)
