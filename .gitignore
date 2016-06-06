@@ -63,3 +63,7 @@ target/
 
 # OSX .DS_Store
 .DS_Store
+
+# WFDB files
+*.hea
+*.dat
