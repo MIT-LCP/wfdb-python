@@ -1,0 +1,6 @@
+drive02 5 15.5 78056
+drive02.dat 16x32 1000 16 0 -1236 14736 0 ECG
+drive02.dat 16x2 1000 16 0 1802 13501 0 foot GSR
+drive02.dat 16 1.0001/bpm 16 0 75 -19070 0 HR
+drive02.dat 16 100 16 0 0 -9226 0 marker
+drive02.dat 16x2 500 16 0 5804 -14191 0 RESP
