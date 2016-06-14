@@ -3,31 +3,38 @@ import re
 import os
 import math
 
-def rdsamp(recordname, sampfrom=0, sampto=[]):
+def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
     # to do: add channel selection, to and from, physicaldigital (and nan removal)
     # sampfrom and sampto indices start from 0. 
     fields=readheader(recordname)
     
-    # What happens when chosen input sampfrom-sampto is not an integer multiple for formats 212 310?
-    # Should load the next byte pair/block and toss the remainders. 
-    
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat file to read
             sig=readdat(recordname, fields["fmt"][0],sampfrom, sampto, fields["nsig"], fields["nsamp"])
+            
+            if physical==1
+            # Insert nans/invalid samples
+        
+            # Values that correspond to NAN
+            wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648,
+                          '61': -32768, '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+            # Format 8 has no NANs
+            
         else:
             # Read different dats and glue them together channel wise. 
             # ACTUALLY MULTIPLE CHANNELS CAN BE GROUPED IN DAT FILES!!!!! 
             for i in range(0, nsig):
                 print('this is hard')
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
-    else:
+    else: # Multi-segment file
+        
         # Read segments one at a time...
-        print('You have to read different dats and glue them together segment wise. Also recursive?')
-    
-    
-    # Insert nans
-    
-    # Analogue to digital 
+        sigsegments=[]
+        for segrecordname in fields["filename"] # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+            sigsegments.append(rdsamp(segrecordname, sampfrom=0, sampto=[], physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
+        sig=np.vstack(sigsegments)
+            
+        
     
     return (sig, fields)
 
@@ -42,7 +49,7 @@ def readheader(recordname):
     fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  
             'filename':[], 'fmt':[], 'gain':[], 'units':[], 'baseline':[], 
             'initvalue':[],'signame':[], 'nsampseg':[], 'info':[]}
-    #filename stores files for both multi and single segment headers. nsampseg is only for multi-segment
+    #filename stores file names for both multi and single segment headers. nsampseg is only for multi-segment
 
     commentlines=[] # Store comments 
     headerlines=[] # Store record line followed by the signal lines if any 
