@@ -10,28 +10,37 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
     
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat file to read
-            sig=readdat(recordname, fields["fmt"][0],sampfrom, sampto, fields["nsig"], fields["nsamp"])
+            sig=readdat(recordname, fields["fmt"][0], fields["byteoffset"], sampfrom, sampto, fields["nsig"], fields["nsamp"])
             
-            if physical==1
-            # Insert nans/invalid samples
-        
-            # Values that correspond to NAN
-            wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648,
-                          '61': -32768, '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
-            # Format 8 has no NANs
+            if (physical==1):
+                # Insert nans/invalid samples. 
+
+                # Values that correspond to NAN (Format 8 has no NANs)
+                wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
+                              '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+                
+                # In multi dat case, be careful about NANs!!!!!
+                sig=sig.astype(float)
+                sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan 
+
+                sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
+                sig=np.divide(sig, np.array([float(i) for i in fields["gain"]]))
+                #sig=np.subtract(np.array(fbaseline))
+                #sig=np.divide(np.array(fgain))
             
-        else:
-            # Read different dats and glue them together channel wise. 
+        else: # Multiple dat files. Read different dats and glue them together channel wise. 
             # ACTUALLY MULTIPLE CHANNELS CAN BE GROUPED IN DAT FILES!!!!! 
             for i in range(0, nsig):
-                print('this is hard')
+                
+                ('this is hard')
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
     else: # Multi-segment file
         
         # Read segments one at a time...
         sigsegments=[]
-        for segrecordname in fields["filename"] # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            sigsegments.append(rdsamp(segrecordname, sampfrom=0, sampto=[], physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
+        for segrecordname in fields["filename"]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+            #sigsegments.append(rdsamp(segrecordname, sampfrom=0, sampto=[], physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
+            xxxx=1
         sig=np.vstack(sigsegments)
             
         
@@ -40,14 +49,14 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
 
 
 def readheader(recordname): 
-    
+
     # To do: Allow exponential input format for some fields 
     
     fid=open(recordname + ".hea", 'r')
     
     # Output dictionary
     fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  
-            'filename':[], 'fmt':[], 'gain':[], 'units':[], 'baseline':[], 
+            'filename':[], 'fmt':[], 'byteoffset':[], 'gain':[], 'units':[], 'baseline':[], 
             'initvalue':[],'signame':[], 'nsampseg':[], 'info':[]}
     #filename stores file names for both multi and single segment headers. nsampseg is only for multi-segment
 
@@ -75,13 +84,15 @@ def readheader(recordname):
     # ADCres(o, requires ADCgain), ADCzero(o, requires ADCres), initialvalue(o, requires ADCzero), 
     # checksum(o, requires initialvalue), blocksize(o, requires checksum), signame(o, requires block)
 
-    # Regexp object for signal lines
-    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]+\.dat)[ \t]+(?P<format>\d+)x?"
-                                 "(?P<samplesperframe>\d*):?(?P<skew>\d*)+?(?P<byteoffset>\d*)[ \t]*",
-                                 "(?P<ADCgain>\d*\.?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
+    # Regexp object for signal lines. Consider filenames - dat and mat or more?
+    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]+\.[md]at)[ \t]+(?P<format>\d+)x?"
+                                 "(?P<samplesperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
+                                 "(?P<ADCgain>\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
                                  "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]*)"])) 
 
+    # check regexp allowed characters of signame...
+    
     # Units characters: letters, numbers, /, ^, -, 
     # Make sure \w doesn't trigger more errors than [0-9a-zA-z_]
     # Watch out for potentially negative fields: baseline, ADCzero, initialvalue, checksum, 
@@ -100,7 +111,7 @@ def readheader(recordname):
                 commentlines.append(line[ci:]) # comment on same line as header line
             else:
                 headerlines.append(line)
-
+                
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, 
      basecounter, nsamp, basetime, basedate)=rxRECORD.findall(headerlines[0])[0]
@@ -118,7 +129,6 @@ def readheader(recordname):
     fields['basetime']=basetime
     fields['basedate']=basedate
 
-
     # Signal or Segment line paramters 
 
     if int(nseg) >1: # Multi segment header - Process segment spec lines in current master header.
@@ -134,8 +144,16 @@ def readheader(recordname):
             fs=float(fs)
         for i in range(0,int(nsig)): # will not run if nsignals=0
             # get signal line parameters
+            #print(rxSIGNAL.findall(headerlines[i+1]))
             (filename, fmt, sampsperframe, skew, byteoffset, adcgain, baseline, units, adcres,
              adczero, initvalue, checksum, blocksize, signame)=rxSIGNAL.findall(headerlines[i+1])[0]
+            
+            
+            #print(rxSIGNAL.findall(headerlines[i+1])[0])
+            
+            # Setting defaults
+            if not byteoffset:
+                byteoffset=0
             if not adcgain:
                 adcgain='200'
             if not baseline:
@@ -151,11 +169,13 @@ def readheader(recordname):
                 signame="ch" + str(i+1)
             if not initvalue:
                 initvalue='0'
+                
 
-            #'filename':[], 'fmt':[], 'gain':[], 'units':[], 'baseline':[], 
+            #'filename':[], 'fmt':[], 'byteoffset':[], 'gain':[], 'units':[], 'baseline':[], 
             #'initvalue':[],'signame':[], 'nsampseg':[]}                        
             fields["filename"].append(filename)
-            fields["fmt"].append(fmt)       
+            fields["fmt"].append(fmt)
+            fields['byteoffset'].append(byteoffset)
             fields["gain"].append(float(adcgain))
             fields["baseline"].append(int(baseline))
             fields["units"].append(units)
@@ -169,12 +189,12 @@ def readheader(recordname):
     return fields
 
 
-def readdat(recordname, fmt,sampfrom, sampto, nsig, siglen): 
+def readdat(recordname, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
     # nsig and nsamp define whole file, not selected inputs. nsamp is signal length. 
     
     # to do: allow channel choice too. Put that in rdsamp actually, not here.
-    
     filename = recordname + ".dat"
+    # FIX THIS STUPID FILENAME RECORDNAME 
     
     # Bytes required to hold each sample (including wasted space)
     bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
@@ -192,7 +212,9 @@ def readdat(recordname, fmt,sampfrom, sampto, nsig, siglen):
         sampto=siglen
     
     fp=open(filename,'rb')
-    fp.seek(int(sampfrom*nsig*bytespersample[fmt])) # Point to the starting sample 
+    
+    # Need to fix the byteoffset field for multi dat records.... 
+    fp.seek(int(sampfrom*nsig*bytespersample[fmt])+int(byteoffset[0])) # Point to the starting sample 
     
     # Reading the dat file into np array and reshaping. 
     if fmt=='212': # 212, 310, and 311 need special loading and processing. 
