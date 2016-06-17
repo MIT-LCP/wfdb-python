@@ -5,7 +5,6 @@ import math
 
 def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
     # to do: add channel selection, to and from, physicaldigital (and nan removal)
-    # sampfrom and sampto indices start from 0. 
     fields=readheader(recordname)
     
     if fields["nseg"]==1: # single segment file
@@ -24,7 +23,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
                 sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan 
 
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
-                sig=np.divide(sig, np.array([float(i) for i in fields["gain"]]))
+                sig=np.divide(sig, np.array([fields["gain"]]))
                 #sig=np.subtract(np.array(fbaseline))
                 #sig=np.divide(np.array(fgain))
             
@@ -32,15 +31,14 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
             # ACTUALLY MULTIPLE CHANNELS CAN BE GROUPED IN DAT FILES!!!!! 
             for i in range(0, nsig):
                 
-                ('this is hard')
+                print('this is hard')
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
     else: # Multi-segment file
         
-        # Read segments one at a time...
+        # Read segments one at a time and stack them together. fs is ALWAYS constant between segments. 
         sigsegments=[]
         for segrecordname in fields["filename"]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            #sigsegments.append(rdsamp(segrecordname, sampfrom=0, sampto=[], physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
-            xxxx=1
+            sigsegments.append(rdsamp(recordname=segrecordname, sampfrom=0, sampto=[], physical=physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
         sig=np.vstack(sigsegments)
             
         
@@ -153,7 +151,7 @@ def readheader(recordname):
             
             # Setting defaults
             if not byteoffset:
-                byteoffset=0
+                byteoffset='0'
             if not adcgain:
                 adcgain='200'
             if not baseline:
@@ -175,7 +173,7 @@ def readheader(recordname):
             #'initvalue':[],'signame':[], 'nsampseg':[]}                        
             fields["filename"].append(filename)
             fields["fmt"].append(fmt)
-            fields['byteoffset'].append(byteoffset)
+            fields['byteoffset'].append(int(byteoffset))
             fields["gain"].append(float(adcgain))
             fields["baseline"].append(int(baseline))
             fields["units"].append(units)
