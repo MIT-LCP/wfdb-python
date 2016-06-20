@@ -4,8 +4,9 @@ import os
 import math
 
 def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
-    # to do: add channel selection, to and from, physicaldigital (and nan removal)
-    fields=readheader(recordname)
+    # to do: add channel selection, to and from
+    
+    fields=readheader(recordname) 
     
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat file to read
@@ -35,18 +36,34 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
     else: # Multi-segment file
         
+        # Determine if this record is fixed or variable layout:
+        if fields["nsampseg"][0]==0: # layout specification file - variable layout
+            startline=1
+        else
+            startline=2
+        
+        
         # Read segments one at a time and stack them together. fs is ALWAYS constant between segments. 
         sigsegments=[]
+        fieldsegments=[]
         for segrecordname in fields["filename"]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            sigsegments.append(rdsamp(recordname=segrecordname, sampfrom=0, sampto=[], physical=physical)[0]) # Hey look, a recursive function. I knew this lesson would come in handy one day. 
-        sig=np.vstack(sigsegments)
+            sig, fields = rdsamp(recordname=segrecordname, sampfrom=0, 
+                                      sampto=[], physical=physical)[0] # Hey look, a recursive function. I knew this lesson would come in handy one day.
+            sigsegments.append(sig)
+            if fields:
+                fieldsegments.append(fields)
+            # How to return signal? List of numpy arrays? Give user input options. 
             
-        
-    
+        #sig=np.vstack(sigsegments)
+            
     return (sig, fields)
 
 
-def readheader(recordname): 
+def readmasterheader(recordname): # For reading top level headers
+    
+
+
+def readheader(recordname): # For reading signal headers
 
     # To do: Allow exponential input format for some fields 
     
@@ -55,7 +72,7 @@ def readheader(recordname):
     # Output dictionary
     fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  
             'filename':[], 'fmt':[], 'byteoffset':[], 'gain':[], 'units':[], 'baseline':[], 
-            'initvalue':[],'signame':[], 'nsampseg':[], 'info':[]}
+            'initvalue':[],'signame':[], 'nsampseg':[], 'comments':[]}
     #filename stores file names for both multi and single segment headers. nsampseg is only for multi-segment
 
     commentlines=[] # Store comments 
@@ -118,7 +135,8 @@ def readheader(recordname):
         nseg='1'
     if not fs:
         fs='250'
-
+    fs=float(fs)
+    
     fields['nseg']=int(nseg) # These fields are either mandatory or set to defaults. 
     fields['fs']=float(fs)
     fields['nsig']=int(nsig)
@@ -136,10 +154,7 @@ def readheader(recordname):
             fields["filename"].append(filename) # filename might be ~ for null segment. 
             fields["nsampseg"].append(int(nsampseg)) # number of samples for the segment is mandatory. 
     else: # Single segment header - Process signal spec lines in current regular header. 
-        if not fs:
-            fs=250
-        else:
-            fs=float(fs)
+        
         for i in range(0,int(nsig)): # will not run if nsignals=0
             # get signal line parameters
             #print(rxSIGNAL.findall(headerlines[i+1]))
@@ -182,7 +197,7 @@ def readheader(recordname):
     
     if commentlines:
         for comment in commentlines:
-            fields["info"].append(comment.strip('\s#'))
+            fields["comments"].append(comment.strip('\s#'))
             
     return fields
 
