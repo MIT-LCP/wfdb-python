@@ -37,16 +37,16 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
     else: # Multi-segment file
         
         # Determine if this record is fixed or variable layout:
-        if fields["nsampseg"][0]==0: # layout specification file - variable layout
+        if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startline=1
-        else
-            startline=2
-        
+            layoutfields=readheader(fields["filename"][0]) # Store the layout header info. 
+        else: # fixed layout - no layout specification file. 
+            startline=0
         
         # Read segments one at a time and stack them together. fs is ALWAYS constant between segments. 
         sigsegments=[]
         fieldsegments=[]
-        for segrecordname in fields["filename"]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+        for segrecordname in fields["filename"][startline:]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
             sig, fields = rdsamp(recordname=segrecordname, sampfrom=0, 
                                       sampto=[], physical=physical)[0] # Hey look, a recursive function. I knew this lesson would come in handy one day.
             sigsegments.append(sig)
@@ -57,11 +57,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
         #sig=np.vstack(sigsegments)
             
     return (sig, fields)
-
-
-def readmasterheader(recordname): # For reading top level headers
-    
-
 
 def readheader(recordname): # For reading signal headers
 
