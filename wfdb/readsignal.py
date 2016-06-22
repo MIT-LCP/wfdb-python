@@ -143,9 +143,8 @@ def readheader(recordname): # For reading signal headers
     # Signal or Segment line paramters 
 
     if int(nseg) >1: # Multi segment header - Process segment spec lines in current master header.
-        print("I'm working on it....")
         for i in range(0, int(nsig)):
-            (filename, nsampseg)=re.findall('(?P<filename>\w*~?)[ \t]+(?P\d+)', headerlines[i+1])
+            (filename, nsampseg)=re.findall('(?P<filename>\w*~?)[ \t]+(?P<nsampseg>\d+)', headerlines[i+1])[0]
             fields["filename"].append(filename) # filename might be ~ for null segment. 
             fields["nsampseg"].append(int(nsampseg)) # number of samples for the segment is mandatory. 
     else: # Single segment header - Process signal spec lines in current regular header. 
@@ -216,7 +215,7 @@ def readdat(recordname, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
     if not sampto:
         if not siglen: # Signal length was not obtained, calculate it from the file size. 
             filesize=os.path.getsize(filename) 
-            siglen=filesize/nsig/bytespersample[fmt]
+            siglen=filesize/nsig/bytespersample[fmt] # NEED TO CONSIDER BYTE OFFSET
         sampto=siglen
     
     fp=open(filename,'rb')
