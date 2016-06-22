@@ -47,6 +47,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
         sigsegments=[]
         fieldsegments=[]
         for segrecordname in fields["filename"][startline:]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+            
             sig, fields = rdsamp(recordname=segrecordname, sampfrom=0, 
                                       sampto=[], physical=physical)[0] # Hey look, a recursive function. I knew this lesson would come in handy one day.
             sigsegments.append(sig)
