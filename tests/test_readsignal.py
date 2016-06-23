@@ -4,11 +4,11 @@ from wfdb import readsignal
 # NB: write np.array to CSV with:
 # sig[:,1].tofile('test01_00s_channel1.csv',sep=',',format='%s')
 
-class test_read_format_16():
+class test_read_format_16(): 
 
     def setUp(self):
         # load the sample binary file
-        self.sig, self.fields = readsignal.rdsamp('sampledata/test01_00s')
+        self.sig, self.fields = readsignal.rdsamp('sampledata/test01_00s', physical=0) 
 
     def test_channel1(self):
         # load the expected results
