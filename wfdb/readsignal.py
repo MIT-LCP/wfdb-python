@@ -7,10 +7,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
     # to do: add channel selection, to and from
     
     fields=readheader(recordname) 
+    dirname, baserecordname=os.path.split(recordname)
+    if dirname:
+        dirname=dirname+"/"
     
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat file to read
-            sig=readdat(recordname, fields["fmt"][0], fields["byteoffset"], sampfrom, sampto, fields["nsig"], fields["nsamp"])
+            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"], sampfrom, sampto, fields["nsig"], fields["nsamp"])
             
             if (physical==1):
                 # Insert nans/invalid samples. 
@@ -35,11 +38,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
                 print('this is hard')
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
     else: # Multi-segment file
-        
         # Determine if this record is fixed or variable layout:
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startline=1
-            layoutfields=readheader(fields["filename"][0]) # Store the layout header info. 
+            layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
             startline=0
         
@@ -95,8 +97,8 @@ def readheader(recordname): # For reading signal headers
     # ADCres(o, requires ADCgain), ADCzero(o, requires ADCres), initialvalue(o, requires ADCzero), 
     # checksum(o, requires initialvalue), blocksize(o, requires checksum), signame(o, requires block)
 
-    # Regexp object for signal lines. Consider filenames - dat and mat or more?
-    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]+\.[md]at)[ \t]+(?P<format>\d+)x?"
+    # Regexp object for signal lines. Consider filenames - dat and mat or ~
+    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]+\.[md]at*)[ \t]+(?P<format>\d+)x?"
                                  "(?P<samplesperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
                                  "(?P<ADCgain>\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
@@ -156,7 +158,6 @@ def readheader(recordname): # For reading signal headers
             (filename, fmt, sampsperframe, skew, byteoffset, adcgain, baseline, units, adcres,
              adczero, initvalue, checksum, blocksize, signame)=rxSIGNAL.findall(headerlines[i+1])[0]
             
-            
             #print(rxSIGNAL.findall(headerlines[i+1])[0])
             
             # Setting defaults
@@ -197,12 +198,10 @@ def readheader(recordname): # For reading signal headers
     return fields
 
 
-def readdat(recordname, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
+def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
     # nsig and nsamp define whole file, not selected inputs. nsamp is signal length. 
     
     # to do: allow channel choice too. Put that in rdsamp actually, not here.
-    filename = recordname + ".dat"
-    # FIX THIS STUPID FILENAME RECORDNAME 
     
     # Bytes required to hold each sample (including wasted space)
     bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
