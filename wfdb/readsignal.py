@@ -49,9 +49,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
         sigsegments=[]
         fieldsegments=[]
         for segrecordname in fields["filename"][startline:]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            
-            sig, fields = rdsamp(recordname=segrecordname, sampfrom=0, 
+            if (segrecordname=='~'):
+                sig=[] # Need to make this empty array?
+            else:
+                print(rdsamp(recordname=dirname+segrecordname, sampfrom=0, sampto=[], physical=physical)[0])
+                sig, fields = rdsamp(recordname=dirname+segrecordname, sampfrom=0, 
                                       sampto=[], physical=physical)[0] # Hey look, a recursive function. I knew this lesson would come in handy one day.
+            
             sigsegments.append(sig)
             if fields:
                 fieldsegments.append(fields)
@@ -82,7 +86,7 @@ def readheader(recordname): # For reading signal headers
     # base date (o needs base time).   
 
     # Regexp object for record line
-    rxRECORD=re.compile(''.join(["(?P<name>[\w]+)/*(?P<nseg>\d*)[ \t]+",
+    rxRECORD=re.compile(''.join(["(?P<name>[\w]+)/?(?P<nseg>\d*)[ \t]+",
                                 "(?P<nsig>\d+)[ \t]*",
                                 "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<basecounter>\d*\.?\d*)\)?[ \t]*",
                                 "(?P<nsamples>\d*)[ \t]*",
@@ -98,7 +102,7 @@ def readheader(recordname): # For reading signal headers
     # checksum(o, requires initialvalue), blocksize(o, requires checksum), signame(o, requires block)
 
     # Regexp object for signal lines. Consider filenames - dat and mat or ~
-    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]+\.[md]at*)[ \t]+(?P<format>\d+)x?"
+    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]*\.?[md]?[at]*~?)[ \t]+(?P<format>\d+)x?"
                                  "(?P<samplesperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
                                  "(?P<ADCgain>\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
@@ -128,7 +132,7 @@ def readheader(recordname): # For reading signal headers
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, 
      basecounter, nsamp, basetime, basedate)=rxRECORD.findall(headerlines[0])[0]
-
+    
     if not nseg:
         nseg='1'
     if not fs:
@@ -151,14 +155,10 @@ def readheader(recordname): # For reading signal headers
             fields["filename"].append(filename) # filename might be ~ for null segment. 
             fields["nsampseg"].append(int(nsampseg)) # number of samples for the segment is mandatory. 
     else: # Single segment header - Process signal spec lines in current regular header. 
-        
         for i in range(0,int(nsig)): # will not run if nsignals=0
             # get signal line parameters
-            #print(rxSIGNAL.findall(headerlines[i+1]))
             (filename, fmt, sampsperframe, skew, byteoffset, adcgain, baseline, units, adcres,
              adczero, initvalue, checksum, blocksize, signame)=rxSIGNAL.findall(headerlines[i+1])[0]
-            
-            #print(rxSIGNAL.findall(headerlines[i+1])[0])
             
             # Setting defaults
             if not byteoffset:
