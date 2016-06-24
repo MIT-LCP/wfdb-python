@@ -2,11 +2,15 @@ import numpy as np
 import re
 import os
 import math
+import sys
 
 def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
     # to do: add channel selection, to and from
-    print("rdsamp calling on: "+recordname)
+    #print("rdsamp calling on: "+recordname)
     fields=readheader(recordname) # Get the info from the header file
+    if fields["nsig"]==0:
+        sys.exit("This record has no signals. Use rdann instead to read annotations")
+        
     dirname, baserecordname=os.path.split(recordname)
     if dirname:
         dirname=dirname+"/"
@@ -34,44 +38,66 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             for i in range(0, nsig):
                 print('this is hard')
                 #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
+    
     else: # Multi-segment file
+        
         # Determine if this record is fixed or variable layout:
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
-            startline=1
+            startseg=1
             layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
-            startline=0
-        
-        # Read segments one at a time and stack them together. fs is ALWAYS constant between segments. 
-        sigsegments=[]
-        segmentfields=[]
-        for i in range(startline, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            segrecordname=fields["filename"][i]
-        
-        #for segrecordname in fields["filename"][startline:]: 
+            startseg=0
             
-            if (segrecordname=='~'): # Empty segment. Store indicator and segment length. 
-                ssig=fields["nsampseg"][i] # store the segment length
-                sfields="Empty Segment" 
-            else:
-                ssig, sfields = rdsamp(recordname=dirname+segrecordname, physical=physical) # Hey look, a recursive function. I knew this lesson would come in handy one day.
-            sigsegments.append(ssig)
-            segmentfields.append(sfields)
-            
+        # Allocate space for storing segments
         if stacksegments==1: # Output a single concatenated numpy array
-            if startline==0:
-                sig=np.vstack(sigsegments) # Fixed layout - signals are already in consistent shape
-            else:
-                sig=8 # Rearrange channels
-                
-        else: # Output the list of numpy arrays.
-            sig=sigsegments
-        # Actually you should not do the list append (waste of time) in the first place if the stacksegments==1. Just loop through and allocate a numpy array. 
+            # Figure out the dimensions of the entire signal
+            if sampto: # User inputs sampto
+                nsamp=sampto
+            elif fields["nsamp"]: # master header has number of samples
+                nsamp=fields["nsamp"]
+            else: # Have to figure out length by adding up all segment lengths
+                nsamp=0
+                for i in range(startseg, fields["nseg"]):
+                    nsamp=nsamp+readheader(dirname+fields["filename"][i])["nsamp"]
+            nsamp=nsamp-sampfrom
+            # if user inputs channels:
+                #nsig=len(channels)
+            #else:
+            nsig=fields["nsig"]
+            sig=np.empty((nsamp, nsig))
+            indstart=0 # Store the index of the current segment for filling in the large np array
+        else: # Output a list of numpy arrays
+            sig=[none]*(nseg-startseg) # Empty list for storing segment signals. 
+        segmentfields=[none]*(nseg-startseg) # List for storing segment fields. 
+        
+        
+        # Read segments one at a time. fs is ALWAYS constant between segments. 
+        for i in range(startseg, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+            segrecordname=fields["filename"][i] 
             
+            if stacksegments==0: # Return list of np arrays
+                if (segrecordname=='~'): # Empty segment. Store indicator and segment length. 
+                    sig[i-startseg]=fields["nsampseg"][i] # store the segment length
+                    segmentfields[i-startseg]="Empty Segment" 
+                else: # Non-empty segment. Read it's signal and header fields
+                    sig[i-startseg], segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical) 
+                    # Hey look, a recursive function. I knew this lesson would come in handy one day!
+            else: # Return single stacked np array
+                if (segrecordname=='~'):
+                    sig[indstart:indstart+fields["nsampseg"][i], channels] = np.nan # Fill in blanks 
+                    segmentfields[i-startseg]="Empty Segment" 
+                else:
+                    # This is actually quite hard. Have to work out the channels too. 
+                    sig[indstart:indstart+fields["nsampseg"][i], channels] , sfields = rdsamp(recordname=dirname+segrecordname, physical=physical) 
+                indstart=indstart+fields["nsampseg"][i] # Update for the next segment 
+        # Done reading individual segments    
+             
+            
+        # Return a list for the fields. The first element is the master, second is layout if any, third is a list of all the segments
         if layoutfields:
             fields=[fields,layoutfields, segmentfields]
         else:
-            fields=[fields, segmentfields] # Return a list. The first element is the master, second is layout if any, third is a list of all the segments
+            fields=[fields, segmentfields] 
         
     return (sig, fields)
 
