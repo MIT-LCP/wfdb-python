@@ -87,8 +87,16 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                     sig[indstart:indstart+fields["nsampseg"][i], channels] = np.nan # Fill in blanks 
                     segmentfields[i-startseg]="Empty Segment" 
                 else:
-                    # This is actually quite hard. Have to work out the channels too. 
-                    sig[indstart:indstart+fields["nsampseg"][i], channels] , sfields = rdsamp(recordname=dirname+segrecordname, physical=physical) 
+                    # This is actually quite hard. 
+                    
+                    # Have to work out the channels too for variable layout format
+                    if layoutfields:
+                        for i in range(0, readheader()["nsig"]):
+                            segmentsig, segmentfields[i-startseg]= rdsamp(recordname=dirname+segrecordname, physical=physical)
+                            sig[ , i]=segmentsig[ :, channel] #HELLO START HERE
+                    else: # Fixed layout already arranged                 
+                        sig[indstart:indstart+fields["nsampseg"][i]-1, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical)
+                        
                 indstart=indstart+fields["nsampseg"][i] # Update for the next segment 
         # Done reading individual segments    
              
