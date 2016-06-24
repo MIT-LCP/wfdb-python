@@ -3,7 +3,7 @@ import re
 import os
 import math
 
-def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
+def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
     # to do: add channel selection, to and from
     print("rdsamp calling on: "+recordname)
     fields=readheader(recordname) # Get the info from the header file
@@ -24,7 +24,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
                 
                 # In multi dat case, be careful about NANs!!!!!
                 sig=sig.astype(float)
-                sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan 
+                sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan
 
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
                 sig=np.divide(sig, np.array([fields["gain"]]))
@@ -44,22 +44,35 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1):
         
         # Read segments one at a time and stack them together. fs is ALWAYS constant between segments. 
         sigsegments=[]
-        fieldsegments=[]
-        print(fields["filename"][startline:])
-        for segrecordname in fields["filename"][startline:]: # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
-            print("segrecordname is now: "+segrecordname)
-            if (segrecordname=='~'):
-                sig=[] # Need to make this empty array?
-                fields=[] 
+        segmentfields=[]
+        for i in range(startline, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+            segrecordname=fields["filename"][i]
+        
+        #for segrecordname in fields["filename"][startline:]: 
+            
+            if (segrecordname=='~'): # Empty segment. Store indicator and segment length. 
+                ssig=fields["nsampseg"][i] # store the segment length
+                sfields="Empty Segment" 
             else:
-                #print(rdsamp(recordname=dirname+segrecordname, sampfrom=0, sampto=[], physical=physical)[0])
-                sig, fields = rdsamp(recordname=dirname+segrecordname, physical=physical) # Hey look, a recursive function. I knew this lesson would come in handy one day.
-            sigsegments.append(sig)
-            fieldsegments.append(fields)
-            # How to return signal? List of numpy arrays? Give user input options. 
+                ssig, sfields = rdsamp(recordname=dirname+segrecordname, physical=physical) # Hey look, a recursive function. I knew this lesson would come in handy one day.
+            sigsegments.append(ssig)
+            segmentfields.append(sfields)
             
-        #sig=np.vstack(sigsegments)
+        if stacksegments==1: # Output a single concatenated numpy array
+            if startline==0:
+                sig=np.vstack(sigsegments) # Fixed layout - signals are already in consistent shape
+            else:
+                sig=8 # Rearrange channels
+                
+        else: # Output the list of numpy arrays.
+            sig=sigsegments
+        # Actually you should not do the list append (waste of time) in the first place if the stacksegments==1. Just loop through and allocate a numpy array. 
             
+        if layoutfields:
+            fields=[fields,layoutfields, segmentfields]
+        else:
+            fields=[fields, segmentfields] # Return a list. The first element is the master, second is layout if any, third is a list of all the segments
+        
     return (sig, fields)
 
 def readheader(recordname): # For reading signal headers
@@ -67,7 +80,7 @@ def readheader(recordname): # For reading signal headers
     # To do: Allow exponential input format for some fields 
     
     fid=open(recordname + ".hea", 'r')
-    print("readheader opening: "+recordname+".hea")
+    #print("readheader opening: "+recordname+".hea")
     # Output dictionary
     fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  
             'filename':[], 'fmt':[], 'byteoffset':[], 'gain':[], 'units':[], 'baseline':[], 
@@ -191,15 +204,15 @@ def readheader(recordname): # For reading signal headers
     if commentlines:
         for comment in commentlines:
             fields["comments"].append(comment.strip('\s#'))
-    print("Exiting readheader with: ")
-    print(fields)
+    #print("Exiting readheader with: ")
+    #print(fields)
     return fields
 
 
 def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
     # nsig and nsamp define whole file, not selected inputs. nsamp is signal length. 
     
-    print("reading dat file: "+filename)
+    #print("reading dat file: "+filename)
     
     # to do: allow channel choice too. Put that in rdsamp actually, not here.
     
@@ -294,8 +307,8 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
             sig=sig-32768
             
     sig=sig.reshape(sampto-sampfrom, nsig)
-    print("Exiting readdat with: ")
-    print(sig)
+    #print("Exiting readdat with: ")
+    #print(sig)
         
     return sig
 
