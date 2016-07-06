@@ -9,14 +9,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
     #print("rdsamp calling on: "+recordname)
     fields=readheader(recordname) # Get the info from the header file
     if fields["nsig"]==0:
-        sys.exit("This record has no signals. Use rdann instead to read annotations")
-        
+        sys.exit("This record has no signals. Use rdann to read annotations")
     dirname, baserecordname=os.path.split(recordname)
     if dirname:
         dirname=dirname+"/"
     
     if fields["nseg"]==1: # single segment file
-        if (len(set(fields["filename"]))==1): # single dat file to read
+        if (len(set(fields["filename"]))==1): # single dat file in the segment
             sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"], sampfrom, sampto, fields["nsig"], fields["nsamp"])
             
             if (physical==1):
@@ -33,11 +32,27 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
                 sig=np.divide(sig, np.array([fields["gain"]]))
             
-        else: # Multiple dat files. Read different dats and glue them together channel wise. 
-            # ACTUALLY MULTIPLE CHANNELS CAN BE GROUPED IN DAT FILES!!!!! 
-            for i in range(0, nsig):
-                print('this is hard')
-                #singlesig=readdat(fields["filename"][i][0:end-4, info["fmt"][i], sampfrom, )
+        else: # Multiple dat files in the segment. Read different dats and glue them together channel wise. 
+            
+            # Get unique dat files to open and the number of channels each of them contain
+            filenames=[]
+            channelsperfile={}
+            for chanfile in fields["filename"]:
+                if chanfile not in filenames:
+                    filenames.append(chanfile)
+                    channelsperfile[chanfile]=1
+            
+            # Allocate array for all channels
+            if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat. 
+                # Bytes required to hold each sample (including wasted space)
+                bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
+                                '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
+                filesize=os.path.getsize(dirname+filenames[0]) 
+                siglen=filesize/nsig/bytespersample[fields["fmt"][0]] # NEED TO CONSIDER BYTE OFFSET            
+            else:
+                sig=np.empty([fields["nsamp"], fields["nsig"]]) 
+            for i in range(0, len(filenames)):
+                sig[:,channels]=readdat(filenames[i], ["fmt"][i], sampfrom, )
     
     else: # Multi-segment file
         
@@ -71,7 +86,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             sig=[none]*(nseg-startseg) # Empty list for storing segment signals. 
         segmentfields=[none]*(nseg-startseg) # List for storing segment fields. 
         
-
         # Read segments one at a time. fs is ALWAYS constant between segments. 
         for i in range(startseg, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
             segrecordname=fields["filename"][i] 
@@ -83,28 +97,21 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 else: # Non-empty segment. Read it's signal and header fields
                     sig[i-startseg], segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical) 
                     # Hey look, a recursive function. I knew this lesson would come in handy one day!
-            
-            
+
             else: # Return single stacked np array
-                
                 if (segrecordname=='~'): # Empty segment: fill in nans
                     sig[indstart:indstart+fields["nsampseg"][i], channels] = np.nan 
                     segmentfields[i-startseg]="Empty Segment"
                 else:
                     if 'layoutfields' in local(): # Variable layout format. Work out the channels
                         segmentsig, segmentfields[i-startseg]= rdsamp(recordname=dirname+segrecordname, physical=physical)            
-                        
                         for ch in range(0, layoutfields["nsig"]): # Fill each channel with signal or nan
-                            
                             if layoutfields["signame"][ch] in segmentfields[i-startseg]["signame"]: # The segment contains the channel
-                                
                                 sig[indstart:indstart+segmentfields[i-startseg]["nsampseg"], ch] = segmentsig[:, segmentfields[i-startseg]["signame"].index(layoutfields["signame"][ch])
                             else: # The segment doesn't have the channel. Fill in nans
                                 sig[indstart:indstart+segmentfields[i-startseg]["nsampseg"], ch] = np.nan
-                                
                     else: # Fixed layout already arranged                 
-                        sig[indstart:indstart+fields["nsampseg"][i-startseg], :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical)
-                        
+                        sig[indstart:indstart+fields["nsampseg"][i-startseg], :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical)  
                 indstart=indstart+fields["nsampseg"][i] # Update for the next segment 
         
         # Done reading individual segments
@@ -192,12 +199,13 @@ def readheader(recordname): # For reading signal headers
     if not fs:
         fs='250'
     fs=float(fs)
-    
-    fields['nseg']=int(nseg) # These fields are either mandatory or set to defaults. 
+                                                                                                                 # These fields are either mandatory or set to defaults. 
+    fields['nseg']=int(nseg) 
     fields['fs']=float(fs)
-    fields['nsig']=int(nsig)
-
-    fields['nsamp']=int(nsamp) # These fields might be empty.
+    fields['nsig']=int(nsig) 
+                                                                                                                 # These fields might be empty.
+    
+                                                                                                                 fields['nsamp']=int(nsamp) 
     fields['basetime']=basetime
     fields['basedate']=basedate
 
