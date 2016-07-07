@@ -20,12 +20,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             
             if (physical==1):
                 # Insert nans/invalid samples. 
-
                 # Values that correspond to NAN (Format 8 has no NANs)
                 wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
                               '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
                 
-                # In multi dat case, be careful about NANs!!!!!
                 sig=sig.astype(float)
                 sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan
 
@@ -59,6 +57,17 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
                 sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]=readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
                 fillchannels=fillchannels+channelsperfile[sigfiles]
+                
+            if (physical==1):
+                # Insert nans/invalid samples. 
+                # Values that correspond to NAN (Format 8 has no NANs)
+                wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
+                              '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+                sig=sig.astype(float)
+                for ch in range(0, fields["nsig"]):
+                    sig[sig[:,ch]==wfdbInvalids[fields["fmt"][ch]], ch] =np.nan
+                sig=np.subtract(sig, np.array([float(b) for b in fields["baseline"]]))
+                sig=np.divide(sig, np.array([fields["gain"]]))
                 
     else: # Multi-segment file
         # Determine if this record is fixed or variable layout:
