@@ -34,13 +34,16 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             
         else: # Multiple dat files in the segment. Read different dats and glue them together channel wise. 
             
-            # Get unique dat files to open and the number of channels each of them contain
+            # Get unique dat files to open, and the number of channels each of them contain
             filenames=[]
             channelsperfile={}
+            filefmts={}
             for chanfile in fields["filename"]:
                 if chanfile not in filenames:
                     filenames.append(chanfile)
                     channelsperfile[chanfile]=1
+                else:
+                    channelsperfile[chanfile]=channelsperfile[chanfile]+1
             
             # Allocate array for all channels
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat. 
@@ -48,14 +51,18 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
                                 '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
                 filesize=os.path.getsize(dirname+filenames[0]) 
-                siglen=filesize/nsig/bytespersample[fields["fmt"][0]] # NEED TO CONSIDER BYTE OFFSET            
-            else:
+                fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET!
                 sig=np.empty([fields["nsamp"], fields["nsig"]]) 
-            for i in range(0, len(filenames)):
-                sig[:,channels]=readdat(filenames[i], ["fmt"][i], sampfrom, )
-    
+            else:
+                sig=np.empty([fields["nsamp"], fields["nsig"]])
+            
+            # Read signals and store them in array
+            fillchannels=0
+            for sigfiles in filenames:
+                sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]=readdat(sigfiles, ["fmt"][i], fields["byteoffset"], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
+                fillchannels=fillchannels+channelsperfile[sigfiles]
+                
     else: # Multi-segment file
-        
         # Determine if this record is fixed or variable layout:
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startseg=1
@@ -63,7 +70,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
         else: # fixed layout - no layout specification file. 
             startseg=0
             
-        # Allocate space for storing segments
+        # Process according to chosen output format
         if stacksegments==1: # Output a single concatenated numpy array
             # Figure out the dimensions of the entire signal
             if sampto: # User inputs sampto
@@ -83,33 +90,35 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             indstart=0 # Store the overall signal index of the start of the current segment for filling in the large np array
                 
         else: # Output a list of numpy arrays
-            sig=[none]*(nseg-startseg) # Empty list for storing segment signals. 
-        segmentfields=[none]*(nseg-startseg) # List for storing segment fields. 
+            sig=[None]*(fields["nseg"]-startseg) # Empty list for storing segment signals. 
+        segmentfields=[None]*(fields["nseg"]-startseg) # List for storing segment fields. 
         
         # Read segments one at a time. fs is ALWAYS constant between segments. 
         for i in range(startseg, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
             segrecordname=fields["filename"][i] 
-            
             if stacksegments==0: # Return list of np arrays
                 if (segrecordname=='~'): # Empty segment. Store indicator and segment length. 
                     sig[i-startseg]=fields["nsampseg"][i] # store the segment length
                     segmentfields[i-startseg]="Empty Segment" 
-                else: # Non-empty segment. Read it's signal and header fields
+                else: # Non-empty segment. Read its signal and header fields
                     sig[i-startseg], segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical) 
                     # Hey look, a recursive function. I knew this lesson would come in handy one day!
 
             else: # Return single stacked np array
                 if (segrecordname=='~'): # Empty segment: fill in nans
-                    sig[indstart:indstart+fields["nsampseg"][i], channels] = np.nan 
+                    sig[indstart:indstart+fields["nsampseg"][i], :] = np.nan # channel selection later... 
                     segmentfields[i-startseg]="Empty Segment"
                 else:
-                    if 'layoutfields' in local(): # Variable layout format. Work out the channels
-                        segmentsig, segmentfields[i-startseg]= rdsamp(recordname=dirname+segrecordname, physical=physical)            
+                    if startseg==1: # Variable layout format. Work out the channels
+                        segmentsig, segmentfields[i-startseg]= rdsamp(recordname=dirname+segrecordname, physical=physical)       
+                        
                         for ch in range(0, layoutfields["nsig"]): # Fill each channel with signal or nan
-                            if layoutfields["signame"][ch] in segmentfields[i-startseg]["signame"]: # The segment contains the channel
-                                sig[indstart:indstart+segmentfields[i-startseg]["nsampseg"], ch] = segmentsig[:, segmentfields[i-startseg]["signame"].index(layoutfields["signame"][ch])
-                            else: # The segment doesn't have the channel. Fill in nans
-                                sig[indstart:indstart+segmentfields[i-startseg]["nsampseg"], ch] = np.nan
+                            # The segment contains the channel
+                            if layoutfields["signame"][ch] in segmentfields[i-startseg]["signame"]:
+                                   
+                                sig[indstart:indstart+segmentfields[i-startseg]["nsamp"], ch] = segmentsig[:, segmentfields[i-startseg]["signame"].index(layoutfields["signame"][ch])] 
+                            else: # The segment doesn't contain the channel. Fill in nans
+                                sig[indstart:indstart+segmentfields[i-startseg]["nsamp"], ch] = np.nan
                     else: # Fixed layout already arranged                 
                         sig[indstart:indstart+fields["nsampseg"][i-startseg], :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical)  
                 indstart=indstart+fields["nsampseg"][i] # Update for the next segment 
@@ -199,13 +208,14 @@ def readheader(recordname): # For reading signal headers
     if not fs:
         fs='250'
     fs=float(fs)
-                                                                                                                 # These fields are either mandatory or set to defaults. 
+    
+    # These fields are either mandatory or set to defaults. 
     fields['nseg']=int(nseg) 
     fields['fs']=float(fs)
     fields['nsig']=int(nsig) 
-                                                                                                                 # These fields might be empty.
     
-                                                                                                                 fields['nsamp']=int(nsamp) 
+    # These fields might by empty
+    fields['nsamp']=int(nsamp) 
     fields['basetime']=basetime
     fields['basedate']=basedate
 
@@ -256,8 +266,7 @@ def readheader(recordname): # For reading signal headers
     if commentlines:
         for comment in commentlines:
             fields["comments"].append(comment.strip('\s#'))
-    #print("Exiting readheader with: ")
-    #print(fields)
+
     return fields
 
 
