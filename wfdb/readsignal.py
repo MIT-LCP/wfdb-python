@@ -16,7 +16,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
     
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat file in the segment
-            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"], sampfrom, sampto, fields["nsig"], fields["nsamp"])
+            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["nsamp"])
             
             if (physical==1):
                 # Insert nans/invalid samples. 
@@ -37,7 +37,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             # Get unique dat files to open, and the number of channels each of them contain
             filenames=[]
             channelsperfile={}
-            filefmts={}
             for chanfile in fields["filename"]:
                 if chanfile not in filenames:
                     filenames.append(chanfile)
@@ -52,14 +51,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                                 '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
                 filesize=os.path.getsize(dirname+filenames[0]) 
                 fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET!
-                sig=np.empty([fields["nsamp"], fields["nsig"]]) 
-            else:
-                sig=np.empty([fields["nsamp"], fields["nsig"]])
+            sig=np.empty([fields["nsamp"], fields["nsig"]])
             
             # Read signals and store them in array
             fillchannels=0
             for sigfiles in filenames:
-                sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]=readdat(sigfiles, ["fmt"][i], fields["byteoffset"], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
+                # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
+                sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]=readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
                 fillchannels=fillchannels+channelsperfile[sigfiles]
                 
     else: # Multi-segment file
@@ -172,7 +170,7 @@ def readheader(recordname): # For reading signal headers
     # checksum(o, requires initialvalue), blocksize(o, requires checksum), signame(o, requires block)
 
     # Regexp object for signal lines. Consider filenames - dat and mat or ~
-    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]*\.?[md]?[at]*~?)[ \t]+(?P<format>\d+)x?"
+    rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]*\.?[\w]*~?)[ \t]+(?P<format>\d+)x?"
                                  "(?P<samplesperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
                                  "(?P<ADCgain>\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
@@ -273,8 +271,6 @@ def readheader(recordname): # For reading signal headers
 def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
     # nsig and nsamp define whole file, not selected inputs. nsamp is signal length. 
     
-    #print("reading dat file: "+filename)
-    
     # to do: allow channel choice too. Put that in rdsamp actually, not here.
     
     # Bytes required to hold each sample (including wasted space)
@@ -295,7 +291,8 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
     fp=open(filename,'rb')
     
     # Need to fix the byteoffset field for multi dat records.... 
-    fp.seek(int(sampfrom*nsig*bytespersample[fmt])+int(byteoffset[0])) # Point to the starting sample 
+    
+    fp.seek(int(sampfrom*nsig*bytespersample[fmt])+int(byteoffset)) # Point to the starting sample 
     
     # Reading the dat file into np array and reshaping. 
     if fmt=='212': # 212, 310, and 311 need special loading and processing. 
