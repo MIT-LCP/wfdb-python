@@ -48,8 +48,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
                                 '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
                 filesize=os.path.getsize(dirname+filenames[0]) 
-                fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET!
-            sig=np.empty([fields["nsamp"], fields["nsig"]])
+                fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! Using fields["nsamp"] later
+            
+            if not sampto: #if it is empty
+                sampto=fields["nsamp"]
+            sig=np.empty([sampto-sampfrom, fields["nsig"]])
             
             # Read signals and store them in array
             fillchannels=0
@@ -76,7 +79,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
             startseg=0
-            
+        
+        # Determine the segments and lengths that have to be read based on sampfrom and sampto
+        
+        
         # Process according to chosen output format
         if stacksegments==1: # Output a single concatenated numpy array
             # Figure out the dimensions of the entire signal
@@ -88,6 +94,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 nsamp=0
                 for i in range(startseg, fields["nseg"]):
                     nsamp=nsamp+readheader(dirname+fields["filename"][i])["nsamp"]
+            
             nsamp=nsamp-sampfrom
             # if user inputs channels:
                 #nsig=len(channels)
@@ -95,12 +102,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             nsig=fields["nsig"] # Number of signals read from master header
             sig=np.empty((nsamp, nsig))
             indstart=0 # Store the overall signal index of the start of the current segment for filling in the large np array
-                
         else: # Output a list of numpy arrays
             sig=[None]*(fields["nseg"]-startseg) # Empty list for storing segment signals. 
         segmentfields=[None]*(fields["nseg"]-startseg) # List for storing segment fields. 
         
-        # Read segments one at a time. fs is ALWAYS constant between segments. 
+        # Read segments one at a time.
         for i in range(startseg, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
             segrecordname=fields["filename"][i] 
             if stacksegments==0: # Return list of np arrays
@@ -275,6 +281,8 @@ def readheader(recordname): # For reading signal headers
             fields["comments"].append(comment.strip('\s#'))
 
     return fields
+
+
 
 
 def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
