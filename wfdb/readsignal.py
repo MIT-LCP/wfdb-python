@@ -73,15 +73,40 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 sig=np.divide(sig, np.array([fields["gain"]]))
                 
     else: # Multi-segment file
-        # Determine if this record is fixed or variable layout:
+        
+        # Determine if this record is fixed or variable layout. 
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startseg=1
             layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
             startseg=0
         
-        # Determine the segments and lengths that have to be read based on sampfrom and sampto
         
+        # Determine the segments and lengths that have to be read based on sampfrom and sampto  
+        if not sampto:
+            sampto=sum(fields["nsampseg"][startseg:])
+        cumsumlengths=np.cumsum(fields["nsampseg"][startseg:]) # Cumulative sum of segment lengths
+        readsegs=[] # The segments to read.  
+        s=0
+        while not readsegs:
+            if sampfrom<cumsumlengths[s]:
+                readsegs=[s]
+                while len(readsegs)==1:
+                    if sampto<cumsumlengths[s]:
+                        readsegs.append(s)
+                    s=s+1
+            s=s+1
+            
+        print(fields["nsampseg"])    
+        print(readsegs)
+        
+        
+        readlengths=fields["nsampseg"][readsegs[0]+startseg:readsegs[1]+startseg+1] # The number of samples to read in each sig.
+        readsegs=np.array(range(readsegs[0], readsegs[1]+1)) # Expand into array 
+        
+        
+        print(readlengths)
+        print(readsegs)
         
         # Process according to chosen output format
         if stacksegments==1: # Output a single concatenated numpy array
@@ -91,10 +116,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             elif fields["nsamp"]: # master header has number of samples
                 nsamp=fields["nsamp"]
             else: # Have to figure out length by adding up all segment lengths
-                nsamp=0
-                for i in range(startseg, fields["nseg"]):
-                    nsamp=nsamp+readheader(dirname+fields["filename"][i])["nsamp"]
-            
+                nsamp=sum(fields["nsampseg"][startseg:])
             nsamp=nsamp-sampfrom
             # if user inputs channels:
                 #nsig=len(channels)
@@ -102,6 +124,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             nsig=fields["nsig"] # Number of signals read from master header
             sig=np.empty((nsamp, nsig))
             indstart=0 # Store the overall signal index of the start of the current segment for filling in the large np array
+            
         else: # Output a list of numpy arrays
             sig=[None]*(fields["nseg"]-startseg) # Empty list for storing segment signals. 
         segmentfields=[None]*(fields["nseg"]-startseg) # List for storing segment fields. 
@@ -128,7 +151,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                         for ch in range(0, layoutfields["nsig"]): # Fill each channel with signal or nan
                             # The segment contains the channel
                             if layoutfields["signame"][ch] in segmentfields[i-startseg]["signame"]:
-                                   
                                 sig[indstart:indstart+segmentfields[i-startseg]["nsamp"], ch] = segmentsig[:, segmentfields[i-startseg]["signame"].index(layoutfields["signame"][ch])] 
                             else: # The segment doesn't contain the channel. Fill in nans
                                 sig[indstart:indstart+segmentfields[i-startseg]["nsamp"], ch] = np.nan
