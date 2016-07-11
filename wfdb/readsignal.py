@@ -84,7 +84,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             startseg=0
         
         # Determine the segments and samples that have to be read based on sampfrom and sampto  
-        cumsumlengths=np.cumsum(fields["nsampseg"][startseg:]) # Cumulative sum of segment lengths
+        cumsumlengths=list(np.cumsum(fields["nsampseg"][startseg:])) # Cumulative sum of segment lengths
+        
+        print("cumsumlengths: ", cumsumlengths)
+        
         if not sampto:
             sampto=cumsumlengths[len(cumsumlengths)-1]
         
@@ -100,18 +103,40 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             
         if readsegs[1]==readsegs[0]: # Only one segment to read
             readsegs=[readsegs[0]]
-            readlengths=[sampto-sampfrom] # The number of samples to read in each segment.
+            readsamps=[[sampfrom, sampto]] # The sampfrom and sampto for each segment
         else:
-            readlengths=fields["nsampseg"][readsegs[0]+startseg:readsegs[1]+startseg+1] 
+            #readlengths=fields["nsampseg"][readsegs[0]+startseg:readsegs[1]+startseg+1] # The sampfrom and sampto for each segment
             readsegs=list(range(readsegs[0], readsegs[1]+1)) # Expand into list 
-        
-        
+            readsamps=[[0, fields["nsampseg"][s+startseg]] for s in readsegs] # The sampfrom and sampto for each segment. Most are [0, nsampseg]
+            
+            print("readsamps:", readsamps)
+            print("sampfrom: ", sampfrom)
+            print("cumsumlengths[readsegs[0]]: ", cumsumlengths[readsegs[0]])
+            print("cumsumlengths[0]: ", cumsumlengths[0])
+            
+            
+            print("([0]+cumsumlengths): ", ([0]+cumsumlengths))
+            readsamps[0][0]=sampfrom-([0]+cumsumlengths)[readsegs[0]] # Starting sample for first segment
+
+            
+            
+            print("\n\n\n")
+            print("len(readsamps): ", len(readsamps))
+            print("sampto: ", sampto)
+            print(cumsumlengths[readsegs[len(readsamps)-1]])
+            print(cumsumlengths[0])
+            
+            
+            
+            print("\n\n\n")
+            print("readsegs[len(readsamps)-1]: ", readsegs[len(readsamps)-1])
+            readsamps[len(readsamps)-1][1]=sampto-([0]+cumsumlengths)[readsegs[len(readsamps)-1]] # End sample for last segment 
         
         #print(fields["nsampseg"])    
         #print("readsegs:", readsegs)
             
         print("readsegs:", readsegs)  
-        print("readlengths:", readlengths)
+        print("readsamps:", readsamps)
         
         print("\n\n\n")
         
