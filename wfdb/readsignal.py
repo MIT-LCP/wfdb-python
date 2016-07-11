@@ -10,6 +10,8 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
     fields=readheader(recordname) # Get the info from the header file
     if fields["nsig"]==0:
         sys.exit("This record has no signals. Use rdann to read annotations")
+    if sampfrom<0:
+        sys.exit("sampfrom must be non-negative")
     dirname, baserecordname=os.path.split(recordname)
     if dirname:
         dirname=dirname+"/"
@@ -74,39 +76,44 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 
     else: # Multi-segment file
         
-        # Determine if this record is fixed or variable layout. 
+        # Determine if this record is fixed or variable layout. startseg is the first signal segment.  
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startseg=1
             layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
             startseg=0
         
-        
-        # Determine the segments and lengths that have to be read based on sampfrom and sampto  
-        if not sampto:
-            sampto=sum(fields["nsampseg"][startseg:])
+        # Determine the segments and samples that have to be read based on sampfrom and sampto  
         cumsumlengths=np.cumsum(fields["nsampseg"][startseg:]) # Cumulative sum of segment lengths
-        readsegs=[] # The segments to read.  
-        s=0
-        while not readsegs:
-            if sampfrom<cumsumlengths[s]:
-                readsegs=[s]
-                while len(readsegs)==1:
-                    if sampto<cumsumlengths[s]:
-                        readsegs.append(s)
-                    s=s+1
-            s=s+1
+        if not sampto:
+            sampto=cumsumlengths[len(cumsumlengths)-1]
+        
+        if sampto>cumsumlengths[len(cumsumlengths)-1]: # Error check sampto
+            sys.exit("sampto exceeds length of record: ", cumsumlengths[len(cumsumlengths)-1])
             
-        print(fields["nsampseg"])    
-        print(readsegs)
+        readsegs=[[sampfrom<cs for cs in cumsumlengths].index(True)] # First segment
+        
+        if sampto==cumsumlengths[len(cumsumlengths)-1]: 
+            readsegs.append(len(cumsumlengths)-1) # Final segment
+        else:
+            readsegs.append([sampto<cs for cs in cumsumlengths].index(True))
+            
+        if readsegs[1]==readsegs[0]: # Only one segment to read
+            readsegs=[readsegs[0]]
+            readlengths=[sampto-sampfrom] # The number of samples to read in each segment.
+        else:
+            readlengths=fields["nsampseg"][readsegs[0]+startseg:readsegs[1]+startseg+1] 
+            readsegs=list(range(readsegs[0], readsegs[1]+1)) # Expand into list 
         
         
-        readlengths=fields["nsampseg"][readsegs[0]+startseg:readsegs[1]+startseg+1] # The number of samples to read in each sig.
-        readsegs=np.array(range(readsegs[0], readsegs[1]+1)) # Expand into array 
         
+        #print(fields["nsampseg"])    
+        #print("readsegs:", readsegs)
+            
+        print("readsegs:", readsegs)  
+        print("readlengths:", readlengths)
         
-        print(readlengths)
-        print(readsegs)
+        print("\n\n\n")
         
         # Process according to chosen output format
         if stacksegments==1: # Output a single concatenated numpy array
@@ -129,8 +136,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             sig=[None]*(fields["nseg"]-startseg) # Empty list for storing segment signals. 
         segmentfields=[None]*(fields["nseg"]-startseg) # List for storing segment fields. 
         
+        
+        print("fields[filename]: " , fields["filename"])
+        print("startseg: ", startseg, "\n\n\n")
+        
         # Read segments one at a time.
-        for i in range(startseg, fields["nseg"]): # NEED TO ADD CONDITION FOR SAMPFROM AND SAMPTO!!!!!!
+        for i in [r+startseg for r in readsegs]:  
+            print(i)
             segrecordname=fields["filename"][i] 
             if stacksegments==0: # Return list of np arrays
                 if (segrecordname=='~'): # Empty segment. Store indicator and segment length. 
@@ -138,7 +150,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                     segmentfields[i-startseg]="Empty Segment" 
                 else: # Non-empty segment. Read its signal and header fields
                     sig[i-startseg], segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical) 
-                    # Hey look, a recursive function. I knew this lesson would come in handy one day!
 
             else: # Return single stacked np array
                 if (segrecordname=='~'): # Empty segment: fill in nans
@@ -147,7 +158,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 else:
                     if startseg==1: # Variable layout format. Work out the channels
                         segmentsig, segmentfields[i-startseg]= rdsamp(recordname=dirname+segrecordname, physical=physical)       
-                        
                         for ch in range(0, layoutfields["nsig"]): # Fill each channel with signal or nan
                             # The segment contains the channel
                             if layoutfields["signame"][ch] in segmentfields[i-startseg]["signame"]:
