@@ -37,38 +37,54 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
                 sig=np.divide(sig, np.array([fields["gain"]]))
+                
             
-        else: # Multiple dat files in the segment. Read different dats and glue them together channel wise. 
+        else: # Multiple dat files in the segment. Read different dats and merge them channel wise. 
             
-            # Get unique dat files to open, and the number of channels each of them contain
-            filenames=[]
-            channelsperfile={}
-            for chanfile in fields["filename"]:
-                if chanfile not in filenames:
+            if not channels: # Default all channels 
+                
+                channels=list(range(0, fields["nsig"]))
+                
+            
+            filenames=[] # The unique dat files to open,
+            filechannels={} # The overall channels they correspond to
+            datchannels={} # 
+  
+            for ch in channels:
+                chanfile=fields["filename"][ch]
+                if chanfile not in filenames: # Hasn't been stored yet
                     filenames.append(chanfile)
-                    channelsperfile[chanfile]=1
-                else:
-                    channelsperfile[chanfile]=channelsperfile[chanfile]+1
+                    filechannels[chanfile]=[ch]
+                else: 
+                    filechannels[chanfile].append(ch)
             
             # Allocate array for all channels
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat. 
                 # Bytes required to hold each sample (including wasted space)
                 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
                                 '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
+                              
                 filesize=os.path.getsize(dirname+filenames[0]) 
-                fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! Using fields["nsamp"] later
-            
-            if not sampto: #if it is empty
+                fields["nsamp"]=filesize/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! 
+                              
+                #fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! 
+            if not sampto: #if sampto field is empty 
                 sampto=fields["nsamp"]
-            sig=np.empty([sampto-sampfrom, fields["nsig"]])
+            sig=np.empty([sampto-sampfrom, len(channels)]) 
             
-            # Read signals and store them in array
-            fillchannels=0
-            for sigfiles in filenames:
-                # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
-                sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]=readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
-                fillchannels=fillchannels+channelsperfile[sigfiles]
+            # Read signal files one at a time and store the relevant channels 
+            #fillchannels=0
+            for sigfile in filenames:
                 
+                # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
+                
+                #sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]   =   readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
+                # figure out the relevant dat channels RETURNED. 
+                
+                sig[:, filechannels[sigfile]]=readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"])[] # Fix the byte offset
+                
+            
+                                                      
             if (physical==1):
                 # Insert nans/invalid samples. 
                 # Values that correspond to NAN (Format 8 has no NANs)
@@ -82,7 +98,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 
     else: # Multi-segment file
         
-        # DO NOT call rdsamp with channels[] input for variable layout (process there instead), but do for fixed layout 
+        # DO NOT call rdsamp with channels[] input for variable layout (process here instead), but do for fixed layout 
         
         # Determine if this record is fixed or variable layout. startseg is the first signal segment.  
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
