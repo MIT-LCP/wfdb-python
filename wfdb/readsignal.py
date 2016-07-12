@@ -108,20 +108,15 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
 
             readsamps[0][0]=sampfrom-([0]+cumsumlengths)[readsegs[0]] # Starting sample for first segment
 
-            print("\n\n\n")
-            print("readsegs[len(readsamps)-1]: ", readsegs[len(readsamps)-1])
             readsamps[len(readsamps)-1][1]=sampto-([0]+cumsumlengths)[readsegs[len(readsamps)-1]] # End sample for last segment 
-
-            
+         
         print("readsegs:", readsegs)  
         print("readsamps:", readsamps)
-        
         print("\n\n\n")
         
         ################ Done processing segments and samples to read in each segment. 
         
-        
-        
+
         # Preprocess/preallocate according to chosen output format
         if stacksegments==1: # Output a single concatenated numpy array
             # Figure out the dimensions of the entire signal
@@ -140,9 +135,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
             indstart=0 # The overall signal index of the start of the current segment for filling in the large np array
             
         else: # Output a list of numpy arrays
-            #sig=[None]*(fields["nseg"]-startseg) # Empty list for storing segment signals. 
             sig=[None]*len(readsegs)  # Empty list for storing segment signals. 
-        #segmentfields=[None]*(fields["nseg"]-startseg) # List for storing segment fields. 
         segmentfields=[None]*len(readsegs) # List for storing segment fields. 
         
         print("fields[filename]: " , fields["filename"])
@@ -162,12 +155,8 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 else: # Non-empty segment. Read its signal and header fields
                     sig[i-startseg-readsegs[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1])
 
-                    
             else: # Return single stacked np array of all (selected) channels 
                 indend=indstart+readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0] # end index of the large array for this segment
-                
-                print("indstart: ", indstart)
-                print("indend: ", indend)
                 
                 if (segrecordname=='~'): # Empty segment: fill in nans
                     #sig[indstart:indstart+fields["nsampseg"][i], :] = np.nan # channel selection later... 
@@ -181,7 +170,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                             
                             # The segment contains the channel
                             if layoutfields["signame"][ch] in segmentfields[i-startseg-readsegs[0]]["signame"]:
-                                sig[indstart:indend, ch] = segmentsig[:, segmentfields[i-startseg-readsegs[0]]["signame"].index(layoutfields["signame"][ch])]  # I don't think this order is correct... 
+                                sig[indstart:indend, ch] = segmentsig[:, segmentfields[i-startseg-readsegs[0]]["signame"].index(layoutfields["signame"][ch])]  
                                 
                             else: # The segment doesn't contain the channel. Fill in nans
                                 sig[indstart:indend, ch] = np.nan
@@ -195,14 +184,12 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
         # Done reading individual segments
              
             
+
             
-            
-            
-            
-        # Return a list for the fields. The first element is the master, second is layout if any, third is a list of all the segments
-        if layoutfields: # If it exists
+        # Return a list for the fields. The first element is the master, second is layout if any, last is a list of all the segment fields. 
+        if startseg==1: # Variable layout format
             fields=[fields,layoutfields, segmentfields]
-        else:
+        else: # Fixed layout format. 
             fields=[fields, segmentfields] 
         
     return (sig, fields)
