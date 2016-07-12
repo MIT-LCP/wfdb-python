@@ -4,9 +4,7 @@ import os
 import math
 import sys
 
-def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
-    # to do: add channel selection, to and from
-    #print("rdsamp calling on: "+recordname)
+def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=0):
     fields=readheader(recordname) # Get the info from the header file
     if fields["nsig"]==0:
         sys.exit("This record has no signals. Use rdann to read annotations")
@@ -17,18 +15,26 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
         dirname=dirname+"/"
     
     if fields["nseg"]==1: # single segment file
-        if (len(set(fields["filename"]))==1): # single dat file in the segment
+        if (len(set(fields["filename"]))==1): # single dat (or binary) file in the segment
             sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["nsamp"])
             
+            if channels: # User input channels
+                if channels!=list(range(0, fields["nsig"])): # If input channels are not equal to the full set of ordered channels, remove the non-included ones and reorganize the remaining ones that require it. 
+                    sig=sig[:, channels]
+                 
+                    # Also rearrange the fields that correspond to channels
+                    arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame", ]
+                    for fielditem in arrangefields:
+                        fields[fielditem]=[fields[fielditem][ch] for ch in channels]
+                    fields["nsig"]=len(channels) # Number of signals. 
+                    
             if (physical==1):
                 # Insert nans/invalid samples. 
                 # Values that correspond to NAN (Format 8 has no NANs)
                 wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
                               '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
-                
                 sig=sig.astype(float)
                 sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan
-
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
                 sig=np.divide(sig, np.array([fields["gain"]]))
             
@@ -75,6 +81,8 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                 sig=np.divide(sig, np.array([fields["gain"]]))
                 
     else: # Multi-segment file
+        
+        # DO NOT call rdsamp with channels[] input for variable layout (process there instead), but do for fixed layout 
         
         # Determine if this record is fixed or variable layout. startseg is the first signal segment.  
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
@@ -141,8 +149,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
         print("fields[filename]: " , fields["filename"])
         print("startseg: ", startseg, "\n\n\n")
         
-        
-        
         # Read segments one at a time.
         for i in [r+startseg for r in readsegs]: # i is the segment number. It accounts for the layout record if exists and skips past it.    
             segrecordname=fields["filename"][i] 
@@ -179,13 +185,9 @@ def rdsamp(recordname, sampfrom=0, sampto=[], physical=1, stacksegments=0):
                         sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1]) 
 
                 indstart=indend # Update the start index for filling in the next part of the array
-                
-                
+
         # Done reading individual segments
              
-            
-
-            
         # Return a list for the fields. The first element is the master, second is layout if any, last is a list of all the segment fields. 
         if startseg==1: # Variable layout format
             fields=[fields,layoutfields, segmentfields]
@@ -332,12 +334,10 @@ def readheader(recordname): # For reading signal headers
 
 
 
-
+# Read samples from a WFDB binary file 
 def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
-    # nsig and nsamp define whole file, not selected inputs. nsamp is signal length. 
-    
-    # to do: allow channel choice too. Put that in rdsamp actually, not here.
-    
+    # nsig and siglen define whole file, not selected inputs. siglen is signal length. 
+   
     # Bytes required to hold each sample (including wasted space)
     bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
                     '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
@@ -354,8 +354,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
         sampto=siglen
     
     fp=open(filename,'rb')
-    
-    # Need to fix the byteoffset field for multi dat records.... 
     
     fp.seek(int(sampfrom*nsig*bytespersample[fmt])+int(byteoffset)) # Point to the starting sample 
     
@@ -430,8 +428,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
             sig=sig-32768
             
     sig=sig.reshape(sampto-sampfrom, nsig)
-    #print("Exiting readdat with: ")
-    #print(sig)
         
     return sig
 
