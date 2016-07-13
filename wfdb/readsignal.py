@@ -170,19 +170,21 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     sig[i-startseg-readsegs[0]]=readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0]
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment" 
                 else: # Non-empty segment that contains wanted channels. Read its signal and header fields
-                    sig[i-startseg-readsegs[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1])
+                    sig[i-startseg-readsegs[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels)
 
             else: # Return single stacked np array of all (selected) channels 
                 indend=indstart+readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0] # end index of the large array for this segment
-                
                 if (segrecordname=='~')|(not segchannels) : # Empty segment or no wanted channels: fill in nans
                     sig[indstart:indend, :] = np.nan
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment"
                 else: # Non-empty segment - Get samples
                     if startseg==1: # Variable layout format. Load data then rearrange channels. 
+                        
+                        # CAN WE COMBINE THE FOLLOWING INTO ONE LOAD AND DIRECT INDEX???? 
+                        
                         segmentsig, segmentfields[i-startseg-readsegs[0]]= rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1])
                         
-                        for ch in range(0, layoutfields["nsig"]): # Fill each channel with signal or nan
+                        for ch in range(0, len(channels)): # Fill each channel with signal or nan
                             
                             # The segment contains the channel
                             if layoutfields["signame"][ch] in segmentfields[i-startseg-readsegs[0]]["signame"]:
@@ -192,7 +194,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                                 sig[indstart:indend, ch] = np.nan
                                 
                     else: # Fixed layout - channels already arranged                 
-                        sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1]) 
+                        sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) 
 
                 indstart=indend # Update the start index for filling in the next part of the array
 
