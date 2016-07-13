@@ -22,8 +22,8 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 if channels!=list(range(0, fields["nsig"])): # If input channels are not equal to the full set of ordered channels, remove the non-included ones and reorganize the remaining ones that require it. 
                     sig=sig[:, channels]
                  
-                    # Also rearrange the fields that correspond to channels
-                    arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame", ]
+                    # Rearrange the fields that correspond to channels
+                    arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
                     for fielditem in arrangefields:
                         fields[fielditem]=[fields[fielditem][ch] for ch in channels]
                     fields["nsig"]=len(channels) # Number of signals. 
@@ -42,49 +42,64 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
         else: # Multiple dat files in the segment. Read different dats and merge them channel wise. 
             
             if not channels: # Default all channels 
-                
                 channels=list(range(0, fields["nsig"]))
                 
-            
+            # Get info to arrange channels correctly 
             filenames=[] # The unique dat files to open,
-            filechannels={} # The overall channels they correspond to
-            datchannels={} # 
-  
-            for ch in channels:
-                chanfile=fields["filename"][ch]
-                if chanfile not in filenames: # Hasn't been stored yet
-                    filenames.append(chanfile)
-                    filechannels[chanfile]=[ch]
-                else: 
-                    filechannels[chanfile].append(ch)
-            
-            # Allocate array for all channels
+            filechannels={} # All the channels that each dat file contains
+            filechannelsout={} # The channels for each dat file to be returned and the corresponding target output channels
+            for ch in list(range(0, fields["nsig"])):
+                sigfile=fields["filename"][ch]
+                # Correspond every channel to a dat file
+                if sigfile not in filechannels:
+                    filechannels[sigfile]=[ch] 
+                else:
+                    filechannels[sigfile].append(ch)
+                # Get only relevant files/channels to load
+                if ch in channels:
+                    if sigfile not in filenames: # Newly encountered dat file
+                        filenames.append(sigfile) 
+                        filechannelsout[sigfile]=[[filechannels[sigfile].index(ch), channels.index(ch)]]
+                    else:
+                        filechannelsout[sigfile].append([filechannels[sigfile].index(ch), channels.index(ch)])
+              
+            # Allocate final output array
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat. 
                 # Bytes required to hold each sample (including wasted space)
                 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
-                                '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
-                              
+                                '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}       
                 filesize=os.path.getsize(dirname+filenames[0]) 
                 fields["nsamp"]=filesize/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! 
-                              
-                #fields["nsamp"]=filesize/channelsperfile[fields["filename"][0]]/bytespersample[fields["fmt"][0]] # CONSIDER BYTE OFFSET! 
-            if not sampto: #if sampto field is empty 
+            if not sampto: # if sampto field is empty 
                 sampto=fields["nsamp"]
             sig=np.empty([sampto-sampfrom, len(channels)]) 
+                        
+            # Rearrange the fields 
+            arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
+            for fielditem in arrangefields:
+                fields[fielditem]=[fields[fielditem][ch] for ch in channels]
+            fields["nsig"]=len(channels) # Number of signals. 
             
-            # Read signal files one at a time and store the relevant channels 
-            #fillchannels=0
+            
+            print("filenames: " , filenames)
+            print("filechannels: ", filechannels)
+            print("filechannelsout: ", filechannelsout)
+            print("\n\n\n")
+            print("sampfrom: ", sampfrom)
+            print("sampto: ", sampto)
+            print("\n\n\n")
+            
+            # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
-                
                 # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
+                print("sigfile: ", sigfile)
+                print("filechannelsout[sigfile]: ", filechannelsout[sigfile])
+                print("outchannels: " ,[outchan[1] for outchan in filechannelsout[sigfile]])
+                print("[datchan[0] for datchan in filechannelsout[sigfile]]: ", [datchan[0] for datchan in filechannelsout[sigfile]])
                 
-                #sig[:,fillchannels:fillchannels+channelsperfile[sigfiles]]   =   readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"]) # Fix the byte offset
-                # figure out the relevant dat channels RETURNED. 
+                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset
                 
-                sig[:, filechannels[sigfile]]=readdat(dirname+sigfiles, fields["fmt"][fillchannels], fields["byteoffset"][fillchannels], sampfrom, sampto, channelsperfile[sigfiles], fields["nsamp"])[] # Fix the byte offset
-                
-            
-                                                      
+                    
             if (physical==1):
                 # Insert nans/invalid samples. 
                 # Values that correspond to NAN (Format 8 has no NANs)
