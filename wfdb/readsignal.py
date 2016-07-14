@@ -22,7 +22,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 if channels!=list(range(0, fields["nsig"])): # If input channels are not equal to the full set of ordered channels, remove the non-included ones and reorganize the remaining ones that require it. 
                     sig=sig[:, channels]
                  
-                    # Rearrange the fields that correspond to channels
+                    # Rearrange the channel dependent fields
                     arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
                     for fielditem in arrangefields:
                         fields[fielditem]=[fields[fielditem][ch] for ch in channels]
@@ -83,7 +83,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
                 # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
-                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset
+                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
                 
             if (physical==1):
                 # Insert nans/invalid samples. 
@@ -96,7 +96,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 sig=np.subtract(sig, np.array([float(b) for b in fields["baseline"]]))
                 sig=np.divide(sig, np.array([fields["gain"]]))
                 
-    else: # Multi-segment file
+    else: # Multi-segment file. Preprocess and recursively call rdsamp on single segments. 
         
         # Determine if this record is fixed or variable layout. startseg is the first signal segment.  
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
@@ -142,7 +142,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             else: # Have to figure out length by adding up all segment lengths
                 nsamp=sum(fields["nsampseg"][startseg:])
             nsamp=nsamp-sampfrom
-            sig=np.empty((nsamp, len(channels)))
+            if physical==0:
+                sig=np.empty((nsamp, len(channels)), dtype='int')
+            else:
+                sig=np.empty((nsamp, len(channels)), dtype='float')
+            
             indstart=0 # The overall signal index of the start of the current segment for filling in the large np array
         else: # Output a list of numpy arrays
             sig=[None]*len(readsegs)  # Empty list for storing segment signals. 
@@ -159,10 +163,15 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             else: # Variable layout signal. Work out which channels from the segment to load if any. 
                 sfields=readheader(segrecordname)
                 wantsignals=[layoutfields["signames"][c] for c in channels] # Signal names of wanted channels
-                segchannels=[]
+                segchannels=[] # The channels wanted that are contained in the segment
+                returninds=[] # 1 and 0 marking channels of the numpy array to be filled by the returned segment channels 
                 for ws in wantsignals:
                     if ws in sfields["signames"]:
-                        segchannels.append(sfields["signames"].index(ws)) # The channels wanted from the segment 
+                        segchannels.append(sfields["signames"].index(ws))
+                        returninds.append(1)
+                    else:
+                        returninds.append(0)
+                returninds=np.array(returninds)
 
             if stacksegments==0: # Return list of np arrays
                 if (segrecordname=='~')|(not segchannels): # Empty segment or wrong channels. Store indicator and segment length. 
@@ -175,32 +184,51 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             else: # Return single stacked np array of all (selected) channels 
                 indend=indstart+readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0] # end index of the large array for this segment
                 if (segrecordname=='~')|(not segchannels) : # Empty segment or no wanted channels: fill in nans
-                    sig[indstart:indend, :] = np.nan
+
+                    sig[indstart:indend, :] = np.nan # If physical==0, else... 
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment"
                 else: # Non-empty segment - Get samples
                     if startseg==1: # Variable layout format. Load data then rearrange channels. 
                         
-                        # CAN WE COMBINE THE FOLLOWING INTO ONE LOAD AND DIRECT INDEX???? 
                         
-                        segmentsig, segmentfields[i-startseg-readsegs[0]]= rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1])
+                        sig[indstart:indend, np.where(returninds==1)[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) # Load all the wanted channels that the segment contains
                         
-                        for ch in range(0, len(channels)): # Fill each channel with signal or nan
+                        sig[indstart:indend, np.where(returninds==0)[0]]=np.nan # Fill the rest with nan. if physical==1, else.... 
+                        
+                        # At this point, the fields returned are only of the returned signals from the segment. Need to put ~ placeholders between them. 
+                        
+                        # Rearrange the channel dependent fields to match the overall layout. 
+                        arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
+                        for fielditem in arrangefields:
+
+                            #segmentfields[i-startseg-readsegs[0]][fielditem]=[segmentfields[i-startseg-readsegs[0]][fielditem][ch] for ch in channels]
                             
+                            
+                        # Or should we keep nsig equal to the actual number of returned signals? 
+                        # Decisions decisions.... 
+                        #segmentfields[i-startseg-readsegs[0]][fielditem]["nsig"]=len(channels) # Number of signals. 
+                        
+                        
+                        # CAN WE COMBINE THE FOLLOWING INTO ONE LOAD AND DIRECT INDEX???? 
+                        #segmentsig, segmentfields[i-startseg-readsegs[0]]= rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1])
+                        
+                        #for ch in range(0, len(channels)): # Fill each channel with signal or nan
                             # The segment contains the channel
-                            if layoutfields["signame"][ch] in segmentfields[i-startseg-readsegs[0]]["signame"]:
-                                sig[indstart:indend, ch] = segmentsig[:, segmentfields[i-startseg-readsegs[0]]["signame"].index(layoutfields["signame"][ch])]  
+                            #if layoutfields["signame"][ch] in segmentfields[i-startseg-readsegs[0]]["signame"]:
+                                #sig[indstart:indend, ch] = segmentsig[:, segmentfields[i-startseg-readsegs[0]]["signame"].index(layoutfields["signame"][ch])]  
+                            #else: # The segment doesn't contain the channel. Fill in nans
+                                #sig[indstart:indend, ch] = np.nan # if physical==0, else..... 
                                 
-                            else: # The segment doesn't contain the channel. Fill in nans
-                                sig[indstart:indend, ch] = np.nan
+                                
                                 
                     else: # Fixed layout - channels already arranged                 
                         sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) 
 
                 indstart=indend # Update the start index for filling in the next part of the array
 
-        # Done reading individual segments
+        # Done reading all segments
              
-        # Return a list of fields. The first element is the master, second is layout if any, last is a list of all the segment fields. 
+        # Return a list of fields. First element is the master, next is layout if any, last is a list of all the segment fields. 
         if startseg==1: # Variable layout format
             fields=[fields,layoutfields, segmentfields]
         else: # Fixed layout format. 
