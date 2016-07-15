@@ -15,6 +15,7 @@
 <strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
 
 ```
+import numpy as np
 from WFDB import readsignal
 sig, fields = readsignal.rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
 ```
