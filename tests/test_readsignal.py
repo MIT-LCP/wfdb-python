@@ -12,21 +12,21 @@ class test_read_format_16():
 
     def test_channel1(self):
         # load the expected results
-        channel1 = np.genfromtxt('tests/testdata/test01_00s_channel1.csv', delimiter=',')
+        channel1 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel1.csv', delimiter=',')
         assert np.array_equal(self.sig[:,0],channel1)
 
     def test_channel2(self):
         # load the expected results
-        channel2 = np.genfromtxt('tests/testdata/test01_00s_channel2.csv', delimiter=',')
+        channel2 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel2.csv', delimiter=',')
         assert np.array_equal(self.sig[:,1],channel2)
 
     def test_channel3(self):
         # load the expected results
-        channel3 = np.genfromtxt('tests/testdata/test01_00s_channel3.csv', delimiter=',')
+        channel3 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel3.csv', delimiter=',')
         assert np.array_equal(self.sig[:,2],channel3)
     
     def test_channel4(self):
         # load the expected results
-        channel4 = np.genfromtxt('tests/testdata/test01_00s_channel4.csv', delimiter=',')
+        channel4 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel4.csv', delimiter=',')
         assert np.array_equal(self.sig[:,3],channel4)
 
