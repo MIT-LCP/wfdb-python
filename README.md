@@ -6,7 +6,7 @@
 <p>Native python scripts for reading and writing WFDB signals and annotations. Currently in development. Library files are in the <strong>WFDB</strong> directory.</p> 
 
 <ul>
-	<li>July 15 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta testing.</li>
+	<li>15 July 2016 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta testing.</li>
 </ul>
 
 
