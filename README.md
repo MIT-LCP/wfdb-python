@@ -42,6 +42,28 @@ Output Arguments:
 </ul>
 
 
+<strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
+
+```
+import numpy as np
+from WFDB import readsignal
+from WFDB import plotwfdb
+sig, fields = readsignal.rdsamp(recordname)
+plotwfdb.plotsigs(sig, fields, title, plottime)
+ 
+```
+
+Input Arguments: 
+<ul>
+	<li>sig - </li>
+	<li>fields - </li>
+	<li>title - </li>
+	<li>plottime - </li>
+</ul>
+
+
+
+
 ## Based on the original WFDB software package specifications
 
 [WFDB Software Package](http://physionet.org/physiotools/wfdb.shtml) 
