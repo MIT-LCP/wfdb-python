@@ -430,7 +430,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
     
     # Reading the dat file into np array and reshaping. 
     if fmt=='212': # 212, 310, and 311 need special loading and processing. 
-        nbytesload=math.ceil((sampto-sampfrom)*nsig*1.5) # Loaded bytes
+        nbytesload=int(math.ceil((sampto-sampfrom)*nsig*1.5)) # Loaded bytes
         nbytesstack=int(nbytesload/3)*3 # Most samples come in 3 byte (24 bit) blocks. Possibly remainder 
         sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload) 
         s1=sig[0:nbytesstack:3]+256*np.bitwise_and(sig[1:nbytesstack:3], 0x0f)
