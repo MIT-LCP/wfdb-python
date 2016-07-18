@@ -30,3 +30,13 @@ class test_read_format_16():
         channel4 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel4.csv', delimiter=',')
         assert np.array_equal(self.sig[:,3],channel4)
 
+# Test 1 - Format 212/Entire signal/Physical 
+# Target file created with: rdsamp -r sampledata/100 -P | cut -f 2- > target1        
+class test1():
+    
+    def setUp(self):
+        sig, fields = readsignal.rdsamp('sampledata/100')
+        
+    def runtest(self):
+        targetsig=np.genfromtxt('tests/targetoutputdata/target3')
+        assert np.array_equal(sig, targetsig)
