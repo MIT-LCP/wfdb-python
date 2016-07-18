@@ -1,35 +1,5 @@
 import numpy as np
 from wfdb import readsignal
-
-# NB: write np.array to CSV with:
-# sig[:,1].tofile('test01_00s_channel1.csv',sep=',',format='%s')
-
-#class test_read_format_16(): 
-
-    #def setUp(self):
-        # load the sample binary file
-        #self.sig, self.fields = readsignal.rdsamp('sampledata/test01_00s', physical=0) 
-
-    #def test_channel1(self):
-        # load the expected results
-        #channel1 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel1.csv', delimiter=',')
-        #assert np.array_equal(self.sig[:,0],channel1)
-
-    #def test_channel2(self):
-        # load the expected results
-        #channel2 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel2.csv', delimiter=',')
-        #assert np.array_equal(self.sig[:,1],channel2)
-
-    #def test_channel3(self):
-        # load the expected results
-        #channel3 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel3.csv', delimiter=',')
-        #assert np.array_equal(self.sig[:,2],channel3)
-    
-    #def test_channel4(self):
-        # load the expected results
-        #channel4 = np.genfromtxt('tests/targetoutputdata/test01_00s_channel4.csv', delimiter=',')
-        #assert np.array_equal(self.sig[:,3],channel4)
-
         
 class test_rdsamp():
         
@@ -45,6 +15,10 @@ class test_rdsamp():
     def test_2(self):
         sig2, fields2=readsignal.rdsamp('sampledata/100', sampfrom=360, sampto=10800, channels=[1], physical=0) 
         targetsig2=np.genfromtxt('tests/targetoutputdata/target2')
+        print(sig2.shape)
+        print(type(sig2))
+        print(targetsig2.shape)
+        print(type(targetsig2))
         assert np.array_equal(sig2, targetsig2)
     
     # Test 3 - Format 16/Entire signal/Digital
@@ -73,6 +47,7 @@ class test_rdsamp():
     def test_6(self):
         sig6, fields6=readsignal.rdsamp('sampledata/3000003_0003', sampfrom=125, sampto=1000, channels=[1])
         targetsig6=np.genfromtxt('tests/targetoutputdata/target6')
+        targetsig6=targetsig6.reshape(len(targetsig6), 1)
         assert np.array_equal(sig6, targetsig6) 
     
     # Test 7 - Multi-dat/Entire signal/Digital
