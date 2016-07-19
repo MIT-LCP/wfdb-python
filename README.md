@@ -42,7 +42,7 @@ Output Arguments:
 </ul>
 
 
-<strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
+<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. 
 
 ```
 import numpy as np
@@ -55,10 +55,10 @@ plotwfdb.plotsigs(sig, fields, title, plottime)
 
 Input Arguments: 
 <ul>
-	<li>sig - </li>
-	<li>fields - </li>
-	<li>title - </li>
-	<li>plottime - </li>
+	<li>sig (mandatory)- An nxm numpy array where n is the number of samples and m is the number of channels. Standard first output of the <code>rdsamp</code> function.</li>
+	<li>fields - A dictionary of . Standard second output of the <code>rdsamp</code> function.</li>
+	<li>title (default none)- A string containing the title of the graph.</li>
+	<li>plottime (default 1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
 </ul>
 
 
