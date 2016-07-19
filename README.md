@@ -2,8 +2,12 @@
 
 [![Build Status](https://travis-ci.org/MIT-LCP/wfdb-python.svg?branch=master)](https://travis-ci.org/MIT-LCP/wfdb-python)
 
+<p align="center" >
+  <img src="https://raw.githubusercontent.com/MIT-LCP/wfdb-python/master/demoimg1.png" alt="wfdbsignals" title="wfdbsignals"/>
+</p>
+
 ## Introduction
-<p>Native python scripts for reading and writing WFDB signals and annotations. Currently in development. Library files are in the <strong>WFDB</strong> directory.</p> 
+<p>Native python scripts for reading and writing WFDB signals and annotations. Currently in development. Library files are in the <strong>wfdb</strong> directory.</p> 
 
 <ul>
 	<li>15 July 2016 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta testing.</li>
