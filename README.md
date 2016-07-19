@@ -56,9 +56,9 @@ plotwfdb.plotsigs(sig, fields, title, plottime)
 Input Arguments: 
 <ul>
 	<li>sig (mandatory)- An nxm numpy array where n is the number of samples and m is the number of channels. Standard first output of the <code>rdsamp</code> function.</li>
-	<li>fields - A dictionary of . Standard second output of the <code>rdsamp</code> function.</li>
-	<li>title (default none)- A string containing the title of the graph.</li>
-	<li>plottime (default 1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
+	<li>fields (mandatory) - A dictionary of metadata about the signal. Standard second output of the <code>rdsamp</code> function.</li>
+	<li>title (optional)- A string containing the title of the graph.</li>
+	<li>plottime (default=1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
 </ul>
 
 
