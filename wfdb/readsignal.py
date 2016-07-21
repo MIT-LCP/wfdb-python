@@ -1,7 +1,7 @@
 ### Written by - Chen Xie 2016 ### 
 
 
-# rdsamp - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
+# rdsamp - Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary. 
 
 ## Usage: 
 # sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
