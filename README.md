@@ -20,7 +20,7 @@
 
 ```
 import numpy as np
-from WFDB import readsignal
+from wfdb import readsignal
 sig, fields = readsignal.rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
 ```
 
