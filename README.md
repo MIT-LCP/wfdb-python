@@ -50,8 +50,8 @@ Output Arguments:
 
 ```
 import numpy as np
-from WFDB import readsignal
-from WFDB import plotwfdb
+from wfdb import readsignal
+from wfdb import plotwfdb
 sig, fields = readsignal.rdsamp(recordname)
 plotwfdb.plotsigs(sig, fields, title, plottime)
  
