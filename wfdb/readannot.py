@@ -72,18 +72,7 @@ anncodes = { # Annotation codes for 'anntype' field as specified in ecgcodes.h f
     f=open(recordname+'.'+annot, 'rb')
     filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # The second (large) byte's 6 msbits in the byte pairs store the data type info and the first byte stores the actual info. 
     
-    # Allocate for the max possible number of annotations contained in the file. 
-    annsamp=np.empty([filebytes.shape[0],1])
-    anntype=np.empty([filebytes.shape[0],1])
-    num=np.empty([filebytes.shape[0],1])
-    subtype=np.empty([filebytes.shape[0],1])
-    chan=np.empty([filebytes.shape[0],1])
-    aux=[None]*filebytes.shape[0]
-    
-    annfs=[]
-    
-    ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
-    bpi=0 # Byte pair index, for searching through bytes of the annotation file. 
+   
     
     # Check if the beginning of the annotation file to see if it is storing the 'time resolution' field. 
     if (filebytes[0,1] >> 2 == 22) & ((filebytes[0,0]+(filebytes[0,1] & 3) )==0 ): # The first annotation is note and first annotation sample is 0 
@@ -93,26 +82,47 @@ anncodes = { # Annotation codes for 'anntype' field as specified in ecgcodes.h f
         if filebytes[1,2] >> 2 == 63: # The next byte pair stores an aux
             auxlen=filebytes[1,1] # length of aux string
             if auxlen>19:  
-                aux=filebytes[2:2+math.ceil(auxlen/2), :].flatten() # The aux bytes
+                auxbytes=filebytes[2:2+math.ceil(auxlen/2), :].flatten() # The aux bytes
                 aux="".join([chr(char) for char in aux]) # The aux string
                 
                 if '## time resolution: '==aux[0:20]: # The annotation file is storing 'time resolution' info. 
                     annfs=int(aux[20:])
                     bpi=4+auxlen
     
+    
+     # Allocate for the max possible number of annotations contained in the file. 
+    annsamp=np.empty([filebytes.shape[0],1])
+    anntype=np.empty([filebytes.shape[0],1])
+    num=np.empty([filebytes.shape[0],1])
+    subtype=np.empty([filebytes.shape[0],1])
+    chan=np.empty([filebytes.shape[0],1])
+    aux=[None]*filebytes.shape[0] 
+    
+    annfs=[]
+    
+    ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
+    bpi=0 # Byte pair index, for searching through bytes of the annotation file. 
+    
+    
+    ts=0 # Total number of samples of current annotation from beginning of record
+    
     # Go through the annotation bytes and process the byte/byte pairs. 
-    while bpi<filebytes.shape[0]:
+    while bpi<filebytes.shape[0]-1: # The last byte pair is 0 indicating eof. 
         
-        AS=filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3) # annsamp
         AT=filebytes[bpi,1] >> 2 # anntype
-        annsamp[ai]=annsamp[ai-1]+ filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
-        anntype[ai]=AT 
+        anntype[ai]=AT # First pair of the annotation is guaranteed to contain anntype. 
+        
+        ts=ts+filebytes[bpi, 0]+256*(filebytes[bpi,1] & 3) # total samples = previous + delta samples stored in current byte pair
+        annsamp[ai]=ts 
+         
         bpi=bpi+1
+        AT=filebytes[bpi, 1] >> 2 # Move onto the next byte pair to see if they hold info for the current annotation. 
         
         while (AT >= 59): # This annotation contains more fields (other than 0) 
-            if at==59: # SKIP - Look at the next byte pair for the annotation sample.  
-                
-                bpi=bpi+2
+            if AT==59: # SKIP - Look at the next byte pair for the annotation sample.  
+                ts=ts+65536*filebytes[bpi+1,0]+16777216*filebytes[bpi+1,1]+filebytes[bpi+2,0]+256*filebytes[bpi+2,1]
+                annsamp[ai]=ts
+                bpi=bpi+3
             elif AT==60: # NUM
                 num[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
                 bpi=bpi+1
@@ -124,13 +134,17 @@ anncodes = { # Annotation codes for 'anntype' field as specified in ecgcodes.h f
                 bpi=bpi+1
             elif AT==63: # AUX
                 auxlen=filebytes[1,1] # length of aux string
+                auxbytes=filebytes[2:2+math.ceil(auxlen/2), :].flatten() # The aux bytes
+                aux[ai]="".join([chr(char) for char in aux]) # The aux string
+                
             AT=filebytes[bpi,1] >> 2
         
         # No more fields for this annotation. Move on to next. 
-        annsamp[ai]=AS
-        anntype[ai]=AT
         ai=ai+1
         
+    for item in [annsamp, anntype, num, subtype, chan, aux]: # Discard the empty parts of the arrays/lists. 
+        item=item[0:ai]
+    
     # Return the annotation strings. 
     if returncodes==1:
         anntype=[anncodes[code] for code in anntype]
