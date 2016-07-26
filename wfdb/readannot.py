@@ -7,8 +7,8 @@
 
 
 
-def lprint(varname): # varname is the string of the variable name
-    print(varname,': ', locals[varname])
+#def lprint(varname): # varname is the string of the variable name
+    #print(varname,': ', locals[varname])
     
 
 
@@ -22,48 +22,48 @@ def rdann(recordname, annot, returncodes=1):
     
     
     anncodes = { # Annotation codes for 'anntype' field as specified in ecgcodes.h from wfdb software library 10.5.24
-        0 : 'NOTQRS', # not-QRS (not a getann/putann codedict) */
-        1 : 'NORMAL', # normal beat */
-        2 : 'LBBB', # left bundle branch block beat */
-        3 : 'RBBB', # right bundle branch block beat */
-        4 : 'ABERR', # aberrated atrial premature beat */
-        5 : 'PVC', # premature ventricular contraction */
-        6 : 'FUSION', # fusion of ventricular and normal beat */
-        7 : 'NPC', # nodal (junctional) premature beat */
-        8 : 'APC', # atrial premature contraction */
-        9 : 'SVPB', # premature or ectopic supraventricular beat */
-        10 : 'VESC', # ventricular escape beat */
-        11 : 'NESC', # nodal (junctional) escape beat */
-        12 : 'PACE', # paced beat */
-        13 : 'UNKNOWN', # unclassifiable beat */
-        14 : 'NOISE', # signal quality change */
-        16 : 'ARFCT', # isolated QRS-like artifact */
-        18 : 'STCH', # ST change */
-        19 : 'TCH', # T-wave change */
-        20 : 'SYSTOLE', # systole */
-        21 : 'DIASTOLE', # diastole */
-        22 : 'NOTE', # comment annotation */
-        23 : 'MEASURE', # measurement annotation */
-        24 : 'PWAVE', # P-wave peak */
-        25 : 'BBB', # left or right bundle branch block */
-        26 : 'PACESP', # non-conducted pacer spike */
-        27 : 'TWAVE', # T-wave peak */
-        28 : 'RHYTHM', # rhythm change */
-        29 : 'UWAVE', # U-wave peak */
-        30 : 'LEARN', # learning */
-        31 : 'FLWAV', # ventricular flutter wave */
-        32 : 'VFON', # start of ventricular flutter/fibrillation */
-        33 : 'VFOFF', # end of ventricular flutter/fibrillation */
-        34 : 'AESC', # atrial escape beat */
-        35 : 'SVESC', # supraventricular escape beat */
-        36 : 'LINK', # link to external data (aux contains URL) */
-        37 : 'NAPC', # non-conducted P-wave (blocked APB) */
-        38 : 'PFUS', # fusion of paced and normal beat */
-        39 : 'WFON', # waveform onset */
-        #39 : 'PQ', # PQ junction (beginning of QRS) */
-        40 : 'WFOFF', # waveform end */
-        #40 : 'JPT', # J point (end of QRS) */
-        41 : 'RONT' # R-on-T premature ventricular contraction */
+        0: 'NOTQRS', # not-QRS (not a getann/putann codedict) */
+        1: 'NORMAL', # normal beat */
+        2: 'LBBB', # left bundle branch block beat */
+        3: 'RBBB', # right bundle branch block beat */
+        4: 'ABERR', # aberrated atrial premature beat */
+        5: 'PVC', # premature ventricular contraction */
+        6: 'FUSION', # fusion of ventricular and normal beat */
+        7: 'NPC', # nodal (junctional) premature beat */
+        8: 'APC', # atrial premature contraction */
+        9: 'SVPB', # premature or ectopic supraventricular beat */
+        10: 'VESC', # ventricular escape beat */
+        11: 'NESC', # nodal (junctional) escape beat */
+        12: 'PACE', # paced beat */
+        13: 'UNKNOWN', # unclassifiable beat */
+        14: 'NOISE', # signal quality change */
+        16: 'ARFCT', # isolated QRS-like artifact */
+        18: 'STCH', # ST change */
+        19: 'TCH', # T-wave change */
+        20: 'SYSTOLE', # systole */
+        21: 'DIASTOLE', # diastole */
+        22: 'NOTE', # comment annotation */
+        23: 'MEASURE', # measurement annotation */
+        24: 'PWAVE', # P-wave peak */
+        25: 'BBB', # left or right bundle branch block */
+        26: 'PACESP', # non-conducted pacer spike */
+        27: 'TWAVE', # T-wave peak */
+        28: 'RHYTHM', # rhythm change */
+        29: 'UWAVE', # U-wave peak */
+        30: 'LEARN', # learning */
+        31: 'FLWAV', # ventricular flutter wave */
+        32: 'VFON', # start of ventricular flutter/fibrillation */
+        33: 'VFOFF', # end of ventricular flutter/fibrillation */
+        34: 'AESC', # atrial escape beat */
+        35: 'SVESC', # supraventricular escape beat */
+        36: 'LINK', # link to external data (aux contains URL) */
+        37: 'NAPC', # non-conducted P-wave (blocked APB) */
+        38: 'PFUS', # fusion of paced and normal beat */
+        39: 'WFON', # waveform onset */
+        #39: 'PQ', # PQ junction (beginning of QRS) */
+        40: 'WFOFF', # waveform end */
+        #40: 'JPT', # J point (end of QRS) */
+        41: 'RONT' # R-on-T premature ventricular contraction */
         }
     
     
@@ -77,13 +77,12 @@ def rdann(recordname, annot, returncodes=1):
     
     f=open(recordname+'.'+annot, 'rb')
     filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # The second (large) byte's 6 msbits in the byte pairs store the data type info and the first byte stores the actual info. 
-    
     # Allocate for the max possible number of annotations contained in the file. 
-    annsamp=np.empty([filebytes.shape[0],1])
-    anntype=np.empty([filebytes.shape[0],1])
-    num=np.empty([filebytes.shape[0],1])
-    subtype=np.empty([filebytes.shape[0],1])
-    chan=np.empty([filebytes.shape[0],1])
+    annsamp=np.empty(filebytes.shape[0])
+    anntype=np.empty(filebytes.shape[0])
+    num=np.empty(filebytes.shape[0])
+    subtype=np.empty(filebytes.shape[0])
+    chan=np.empty(filebytes.shape[0])
     aux=[None]*filebytes.shape[0] 
     
     annfs=[] # Stores the fs written in the annotation file if it exists. 
@@ -111,27 +110,44 @@ def rdann(recordname, annot, returncodes=1):
             
     ts=0 # Total number of samples of current annotation from beginning of record. Annotation bytes only store dt. 
     
-    print("\n\nfilebytes: ", filebytes, "\n\n")
     
-    # Go through the annotation bytes and process the byte/byte pairs. 
+    print("\n\nfilebytes: ", filebytes, "\n\n")
+    print("\n\nfilebytes.shape:", filebytes.shape)
+    print("bpi start: ", bpi)
+    print("filebytes[bpi,0]: ", filebytes[bpi,0])
+    print("filebytes[bpi,1]: ", filebytes[bpi,1])
+    
+    # New loop for processing annotations. Sequence for one ann is: SKIP pair (if any) -> samp + anntype pair -> other pairs 
+    
     while bpi<filebytes.shape[0]-1: # The last byte pair is 0 indicating eof. 
         
+        print("ai: ", ai)
         AT=filebytes[bpi,1] >> 2 # anntype
-        anntype[ai]=AT # First pair of the annotation is guaranteed to contain anntype. 
+        print("AT: ", AT)
+        # The first byte pair will either store the actual samples + anntype, or 0 + SKIP.
         
-        ts=ts+filebytes[bpi, 0]+256*(filebytes[bpi,1] & 3) # total samples = previous + delta samples stored in current byte pair
-        annsamp[ai]=ts 
-         
-        bpi=bpi+1 # is this at the wrong place? 
-        AT=filebytes[bpi, 1] >> 2 # Move onto the next byte pair to see if they hold info for the current annotation. 
-        
-        while (AT >= 59): # This annotation contains more fields (other than 0) 
-            if AT==59: # SKIP - Look at the next byte pair for the annotation sample.  
-                ts=ts+65536*filebytes[bpi+1,0]+16777216*filebytes[bpi+1,1]+filebytes[bpi+2,0]+256*filebytes[bpi+2,1]
-                annsamp[ai]=ts
-                bpi=bpi+3
-            elif AT==60: # NUM
+        if AT==59: # Skip. 
+            ts=ts+65536*filebytes[bpi+1,0]+16777216*filebytes[bpi+1,1]+filebytes[bpi+2,0]+256*filebytes[bpi+2,1] # 4 bytes storing dt
+            annsamp[ai]=ts
+            anntype[ai]=filebytes[bpi+3,1] >> 2 # The anntype is stored after the 4 bytes. Samples here should be 0.   
+            bpi=bpi+4
+            print("Assigned an annsamp (after skip): ", annsamp[ai])
+            print("bpi is now: ", bpi)
+        else: # Not a skip so it should be the actual samples + anntype. Should not need to check for alternatives. 
+            ts=ts+filebytes[bpi, 0]+256*(filebytes[bpi,1] & 3) # total samples = previous + delta samples stored in current byte pair
+            annsamp[ai]=ts 
+            anntype[ai]=AT
+            bpi=bpi+1
+            print("Assigned an annsamp: ", annsamp[ai])
+            print("bpi is now: ", bpi)
+            
+        AT=filebytes[bpi,1] >> 2     
+        while (AT > 59): # Process any other fields belonging to this annotation 
+            
+            # Must prevent this shit from reading past the end of the file. 
+            if AT==60: # NUM
                 num[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
+                
                 bpi=bpi+1
             elif AT==61: # SUB
                 subtype[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
@@ -140,53 +156,37 @@ def rdann(recordname, annot, returncodes=1):
                 chan[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
                 bpi=bpi+1
             elif AT==63: # AUX
-                auxlen=filebytes[1,1] # length of aux string
-                auxbytes=filebytes[2:2+math.ceil(auxlen/2), :].flatten() # The aux bytes
-                aux[ai]="".join([chr(char) for char in aux]) # The aux string
+                auxlen=filebytes[bpi,0] # length of aux string. Max 256? No need to check other bits of second byte? 
+                auxbytes=filebytes[bpi+1:bpi+1+math.ceil(auxlen/2), :].flatten() # The aux bytes
+                if auxlen&1:
+                    auxbytes=auxbytes[:-1]
+                aux[ai]="".join([chr(char) for char in auxbytes]) # The aux string
+                print("bpi just before adding after aux: ", bpi)
+                bpi=bpi+1+math.ceil(auxlen/2)
+                print("Assigned an aux: ", aux[ai])
+                print("bpi is now: ", bpi)
                 
+            print("bpi: ", bpi)
             AT=filebytes[bpi,1] >> 2
-        
-        # No more fields for this annotation. Move on to next. 
+            
+            
+        # Finished processing current annotation. Move onto next. 
         ai=ai+1
-        
-    lprint('ai')
+
+    annsamp=annsamp[0:ai].astype(int)
+    anntype=anntype[0:ai].astype(int)
+    num=num[0:ai].astype(int)
+    subtype=subtype[0:ai].astype(int)
+    chan=chan[0:ai].astype(int)
+    aux=aux[0:ai]
+
     
-    print("annsamp: ", annsamp)
-    print("anntype: ", anntype)
-    print("num: ", num)
-    print("subtype: ", subtype)
-    print("chan: ", chan)
-    print("aux: ", aux)
-    
-    
-    # Blanks are already put in! Yayyy
-    for item in [annsamp, anntype, num, subtype, chan, aux]: # Discard the empty parts of the arrays/lists. 
-        item=item[0:ai]
-    
-    
-    print("\n\nAfter:\n")
-    print("annsamp: ", annsamp)
-    print("anntype: ", anntype)
-    print("num: ", num)
-    print("subtype: ", subtype)
-    print("chan: ", chan)
-    print("aux: ", aux)
     
     # Return the annotation strings. 
-    
-    print(anntype)
-    print(type(anntype))
     if returncodes==1:
         anntype=[anncodes[code] for code in anntype]
             
-    
-    return (annsamp, anntype, num, subtyp, chan, aux, annfs)
-    
-    
-    
-    
-    
-    
+    return (annsamp, anntype, num, subtype, chan, aux, annfs)
     
     
     
