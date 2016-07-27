@@ -11,7 +11,7 @@ import os
 import math
 
 # Read a wfdb annotation file recordname.annot. returncodes==1 returns the annotation codes strings rather than numbers. 
-def rdann(recordname, annot, returncodes=1):
+def rdann(recordname, annot, anndisp=1):
 
     #fields=readheader(recordname) # Get the info from the header file
     dirname, baserecordname=os.path.split(recordname)
@@ -100,12 +100,71 @@ def rdann(recordname, annot, returncodes=1):
     chan=chan[0:ai].astype(int)
     aux=aux[0:ai]
 
-    # Return the annotation strings. 
-    if returncodes==1:
+    # Return the annotation types as symbols or strings
+    if anndisp==1:
+        anntype=[annsyms[code] for code in anntype]
+    elif anndisp==2:
         anntype=[anncodes[code] for code in anntype]
-            
+        
     return (annsamp, anntype, num, subtype, chan, aux, annfs)
     
+    
+    
+# Annotation print symbols for 'anntype' field as specified in annot.c from wfdb software library 10.5.24
+annsyms={
+    0: ' ', # not-QRS (not a getann/putann codedict) */
+    1: 'N', # normal beat */
+    2: 'L', # left bundle branch block beat */
+    3: 'R', # right bundle branch block beat */
+    4: 'a', # aberrated atrial premature beat */
+    5: 'V', # premature ventricular contraction */
+    6: 'F', # fusion of ventricular and normal beat */
+    7: 'J', # nodal (junctional) premature beat */
+    8: 'A', # atrial premature contraction */
+    9: 'S', # premature or ectopic supraventricular beat */
+    10: 'E', # ventricular escape beat */
+    11: 'j', # nodal (junctional) escape beat */
+    12: '/', # paced beat */
+    13: 'Q', # unclassifiable beat */
+    14: '~', # signal quality change */
+    15: '[15]',
+    16: '|', # isolated QRS-like artifact */
+    17: '[17]',
+    18: 's', # ST change */
+    19: 'T', # T-wave change */
+    20: '*', # systole */
+    21: 'D', # diastole */
+    22: '\\', # comment annotation */
+    23: '=', # measurement annotation */
+    24: 'p', # P-wave peak */
+    25: 'B', # left or right bundle branch block */
+    26: '^', # non-conducted pacer spike */
+    27: 't', # T-wave peak */
+    28: '+', # rhythm change */
+    29: 'u', # U-wave peak */
+    30: '?', # learning */
+    31: '!', # ventricular flutter wave */
+    32: '[', # start of ventricular flutter/fibrillation */
+    33: ']', # end of ventricular flutter/fibrillation */
+    34: 'e', # atrial escape beat */
+    35: 'n', # supraventricular escape beat */
+    36: '@', # link to external data (aux contains URL) */
+    37: 'x', # non-conducted P-wave (blocked APB) */
+    38: 'f', # fusion of paced and normal beat */
+    39: '(', # waveform onset */
+    #39: 'PQ', # PQ junction (beginning of QRS) */
+    40: ')', # waveform end */
+    #40: 'JPT', # J point (end of QRS) */
+    41: 'r', # R-on-T premature ventricular contraction */
+    42: '[42]',
+    43: '[43]',
+    44: '[44]',
+    45: '[45]',
+    46: '[46]',
+    47: '[47]',
+    48: '[48]',
+    49: '[49]',
+}
     
 # Annotation codes for 'anntype' field as specified in ecgcodes.h from wfdb software library 10.5.24
 anncodes = { 
@@ -152,23 +211,4 @@ anncodes = {
     #40: 'JPT', # J point (end of QRS) */
     41: 'RONT' # R-on-T premature ventricular contraction */
     }
-    
-# Annotation print symbols for 'anntype' field as specified in ecgmap.h from wfdb software library 10.5.24
-annsyms={
-    0:'O'
-    }
-
-
-#static char wfdb_mamp[] = {
-#	'O',	'N',	'N',	'N',	'N',		/* 0 - 4 */
-#	'V',	'F',	'N',	'N',	'N',		/* 5 - 9 */
-#	'E',	'N',	'P',	'Q',	'U',		/* 10 - 14 */
-#	'O',	'O',	'O',	'O',	'O',		/* 15 - 19 */
-#	'O',	'O',	'O',	'O',	'O',		/* 20 - 24 */
-#	'N',	'O',	'O',	'O',	'O',		/* 25 - 29 */
-#	'Q',	'O',	'[',	']',	'N',		/* 30 - 34 */
-#	'N',	'O',	'O',	'N',	'O',		/* 35 - 39 */
-#	'O',	'R',	'O',	'O',	'O',		/* 40 - 44 */
-#	'O',	'O',	'O',	'O',	'O'		/* 45 - 49 */
-#};
     
