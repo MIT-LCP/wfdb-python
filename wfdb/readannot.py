@@ -32,7 +32,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     
     if sampto:
         if sampto<sampfrom:
-            
             sys.exit("sampto must be greater than sampfrom")
     
     #fields=readheader(recordname) # Get the info from the header file
