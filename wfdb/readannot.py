@@ -20,7 +20,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     - anndisp (default = 1): The annotation display flag that controls the data type of the 'anntype' output parameter. 'anntype' will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code. 
     
     Output arguments: 
-    - annsamp: Annotation locations in samples relative to the beginning of the record.
+    - annsamp: The annotation location in samples relative to the beginning of the record.
     - anntype: The annotation type according the the standard WFDB keys.
     - num: The marked annotation number. This is not equal to the index of the current annotation.  
     - subtype: The marked class/category of the annotation. 
