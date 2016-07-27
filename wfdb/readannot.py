@@ -24,12 +24,13 @@ def rdann(recordname, annot, returncodes=1):
     f.close
     
     # Allocate for the maximum possible number of annotations contained in the file. 
-    annsamp=np.empty(filebytes.shape[0])
-    anntype=np.empty(filebytes.shape[0])
-    num=np.empty(filebytes.shape[0])
-    subtype=np.empty(filebytes.shape[0])
-    chan=np.empty(filebytes.shape[0])
+    annsamp=np.zeros(filebytes.shape[0])
+    anntype=np.zeros(filebytes.shape[0])
+    num=np.zeros(filebytes.shape[0])
+    subtype=np.zeros(filebytes.shape[0])
+    chan=np.zeros(filebytes.shape[0])
     aux=[None]*filebytes.shape[0] 
+    
     
     annfs=[] # Stores the fs written in the annotation file if it exists. 
     ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
@@ -65,7 +66,8 @@ def rdann(recordname, annot, returncodes=1):
             anntype[ai]=AT
             bpi=bpi+1
             
-        AT=filebytes[bpi,1] >> 2     
+            
+        AT=filebytes[bpi,1] >> 2  
         while (AT > 59): # Process any other fields belonging to this annotation 
             
             # Must prevent this shit from reading past the end of the file. 
@@ -76,7 +78,6 @@ def rdann(recordname, annot, returncodes=1):
                 subtype[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
                 bpi=bpi+1
             elif AT==62: # CHAN
-                print("we are in chan")
                 chan[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
                 bpi=bpi+1
             elif AT==63: # AUX
@@ -91,8 +92,7 @@ def rdann(recordname, annot, returncodes=1):
             
         # Finished processing current annotation. Move onto next. 
         ai=ai+1
-    print("chan before int conversion:", chan)
-    print("annsamp before conversion: ", annsamp)
+        
     annsamp=annsamp[0:ai].astype(int)
     anntype=anntype[0:ai].astype(int)
     num=num[0:ai].astype(int)
@@ -105,7 +105,6 @@ def rdann(recordname, annot, returncodes=1):
         anntype=[anncodes[code] for code in anntype]
             
     return (annsamp, anntype, num, subtype, chan, aux, annfs)
-    
     
     
 # Annotation codes for 'anntype' field as specified in ecgcodes.h from wfdb software library 10.5.24
@@ -157,7 +156,6 @@ anncodes = {
 # Annotation print symbols for 'anntype' field as specified in ecgmap.h from wfdb software library 10.5.24
 annsyms={
     0:'O'
-
     }
 
 
