@@ -10,9 +10,13 @@ import numpy as np
 import os
 import math
 
-# Read a wfdb annotation file recordname.annot. returncodes==1 returns the annotation codes strings rather than numbers. 
-def rdann(recordname, annot, anndisp=1):
+# Read a wfdb annotation file recordname.annot.
+def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
+    if sampto:
+        if sampto<sampfrom:
+            sys.exit("sampto must be greater than sampfrom")
+    
     #fields=readheader(recordname) # Get the info from the header file
     dirname, baserecordname=os.path.split(recordname)
     
@@ -65,12 +69,10 @@ def rdann(recordname, annot, anndisp=1):
             annsamp[ai]=ts 
             anntype[ai]=AT
             bpi=bpi+1
-            
-            
+                
         AT=filebytes[bpi,1] >> 2  
         while (AT > 59): # Process any other fields belonging to this annotation 
             
-            # Must prevent this shit from reading past the end of the file. 
             if AT==60: # NUM
                 num[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
                 bpi=bpi+1
@@ -92,19 +94,55 @@ def rdann(recordname, annot, anndisp=1):
             
         # Finished processing current annotation. Move onto next. 
         ai=ai+1
-        
+    
+    # Get rid of the unallocated parts of the arrays
     annsamp=annsamp[0:ai].astype(int)
     anntype=anntype[0:ai].astype(int)
     num=num[0:ai].astype(int)
     subtype=subtype[0:ai].astype(int)
     chan=chan[0:ai].astype(int)
     aux=aux[0:ai]
+    
+    # Keep the annotations in the specified range
+    returnempty=0
+    
+    afterfrom=np.where(annsamp>=sampfrom)[0]
+    if len(afterfrom)>0:  
+        ik0=afterfrom[0] # index keep start
+    else: # No annotations in specified range.
+        returnempty=1
 
-    # Return the annotation types as symbols or strings
-    if anndisp==1:
-        anntype=[annsyms[code] for code in anntype]
-    elif anndisp==2:
-        anntype=[anncodes[code] for code in anntype]
+    if not sampto:
+        sampto=annsamp[-1]
+    beforeto=np.where(annsamp<=sampto)[0]
+
+    if len(beforeto)>0:
+        ik1=beforeto[-1]
+    else: 
+        returnempty=1
+    
+    if returnempty:
+        annsamp=[]
+        anntype=[]
+        num=[]
+        subtype=[]
+        chan=[]
+        aux=[]
+        print("No annotations in specified sample range")
+    else:
+        annsamp=annsamp[ik0:ik1+1]
+        anntype=anntype[ik0:ik1+1]
+        num=num[ik0:ik1+1]
+        subtype=subtype[ik0:ik1+1]
+        chan=chan[ik0:ik1+1]
+        aux=aux[ik0:ik1+1]
+        
+        # Return the annotation types as symbols or strings depending on input parameter
+        if anndisp==1:
+            anntype=[annsyms[code] for code in anntype]
+        elif anndisp==2:
+            anntype=[anncodes[code] for code in anntype]
+        
         
     return (annsamp, anntype, num, subtype, chan, aux, annfs)
     
