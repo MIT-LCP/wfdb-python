@@ -1,20 +1,38 @@
 ## Written by: Chen Xie 2016 ##
-
-
-# rdann - Read a WFDB annotation file and return the annotation locations, annotation types, and additional fields. 
-
-# Usage: rdann(recordname, annot)
-
+### Please report bugs and suggestions to https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu ###
 
 import numpy as np
 import os
 import math
 
-# Read a wfdb annotation file recordname.annot.
-def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
+def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
+    
+    """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
+    
+    Usage: annsamp, anntype, num, subtype, chan, aux, annfs) = rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
+    
+    Input arguments: 
+    - recordname (required): The record name of the WFDB annotation file. ie. for file '100.atr', recordname='100'
+    - annot (required): The annotator extension of the annotation file. ie. for file '100.atr', annot='atr'
+    - sampfrom (default=0): The minimum sample number for annotations to be returned.
+    - sampto (default=the final annotation sample): The maximum sample number for annotations to be returned.
+    - anndisp (default = 1): The annotation display flag that controls the data type of the 'anntype' output parameter. 'anntype' will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code. 
+    
+    Output arguments: 
+    - annsamp: Annotation locations in samples relative to the beginning of the record.
+    - anntype: The annotation type according the the standard WFDB keys.
+    - num: The marked annotation number. This is not equal to the index of the current annotation.  
+    - subtype: The marked class/category of the annotation. 
+    - aux: The auxiliary information string for the annotation. 
+    - annfs: The sampling frequency written in the beginning of the annotation file if present. 
+    
+    *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present. 
+    """
+    
     if sampto:
         if sampto<sampfrom:
+            
             sys.exit("sampto must be greater than sampfrom")
     
     #fields=readheader(recordname) # Get the info from the header file
@@ -35,7 +53,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     chan=np.zeros(filebytes.shape[0])
     aux=[None]*filebytes.shape[0] 
     
-    
     annfs=[] # Stores the fs written in the annotation file if it exists. 
     ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
     bpi=0 # Byte pair index, for searching through bytes of the annotation file. 
@@ -51,7 +68,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
             bpi=0.5*(auxlen+12+(auxlen & 1)) # byte pair index to start reading actual annotations. 
    
     ts=0 # Total number of samples of current annotation from beginning of record. Annotation bytes only store dt. 
-    
     
     # Processing annotations. Sequence for one ann is: SKIP pair (if any) -> samp + anntype pair -> other pairs 
     while bpi<filebytes.shape[0]-1: # The last byte pair is 0 indicating eof. 

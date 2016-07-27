@@ -1,28 +1,5 @@
 ### Written by - Chen Xie 2016 ### 
-
-
-# rdsamp - Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary. 
-
-## Usage: 
-# sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
-
-#Input Arguments: 
-# recordname (mandatory) - The name of the WFDB record to be read (without any file extensions).
-# sampfrom (default=0) - The starting sample number to read for each channel.
-# sampto (default=length of entire signal)- The final sample number to read for each channel.
-# channels (default=all channels) - Indices specifying the channel to be returned.
-# physical (default=1) - Flag that specifies whether to return signals in physical (1) or digital (0) units.
-# stacksegments (default=1) - Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0). 
-
-
-# Output Arguments:
-# sig - An nxm numpy array where n is the signal length and m is the number of channels. If the input record is a multi-segment record, depending on the input stacksegments flag, sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy array for each segment (0). For empty segments, stacked format will contain Nan values, and non-stacked format will contain a single integer specifying the length of the empty segment.
-
-# fields - A dictionary of metadata about the record extracted or deduced from the header/signal file. If the input record is a multi-segment record, the output argument will be a list of dictionaries:
-#    -The first list element will be a dictionary of metadata about the master header.
-#    -If the record is in variable layout format, the next list element will be a dictionary of metadata about the layout specification header.
-#    -The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
-
+### Please report bugs and suggestions to https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu ###
 
 import numpy as np
 import re
@@ -37,7 +14,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
     
     Input arguments: 
-    - recordname (mandatory): The name of the WFDB record to be read (without any file extensions).
+    - recordname (required): The name of the WFDB record to be read (without any file extensions).
     - sampfrom (default=0): The starting sample number to read for each channel.
     - sampto (default=length of entire signal): The final sample number to read for each channel.
     - channels (default=all channels): Indices specifying the channel to be returned.
@@ -47,18 +24,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     
     
     Output variables:
-    - sig: An nxm numpy array where n is the signal length and m is the number of channels. If the input record is 
-           a multi-segment record, depending on the input stacksegments flag, sig will either be a single 
-           stacked/concatenated numpy array (1) or a list of one numpy array for each segment (0). For empty segments, 
-           stacked format will contain Nan values, and non-stacked format will contain a single integer specifying the 
-           length of the empty segment.
-    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. If the input 
-              record is a multi-segment record, the output argument will be a list of dictionaries:
+    - sig: An nxm numpy array where n is the signal length and m is the number of channels. If the input record is a multi-segment record, depending on the input stacksegments flag, sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy array for each segment (0). For empty segments, stacked format will contain Nan values, and non-stacked format will contain a single integer specifying the length of the empty segment.
+    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. If the input record is a multi-segment record, the output argument will be a list of dictionaries:
               : The first list element will be a dictionary of metadata about the master header.
-              : If the record is in variable layout format, the next list element will be a dictionary of metadata about 
-                the layout specification header.
-              : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, 
-                the dictionary will be replaced by a single string: 'Empty Segment'
+              : If the record is in variable layout format, the next list element will be a dictionary of metadata about the layout specification header.
+              : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
     fields=readheader(recordname) # Get the info from the header file
     if fields["nsig"]==0:

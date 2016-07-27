@@ -16,6 +16,8 @@
 
 ## Usage
 
+### Reading Signals
+
 <strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
 
 ```
@@ -64,6 +66,39 @@ Input Arguments:
 	<li>title (optional)- A string containing the title of the graph.</li>
 	<li>plottime (default=1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
 </ul>
+
+### Reading Annotation
+
+<strong>rdann</strong> - Read a WFDB annotation file <code>recordname.annot</code> and return the fields as lists or arrays.
+
+```
+import numpy as np
+from wfdb import readannot
+annsamp, anntype, num, subtype, chan, aux, annfs) = rdann(recordname, annot, sampfrom, sampto, anndisp)
+```
+
+Input Arguments: 
+<ul>
+<li><code>recordname</code> (required) - The record name of the WFDB annotation file. ie. for file <code>100.atr</code>, recordname='100'.</li>
+<li><code>annot</code> (required) - The annotator extension of the annotation file. ie. for file <code>100.atr</code>, annot='atr'.</li>
+<li><code>sampfrom</code> (default=0)- The minimum sample number for annotations to be returned.</li>
+<li><code>sampto</code> (default=the final annotation sample) - The maximum sample number for annotations to be returned.</li>
+<li><code>anndisp</code> (default=1) - The annotation display flag that controls the data type of the 'anntype' output parameter. <code>anntype</code> will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code.</li>
+</ul>
+
+Output arguments: 
+
+<ul>
+<li><code>annsamp</code> - Annotation locations in samples relative to the beginning of the record.</li>
+<li><code>anntype</code> - The annotation type according the the standard WFDB keys.</li>
+<li><code>num</code> - The marked annotation number. This is not equal to the index of the current annotation.</li>
+<li><code>subtype</code> - The marked class/category of the annotation.</li>
+<li><code>aux</code> - The auxiliary information string for the annotation.</li>
+<li><code>annfs</code> - The sampling frequency written in the beginning of the annotation file if present.</li>
+</ul>
+
+<strong>*NOTE</strong>: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present. 
+
 
 
 
