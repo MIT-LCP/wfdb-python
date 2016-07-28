@@ -43,7 +43,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     f=open(recordname+'.'+annot, 'rb')
     filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # Read the file's byte pairs.
-    f.close
+    f.close()
     
     # Allocate for the maximum possible number of annotations contained in the file. 
     annsamp=np.zeros(filebytes.shape[0])
@@ -69,12 +69,15 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
    
     ts=0 # Total number of samples of current annotation from beginning of record. Annotation bytes only store dt. 
     
+    
     # Processing annotations. Sequence for one ann is: SKIP pair (if any) -> samp + anntype pair -> other pairs 
     while bpi<filebytes.shape[0]-1: # The last byte pair is 0 indicating eof. 
         
-        AT=filebytes[bpi,1] >> 2 # anntype
         # The first byte pair will either store the actual samples + anntype, or 0 + SKIP.
+        AT=filebytes[bpi,1] >> 2 # anntype
         
+        cpychan=1 # flags that specify whether to copy the previous channel/num value for the current annotation. 
+        cpynum=1
         if AT==59: # Skip. 
             ts=ts+65536*filebytes[bpi+1,0]+16777216*filebytes[bpi+1,1]+filebytes[bpi+2,0]+256*filebytes[bpi+2,1] # 4 bytes storing dt
             annsamp[ai]=ts
@@ -88,15 +91,16 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
                 
         AT=filebytes[bpi,1] >> 2  
         while (AT > 59): # Process any other fields belonging to this annotation 
-            
-            if AT==60: # NUM
-                num[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
-                bpi=bpi+1
-            elif AT==61: # SUB
-                subtype[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
+            if AT==61: # SUB
+                subtype[ai]= filebytes[bpi, 0].astype('i1') # sub is interpreted as signed char. Remember to limit writing range.  
                 bpi=bpi+1
             elif AT==62: # CHAN
-                chan[ai]= filebytes[bpi, 0] + 256*(filebytes[bpi,1] & 3)
+                chan[ai]= filebytes[bpi, 0] # chan is interpreted as unsigned char 
+                cpychan=0
+                bpi=bpi+1
+            elif AT==60: # NUM
+                num[ai]= filebytes[bpi, 0].astype('i1') # num is interpreted as signed char 
+                cpynum=0
                 bpi=bpi+1
             elif AT==63: # AUX
                 auxlen=filebytes[bpi,0] # length of aux string. Max 256? No need to check other bits of second byte? 
@@ -105,8 +109,14 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
                     auxbytes=auxbytes[:-1]
                 aux[ai]="".join([chr(char) for char in auxbytes]) # The aux string
                 bpi=bpi+1+math.ceil(auxlen/2)
-                
+            # Only aux and sub are reset between annotations. Chan and num keep previous value if missing. 
             AT=filebytes[bpi,1] >> 2
+            
+        if (ai>0): # Fill in previous values of chan and num. 
+            if cpychan:
+                chan[ai]=chan[ai-1]
+            if cpynum:
+                num[ai]=num[ai-1]
             
         # Finished processing current annotation. Move onto next. 
         ai=ai+1
@@ -188,7 +198,7 @@ annsyms={
     19: 'T', # T-wave change */
     20: '*', # systole */
     21: 'D', # diastole */
-    22: '\\', # comment annotation */
+    22: '"', # comment annotation */
     23: '=', # measurement annotation */
     24: 'p', # P-wave peak */
     25: 'B', # left or right bundle branch block */
