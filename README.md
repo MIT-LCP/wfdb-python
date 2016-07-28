@@ -69,7 +69,7 @@ Input Arguments:
 <li><code>annot</code> (required) - The annotator extension of the annotation file. ie. for file <code>100.atr</code> annot='atr'.</li>
 <li><code>sampfrom</code> (default=0)- The minimum sample number for annotations to be returned.</li>
 <li><code>sampto</code> (default=the final annotation sample) - The maximum sample number for annotations to be returned.</li>
-<li><code>anndisp</code> (default=1) - The annotation display flag that controls the data type of the <code>anntype</code> output parameter. <code>anntype</code> will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code.</li>
+<li><code>anndisp</code> (default=1) - The annotation display flag that controls the data type of the <code>anntype</code> output parameter. <code>anntype</code> will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code(2).</li>
 </ul>
 
 Output arguments: 
@@ -95,6 +95,7 @@ import numpy as np
 from wfdb import readsignal
 from wfdb import plotwfdb
 sig, fields = readsignal.rdsamp(recordname)
+annsamp=readannot.rdann('recordname', 'annot')[0]
 plotwfdb.plotsigs(sig, fields, annsamp, annch, title, plottime): 
  
 ```
