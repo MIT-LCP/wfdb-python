@@ -12,7 +12,7 @@ def plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1):
             annplott=annsamp
     else: # x axis is time
         t=np.array(range(0,sig.shape[0]))/fields["fs"]
-        if annsamp!=[]>0:
+        if annsamp!=[]:
             annplott=annsamp/fields["fs"]
         
     f1=plt.figure()

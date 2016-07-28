@@ -12,11 +12,14 @@
 <ul>
 	<li>15 July 2016 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta usage.</li>
 	<li>27 July 2016 - <code>rdann</code> (for reading WFDB annotations) is ready for beta usage.</li>
+	<li>27 July 2016 - <code>plotsigs</code> is able to plot signals and annotations output by <em>rdsamp</em> and <em>rdann</em></li>
 </ul>
 
 
 
 ## Usage
+
+See the <strong>wfdbdemo.ipynb</strong> file for example scripts on how to call the functions.
 
 ### Reading Signals
 
@@ -47,26 +50,6 @@ Output Arguments:
 		<li>If the record is in variable layout format, the next list element will be a dictionary of metadata about the layout specification header.</li>
 		<li>The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'</li>
 	</ul>
-</ul>
-
-
-<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. 
-
-```
-import numpy as np
-from wfdb import readsignal
-from wfdb import plotwfdb
-sig, fields = readsignal.rdsamp(recordname)
-plotwfdb.plotsigs(sig, fields, title, plottime)
- 
-```
-
-Input Arguments: 
-<ul>
-	<li>sig (mandatory)- An nxm numpy array where n is the number of samples and m is the number of channels. Standard first output of the <code>rdsamp</code> function.</li>
-	<li>fields (mandatory) - A dictionary of metadata about the signal. Standard second output of the <code>rdsamp</code> function.</li>
-	<li>title (optional)- A string containing the title of the graph.</li>
-	<li>plottime (default=1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
 </ul>
 
 
@@ -103,6 +86,28 @@ Output arguments:
 <strong>*NOTE</strong>: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present. 
 
 
+### Plotting Data
+
+<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on top of selected channels if present.  
+
+```
+import numpy as np
+from wfdb import readsignal
+from wfdb import plotwfdb
+sig, fields = readsignal.rdsamp(recordname)
+plotwfdb.plotsigs(sig, fields, annsamp, annch, title, plottime): 
+ 
+```
+
+Input Arguments: 
+<ul>
+	<li>sig (required)- An nxm numpy array where n is the number of samples and m is the number of channels. Standard first output of the <code>rdsamp</code> function.</li>
+	<li>fields (required) - A dictionary of metadata about the signal. Standard second output of the <code>rdsamp</code> function.</li>
+	<li>annsamp (optional) - An 1d numpy array that contains annotation sample locations. Standard first output of the <code>rdann</code> function. 
+	<li>annch</li> (default=[0]) - A list of channels on which to plot the annotations.  
+	<li>title (optional)- A string containing the title of the graph.</li>
+	<li>plottime (default=1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
+</ul>
 
 
 
