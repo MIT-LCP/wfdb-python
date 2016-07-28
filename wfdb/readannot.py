@@ -22,8 +22,9 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     Output arguments: 
     - annsamp: The annotation location in samples relative to the beginning of the record.
     - anntype: The annotation type according the the standard WFDB keys.
-    - num: The marked annotation number. This is not equal to the index of the current annotation.  
     - subtype: The marked class/category of the annotation. 
+    - chan: The signal channel associated with the annotations. 
+    - num: The marked annotation number. This is not equal to the index of the current annotation.  
     - aux: The auxiliary information string for the annotation. 
     - annfs: The sampling frequency written in the beginning of the annotation file if present. 
     
@@ -47,10 +48,10 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     # Allocate for the maximum possible number of annotations contained in the file. 
     annsamp=np.zeros(filebytes.shape[0])
     anntype=np.zeros(filebytes.shape[0])
-    num=np.zeros(filebytes.shape[0])
     subtype=np.zeros(filebytes.shape[0])
     chan=np.zeros(filebytes.shape[0])
-    aux=[None]*filebytes.shape[0] 
+    num=np.zeros(filebytes.shape[0])
+    aux=['']*filebytes.shape[0] 
     
     annfs=[] # Stores the fs written in the annotation file if it exists. 
     ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
@@ -159,7 +160,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
             anntype=[anncodes[code] for code in anntype]
         
         
-    return (annsamp, anntype, num, subtype, chan, aux, annfs)
+    return (annsamp, anntype, subtype, chan, num, aux, annfs)
     
     
     

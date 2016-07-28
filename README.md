@@ -60,7 +60,7 @@ Output Arguments:
 ```
 import numpy as np
 from wfdb import readannot
-annsamp, anntype, num, subtype, chan, aux, annfs) = readannot.rdann(recordname, annot, sampfrom, sampto, anndisp)
+annsamp, anntype, subtype, chan, num, aux, annfs) = readannot.rdann(recordname, annot, sampfrom, sampto, anndisp)
 ```
 
 Input Arguments: 
@@ -77,8 +77,9 @@ Output arguments:
 <ul>
 <li><code>annsamp</code> - The annotation location in samples relative to the beginning of the record.</li>
 <li><code>anntype</code> - The annotation type according the the standard WFDB keys.</li>
-<li><code>num</code> - The marked annotation number. This is not equal to the index of the current annotation.</li>
 <li><code>subtype</code> - The marked class/category of the annotation.</li>
+<li><code>chan</code> - The signal channel associated with the annotations.</li>
+<li><code>num</code> - The marked annotation number. This is not equal to the index of the current annotation.</li>
 <li><code>aux</code> - The auxiliary information string for the annotation.</li>
 <li><code>annfs</code> - The sampling frequency written in the beginning of the annotation file if present.</li>
 </ul>
