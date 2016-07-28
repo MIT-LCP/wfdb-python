@@ -1,0 +1,6 @@
+12726 3 250/24000 825000 15:08:24 
+12726.dat 16 64.02(4)/mmHg 16 0 4004 -26056 0 ABP
+12726.dat 16 6554/mV 16 0 -12996 -24904 0 ECG
+12726.dat 16 174.83(11204)/degrees 16 0 11196 11564 0 Angle
+# <age>: 28  <sex>: M  <Height>: 170  <Weight>: 64
+#Produced by xform from record 12726_orig, beginning at 0:0
