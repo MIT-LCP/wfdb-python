@@ -5,6 +5,11 @@ import matplotlib.pyplot as plt
 # Plot signals and labels output by rdsamp. Also plot annotation locations. 
 def plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1): 
     
+    if len(fields)==3: # Multi-segment variable layout. Get the layout header fields.
+        fields=fields[1]
+    elif len(fields)==2: # Multi-segment fixed layout. Get the header fields of the first segment. 
+        fields=fields[1][0]
+    
     if (not fields["fs"])|(plottime==0): # x axis is index
         plottime=0
         t=np.array(range(0,sig.shape[0]))
