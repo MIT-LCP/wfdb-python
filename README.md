@@ -89,7 +89,7 @@ Output arguments:
 
 ### Plotting Data
 
-<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on top of selected channels if present.  
+<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on selected channels if present.  
 
 ```
 import numpy as np
@@ -103,9 +103,9 @@ plotwfdb.plotsigs(sig, fields, annsamp, annch, title, plottime):
 
 Input Arguments: 
 <ul>
-	<li>sig (required)- An nxm numpy array where n is the number of samples and m is the number of channels. Standard first output of the <code>rdsamp</code> function.</li>
-	<li>fields (required) - A dictionary of metadata about the signal. Standard second output of the <code>rdsamp</code> function.</li>
-	<li>annsamp (optional) - An 1d numpy array that contains annotation sample locations. Standard first output of the <code>rdann</code> function. 
+	<li>sig (required)- An nxm numpy array containing the signal to be plotted - the first output argument of <code>readsignal.rdsamp</code>.</li>
+	<li>fields (required) - A dictionary of metadata about the record - the second output argument of <code>readsignal.rdsamp</code>.</li>
+	<li>annsamp (optional) - A 1d numpy array of annotation locations to be plotted on top of selected channels - first output argument of <code>readannot.rdann()</code>.
 	<li>annch</li> (default=[0]) - A list of channels on which to plot the annotations.  
 	<li>title (optional)- A string containing the title of the graph.</li>
 	<li>plottime (default=1) - Flag that specifies whether to plot the x axis as time (1) or samples (0). Defaults to samples if the input <code>fields</code> dictionary does not contain a value for <code>fs</code>.</li>
