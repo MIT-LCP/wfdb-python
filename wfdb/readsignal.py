@@ -439,9 +439,10 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
             sig=np.vstack((s1,s2)).flatten('F')
         else: # Append last sample that didn't completely fit into 3 byte blocks if any. Maximum 1
             sig=np.hcat((np.vstack((s1,s2)).flatten('F')), sig[nbytesstack]+256*np.bitwise_and(sig[nbytesstack+1], 0x0f))
-        
+        sig=sig.astype(int)
         sig[sig>2047]-=4096 # Loaded values as unsigned. Convert to 2's complement form: values > 2^11-1 are negative.
-    
+        
+        
     elif fmt=='310': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
         nbytesload=math.ceil((sampto-sampfrom)*nsig*4/3)
         nbytesstack=int(nbytesload/4)*4 # Most samples come in 4 byte (32 bit) blocks. Possibly remainders
@@ -465,7 +466,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
                 sig=np.hcat((np.vstack((s1,s2,s3)).flatten('F')), (sig[nbytesstack] >> 1) +1024*np.bitwise_and(sig[nbytesstack+1], 0x07))
             else: # Extra 2 samples
                 sig=np.hcat((np.vstack((s1,s2,s3)).flatten('F')), (sig[nbytesstack] >> 1) +1024*np.bitwise_and(sig[nbytesstack+1], 0x07) , (sig[nbytesstack+2] >> 1) +1024*np.bitwise_and(sig[nbytesstack+3], 0x07))              
-            
+        sig=sig.astype(int)    
         sig[sig>511]-=1024 # convert to two's complement form (signed)
     elif fmt=='311': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
         nbytesload=math.ceil((sampto-sampfrom)*nsig*4/3)
@@ -485,7 +486,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
                 sig=np.hcat((np.vstack((s1,s2,s3)).flatten('F')), sig[nbytesstack] +256*np.bitwise_and(sig[nbytesstack+1], 0x03))
             else: # Extra 2 samples
                 sig=np.hcat((np.vstack((s1,s2,s3)).flatten('F')), sig[nbytesstack] +256*np.bitwise_and(sig[nbytesstack+1], 0x03), np.bitwise_and(sig[nbytesstack+1] >> 2, 0x3f) +64*np.bitwise_and(sig[nbytesstack+2], 0x0f) )
-                  
+        sig=sig.astype(int)          
         sig[sig>511]-=1024 # convert to two's complement form (signed)
     else: # Simple format signals that can be loaded as they are stored. 
         sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=(sampto-sampfrom)*nsig)
