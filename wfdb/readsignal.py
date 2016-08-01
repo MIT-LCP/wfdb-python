@@ -7,6 +7,7 @@ import os
 import math
 import sys
 
+
 def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1):
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary. 
     
@@ -42,10 +43,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat (or binary) file in the segment
             if not fields["nsamp"]: # Signal length was not specified in the header, calculate it from the file size.
-                bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
-                    '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
+                #bytespersample=...
+                
                 filesize=os.path.getsize(dirname+fields["filename"][0])
                 fields["nsamp"]=int((filesize-fields["byteoffset"][0])/fields["nsig"]/bytespersample[fields["fmt"][0]]) 
+                print('here and working. fields[nsamp]=',fields["nsamp"])
             if sampto:
                 if sampto>fields["nsamp"]:
                     sys.exit("sampto exceeds length of record: ", fields["nsamp"])
@@ -65,9 +67,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     
             if (physical==1):
                 # Insert nans/invalid samples. 
-                # Values that correspond to NAN (Format 8 has no NANs)
-                wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
-                              '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+                #wfdbInvalids=...
                 sig=sig.astype(float)
                 sig[sig==wfdbInvalids[fields["fmt"][0]]]=np.nan
                 sig=np.subtract(sig, np.array([float(i) for i in fields["baseline"]]))
@@ -100,10 +100,9 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               
             # Allocate final output array
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat to read. 
+
+                # bytespersample=...
                 
-                # Bytes required to hold each sample (including wasted space)
-                bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
-                                '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}       
                 filesize=os.path.getsize(dirname+filenames[0]) 
                 fields["nsamp"]=int((filesize-fields["byteoffset"][channels[0]])/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][channels[0]]])
                 
@@ -128,9 +127,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 
             if (physical==1):
                 # Insert nans/invalid samples. 
-                # Values that correspond to NAN (Format 8 has no NANs)
-                wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
-                              '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+                #wfdbInvalids=...
                 sig=sig.astype(float)
                 for ch in range(0, fields["nsig"]):
                     sig[sig[:,ch]==wfdbInvalids[fields["fmt"][ch]], ch] =np.nan
@@ -403,24 +400,14 @@ def readheader(recordname): # For reading signal headers
 
     return fields
 
+
 # Read samples from a WFDB binary file 
 def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
     # nsig and siglen define whole file, not selected inputs. siglen is signal length in samples. 
    
-    # Bytes required to hold each sample (including wasted space)
-    bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
-                    '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
-    
-    # Data type objects for each format to load. Doesn't directly correspond for final 3 formats. 
-    datatypes={'8':'<i1', '16':'<i2', '24':'<i3', '32':'<i4', 
-               '61':'>i2', '80':'<u1', '160':'<u2', 
-               '212':'<u1', '310':'<u1', '311':'<u2'} 
+    # Bytespersample=...
+    #datatypes=...
     if not sampto:
-        
-        #if not siglen: # Signal length was not obtained, calculate it from the file size.   # Move this to rdsamp 
-        #    filesize=os.path.getsize(filename) 
-        #    siglen=(filesize-byteoffset)/nsig/bytespersample[fmt] 
-        
         sampto=siglen
     
     fp=open(filename,'rb')
@@ -501,4 +488,19 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
     sig=sig.reshape(sampto-sampfrom, nsig)
         
     return sig
+
+
+
+# Bytes required to hold each sample (including wasted space) for different wfdb formats
+bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
+                    '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
+
+# Values that correspond to NAN (Format 8 has no NANs)
+wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 
+              '80': -128, '160':-32768, '212': -2048, '310': -512, '311': -512} 
+
+# Data type objects for each format to load. Doesn't directly correspond for final 3 formats. 
+datatypes={'8':'<i1', '16':'<i2', '24':'<i3', '32':'<i4', 
+           '61':'>i2', '80':'<u1', '160':'<u2', 
+           '212':'<u1', '310':'<u1', '311':'<u2'} 
 
