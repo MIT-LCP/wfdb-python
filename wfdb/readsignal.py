@@ -53,7 +53,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     sys.exit("sampto exceeds length of record: ", fields["nsamp"])
             else:
                 sampto=fields["nsamp"]
-            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["nsamp"])
+            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["sampsperframe"], fields["skew"])
             
             if channels: # User input channels
                 if channels!=list(range(0, fields["nsig"])): # If input channels are not equal to the full set of ordered channels, remove the non-included ones and reorganize the remaining ones that require it. 
@@ -100,12 +100,9 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               
             # Allocate final output array
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat to read. 
-
                 # bytespersample=...
-                
                 filesize=os.path.getsize(dirname+filenames[0]) 
                 fields["nsamp"]=int((filesize-fields["byteoffset"][channels[0]])/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][channels[0]]])
-                
                 
             if not sampto: # if sampto field is empty 
                 sampto=fields["nsamp"]
@@ -122,8 +119,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             
             # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
-                # def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen)
-                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
+                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["sampsperframe"], fields["skew"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
                 
             if (physical==1):
                 # Insert nans/invalid samples. 
@@ -272,12 +268,12 @@ def readheader(recordname): # For reading signal headers
 
     # To do: Allow exponential input format for some fields 
     
-    fid=open(recordname + ".hea", 'r')
+    fp=open(recordname + ".hea", 'r')
     #print("readheader opening: "+recordname+".hea")
     # Output dictionary
-    fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  
-            'filename':[], 'fmt':[], 'byteoffset':[], 'gain':[], 'units':[], 'baseline':[], 
-            'initvalue':[],'signame':[], 'nsampseg':[], 'comments':[]}
+    fields = {'nseg':[], 'nsig':[], 'fs':[], 'nsamp':[], 'basetime':[], 'basedate':[],  'filename':[], 
+              'fmt':[], 'sampsperframe':[], 'skew':[], 'byteoffset':[], 'gain':[], 'units':[], 
+              'baseline':[], 'initvalue':[],'signame':[], 'nsampseg':[], 'comments':[]}
     #filename stores file names for both multi and single segment headers. nsampseg is only for multi-segment
 
     commentlines=[] # Store comments 
@@ -306,7 +302,7 @@ def readheader(recordname): # For reading signal headers
 
     # Regexp object for signal lines. Consider filenames - dat and mat or ~
     rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]*\.?[\w]*~?)[ \t]+(?P<format>\d+)x?"
-                                 "(?P<samplesperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
+                                 "(?P<sampsperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
                                  "(?P<ADCgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
                                  "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]*)"])) 
@@ -319,8 +315,7 @@ def readheader(recordname): # For reading signal headers
     # Watch out for potential float: ADCgain. There are no negative floats. 
 
     # Split comment and non-comment lines
-
-    for line in fid:
+    for line in fp:
         line=line.strip()
         if line.startswith('#'): # comment line
             commentlines.append(line)
@@ -331,7 +326,8 @@ def readheader(recordname): # For reading signal headers
                 commentlines.append(line[ci:]) # comment on same line as header line
             else:
                 headerlines.append(line)
-                
+    fp.close()
+    
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, 
      basecounter, nsamp, basetime, basedate)=rxRECORD.findall(headerlines[0])[0]
@@ -367,6 +363,10 @@ def readheader(recordname): # For reading signal headers
              adczero, initvalue, checksum, blocksize, signame)=rxSIGNAL.findall(headerlines[i+1])[0]
             
             # Setting defaults
+            if not sampsperframe:
+                sampsperframe='1' # Setting strings here so we can always convert strings case below.
+            if not skew:
+                skew='0'
             if not byteoffset:
                 byteoffset='0'
             if not adcgain:
@@ -387,6 +387,8 @@ def readheader(recordname): # For reading signal headers
                                      
             fields["filename"].append(filename)
             fields["fmt"].append(fmt)
+            fields["sampsperframe"].append(int(sampsperframe))
+            fields["skew"].append(int(skew))
             fields['byteoffset'].append(int(byteoffset))
             fields["gain"].append(float(adcgain))
             fields["baseline"].append(int(baseline))
@@ -402,21 +404,24 @@ def readheader(recordname): # For reading signal headers
 
 
 # Read samples from a WFDB binary file 
-def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen): 
+def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, skew): 
     # nsig and siglen define whole file, not selected inputs. siglen is signal length in samples. 
-   
+    # Also recall that channel selection is not performed in this function but in rdsamp. 
+    
     # Bytespersample=...
     #datatypes=...
-    if not sampto:
-        sampto=siglen
+    #if not sampto:
+    #    sampto=siglen         There should always be a sampto? get rid of siglen input arg. 
+    
+    # Check for signal file with different samples/frame for different channels
+    tsampsperframe=sum(sampsperframe) # Equal to nsig if all elements==1. 
     
     fp=open(filename,'rb')
-    
     fp.seek(int(sampfrom*nsig*bytespersample[fmt])+int(byteoffset)) # Point to the starting sample 
     
     # Reading the dat file into np array and reshaping. 
     if fmt=='212': # 212, 310, and 311 need special loading and processing. 
-        nbytesload=int(math.ceil((sampto-sampfrom)*nsig*1.5)) # Loaded bytes
+        nbytesload=int(math.ceil((sampto-sampfrom)*tsampsperframe*1.5)) # Loaded bytes
         nbytesstack=int(nbytesload/3)*3 # Most samples come in 3 byte (24 bit) blocks. Possibly remainder 
         sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload) 
         s1=sig[0:nbytesstack:3]+256*np.bitwise_and(sig[1:nbytesstack:3], 0x0f)
@@ -431,7 +436,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
         
         
     elif fmt=='310': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
-        nbytesload=math.ceil((sampto-sampfrom)*nsig*4/3)
+        nbytesload=math.ceil((sampto-sampfrom)*tsampsperframe*4/3)
         nbytesstack=int(nbytesload/4)*4 # Most samples come in 4 byte (32 bit) blocks. Possibly remainders
         if nbytesload%4 == 3: # Actually need to load 1 more byte because of separate format.  
             nbytesload+=1
@@ -476,7 +481,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
         sig=sig.astype(int)          
         sig[sig>511]-=1024 # convert to two's complement form (signed)
     else: # Simple format signals that can be loaded as they are stored. 
-        sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=(sampto-sampfrom)*nsig)
+        sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=(sampto-sampfrom)*tsampsperframe)
         # Correct byte offset format data
         if fmt=='80':
             sig=sig.astype(int)
@@ -486,6 +491,7 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen):
             sig=sig-32768
             
     sig=sig.reshape(sampto-sampfrom, nsig)
+    fp.close()
         
     return sig
 
