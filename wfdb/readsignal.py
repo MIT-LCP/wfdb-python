@@ -32,6 +32,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
     fields=readheader(recordname) # Get the info from the header file
+    
+    print(fields["sampsperframe"])
+    print(fields["skew"])
+    
+    
     if fields["nsig"]==0:
         sys.exit("This record has no signals. Use rdann to read annotations")
     if sampfrom<0:
@@ -56,7 +61,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     sig=sig[:, channels]
                  
                     # Rearrange the channel dependent fields
-                    arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
                     for fielditem in arrangefields:
                         fields[fielditem]=[fields[fielditem][ch] for ch in channels]
                     fields["nsig"]=len(channels) # Number of signals. 
@@ -95,7 +99,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               
             # Allocate final output array
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat to read. 
-                # bytespersample=...
                 filesize=os.path.getsize(dirname+filenames[0]) 
                 fields["nsamp"]=int((filesize-fields["byteoffset"][channels[0]])/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][channels[0]]])
                 
@@ -106,15 +109,35 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             else:
                 sig=np.empty([sampto-sampfrom, len(channels)]) 
                         
-            # Rearrange the fields 
-            arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
+            print(fields["sampsperframe"])
+            print(fields["skew"])
+            
+            
+            # So we do need to rearrange all that shit below for the final output 'fields' item and even for the physical conversion below. The rearranged fields will only contain the fields of the selected channels in their specified order. But before we do this, we need to extract sampsperframe and skew for the dat files  
+            filesampsperframe={} # The sampsperframe for each channel in each file
+            fileskew={} # The skew for each channel in each file
+            
+            for sigfile in filenames:
+                filesampsperframe[sigfile]=[fields["sampsperframe"][datchan] for datchan in filechannels[sigfile]]
+                fileskew[sigfile]=[fields["skew"][datchan] for datchan in filechannels[sigfile]]
+            
+            # Rearrange the fields given the input channel dependent fields   
             for fielditem in arrangefields:
                 fields[fielditem]=[fields[fielditem][ch] for ch in channels]
             fields["nsig"]=len(channels) # Number of signals. 
+            #print(fields["sampsperframe"])
+            #print(fields["skew"])
+            
             
             # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
-                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["sampsperframe"], fields["skew"])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
+                #def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, skew): 
+                
+                # Readdat acceps sampsperframe and skew which are dat file dependent. Need to pass in selected ones. 
+                #print(filechannels)
+                #print(filechannels[sigfile])
+                
+                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), filesampsperframe[sigfile], fileskew[sigfile])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
                 
             if (physical==1)&(fields["fmt"]!='8'):
                 # Insert nans/invalid samples. 
@@ -233,7 +256,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                             sig[indstart:indend, emptyinds]=np.nan 
 
                         # Expand the channel dependent fields to match the overall layout. Remove this following block if you wish to keep the returned channels' fields without any 'no channel' placeholders between. 
-                        arrangefields=["filename", "fmt", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
                         expandedfields=dict.copy(segmentfields[i-startseg-readsegs[0]]) 
                         for fielditem in arrangefields:
                             expandedfields[fielditem]=['No Channel']*len(channels)
@@ -324,8 +346,7 @@ def readheader(recordname): # For reading signal headers
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, 
      basecounter, nsamp, basetime, basedate)=rxRECORD.findall(headerlines[0])[0]
-    
-
+  
     # These fields are either mandatory or set to defaults. 
     if not nseg:
         nseg='1'
@@ -343,7 +364,6 @@ def readheader(recordname): # For reading signal headers
     fields['basedate']=basedate
 
     # Signal or Segment line paramters 
-
     if int(nseg)>1: # Multi segment header - Process segment spec lines in current master header.
         for i in range(0, int(nseg)):
             (filename, nsampseg)=re.findall('(?P<filename>\w*~?)[ \t]+(?P<nsampseg>\d+)', headerlines[i+1])[0]
@@ -401,7 +421,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
     # nsig defines whole file, not selected channels. 
     # Recall that channel selection is not performed in this function but in rdsamp. 
 
-    
     # Check for signal file with different samples/frame for different channels.  
     tsampsperframe=sum(sampsperframe) 
     
@@ -533,6 +552,8 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
             sig=(sig/sampsperframe).astype('int')
 
     else: # Simple format signals that can be loaded as they are stored. 
+        print(tsampsperframe)
+        print(nsig)
         if tsampsperframe==nsig: # No extra samples/frame
             sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nsamp)
             sig=sig.reshape(sampto-sampfrom, nsig).astype('int')
@@ -577,3 +598,5 @@ datatypes={'8':'<i1', '16':'<i2', '24':'<i3', '32':'<i4',
            '61':'>i2', '80':'<u1', '160':'<u2', 
            '212':'<u1', '310':'<u1', '311':'<u1'} 
 
+# Channel dependent field items that need to be rearranged if input channels is not default. 
+arrangefields=["filename", "fmt", "sampsperframe", "skew", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
