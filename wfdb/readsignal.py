@@ -33,10 +33,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     """    
     fields=readheader(recordname) # Get the info from the header file
     
-    print(fields["sampsperframe"])
-    print(fields["skew"])
-    
-    
     if fields["nsig"]==0:
         sys.exit("This record has no signals. Use rdann to read annotations")
     if sampfrom<0:
@@ -108,15 +104,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 sig=np.empty([sampto-sampfrom, len(channels)], dtype='int')
             else:
                 sig=np.empty([sampto-sampfrom, len(channels)]) 
-                        
-            print(fields["sampsperframe"])
-            print(fields["skew"])
             
-            
-            # So we do need to rearrange all that shit below for the final output 'fields' item and even for the physical conversion below. The rearranged fields will only contain the fields of the selected channels in their specified order. But before we do this, we need to extract sampsperframe and skew for the dat files  
+            # So we do need to rearrange the fields below for the final output 'fields' item and even for the physical conversion below. The rearranged fields will only contain the fields of the selected channels in their specified order. But before we do this, we need to extract sampsperframe and skew for the individual dat files  
             filesampsperframe={} # The sampsperframe for each channel in each file
             fileskew={} # The skew for each channel in each file
-            
             for sigfile in filenames:
                 filesampsperframe[sigfile]=[fields["sampsperframe"][datchan] for datchan in filechannels[sigfile]]
                 fileskew[sigfile]=[fields["skew"][datchan] for datchan in filechannels[sigfile]]
@@ -125,18 +116,9 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             for fielditem in arrangefields:
                 fields[fielditem]=[fields[fielditem][ch] for ch in channels]
             fields["nsig"]=len(channels) # Number of signals. 
-            #print(fields["sampsperframe"])
-            #print(fields["skew"])
-            
-            
+
             # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
-                #def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, skew): 
-                
-                # Readdat acceps sampsperframe and skew which are dat file dependent. Need to pass in selected ones. 
-                #print(filechannels)
-                #print(filechannels[sigfile])
-                
                 sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), filesampsperframe[sigfile], fileskew[sigfile])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
                 
             if (physical==1)&(fields["fmt"]!='8'):
@@ -569,9 +551,9 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
             sig=(sig/sampsperframe).astype('int')    
         # Correct byte offset format data
         if fmt=='80':
-            sigall=sigall-128
+            sig=sig-128
         elif fmt=='160':
-            sigall=sigall-32768   
+            sig=sig-32768   
             
     # Shift the samples in the channels with skew        
     if sum(skew)>0: 

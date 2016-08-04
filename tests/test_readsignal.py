@@ -68,9 +68,10 @@ class test_rdsamp():
     # Test 9 - Format 12 multi-samples/frame and skew/Entire Signal/Digital
     # Target file created with: rdsamp -r sampledata/03700181 | cut -f 2- > target9
     def test_9(self):
-        sig, fields=readsignal.rdsamp('sampledata/03700181')
-        sig=sig[:-4,:] # The WFDB library rdsamp does not return the final N samples for all channels. 
+        sig, fields=readsignal.rdsamp('sampledata/03700181', physical=0)
+        sig=sig[:-4,:] # The WFDB library rdsamp does not return the final N samples for all channels due to the skew. 
+        # The WFDB python rdsamp does return the final N samples, filling in NANs for 
         sig=np.round(sig, decimals=8)
-        targetsig=np.genfromtext('tests/targetoutputdata/target9')
+        targetsig=np.genfromtxt('tests/targetoutputdata/target9')
         assert np.array_equal(sig, targetsig)
         
