@@ -160,7 +160,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             readsamps=[[0, fields["nsampseg"][s+startseg]] for s in readsegs] # The sampfrom and sampto for each segment. Most are [0, nsampseg]
             readsamps[0][0]=sampfrom-([0]+cumsumlengths)[readsegs[0]] # Starting sample for first segment
             readsamps[len(readsamps)-1][1]=sampto-([0]+cumsumlengths)[readsegs[len(readsamps)-1]] # End sample for last segment 
-        ################ Done obtaining segments to read and samples to read in each segment. 
+        # Done obtaining segments to read and samples to read in each segment. 
 
        
         # Preprocess/preallocate according to chosen output format
@@ -450,8 +450,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
         if (nsamp-1)%3==0:
             nbytesload-=2
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
-        print("nbytesload: ", nbytesload)
-        print("sigbytes shape: ", sigbytes.shape)
         if tsampsperframe==nsig: # No extra samples/frame
             # Turn the bytes into actual samples. 
             sig=np.zeros(nsamp) # 1d array of actual samples. Fill the individual triplets. 
@@ -490,16 +488,11 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
     
     elif fmt=='311': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
         nbytesload=int((nsamp-1)/3)+nsamp+1
-        print("nbytesload: ", nbytesload)
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
-        print("sigbytes shape: ", sigbytes.shape)
-        
+
         if tsampsperframe==nsig: # No extra samples/frame
             # Turn the bytes into actual samples. 
             sig=np.zeros(nsamp) # 1d array of actual samples. Fill the individual triplets. 
-            
-            
-            print(sig.shape)
             
             sig[0::3]=sigbytes[0::4][0:len(sig[0::3])]+256*np.bitwise_and(sigbytes[1::4], 0x03)[0:len(sig[0::3])] 
             if len(sig>1):
@@ -534,8 +527,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, sampsperframe, sk
             sig=(sig/sampsperframe).astype('int')
 
     else: # Simple format signals that can be loaded as they are stored. 
-        print(tsampsperframe)
-        print(nsig)
         if tsampsperframe==nsig: # No extra samples/frame
             sig=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nsamp)
             sig=sig.reshape(sampto-sampfrom, nsig).astype('int')
