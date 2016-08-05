@@ -409,23 +409,20 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
     # Figure out the starting byte to read the dat file from. Special formats store samples in specific byte blocks. 
     startbyte=int(sampfrom*tsampsperframe*bytespersample[fmt])+int(byteoffset)
     floorsamp=0
-    
-    # The goal of the following is to make the the startbyte point to the start of the block of 3 or 4 and to keep track of how many samples to discard after reading. 
+    # Point the the file pointer to the start of a block of 3 or 4 and keep track of how many samples to discard after reading. 
     if fmt=='212':
         floorsamp=(startbyte-byteoffset)%3 # Extra samples to read  
         startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte triplet storing 2 samples. It happens that the extra samples match the extra bytes for fmt 212
     elif (fmt=='310')|(fmt=='311'):
         floorsamp=(startbyte-byteoffset)%4
         startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte quartet storing 3 samples.
-        
-    fp=open(filename,'rb')
-    fp.seek(startbyte) # Point to the starting sample 
-    
-    
-    # Reading the dat file into np array and reshaping. 
-    sig=processwfdbbytes(fp, fmt, sampto-sampfrom, nsig, sampsperframe, floorsamp)
-    
 
+    fp=open(filename,'rb')
+    
+    fp.seek(startbyte) # Point to the starting sample 
+    # Read the dat file into np array and reshape. 
+    sig, nbytesread=processwfdbbytes(fp, fmt, sampto-sampfrom, nsig, sampsperframe, floorsamp)
+    
     # Shift the samples in the channels with skew if any  
     if max(skew)>0: 
         extrasig=np.empty([max(skew), nsig]) # Array of samples to fill in the final samples of the skewed channels. 
@@ -433,12 +430,27 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
         
         # Load the extra samples if the end of the file hasn't been reached. 
         if siglen-(sampto-sampfrom): 
-            
-            # Need to shift f again for those formats....
-            
+                    
+            # Point the the file pointer to the start of a block of 3 or 4 and keep track of how many samples to discard after reading. 
+            print("startbyte: ", startbyte)
+            print("nbytesread: ", nbytesread)
+            startbyte=startbyte+nbytesread
+            if fmt=='212':
+                floorsamp=(startbyte-byteoffset)%3 # Extra samples to read  
+                startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte triplet storing 2 samples. It happens that the extra samples match the extra bytes for fmt 212
+            elif (fmt=='310')|(fmt=='311'):
+                floorsamp=(startbyte-byteoffset)%4
+                startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte quartet storing 3 samples.
+            print("startbyte: ", startbyte)
+            print("floorsamp: ", floorsamp)
+            startbyte=startbyte
+            fp.seek(startbyte)
             extraloadlen=min(siglen-(sampto-sampfrom), max(skew)) # The length of extra signals to be loaded
             nsampextra=extraloadlen*tsampsperframe
-            extraloadedsig=processwfdbbytes(fp, fmt, extraloadlen, nsig, sampsperframe)
+            extraloadedsig=processwfdbbytes(fp, fmt, extraloadlen, nsig, sampsperframe, floorsamp)[0]
+            
+            print("extralodedsig: ", extraloadedsig)
+            
             extrasig[:extraloadedsig.shape[0],:]=extraloadedsig # Fill in the extra loaded samples 
         
         # Fill in the skewed channels with the appropriate values. 
@@ -452,9 +464,9 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
     return sig
 
 
-# Read data from a wfdb dat file and process it to obtain digital samples. 
-def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp): 
-    # nsamp refers to the length of the signal to be read. Different from siglen input argument for readdat. 
+# Read data from a wfdb dat file and process it to obtain digital samples. Returns the signal and the number of bytes read. 
+def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0): 
+    # siglen refers to the length of the signal to be read. Different from siglen input argument for readdat. 
     # floorsamp is the extra sample index used to read special formats. 
     
     tsampsperframe=sum(sampsperframe) # Total number of samples per frame. 
@@ -466,14 +478,11 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp):
         nbytesload=int(math.ceil((nsamp)*1.5))# The number of bytes needed to be loaded given the number of samples needed
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
 
+        print('sigbytes: ', sigbytes)
+        
         if tsampsperframe==nsig: # No extra samples/frame
             # Turn the bytes into actual samples. 
             sig=np.zeros(nsamp) # 1d array of actual samples
-            print("nsamp: ", nsamp)
-            print("floorsamp: ", floorsamp)
-            
-            print("len(sig): ", len(sig))
-            print("nbytesload: ", nbytesload)
             # One sample pair is stored in one byte triplet. 
             sig[0::2]=sigbytes[0::3]+256*np.bitwise_and(sigbytes[1::3], 0x0f)# Even numbered samples
             if len(sig>1):
@@ -487,6 +496,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp):
             # Turn the bytes into actual samples. 
             sigall=np.zeros(nsamp) # 1d array of actual samples
             sigall[0::2]=sigbytes[0::3]+256*np.bitwise_and(sigbytes[1::3], 0x0f)# Even numbered samples
+            
             if len(sigall)>1:
                 sigall[1::2]=sigbytes[2::3]+256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)# Odd numbered samples
             if floorsamp: # Remove extra sample read
@@ -613,7 +623,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp):
         elif fmt=='160':
             sig=sig-32768   
     
-    return sig
+    return sig, nsamp
 
 
 # Bytes required to hold each sample (including wasted space) for different wfdb formats
