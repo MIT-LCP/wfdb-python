@@ -224,7 +224,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 indend=indstart+readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0] # end index of the large array for this segment
                 if (segrecordname=='~')|(not segchannels) : # Empty segment or no wanted channels: fill in invalids
                     if physical==0:
-                        sig[indstart:indend, :] = sig[indstart:indend, emptyinds]=-2147483648
+                        sig[indstart:indend, :] = sig[indstart:indend, :]=-2147483648
                     else:
                         sig[indstart:indend, :] = np.nan 
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment"
@@ -403,13 +403,29 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
     # nsig defines whole file, not selected channels. siglen refers to signal length of whole file, not selected duration. 
     # Recall that channel selection is not performed in this function but in rdsamp. 
     
-    tsampsperframe=sum(sampsperframe)
+    tsampsperframe=sum(sampsperframe) # Total number of samples per frame
+    
+    
+    # Figure out the starting byte to read the dat file from. Special formats store samples in specific byte blocks. 
+    startbyte=int(sampfrom*tsampsperframe*bytespersample[fmt])+int(byteoffset)
+    floorsamp=0
+    
+    # The goal of the following is to make the the startbyte point to the start of the block of 3 or 4 and to keep track of how many samples to discard after reading. 
+    if fmt=='212':
+        floorsamp=(startbyte-byteoffset)%3 # Extra samples to read  
+        startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte triplet storing 2 samples. It happens that the extra samples match the extra bytes for fmt 212
+    elif (fmt=='310')|(fmt=='311'):
+        floorsamp=(startbyte-byteoffset)%4
+        startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte quartet storing 3 samples.
+        
     fp=open(filename,'rb')
-    fp.seek(int(sampfrom*tsampsperframe*bytespersample[fmt])+int(byteoffset)) # Point to the starting sample 
+    fp.seek(startbyte) # Point to the starting sample 
+    
     
     # Reading the dat file into np array and reshaping. 
-    sig=processwfdbbytes(fp, fmt, sampto-sampfrom, nsig, sampsperframe)
+    sig=processwfdbbytes(fp, fmt, sampto-sampfrom, nsig, sampsperframe, floorsamp)
     
+
     # Shift the samples in the channels with skew if any  
     if max(skew)>0: 
         extrasig=np.empty([max(skew), nsig]) # Array of samples to fill in the final samples of the skewed channels. 
@@ -417,6 +433,9 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
         
         # Load the extra samples if the end of the file hasn't been reached. 
         if siglen-(sampto-sampfrom): 
+            
+            # Need to shift f again for those formats....
+            
             extraloadlen=min(siglen-(sampto-sampfrom), max(skew)) # The length of extra signals to be loaded
             nsampextra=extraloadlen*tsampsperframe
             extraloadedsig=processwfdbbytes(fp, fmt, extraloadlen, nsig, sampsperframe)
@@ -434,24 +453,33 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
 
 
 # Read data from a wfdb dat file and process it to obtain digital samples. 
-def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe): 
+def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp): 
     # nsamp refers to the length of the signal to be read. Different from siglen input argument for readdat. 
+    # floorsamp is the extra sample index used to read special formats. 
     
     tsampsperframe=sum(sampsperframe) # Total number of samples per frame. 
-    nsamp=siglen*tsampsperframe # Total number of signal samples to be collected
+    nsamp=siglen*tsampsperframe+floorsamp # Total number of signal samples to be collected (including discarded ones)
     
     # Reading the dat file into np array and reshaping. Formats 212, 310, and 311 need special processing. 
     # Note that for these formats with multi samples/frame, have to convert bytes to samples before returning average frame values. 
     if fmt=='212': 
-        sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=int(math.ceil(nsamp*1.5))).astype('uint') # Loaded as unsigned 1 byte blocks
+        nbytesload=int(math.ceil((nsamp)*1.5))# The number of bytes needed to be loaded given the number of samples needed
+        sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
 
         if tsampsperframe==nsig: # No extra samples/frame
             # Turn the bytes into actual samples. 
             sig=np.zeros(nsamp) # 1d array of actual samples
+            print("nsamp: ", nsamp)
+            print("floorsamp: ", floorsamp)
+            
+            print("len(sig): ", len(sig))
+            print("nbytesload: ", nbytesload)
             # One sample pair is stored in one byte triplet. 
             sig[0::2]=sigbytes[0::3]+256*np.bitwise_and(sigbytes[1::3], 0x0f)# Even numbered samples
             if len(sig>1):
                 sig[1::2]=sigbytes[2::3]+256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)# Odd numbered samples
+            if floorsamp: # Remove extra sample read 
+                sig=sig[floorsamp:]
             sig=sig.reshape(siglen, nsig) # Reshape into final array of samples
             sig=sig.astype(int)
             sig[sig>2047]-=4096 # Loaded values as unsigned. Convert to 2's complement form: values > 2^11-1 are negative.
@@ -461,6 +489,8 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe):
             sigall[0::2]=sigbytes[0::3]+256*np.bitwise_and(sigbytes[1::3], 0x0f)# Even numbered samples
             if len(sigall)>1:
                 sigall[1::2]=sigbytes[2::3]+256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)# Odd numbered samples
+            if floorsamp: # Remove extra sample read
+                sigall=sigall[floorsamp:]
             sigall=sigall.astype('int') # Convert to int64 to be able to hold -ve values
             sigall[sigall>2047]-=4096 # Loaded values as unsigned. Convert to 2's complement form: values > 2^11-1 are negative.
             sig=np.zeros([siglen, nsig]) # Give the average sample in each frame for each channel 
@@ -490,6 +520,9 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe):
             # First signal is 7 msb of first byte and 3 lsb of second byte. 
             # Second signal is 7 msb of third byte and 3 lsb of forth byte
             # Third signal is 5 msb of second byte and 5 msb of forth byte
+            
+            if floorsamp: # Remove extra sample read 
+                sig=sig[floorsamp:]
             sig=sig.reshape(siglen, nsig) # Reshape into final array of samples
             sig=sig.astype('int') # Convert to int64 to be able to hold -ve values
             sig[sig>511]-=1024 # Loaded values as unsigned. Convert to 2's complement form: values > 2^9-1 are negative.
@@ -502,6 +535,8 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe):
                 sigall[1::3]=(sigbytes[2::4] >> 1)[0:len(sigall[1::3])]+128*np.bitwise_and(sigbytes[3::4], 0x07)[0:len(sigall[1::3])]
             if len(sigall>2): 
                 sigall[2::3]=np.bitwise_and((sigbytes[1::4] >> 3), 0x1f)[0:len(sigall[2::3])] +32*np.bitwise_and(sigbytes[3::4] >> 3, 0x1f)[0:len(sigall[2::3])]
+            if floorsamp: # Remove extra sample read 
+                sigall=sigall[floorsamp:]
             sigall=sigall.astype('int') # Convert to int64 to be able to hold -ve values
             sigall[sigall>511]-=1024 # Loaded values as unsigned. Convert to 2's complement form: values > 2^9-1 are negative.
             
@@ -530,6 +565,8 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe):
             # First signal is first byte and 2 lsb of second byte. 
             # Second signal is 6 msb of second byte and 4 lsb of third byte
             # Third signal is 4 msb of third byte and 6 msb of forth byte
+            if floorsamp: # Remove extra sample read 
+                sig=sig[floorsamp:]
             sig=sig.reshape(siglen, nsig) # Reshape into final array of samples
             sig=sig.astype('int') # Convert to int64 to be able to hold -ve values
             sig[sig>511]-=1024 # Loaded values as unsigned. Convert to 2's complement form: values > 2^9-1 are negative.
@@ -542,9 +579,10 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe):
                 sigall[1::3]=(sigbytes[1::4] >> 2)[0:len(sigall[1::3])]+64*np.bitwise_and(sigbytes[2::4], 0x0f)[0:len(sigall[1::3])]
             if len(sigall>2): 
                 sigall[2::3]=(sigbytes[2::4] >> 4)[0:len(sigall[2::3])]+16*np.bitwise_and(sigbytes[3::4], 0x7f)[0:len(sigall[2::3])]
+            if floorsamp: # Remove extra sample read 
+                sigall=sigall[floorsamp:]
             sigall=sigall.astype('int') # Convert to int64 to be able to hold -ve values
             sigall[sigall>511]-=1024 # Loaded values as unsigned. Convert to 2's complement form: values > 2^9-1 are negative.
-            
             sig=np.zeros([siglen, nsig]) # Give the average sample in each frame for each channel 
             for ch in range(0, nsig):
                 if sampsperframe[ch]==1:

@@ -71,7 +71,6 @@ class test_rdsamp():
         sig, fields=readsignal.rdsamp('sampledata/03700181', physical=0)
         sig=sig[:-4,:] # The WFDB library rdsamp does not return the final N samples for all channels due to the skew. 
         # The WFDB python rdsamp does return the final N samples, filling in NANs for end of skewed channels only. 
-        sig=np.round(sig, decimals=8)
         targetsig=np.genfromtxt('tests/targetoutputdata/target9')
         assert np.array_equal(sig, targetsig)
         
@@ -91,13 +90,29 @@ class test_rdsamp():
         targetsig=np.genfromtxt('tests/targetoutputdata/target11')
         assert np.array_equal(sig, targetsig)
         
-    # Test 12 - Multi-segment variable layout/Entire signal/Physical
+    # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sampledata/matched/s00001/s00001-2896-10-10-00-31 -f 70 -t 4000 -s 3 0 -P | cut -f 2- > target12
     def test_12(self):
         sig, fields=readsignal.rdsamp('sampledata/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000, channels=[3, 0])
         sig=np.round(sig, decimals=8)
         targetsig=np.genfromtxt('tests/targetoutputdata/target12')
         assert np.array_equal(sig, targetsig)
+        
+    # Test 13 - Format 310/Selected Duration/Digital
+    # Target file created with: rdsamp -r sampledata/3000003_0003 -f 0 -t 8.21 | cut -f 2- | wrsamp -o 310derive -O 310
+    # rdsamp -r 310derive | cut -f 2- > target13
+    def test_13(self):
+        sig, fields=readsignal.rdsamp('sampledata/310derive', sampfrom=2, physical=0)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target13')
+        assert np.array_equal(sig, targetsig) 
+        
+    # Test 14 - Format 311/Selected Duration/Selected Channel/Physical
+    # Target file created with: rdsamp -r sampledata/3000003_0003 -f 0 -t 8.21 | cut -f 2- | wrsamp -o 311derive -O 311
+    # rdsamp -r 311derive -f 0.01 | cut -f 2- > target14
+    def test_14(self):
+        sig, fields=readsignal.rdsamp('sampledata/311derive', sampfrom=1)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target14')
+        assert np.array_equal(sig, targetsig) 
         
         
         
