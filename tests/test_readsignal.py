@@ -75,6 +75,30 @@ class test_rdsamp():
         targetsig=np.genfromtxt('tests/targetoutputdata/target9')
         assert np.array_equal(sig, targetsig)
         
+    # Test 10 - Format 12 multi-samples per frame and skew/Selected Duration/Selected Channels/Physical
+    # Target file created with: rdsamp -r sampledata/03700181 -f 8 -t 128 -s 0 2 -P | cut -f 2- > target10
+    def test_10(self):
+        sig, fields=readsignal.rdsamp('sampledata/03700181', channels=[0,2], sampfrom=1000, sampto=16000)
+        sig=np.round(sig, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target10')
+        assert np.array_equal(sig, targetsig)
+        
+    # Test 11 - Multi-segment variable layout/Entire signal/Physical
+    # Target file created with: rdsamp -r sampledata/matched/s25047/s25047-2704-05-04-10-44 -P | cut -f 2- > target11
+    def test_11(self):
+        sig, fields=readsignal.rdsamp('sampledata/matched/s25047/s25047-2704-05-04-10-44')
+        sig=np.round(sig, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target11')
+        assert np.array_equal(sig, targetsig)
+        
+    # Test 12 - Multi-segment variable layout/Entire signal/Physical
+    # Target file created with: rdsamp -r sampledata/matched/s00001/s00001-2896-10-10-00-31 -f 70 -t 4000 -s 3 0 -P | cut -f 2- > target12
+    def test_12(self):
+        sig, fields=readsignal.rdsamp('sampledata/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000, channels=[3, 0])
+        sig=np.round(sig, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target12')
+        assert np.array_equal(sig, targetsig)
+        
         
         
         
