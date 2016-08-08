@@ -405,7 +405,6 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
     
     tsampsperframe=sum(sampsperframe) # Total number of samples per frame
     
-    
     # Figure out the starting byte to read the dat file from. Special formats store samples in specific byte blocks. 
     startbyte=int(sampfrom*tsampsperframe*bytespersample[fmt])+int(byteoffset)
     floorsamp=0
@@ -430,27 +429,18 @@ def readdat(filename, fmt, byteoffset, sampfrom, sampto, nsig, siglen, sampsperf
         
         # Load the extra samples if the end of the file hasn't been reached. 
         if siglen-(sampto-sampfrom): 
-                    
-            # Point the the file pointer to the start of a block of 3 or 4 and keep track of how many samples to discard after reading. 
-            print("startbyte: ", startbyte)
-            print("nbytesread: ", nbytesread)
             startbyte=startbyte+nbytesread
-            if fmt=='212':
+            if fmt=='212': # Point the the file pointer to the start of a block of 3 or 4 and keep track of how many samples to discard after reading. For regular formats the file pointer is already at the correct location. 
                 floorsamp=(startbyte-byteoffset)%3 # Extra samples to read  
                 startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte triplet storing 2 samples. It happens that the extra samples match the extra bytes for fmt 212
             elif (fmt=='310')|(fmt=='311'):
                 floorsamp=(startbyte-byteoffset)%4
                 startbyte=startbyte-floorsamp # Now the byte pointed to is the first of a byte quartet storing 3 samples.
-            print("startbyte: ", startbyte)
-            print("floorsamp: ", floorsamp)
             startbyte=startbyte
             fp.seek(startbyte)
             extraloadlen=min(siglen-(sampto-sampfrom), max(skew)) # The length of extra signals to be loaded
             nsampextra=extraloadlen*tsampsperframe
-            extraloadedsig=processwfdbbytes(fp, fmt, extraloadlen, nsig, sampsperframe, floorsamp)[0]
-            
-            print("extralodedsig: ", extraloadedsig)
-            
+            extraloadedsig=processwfdbbytes(fp, fmt, extraloadlen, nsig, sampsperframe, floorsamp)[0] # Array of extra loaded samples
             extrasig[:extraloadedsig.shape[0],:]=extraloadedsig # Fill in the extra loaded samples 
         
         # Fill in the skewed channels with the appropriate values. 
@@ -622,8 +612,9 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
             sig=sig-128
         elif fmt=='160':
             sig=sig-32768   
+        nbytesload=nsamp*bytespersample[fmt]
     
-    return sig, nsamp
+    return sig, nbytesload
 
 
 # Bytes required to hold each sample (including wasted space) for different wfdb formats
