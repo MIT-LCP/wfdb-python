@@ -34,7 +34,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     """    
     
     recordname, removerecords=getPBfiles(recordname)
-    print("recordname coming out of getPBfiles: ", recordname)        
+    #print("recordname coming out of getPBfiles: ", recordname)        
         
         
     fields=readheader(recordname) # Get the info from the header file
@@ -239,8 +239,8 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 else: # Non-empty segment - Get samples
                     if startseg==1: # Variable layout format. Load data then rearrange channels. 
                        
-                        print("dirname: ", dirname)
-                        print("segrecordname: ", segrecordname)
+                        #print("dirname: ", dirname)
+                        #print("segrecordname: ", segrecordname)
                         sig[indstart:indend, returninds], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) # Load all the wanted channels that the segment contains
                         if physical==0: # Fill the rest with invalids
                             sig[indstart:indend, emptyinds]=-2147483648
@@ -649,7 +649,7 @@ def getPBfiles(recordname):
             # eg. recordname=/usr/local/database/mitdb/100
             
         else: # The header file doesn't exist in the current or db cache directory. Need to download.  
-            print("Local file not found. Attempting to download from PhysioBank...")
+            print("Local file not found. Attempting to download from PhysioBank to cache directory: ", dbcachedir)
             
             # eg. recordname=mitdb/100 
             pbdirname=os.path.dirname(recordname)
@@ -680,8 +680,9 @@ def getPBfiles(recordname):
                 filenames=set(fields["filename"])
                 print("filenames: ", filenames)
                 for fn in filenames: # Download all the dat files associated with the record. 
-                    print('fn: ', fn)
-                    ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                    #print('fn: ', fn)
+                    if not os.path.isfile(os.path.join(dirname, fn)):
+                        ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
                     # eg. fn = 100.dat.
                     # eg. pbdirname=mitdb 
                     # eg. ideal url = physiobank/database/mitdb/100.dat 
@@ -698,14 +699,19 @@ def getPBfiles(recordname):
                     print("segname: ", segname)
                     
                     if segname!='~': # If the segment is not empty, download the header and dats
-                        ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+segname+".hea", os.path.join(dirname, segname+".hea")) # Download the header file
+                        if not os.path.isfile(os.path.join(dirname, segname+".hea")):
+                            ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+segname+".hea", os.path.join(dirname, segname+".hea")) # Download the header file
                         
                         segfields=readheader(os.path.join(dirname, segname))
                         for fn in set(segfields["filename"]): # Download all the dat files associated with the section.  
-                            print("fn: ", fn)
-                            print("http://physionet.org/physiobank/database/"+pbdirname+fn)
+                            #print("fn: ", fn)
+                            #print("http://physionet.org/physiobank/database/"+pbdirname+fn)
+                            
                             if fn!='~': # Avoid space holder specified by layout header. 
-                                ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                                if not os.path.isfile(os.path.join(dirname, fn)):
+                                    ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+        
+        print("Done downloading files")
                  
     return (recordname, removefiles) 
 
