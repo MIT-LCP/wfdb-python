@@ -6,6 +6,8 @@ import re
 import os
 import math
 import sys
+import urllib.request as ul
+import configparser 
 
 
 def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1):
@@ -20,8 +22,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     - sampto (default=length of entire signal): The final sample number to read for each channel.
     - channels (default=all channels): Indices specifying the channel to be returned.
     - physical (default=1): Flag that specifies whether to return signals in physical (1) or digital (0) units.
-    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal 
-      as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0). 
+    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0). 
     
     
     Output variables:
@@ -31,6 +32,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               : If the record is in variable layout format, the next list element will be a dictionary of metadata about the layout specification header.
               : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
+    
+    recordname, removerecords=getPBfiles(recordname)
+    print("recordname coming out of getPBfiles: ", recordname)        
+        
+        
     fields=readheader(recordname) # Get the info from the header file
     
     if fields["nsig"]==0:
@@ -38,19 +44,19 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
     if sampfrom<0:
         sys.exit("sampfrom must be non-negative")
     dirname, baserecordname=os.path.split(recordname)
-    if dirname:
-        dirname=dirname+"/"
+           
     if fields["nseg"]==1: # single segment file
         if (len(set(fields["filename"]))==1): # single dat (or binary) file in the segment
             if not fields["nsamp"]: # Signal length was not specified in the header, calculate it from the file size.
-                filesize=os.path.getsize(dirname+fields["filename"][0])
+                filesize=os.path.getsize(os.path.join(dirname,fields["filename"][0]))
                 fields["nsamp"]=int((filesize-fields["byteoffset"][0])/fields["nsig"]/bytespersample[fields["fmt"][0]]) 
             if sampto:
                 if sampto>fields["nsamp"]:
                     sys.exit("sampto exceeds length of record: ", fields["nsamp"])
             else:
                 sampto=fields["nsamp"]
-            sig=readdat(dirname+fields["filename"][0], fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["nsamp"], fields["sampsperframe"], fields["skew"])
+            
+            sig=readdat(os.path.join(dirname,fields["filename"][0]), fields["fmt"][0], fields["byteoffset"][0], sampfrom, sampto, fields["nsig"], fields["nsamp"], fields["sampsperframe"], fields["skew"])
             
             if channels: # User input channels
                 if channels!=list(range(0, fields["nsig"])): # If input channels are not equal to the full set of ordered channels, remove the non-included ones and reorganize the remaining ones that require it. 
@@ -95,7 +101,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               
             # Allocate final output array
             if not fields["nsamp"]: # header doesn't have signal length. Figure it out from the first dat to read. 
-                filesize=os.path.getsize(dirname+filenames[0]) 
+                filesize=os.path.getsize(os.path.join(dirname,fields["filename"][0])) 
                 fields["nsamp"]=int((filesize-fields["byteoffset"][channels[0]])/len(filechannels[filenames[0]])/bytespersample[fields["fmt"][channels[0]]])
                 
             if not sampto: # if sampto field is empty 
@@ -119,7 +125,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
 
             # Read signal files one at a time and store the relevant channels  
             for sigfile in filenames:
-                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(dirname+sigfile, fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"], filesampsperframe[sigfile], fileskew[sigfile])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
+                sig[:, [outchan[1] for outchan in filechannelsout[sigfile]]]=readdat(os.path.join(dirname,sigfile), fields["fmt"][fields["filename"].index(sigfile)], fields["byteoffset"][fields["filename"].index(sigfile)], sampfrom, sampto, len(filechannels[sigfile]), fields["nsamp"], filesampsperframe[sigfile], fileskew[sigfile])[:, [datchan[0] for datchan in filechannelsout[sigfile]]] # Fix the byte offset...
                 
             if (physical==1)&(fields["fmt"]!='8'):
                 # Insert nans/invalid samples. 
@@ -134,9 +140,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
         # Determine if this record is fixed or variable layout. startseg is the first signal segment.  
         if fields["nsampseg"][0]==0: # variable layout - first segment is layout specification file 
             startseg=1
-            layoutfields=readheader(dirname+fields["filename"][0]) # Store the layout header info. 
+            layoutfields=readheader(os.path.join(dirname,fields["filename"][0])) # Store the layout header info. 
         else: # fixed layout - no layout specification file. 
             startseg=0
+        
+        
         
         # Determine the segments and samples that have to be read based on sampfrom and sampto  
         cumsumlengths=list(np.cumsum(fields["nsampseg"][startseg:])) # Cumulative sum of segment lengths
@@ -195,7 +203,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                 segchannels=channels
             else: # Variable layout signal. Work out which channels from the segment to load if any. 
                 if segrecordname!='~':
-                    sfields=readheader(dirname+segrecordname)
+                    sfields=readheader(os.path.join(dirname,segrecordname))
                     wantsignals=[layoutfields["signame"][c] for c in channels] # Signal names of wanted channels
                     segchannels=[] # The channels wanted that are contained in the segment
                     returninds=[] # 1 and 0 marking channels of the numpy array to be filled by the returned segment channels 
@@ -218,7 +226,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment" 
                     
                 else: # Non-empty segment that contains wanted channels. Read its signal and header fields
-                    sig[i-startseg-readsegs[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels)
+                    sig[i-startseg-readsegs[0]], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=os.path.join(dirname,segrecordname), physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels)
 
             else: # Return single stacked np array of all (selected) channels 
                 indend=indstart+readsamps[i-startseg-readsegs[0]][1]-readsamps[i-startseg-readsegs[0]][0] # end index of the large array for this segment
@@ -230,8 +238,10 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment"
                 else: # Non-empty segment - Get samples
                     if startseg==1: # Variable layout format. Load data then rearrange channels. 
-   
-                        sig[indstart:indend, returninds], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) # Load all the wanted channels that the segment contains
+                       
+                        print("dirname: ", dirname)
+                        print("segrecordname: ", segrecordname)
+                        sig[indstart:indend, returninds], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) # Load all the wanted channels that the segment contains
                         if physical==0: # Fill the rest with invalids
                             sig[indstart:indend, emptyinds]=-2147483648
                         else:
@@ -247,7 +257,7 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                         # Keep fields['nsig'] as the value of returned channels from the segments. 
  
                     else: # Fixed layout - channels already arranged                 
-                        sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=dirname+segrecordname, physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) 
+                        sig[indstart:indend, :] , segmentfields[i-startseg] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) 
                 indstart=indend # Update the start index for filling in the next part of the array
 
         # Done reading all segments
@@ -297,19 +307,17 @@ def readheader(recordname): # For reading signal headers
     # ADCres(o, requires ADCgain), ADCzero(o, requires ADCres), initialvalue(o, requires ADCzero), 
     # checksum(o, requires initialvalue), blocksize(o, requires checksum), signame(o, requires block)
 
-    # Regexp object for signal lines. Consider filenames - dat and mat or ~
+    # Regexp object for signal lines. Consider flexible filenames, and also ~
     rxSIGNAL=re.compile(''.join(["(?P<filename>[\w]*\.?[\w]*~?)[ \t]+(?P<format>\d+)x?"
                                  "(?P<sampsperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
                                  "(?P<ADCgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
                                  "(?P<ADCres>\d*)[ \t]*(?P<ADCzero>-?\d*)[ \t]*(?P<initialvalue>-?\d*)[ \t]*",
                                  "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]*)"])) 
 
-    # check regexp allowed characters of signame...
     
     # Units characters: letters, numbers, /, ^, -, 
-    # Make sure \w doesn't trigger more errors than [0-9a-zA-z_]
     # Watch out for potentially negative fields: baseline, ADCzero, initialvalue, checksum, 
-    # Watch out for potential float: ADCgain. There are no negative floats. 
+    # Watch out for potential float: ADCgain.  
 
     # Split comment and non-comment lines
     for line in fp:
@@ -617,6 +625,91 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
     return sig, nbytesload
 
 
+
+def getPBfiles(recordname):
+    
+    removefiles=[] # List of files that should be deleted after being processed.  
+    
+    # If the original header file already exist in the current directory, just return the original record name. Assume all the files are downloaded. Or check each one... 
+    
+    if not os.path.isfile(recordname+".hea"): # Header file does not exist in current dir. Look in database dir. 
+        config=configparser.ConfigParser()
+        config.read("config.ini")
+        dbcachedir=config['PBDOWNLOAD']['dbdir'] # Location to store downloaded physiobank files read from config.ini
+        keepfiles=config['PBDOWNLOAD']['keepfiles'] # Specifier of whether to keep the downloaded files. 
+        
+        if not os.path.exists(dbcachedir): # Create the cache directory if necessary
+            os.makedirs(dbcachedir)
+            print("Created database cache directory: ", dbcachedir)
+        # eg. recordname=mitdb/100
+        
+        
+        if os.path.isfile(os.path.join(dbcachedir,recordname)+".hea"): # The header file exists in the database cache directory.  
+            recordname=os.path.join(dbcachedir,recordname) # Update recordname to target the cache folder 
+            # eg. recordname=/usr/local/database/mitdb/100
+            
+        else: # The header file doesn't exist in the current or db cache directory. Need to download.  
+            print("Local file not found. Attempting to download from PhysioBank...")
+            
+            # eg. recordname=mitdb/100 
+            pbdirname=os.path.dirname(recordname)
+            if pbdirname:
+                pbdirname=pbdirname+'/'
+            # eg. pbdirname=mitdb/
+            
+            targeturl = "http://physionet.org/physiobank/database/"+recordname+".hea"
+            
+            # eg. targeturl=physionet.org/physiobank/database/mitdb/100.hea
+            
+            recordname=os.path.join(dbcachedir,recordname) # Update recordname to target the cache folder 
+            # eg. recordname = /usr/local/database/mitdb/100
+            
+            dirname, baserecordname=os.path.split(recordname)
+            #eg. dirname=/usr/local/database/mitdb, baserecordname=100
+            
+            if not os.path.exists(dirname): # Create the cache subdirectory if necessary
+                os.makedirs(dirname)
+                
+            ul.urlretrieve(targeturl, recordname+".hea") # Download the top level header file into the dbcache. Error triggered if invalid link. 
+            # Downloaded into /usr/local/database/mitdb/100.hea
+    
+            fields=readheader(recordname) # Get the info from the header file    
+            
+            # Check the record specification and download all necessary files.
+            if fields["nseg"]==1: # single segment file
+                filenames=set(fields["filename"])
+                print("filenames: ", filenames)
+                for fn in filenames: # Download all the dat files associated with the record. 
+                    print('fn: ', fn)
+                    ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                    # eg. fn = 100.dat.
+                    # eg. pbdirname=mitdb 
+                    # eg. ideal url = physiobank/database/mitdb/100.dat 
+                    # eg. target = /usr/local/database/mitdb/100.dat - Correct already. 
+            
+            else: # Multi-segment file.  
+                #if fields["nsampseg"][0]==0:
+                #    varlayout=1
+                #else:
+                #    varlayout=0
+                
+                for segname in fields["filename"]: # For each segment...
+                    
+                    print("segname: ", segname)
+                    
+                    if segname!='~': # If the segment is not empty, download the header and dats
+                        ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+segname+".hea", os.path.join(dirname, segname+".hea")) # Download the header file
+                        
+                        segfields=readheader(os.path.join(dirname, segname))
+                        for fn in set(segfields["filename"]): # Download all the dat files associated with the section.  
+                            print("fn: ", fn)
+                            print("http://physionet.org/physiobank/database/"+pbdirname+fn)
+                            if fn!='~': # Avoid space holder specified by layout header. 
+                                ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                 
+    return (recordname, removefiles) 
+
+
 # Bytes required to hold each sample (including wasted space) for different wfdb formats
 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
                     '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
@@ -632,3 +725,5 @@ datatypes={'8':'<i1', '16':'<i2', '24':'<i3', '32':'<i4',
 
 # Channel dependent field items that need to be rearranged if input channels is not default. 
 arrangefields=["filename", "fmt", "sampsperframe", "skew", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
+
+
