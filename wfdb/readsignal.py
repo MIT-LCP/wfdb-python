@@ -33,9 +33,13 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
     
-    recordname, removerecords=getPBfiles(recordname)
-    #print("recordname coming out of getPBfiles: ", recordname)        
-        
+    
+    config=configparser.ConfigParser()
+    config.read("config.ini")
+    if int(config['PBDOWNLOAD']['getPBfiles']): # Read config.ini flag specifying whether to allow downloading from physiobank
+        recordname, filestoremove=getPBfiles(recordname, config, os.getcwd())    
+    else:
+        filestoremove=[]
         
     fields=readheader(recordname) # Get the info from the header file
     
@@ -267,7 +271,11 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
             fields=[fields,layoutfields, segmentfields]
         else: # Fixed layout format. 
             fields=[fields, segmentfields] 
-        
+    
+    if filestoremove:
+        for f in filestoremove:
+            os.remove(f)
+    
     return (sig, fields)
 
 
@@ -475,8 +483,6 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
     if fmt=='212': 
         nbytesload=int(math.ceil((nsamp)*1.5))# The number of bytes needed to be loaded given the number of samples needed
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
-
-        print('sigbytes: ', sigbytes)
         
         if tsampsperframe==nsig: # No extra samples/frame
             # Turn the bytes into actual samples. 
@@ -621,22 +627,99 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
         elif fmt=='160':
             sig=sig-32768   
         nbytesload=nsamp*bytespersample[fmt]
-    
+        
     return sig, nbytesload
 
 
 
-def getPBfiles(recordname):
+
+# Download all missing files from physiobank required for reading a record. Return the record name prepended with target directory where the files are to be read from.   
+
+# filedirectory = directory to search for files. 
+def getPBfiles(recordname, filedirectory):
     
-    removefiles=[] # List of files that should be deleted after being processed.  
+    config=configparser.ConfigParser()
+    config.read("config.ini")
+    dbcachedir=config['PBDOWNLOAD']['dbdir'] # Location to store downloaded physiobank files read from config.ini
+    filestoremove=[] # List of files that should be deleted after being processed.  
+  
+
+    if filedirectory==dbcachedir: # Target file directory is cache directory. Look for all required files and download any missing
+    # ones into the cache directory. 
+        
+        removefiles=int(config['PBDOWNLOAD']['removefiles']) # Specifier of whether to keep the downloaded files. 
+        pbsubdir, baserecordname = os.path.split(recordname) # mitdb, 100 = split(mitdb/100)
+        downloaddir=os.path.join(dbcachedir, pbsubdir) # Final directory to download and read files. 
+        
+        
+        
+        # Files will only be downloaded in this if statement. But where to put the 'attempting to download from pb' message? 
+        # Possibly initial dir=cache dir. So put message after every missing file? ... difficult. 
+        
+        
+              
     
-    # If the original header file already exist in the current directory, just return the original record name. Assume all the files are downloaded. Or check each one... 
     
-    if not os.path.isfile(recordname+".hea"): # Header file does not exist in current dir. Look in database dir. 
-        config=configparser.ConfigParser()
-        config.read("config.ini")
-        dbcachedir=config['PBDOWNLOAD']['dbdir'] # Location to store downloaded physiobank files read from config.ini
-        keepfiles=config['PBDOWNLOAD']['keepfiles'] # Specifier of whether to keep the downloaded files. 
+    
+    
+        
+        return os.path.join(downloaddir, baserecordname), filestoremove # return the record name with the db cache directory. 
+        
+        
+        
+        
+        
+        ##### Wait... are we looking in /usr/local/database or /usr/local/database/mitdb???? Perhaps only latter. 
+        # Obviously we allow the first if they are there and already have all the files but we don't want all db files to be in 
+        # the base directory. 
+        
+    else: # Target file directory is not cache directory. Look for all required files. If anything is missing, recall the 
+        # function with the cache directory as input. Nothing is ever downloaded outside the cache directory. 
+        
+        # recordname=mitdb/100       filedirectory=/home/cx1111
+        if not os.path.isfile(os.path.join(filedirectory, recordname+".hea")): # Base header not present. 
+            return getPBfiles(recordname, dbcachedir)
+        
+        # Base header is present.  
+        fields=readheader(os.path.join(filedirectory, recordname+".hea"))[1]
+        if fields[nseg]==1: # Single segment. Check for all the required dat files 
+            for f in fields["filename"]:
+                if not os.path.isfile(os.path.join(filedirectory, f)): # Missing a dat file
+                    return getPBfiles(recordname, dbcachedir)
+        else: # Multi segment. Check for all segment headers and their dat files
+            for segment in fields["filename"]:
+                if not os.path.isfile(os.path.join(filedirectory, segment+".hea")): # Missing a segment header
+                    return getPBfiles(recordname, dbcachedir)
+                else:
+                    segfields=readheader(os.path.join(filedirectory, segment+".hea"))
+                    for f in segfields["filename"]:
+                        if f!='~':
+                            if not os.path.isfile(os.path.join(filedirectory, f)): # Missing a segment's dat file 
+                                return getPBfiles(recordname, dbcachedir)
+                    
+        return recordname, filestoremove # All files present, nothing downloaded. Just return base recordname.
+                
+                
+                
+                
+                
+
+
+
+
+                
+                
+                
+
+
+    # What if you are already in the cache directory??? 
+    if not os.path.isfile(os.path.join(filedirectory, recordname+".hea")): # Header file does not exist in current dir. Look in database dir.
+        
+        filedirectory=dbcachedir
+        
+        
+        
+        
         
         if not os.path.exists(dbcachedir): # Create the cache directory if necessary
             os.makedirs(dbcachedir)
@@ -644,7 +727,12 @@ def getPBfiles(recordname):
         # eg. recordname=mitdb/100
         
         
+        
         if os.path.isfile(os.path.join(dbcachedir,recordname)+".hea"): # The header file exists in the database cache directory.  
+            
+          
+            
+            
             recordname=os.path.join(dbcachedir,recordname) # Update recordname to target the cache folder 
             # eg. recordname=/usr/local/database/mitdb/100
             
@@ -657,10 +745,7 @@ def getPBfiles(recordname):
                 pbdirname=pbdirname+'/'
             # eg. pbdirname=mitdb/
             
-            targeturl = "http://physionet.org/physiobank/database/"+recordname+".hea"
-            
-            # eg. targeturl=physionet.org/physiobank/database/mitdb/100.hea
-            
+
             recordname=os.path.join(dbcachedir,recordname) # Update recordname to target the cache folder 
             # eg. recordname = /usr/local/database/mitdb/100
             
@@ -670,7 +755,13 @@ def getPBfiles(recordname):
             if not os.path.exists(dirname): # Create the cache subdirectory if necessary
                 os.makedirs(dirname)
                 
-            ul.urlretrieve(targeturl, recordname+".hea") # Download the top level header file into the dbcache. Error triggered if invalid link. 
+            ul.urlretrieve("http://physionet.org/physiobank/database/"+recordname+".hea", recordname+".hea") # Download the top level header file into the dbcache. 
+            # eg. targeturl=physionet.org/physiobank/database/mitdb/100.hea
+            
+            if removefiles: # Keep track of files to remove
+                filestoremove.append(recordname+".hea")
+                
+            
             # Downloaded into /usr/local/database/mitdb/100.hea
     
             fields=readheader(recordname) # Get the info from the header file    
@@ -678,21 +769,19 @@ def getPBfiles(recordname):
             # Check the record specification and download all necessary files.
             if fields["nseg"]==1: # single segment file
                 filenames=set(fields["filename"])
-                print("filenames: ", filenames)
+                
                 for fn in filenames: # Download all the dat files associated with the record. 
-                    #print('fn: ', fn)
                     if not os.path.isfile(os.path.join(dirname, fn)):
                         ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                        if removefiles: # Keep track of files to remove
+                            filestoremove.append(os.path.join(dirname, fn))
                     # eg. fn = 100.dat.
                     # eg. pbdirname=mitdb 
                     # eg. ideal url = physiobank/database/mitdb/100.dat 
                     # eg. target = /usr/local/database/mitdb/100.dat - Correct already. 
             
             else: # Multi-segment file.  
-                #if fields["nsampseg"][0]==0:
-                #    varlayout=1
-                #else:
-                #    varlayout=0
+    
                 
                 for segname in fields["filename"]: # For each segment...
                     
@@ -701,19 +790,24 @@ def getPBfiles(recordname):
                     if segname!='~': # If the segment is not empty, download the header and dats
                         if not os.path.isfile(os.path.join(dirname, segname+".hea")):
                             ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+segname+".hea", os.path.join(dirname, segname+".hea")) # Download the header file
+                            if removefiles: # Keep track of files to remove
+                                filestoremove.append(os.path.join(dirname, segname+".hea"))
                         
                         segfields=readheader(os.path.join(dirname, segname))
                         for fn in set(segfields["filename"]): # Download all the dat files associated with the section.  
-                            #print("fn: ", fn)
-                            #print("http://physionet.org/physiobank/database/"+pbdirname+fn)
-                            
-                            if fn!='~': # Avoid space holder specified by layout header. 
+                            if fn!='~': # Avoid space holder 'files' specified by layout header. 
                                 if not os.path.isfile(os.path.join(dirname, fn)):
                                     ul.urlretrieve("http://physionet.org/physiobank/database/"+pbdirname+fn, os.path.join(dirname, fn))
+                                    if removefiles: # Keep track of files to remove
+                                        filestoremove.append(os.path.join(dirname, fn))
         
-        print("Done downloading files")
                  
-    return (recordname, removefiles) 
+    return (recordname, filestoremove) 
+
+
+
+
+
 
 
 # Bytes required to hold each sample (including wasted space) for different wfdb formats
@@ -731,5 +825,3 @@ datatypes={'8':'<i1', '16':'<i2', '24':'<i3', '32':'<i4',
 
 # Channel dependent field items that need to be rearranged if input channels is not default. 
 arrangefields=["filename", "fmt", "sampsperframe", "skew", "byteoffset", "gain", "units", "baseline", "initvalue", "signame"]
-
-
