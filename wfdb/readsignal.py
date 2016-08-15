@@ -32,13 +32,14 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
     
-    if os.path.isfile('config.ini'):
+    if os.path.isfile('config.ini'): # Read the configuration file if any. 
         config=configparser.ConfigParser()
         config.read("config.ini")
         
-        if int(config['PBDOWNLOAD']['getPBfiles']): # Read config.ini flag specifying whether to allow downloading from physiobank
-            recordname, filestoremove=pbdownload.getrecordfiles(recordname, os.getcwd())   
-            print("Returned recordname: ", recordname)
+        if int(config['PBDOWNLOAD']['getPBfiles']): # Flag specifying whether to allow downloading from physiobank
+            recordname, filestoremove=pbdownload.checkrecordfiles(recordname, os.getcwd())  
+            if int(config['PBDOWNLOAD']['keepdledfiles']): # Flag specifying whether to keep downloaded physiobank files
+                filestoremove=[]
         else:
             filestoremove=[]
     else:
@@ -245,9 +246,6 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
                     segmentfields[i-startseg-readsegs[0]]="Empty Segment"
                 else: # Non-empty segment - Get samples
                     if startseg==1: # Variable layout format. Load data then rearrange channels. 
-                       
-                        #print("dirname: ", dirname)
-                        #print("segrecordname: ", segrecordname)
                         sig[indstart:indend, returninds], segmentfields[i-startseg-readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i-startseg-readsegs[0]][0], sampto=readsamps[i-startseg-readsegs[0]][1], channels=segchannels) # Load all the wanted channels that the segment contains
                         if physical==0: # Fill the rest with invalids
                             sig[indstart:indend, emptyinds]=-2147483648
