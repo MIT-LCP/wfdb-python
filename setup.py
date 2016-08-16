@@ -11,7 +11,7 @@ from os import path
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(
@@ -36,7 +36,7 @@ setup(
     license='MIT',
 
     # What does your project relate to?
-    keywords='sample setuptools development',
+    keywords='WFDB clinical waveform',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
