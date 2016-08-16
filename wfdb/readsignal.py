@@ -32,18 +32,14 @@ def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegm
               : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """    
     
-    if os.path.isfile('config.ini'): # Read the configuration file if any. 
+    filestoremove=[]
+    if os.path.isfile(os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.ini")): # Read the configuration file if any. 
         config=configparser.ConfigParser()
-        config.read("config.ini")
-        
+        config.read(os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.ini"))
         if int(config['PBDOWNLOAD']['getPBfiles']): # Flag specifying whether to allow downloading from physiobank
-            recordname, filestoremove=pbdownload.checkrecordfiles(recordname, os.getcwd())  
-            if int(config['PBDOWNLOAD']['keepdledfiles']): # Flag specifying whether to keep downloaded physiobank files
-                filestoremove=[]
-        else:
-            filestoremove=[]
-    else:
-        filestoremove=[]
+            recordname, dledfiles=pbdownload.checkrecordfiles(recordname, os.getcwd())  
+            if not int(config['PBDOWNLOAD']['keepdledfiles']): # Flag specifying whether to keep downloaded physiobank files
+                filestoremove=dledfiles
     
     fields=readheader(recordname) # Get the info from the header file
     

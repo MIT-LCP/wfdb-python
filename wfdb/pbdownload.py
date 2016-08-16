@@ -1,3 +1,6 @@
+### Written by - Chen Xie 2016 ### 
+### Please report bugs and suggestions to https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu ###
+
 import urllib.request as ul
 import configparser 
 import os
@@ -9,7 +12,7 @@ from . import readsignal
 def checkrecordfiles(recordname, filedirectory):
     
     config=configparser.ConfigParser()
-    config.read("config.ini")
+    config.read(os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.ini"))
     dbcachedir=config['PBDOWNLOAD']['dbcachedir'] # Base directory to store downloaded physiobank files, read from config.ini
     basedir, baserecname = os.path.split(recordname) 
     
@@ -26,7 +29,7 @@ def checkrecordfiles(recordname, filedirectory):
         downloaddir=os.path.join(dbcachedir, basedir)
         
         if not os.path.isfile(os.path.join(basedir, baserecname+".hea")): # The basedir directory is missing the header file.
-            dledfiles=dlrecordfiles(recordname, basedir) # If invalid pb database, function would exit.
+            dledfiles=dlrecordfiles(recordname, downloaddir) # If invalid pb database, function would exit.
             return os.path.join(downloaddir, baserecname), dledfiles # Files downloaded, confirmed valid pb database.
         
         # Header is present in basedir
@@ -88,16 +91,17 @@ def checkrecordfiles(recordname, filedirectory):
         return baserecname, [] 
         
     
-# http://stackoverflow.com/questions/3256576/catching-http-errors
+
 # Download all the required files for a record into a target folder. Files already present in the target folder will be omitted. 
 # checkrecordfiles only calls dlrecordfiles with targetdir==downloaddir  
 # Exits if invalid physiobank record. 
 def dlrecordfiles(pbrecname, targetdir):
-    
     pbdir, baserecname=os.path.split(pbrecname) 
     
+    print('Downloading missing file(s) into directory: ', targetdir)
+    
     if not os.path.isdir(targetdir): # Make the target directory if it doesn't already exist
-        os.mkdir(targetdir)
+        os.makedirs(targetdir)
         madetargetdir=1  
     else:
         madetargetdir=0 
@@ -113,7 +117,7 @@ def dlrecordfiles(pbrecname, targetdir):
         except ul.HTTPError:
             if madetargetdir:
                 os.rmdir(targetdir) # Remove the recently created faulty directory. 
-            sys.exit("Error: Attempted to download invalid target file: "+url)
+            sys.exit("Error: Attempted to download invalid target file: http://physionet.org/physiobank/database/"+pbrecname+".hea")
      
     fields=readsignal.readheader(os.path.join(targetdir, baserecname))
     
@@ -127,13 +131,14 @@ def dlrecordfiles(pbrecname, targetdir):
         for segment in fields["filename"]:
             if segment!='~':
                 if not os.path.isfile(os.path.join(targetdir, segment+".hea")): # Missing a segment header
-                    dledfilesdlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles)
+                    dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles)
                 segfields=readsignal.readheader(os.path.join(targetdir, segment))
                 for f in segfields["filename"]:
                     if f!='~':
                         if not os.path.isfile(os.path.join(targetdir, f)): # Missing a segment's dat file     
                             dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
     
+    print('Download(s) complete')
     return dledfiles # downloaded files
     
     
@@ -151,12 +156,6 @@ def dlorexit(url, filename, dledfiles):
     
     
     
-    
-    
-    
-    
-    
-
 def dlannfiles():
     return dledfiles
 
