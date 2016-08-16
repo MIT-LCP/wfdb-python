@@ -8,8 +8,22 @@ import sys
 from . import readsignal
 
    
-# Check for all files required to read a physiobank record. Call dlrecordfiles if any missing. Return the base record name prepended with the target directory where the files are to be read from and a list of files downloaded. All missing files will be downloaded in the database cache directory specified in the config.ini file.  
 def checkrecordfiles(recordname, filedirectory):
+    """Check a local directory along with the database cache directory specified in 'config.ini' for all necessary files required to read a WFDB record. Calls pbdownload.dlrecordfiles to download any missing files into the database cache directory. Returns the base record name if all files were present, or a full path record name specifying where the downloaded files are to be read, and a list of files downloaded. 
+    
+    *If you wish to directly download files for a record, it highly recommended to call 'pbdownload.dlrecordfiles' directly. This is a helper function for readsignal.rdsamp which tries to parse the 'recordname' input to deduce whether it contains a local directory, physiobank database, or both. Its usage format is different and more complex than that of 'dlrecordfiles'. 
+    
+    Usage: readrecordname, downloadedfiles = checkrecordfiles(recordname, filedirectory)
+    
+    Input arguments: 
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). Can be prepended with a local directory, or a physiobank subdirectory (or both if the relative local directory exists and takes the same name as the physiobank subdirectory). eg: recordname=mitdb/100 
+    - filedirectory (required): The local directory to check for the files required to read the record before checking the database cache directory. If the 'recordname' argument is prepended with a directory, this function will assume that it is a local directory and prepend that to this 'filedirectory' argument and check the resulting directory instead.
+    
+    Output arguments:
+    - readrecordname: The record name prepended with the path the files are to be read from.
+    - downloadedfiles:  The list of files downloaded from PhysioBank. 
+     
+    """
     
     config=configparser.ConfigParser()
     config.read(os.path.join(os.path.abspath(os.path.dirname(__file__)), "config.ini"))
@@ -24,7 +38,7 @@ def checkrecordfiles(recordname, filedirectory):
           
     # If this is reached, basedir is defined. Check if there is a directory called 'basedir':
     if os.path.isdir(basedir): # the 'basedir' directory exists. Check it for files.
-        # It is possible that basedir is also a physiobank database. Therefore if any files are missing, ,try to download files (into the cache dir) assuming basedir is the physiobank database directory. If it turns out that basedir is not a pb database, an error will be triggered. The record would not be readable without the missing file(s) anyway.  
+        # It is possible that basedir is also a physiobank database. Therefore if any files are missing, ,try to download files  assuming basedir is the physiobank database directory. If it turns out that basedir is not a pb database, an error will be triggered. The record would not be readable without the missing file(s) anyway.  
         
         downloaddir=os.path.join(dbcachedir, basedir)
         
@@ -85,19 +99,26 @@ def checkrecordfiles(recordname, filedirectory):
                             if not os.path.isfile(os.path.join(targetdir, f)): # Missing a segment's dat file     
                                 dledfiles=dlrecordfiles(recordname, downloaddir)    
                                 return os.path.join(downloaddir, baserecname), dledfiles
-            
 
         # All files are present in current directory. Return base record name and no dled files.
         return baserecname, [] 
         
     
-
-# Download all the required files for a record into a target folder. Files already present in the target folder will be omitted. 
-# checkrecordfiles only calls dlrecordfiles with targetdir==downloaddir  
-# Exits if invalid physiobank record. 
 def dlrecordfiles(pbrecname, targetdir):
-    pbdir, baserecname=os.path.split(pbrecname) 
     
+    """Check a specified local directory for all necessary files required to read a Physiobank record, and download any missing files into the same directory. Returns a list of files downloaded, or exits with error if an invalid Physiobank record is specified.  
+    
+    Usage: dledfiles = dlrecordfiles(pbrecname, targetdir)
+    
+    Input arguments: 
+    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended with the Physiobank subdirectory the file is contain in (without any file extensions). eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea and 12727.dat  
+    - targetdir (required): The local directory to check for files required to read the record, in which missing files are also downloaded. 
+    
+    Output arguments:
+    - dledfiles:  The list of files downloaded from PhysioBank. 
+     
+    """
+    pbdir, baserecname=os.path.split(pbrecname) 
     print('Downloading missing file(s) into directory: ', targetdir)
     
     if not os.path.isdir(targetdir): # Make the target directory if it doesn't already exist
@@ -117,7 +138,7 @@ def dlrecordfiles(pbrecname, targetdir):
         except ul.HTTPError:
             if madetargetdir:
                 os.rmdir(targetdir) # Remove the recently created faulty directory. 
-            sys.exit("Error: Attempted to download invalid target file: http://physionet.org/physiobank/database/"+pbrecname+".hea")
+            sys.exit("Attempted to download invalid target file: http://physionet.org/physiobank/database/"+pbrecname+".hea")
      
     fields=readsignal.readheader(os.path.join(targetdir, baserecname))
     
@@ -138,7 +159,7 @@ def dlrecordfiles(pbrecname, targetdir):
                         if not os.path.isfile(os.path.join(targetdir, f)): # Missing a segment's dat file     
                             dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
     
-    print('Download(s) complete')
+    print('Download complete')
     return dledfiles # downloaded files
     
     
@@ -150,22 +171,19 @@ def dlorexit(url, filename, dledfiles):
         dledfiles.append(filename)
         return dledfiles
     except ul.HTTPError:
-        sys.exit("Error: Attempted to download invalid target file: "+url)
+        sys.exit("Attempted to download invalid target file: "+url)
 
     
     
     
-    
+# Download files required to read a wfdb annotation. 
 def dlannfiles():
     return dledfiles
 
     
     
 # Download all the records in a physiobank database. 
-def dlPBdatabase(database, fulltargetfolder):
-    
-    
-    
+def dlPBdatabase(database, targetdir):
     return dledfiles
     
     
