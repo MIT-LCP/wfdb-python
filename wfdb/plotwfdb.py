@@ -1,5 +1,5 @@
 import numpy as np
-from wfdb import readsignal
+import readsignal
 import matplotlib.pyplot as plt
 
 
