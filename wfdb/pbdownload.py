@@ -1,7 +1,7 @@
 ### Written by - Chen Xie 2016 ### 
 ### Please report bugs and suggestions to https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu ###
 
-import urllib.request as ul
+from urllib import urlretrieve
 import configparser 
 import os
 import sys
@@ -133,9 +133,9 @@ def dlrecordfiles(pbrecname, targetdir):
     if not os.path.isfile(os.path.join(targetdir, baserecname+".hea")):
         # Not calling dlorexit here. Extra instruction of removing the faulty created directory.
         try:
-            ul.urlretrieve("http://physionet.org/physiobank/database/"+pbrecname+".hea", os.path.join(targetdir, baserecname+".hea")) 
+            urlretrieve("http://physionet.org/physiobank/database/"+pbrecname+".hea", os.path.join(targetdir, baserecname+".hea")) 
             dledfiles.append(os.path.join(targetdir, baserecname+".hea"))
-        except ul.HTTPError:
+        except HTTPError:
             if madetargetdir:
                 os.rmdir(targetdir) # Remove the recently created faulty directory. 
             sys.exit("Attempted to download invalid target file: http://physionet.org/physiobank/database/"+pbrecname+".hea")
@@ -161,27 +161,23 @@ def dlrecordfiles(pbrecname, targetdir):
     
     print('Download complete')
     return dledfiles # downloaded files
-    
-    
+
 
 # Helper function for dlrecordfiles. Download the file from the specified 'url' as the 'filename', or exit with warning. 
 def dlorexit(url, filename, dledfiles):
     try:
-        ul.urlretrieve(url, filename)
+        urlretrieve(url, filename)
         dledfiles.append(filename)
         return dledfiles
-    except ul.HTTPError:
+    except HTTPError:
         sys.exit("Attempted to download invalid target file: "+url)
 
-    
-    
-    
+
 # Download files required to read a wfdb annotation. 
 def dlannfiles():
     return dledfiles
 
-    
-    
+
 # Download all the records in a physiobank database. 
 def dlPBdatabase(database, targetdir):
     return dledfiles
