@@ -55,8 +55,7 @@ setup(
         'nose>=1.3.7',
         'numpy>=1.11.0',
         'matplotlib>=1.5.1',
-        'cairocffi>=0.7.2',
-        'urllib>=1.17'
+        'cairocffi>=0.7.2'
         ],
 
     # List additional groups of dependencies here (e.g. development
