@@ -5,7 +5,7 @@ from urllib import urlretrieve
 import configparser 
 import os
 import sys
-from . import readsignal
+import readsignal
 
    
 def checkrecordfiles(recordname, filedirectory):

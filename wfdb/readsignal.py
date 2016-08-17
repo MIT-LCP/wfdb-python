@@ -7,7 +7,7 @@ import os
 import math
 import sys
 import configparser 
-from . import pbdownload
+import pbdownload
 
 def rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1):
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary. 
