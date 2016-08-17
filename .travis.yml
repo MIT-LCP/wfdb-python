@@ -17,6 +17,7 @@ branches:
 # Set the language
 language: python
 python:
+    - "2.7"
     - "3.5"
 
 # before_script:
