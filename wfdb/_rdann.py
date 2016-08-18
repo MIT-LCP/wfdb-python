@@ -31,9 +31,8 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present. 
     """
     
-    if sampto:
-        if sampto<sampfrom:
-            sys.exit("sampto must be greater than sampfrom")
+    if sampto and sampto<sampfrom:
+        sys.exit("sampto must be greater than sampfrom")
     
     #fields=readheader(recordname) # Get the info from the header file
     dirname, baserecordname=os.path.split(recordname)
