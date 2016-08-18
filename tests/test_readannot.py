@@ -1,5 +1,5 @@
 import numpy as np
-from wfdb import readannot
+from wfdb import rdann
 import re
         
 class test_rdann():
@@ -9,7 +9,7 @@ class test_rdann():
     def test_1(self):
     
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs=readannot.rdann('sampledata/100', 'atr')
+        annsamp, anntype, subtype, chan, num, aux, annfs=rdann('sampledata/100', 'atr')
         aux[0]='(N' # This is not the fault of the script. The annotation file specifies a length 3 
         # aux field with a null written after '(N' which the script correctly picks up. I am just 
         # getting rid of the null in this unit test to compare with the regexp output below which has 
@@ -49,7 +49,7 @@ class test_rdann():
     def test_2(self):
     
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs=readannot.rdann('sampledata/12726', 'anI')
+        annsamp, anntype, subtype, chan, num, aux, annfs=rdann('sampledata/12726', 'anI')
 
         # Target data from WFDB software package
         lines=tuple(open('tests/targetoutputdata/anntarget2', 'r'))
