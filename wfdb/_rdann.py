@@ -275,4 +275,7 @@ anncodes = {
     #40: 'JPT', # J point (end of QRS) */
     41: 'RONT' # R-on-T premature ventricular contraction */
     }
+
+if __name__ == '__main__':
+    rdann(sys.argv)
     
