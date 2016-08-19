@@ -425,7 +425,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
 
     elif fmt=='310': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
         
-        nbytesload=int(((nsamp)+2)/3)*4 # The number of bytes needed to be loaded given the number of samples needed
+        nbytesload=int(((nsamp)+2)/3.)*4 # The number of bytes needed to be loaded given the number of samples needed
         if (nsamp-1)%3==0:
             nbytesload-=2
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
@@ -471,7 +471,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
             sig=(sig/sampsperframe).astype('int')
     
     elif fmt=='311': # Three 10 bit samples packed into 4 bytes with 2 bits discarded
-        nbytesload=int((nsamp-1)/3)+nsamp+1
+        nbytesload=int((nsamp-1)/3.)+nsamp+1
         sigbytes=np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nbytesload).astype('uint') # Loaded as unsigned 1 byte blocks
 
         if tsampsperframe==nsig: # No extra samples/frame
@@ -539,7 +539,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
 
 # Bytes required to hold each sample (including wasted space) for different wfdb formats
 bytespersample={'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, 
-                    '80': 1, '160':2, '212': 1.5, '310': 4/3, '311': 4/3}
+                    '80': 1, '160':2, '212': 1.5, '310': 4/3., '311': 4/3.}
 
 # Values that correspond to NAN (Format 8 has no NANs)
 wfdbInvalids={'16': -32768, '24': -8388608, '32': -2147483648, '61': -32768, 

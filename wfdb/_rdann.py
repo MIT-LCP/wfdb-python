@@ -59,7 +59,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
         # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen and anntype=AUX. Then follows "## time resolution: "
         if [testbytes[i] for i in [0, 1]+list(range(3, 24))]==[0, 88, 252, 35, 35, 32, 116, 105, 109, 101, 32, 114, 101, 115, 111, 108, 117, 116, 105, 111, 110, 58, 32]: # The file's leading bytes match the expected pattern for encoding fs. 
             auxlen=testbytes[2] # Length of the auxilliary string that includes the fs written into the file. 
-            testbytes=filebytes[:(12+math.ceil(auxlen/2)),:].flatten()
+            testbytes=filebytes[:(12+math.ceil(auxlen/2.)),:].flatten()
             annfs=int("".join([chr(char) for char in testbytes[24:auxlen+4]]))
             bpi=0.5*(auxlen+12+(auxlen & 1)) # byte pair index to start reading actual annotations. 
    
@@ -100,11 +100,11 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
                 bpi=bpi+1
             elif AT==63: # AUX
                 auxlen=filebytes[bpi,0] # length of aux string. Max 256? No need to check other bits of second byte? 
-                auxbytes=filebytes[bpi+1:bpi+1+math.ceil(auxlen/2), :].flatten() # The aux bytes
+                auxbytes=filebytes[bpi+1:bpi+1+math.ceil(auxlen/2.), :].flatten() # The aux bytes
                 if auxlen&1:
                     auxbytes=auxbytes[:-1]
                 aux[ai]="".join([chr(char) for char in auxbytes]) # The aux string
-                bpi=bpi+1+math.ceil(auxlen/2)
+                bpi=bpi+1+math.ceil(auxlen/2.)
             # Only aux and sub are reset between annotations. Chan and num keep previous value if missing. 
             AT=filebytes[bpi,1] >> 2
             
