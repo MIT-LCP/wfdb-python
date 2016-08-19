@@ -34,22 +34,22 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     if sampto and sampto<=sampfrom:
         raise ValueError("sampto must be greater than sampfrom")
     
-    #fields=readheader(recordname) # Get the info from the header file
+    # Get the info from the header file
+    #fields=readheader(recordname) 
     dirname, baserecordname=os.path.split(recordname)
-
-    f=open(recordname+'.'+annot, 'rb')
-    filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # Read the file's byte pairs.
-    f.close()
+    
+    # Read the file's byte pairs.
+    with open(recordname+'.'+annot, 'rb') as f:
+        filebytes=np.fromfile(f, '<u1').reshape([-1, 2])
     
     # Allocate for the maximum possible number of annotations contained in the file. 
-    annsamp=np.zeros(filebytes.shape[0])
-    anntype=np.zeros(filebytes.shape[0])
-    subtype=np.zeros(filebytes.shape[0])
-    chan=np.zeros(filebytes.shape[0])
-    num=np.zeros(filebytes.shape[0])
+    annsamp=np.empty(filebytes.shape[0])
+    anntype=np.empty(filebytes.shape[0])
+    subtype=np.empty(filebytes.shape[0])
+    chan=np.empty(filebytes.shape[0])
+    num=np.empty(filebytes.shape[0])
     aux=['']*filebytes.shape[0] 
-    
-    annfs=[] # Stores the fs written in the annotation file if it exists. 
+    annfs=[] # Stores the frequencies written in the annotation file if it exists. 
     ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
     bpi=0 # Byte pair index, for searching through bytes of the annotation file. 
     
@@ -164,7 +164,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
             anntype=[annsyms[code] for code in anntype]
         elif anndisp==2:
             anntype=[anncodes[code] for code in anntype]
-        
         
     return (annsamp, anntype, subtype, chan, num, aux, annfs)
     

@@ -4,8 +4,8 @@ import os
 import math
 import sys
 import configparser 
-from urllib import urlretrieve
 import configparser
+import requests
 
 def checkrecordfiles(recordname, filedirectory):
     """Check a local directory along with the database cache directory specified in 'config.ini' for all necessary files required to read a WFDB record. Calls pbdownload.dlrecordfiles to download any missing files into the database cache directory. Returns the base record name if all files were present, or a full path record name specifying where the downloaded files are to be read, and a list of files downloaded. 
@@ -132,8 +132,12 @@ def dlrecordfiles(pbrecname, targetdir):
     if not os.path.isfile(os.path.join(targetdir, baserecname+".hea")):
         # Not calling dlorexit here. Extra instruction of removing the faulty created directory.
         try:
-            urlretrieve("http://physionet.org/physiobank/database/"+pbrecname+".hea", os.path.join(targetdir, baserecname+".hea")) 
-            dledfiles.append(os.path.join(targetdir, baserecname+".hea"))
+            remotefile = "http://physionet.org/physiobank/database/"+pbrecname+".hea"
+            targetfile = os.path.join(targetdir, baserecname+".hea")
+            r = requests.get(remotefile)
+            with open(targetfile, "w") as text_file:
+                text_file.write(r.text)
+            dledfiles.append(targetfile)
         except HTTPError:
             if madetargetdir:
                 os.rmdir(targetdir) # Remove the recently created faulty directory. 
@@ -165,7 +169,9 @@ def dlrecordfiles(pbrecname, targetdir):
 # Helper function for dlrecordfiles. Download the file from the specified 'url' as the 'filename', or exit with warning. 
 def dlorexit(url, filename, dledfiles):
     try:
-        urlretrieve(url, filename)
+        r = requests.get(url)
+        with open(filename, "w") as text_file:
+            text_file.write(r.text)
         dledfiles.append(filename)
         return dledfiles
     except HTTPError:
