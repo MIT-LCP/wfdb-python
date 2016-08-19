@@ -32,13 +32,10 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """
     
     if sampto and sampto<=sampfrom:
-        sys.exit("sampto must be greater than sampfrom")
+        raise ValueError("sampto must be greater than sampfrom")
     
     #fields=readheader(recordname) # Get the info from the header file
     dirname, baserecordname=os.path.split(recordname)
-    
-    if dirname:
-        dirname=dirname+"/"
 
     f=open(recordname+'.'+annot, 'rb')
     filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # Read the file's byte pairs.
