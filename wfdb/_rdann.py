@@ -6,12 +6,11 @@ import numpy as np
 import os
 import math
 
-def get_sample_freq(filebytes):
+def get_sample_freq(filebytes,bpi):
     """Check the beginning of the annotation file to see if it is storing the
     'time resolution' field.
     """
     annfs = [] # Store frequencies if they appear in the annotation file.
-    bpi = 0 # Byte pair index, for searching through bytes of the annotation file.
     if filebytes.size > 24:
         testbytes = filebytes[:12, :].flatten()
         # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
@@ -116,6 +115,13 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
         aux = aux[ik0:ik1 + 1]
     return annsamp,anntype,num,subtype,chan,aux
 
+def format_anntype(anndisp,anntype):
+    if anndisp == 1:
+        anntype = [annsyms[code] for code in anntype]
+    elif anndisp == 2:
+        anntype = [anncodes[code] for code in anntype]
+    return anntype
+
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
@@ -171,7 +177,8 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     # Check the beginning of the annotation file to see if it is storing the
     # 'time resolution' field.
-    annfs,bpi = get_sample_freq(filebytes)
+    bpi = 0 # Byte pair index, for searching through bytes of the annotation file.
+    annfs,bpi = get_sample_freq(filebytes,bpi)
 
     # Total number of samples of current annotation from beginning of record.
     # Annotation bytes only store dt.
@@ -229,15 +236,10 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
-    # Return the annotation types as symbols or strings depending on input
-    # parameter
-    if anndisp == 1:
-        anntype = [annsyms[code] for code in anntype]
-    elif anndisp == 2:
-        anntype = [anncodes[code] for code in anntype]
+    # Format the annotation types as symbols or strings
+    anntype = format_anntype(anndisp,anntype)
 
     return (annsamp, anntype, subtype, chan, num, aux, annfs)
-
 
 # Annotation print symbols for 'anntype' field as specified in annot.c
 # from wfdb software library 10.5.24
