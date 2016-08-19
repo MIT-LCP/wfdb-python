@@ -6,6 +6,53 @@ import numpy as np
 import os
 import math
 
+def check_time_resolution(filebytes,annfs,bpi):
+    # Check the beginning of the annotation file to see if it is storing the
+    # 'time resolution' field.
+    if filebytes.size > 24:
+        testbytes = filebytes[:12, :].flatten()
+        # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
+        # and anntype=AUX. Then follows "## time resolution: "
+        if [
+                testbytes[i] for i in [
+                    0,
+                    1] +
+                list(
+                    range(
+                        3,
+                        24))] == [
+            0,
+            88,
+            252,
+            35,
+            35,
+            32,
+            116,
+            105,
+            109,
+            101,
+            32,
+            114,
+            101,
+            115,
+            111,
+            108,
+            117,
+            116,
+            105,
+            111,
+            110,
+            58,
+                32]:  # The file's leading bytes match the expected pattern for encoding fs.
+            # Length of the auxilliary string that includes the fs written into
+            # the file.
+            auxlen = testbytes[2]
+            testbytes = filebytes[:(12 + math.ceil(auxlen / 2.)), :].flatten()
+            annfs = int("".join([chr(char)
+                                 for char in testbytes[24:auxlen + 4]]))
+            # byte pair index to start reading actual annotations.
+            bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
+    return annfs,bpi
 
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
@@ -60,49 +107,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     # Check the beginning of the annotation file to see if it is storing the
     # 'time resolution' field.
-    if filebytes.size > 24:
-        testbytes = filebytes[:12, :].flatten()
-        # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
-        # and anntype=AUX. Then follows "## time resolution: "
-        if [
-                testbytes[i] for i in [
-                    0,
-                    1] +
-                list(
-                    range(
-                        3,
-                        24))] == [
-            0,
-            88,
-            252,
-            35,
-            35,
-            32,
-            116,
-            105,
-            109,
-            101,
-            32,
-            114,
-            101,
-            115,
-            111,
-            108,
-            117,
-            116,
-            105,
-            111,
-            110,
-            58,
-                32]:  # The file's leading bytes match the expected pattern for encoding fs.
-            # Length of the auxilliary string that includes the fs written into
-            # the file.
-            auxlen = testbytes[2]
-            testbytes = filebytes[:(12 + math.ceil(auxlen / 2.)), :].flatten()
-            annfs = int("".join([chr(char)
-                                 for char in testbytes[24:auxlen + 4]]))
-            # byte pair index to start reading actual annotations.
-            bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
+    annfs,bpi = check_time_resolution(filebytes,annfs,bpi)
 
     # Total number of samples of current annotation from beginning of record.
     # Annotation bytes only store dt.
