@@ -1,6 +1,6 @@
-## Written by: Chen Xie 2016 ##
+# Written by: Chen Xie 2016
 # Please report bugs and suggestions to
-# https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu ###
+# https://github.com/MIT-LCP/wfdb-python or cx1111@mit.edu
 
 import numpy as np
 import os
@@ -33,17 +33,44 @@ def get_sample_freq(filebytes):
             bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
     return annfs,bpi
 
+def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):    
+    if AT == 59:  # Skip.
+        ts = ts + 65536 * filebytes[bpi + 1,0] + \
+               16777216 * filebytes[bpi + 1,1] + \
+                          filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]  # 4 bytes storing dt
+        annsamp[ai] = ts
+        # The anntype is stored after the 4 bytes. Samples here should be 0.
+        anntype[ai] = filebytes[bpi + 3, 1] >> 2
+        bpi = bpi + 4
+    # Not a skip so it should be the actual samples + anntype. Should not
+    # need to check for alternatives.
+    else:
+        # total samples = previous + delta samples stored in current byte
+        # pair
+        ts = ts + filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
+        annsamp[ai] = ts
+        anntype[ai] = AT
+        bpi = bpi + 1
+    return ts,annsamp,anntype,bpi
+
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
-    Usage: annsamp, anntype, num, subtype, chan, aux, annfs) = rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
+    Usage: annsamp, anntype, num, subtype, chan, aux, annfs = rdann(recordname, annot, 
+                                                                    sampfrom=0, sampto=[], 
+                                                                    anndisp=1)
 
     Input arguments:
-    - recordname (required): The record name of the WFDB annotation file. ie. for file '100.atr', recordname='100'
-    - annot (required): The annotator extension of the annotation file. ie. for file '100.atr', annot='atr'
+    - recordname (required): The record name of the WFDB annotation file. ie. for 
+      file '100.atr', recordname='100'
+    - annot (required): The annotator extension of the annotation file. ie. for 
+      file '100.atr', annot='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
-    - sampto (default=the final annotation sample): The maximum sample number for annotations to be returned.
-    - anndisp (default = 1): The annotation display flag that controls the data type of the 'anntype' output parameter. 'anntype' will either be an integer key(0), a shorthand display symbol(1), or a longer annotation code.
+    - sampto (default=the final annotation sample): The maximum sample number for 
+      annotations to be returned.
+    - anndisp (default = 1): The annotation display flag that controls the data type 
+      of the 'anntype' output parameter. 'anntype' will either be an integer key(0), 
+      a shorthand display symbol(1), or a longer annotation code.
 
     Output arguments:
     - annsamp: The annotation location in samples relative to the beginning of the record.
@@ -54,7 +81,8 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     - aux: The auxiliary information string for the annotation.
     - annfs: The sampling frequency written in the beginning of the annotation file if present.
 
-    *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present.
+    *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All 
+           other fields default to 0 or empty if not present.
     """
 
     if sampto and sampto <= sampfrom:
@@ -70,16 +98,13 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     # Allocate for the maximum possible number of annotations contained in the
     # file.
-    annsamp = np.zeros(filebytes.shape[0])
-    anntype = np.zeros(filebytes.shape[0])
-    subtype = np.zeros(filebytes.shape[0])
-    chan = np.zeros(filebytes.shape[0])
-    num = np.zeros(filebytes.shape[0])
-    aux = [''] * filebytes.shape[0]
-
-    # Annotation index, the number of annotations processed. Not to be
-    # comfused with the 'num' field of an annotation.
-    ai = 0
+    samplelength = filebytes.shape[0]
+    annsamp = np.zeros(samplelength)
+    anntype = np.zeros(samplelength)
+    subtype = np.zeros(samplelength)
+    chan = np.zeros(samplelength)
+    num = np.zeros(samplelength)
+    aux = [''] * samplelength
 
     # Check the beginning of the annotation file to see if it is storing the
     # 'time resolution' field.
@@ -89,10 +114,15 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     # Annotation bytes only store dt.
     ts = 0
 
-    # Processing annotations. Sequence for one ann is: SKIP pair (if any) ->
+    # Annotation index, the number of annotations processed. Not to be
+    # confused with the 'num' field of an annotation.
+    ai = 0
+
+    # Processing annotations. Iterate across length of sequence
+    # Sequence for one ann is: SKIP pair (if any) ->
     # samp + anntype pair -> other pairs
     # The last byte pair is 0 indicating eof.
-    while bpi < filebytes.shape[0] - 1:
+    while bpi < samplelength - 1:
 
         # The first byte pair will either store the actual samples + anntype,
         # or 0 + SKIP.
@@ -102,28 +132,10 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
         # the current annotation.
         cpychan = 1
         cpynum = 1
-        if AT == 59:  # Skip.
-            ts = ts + 65536 * filebytes[bpi + 1,
-                                        0] + 16777216 * filebytes[bpi + 1,
-                                                                  1] + filebytes[bpi + 2,
-                                                                                 0] + 256 * filebytes[bpi + 2,
-                                                                                                      1]  # 4 bytes storing dt
-            annsamp[ai] = ts
-            # The anntype is stored after the 4 bytes. Samples here should be
-            # 0.
-            anntype[ai] = filebytes[bpi + 3, 1] >> 2
-            bpi = bpi + 4
-        # Not a skip so it should be the actual samples + anntype. Should not
-        # need to check for alternatives.
-        else:
-            # total samples = previous + delta samples stored in current byte
-            # pair
-            ts = ts + filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
-            annsamp[ai] = ts
-            anntype[ai] = AT
-            bpi = bpi + 1
-
+        ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
+        
         AT = filebytes[bpi, 1] >> 2
+
         while (AT > 59):  # Process any other fields belonging to this annotation
             if AT == 61:  # SUB
                 # sub is interpreted as signed char. Remember to limit writing
