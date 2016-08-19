@@ -53,6 +53,33 @@ def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):
         bpi = bpi + 1
     return ts,annsamp,anntype,bpi
 
+def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
+    if AT == 61:  # SUB
+        # sub is interpreted as signed char. Remember to limit writing
+        # range.
+        subtype[ai] = filebytes[bpi, 0].astype('i1')
+        bpi = bpi + 1
+    elif AT == 62:  # CHAN
+        # chan is interpreted as unsigned char
+        chan[ai] = filebytes[bpi, 0]
+        cpychan = 0
+        bpi = bpi + 1
+    elif AT == 60:  # NUM
+        # num is interpreted as signed char
+        num[ai] = filebytes[bpi, 0].astype('i1')
+        cpynum = 0
+        bpi = bpi + 1
+    elif AT == 63:  # AUX
+        # length of aux string. Max 256? No need to check other bits of
+        # second byte?
+        auxlen = filebytes[bpi, 0]
+        auxbytes = filebytes[bpi + 1:bpi + 1 + math.ceil(auxlen / 2.),:].flatten()
+        if auxlen & 1:
+            auxbytes = auxbytes[:-1]
+        aux[ai] = "".join([chr(char) for char in auxbytes])  # The aux string
+        bpi = bpi + 1 + math.ceil(auxlen / 2.)
+    return subtype,bpi,num,chan,cpychan,cpynum,aux
+
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
@@ -133,42 +160,14 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
         cpychan = 1
         cpynum = 1
         ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
-        
+
         AT = filebytes[bpi, 1] >> 2
 
         while (AT > 59):  # Process any other fields belonging to this annotation
-            if AT == 61:  # SUB
-                # sub is interpreted as signed char. Remember to limit writing
-                # range.
-                subtype[ai] = filebytes[bpi, 0].astype('i1')
-                bpi = bpi + 1
-            elif AT == 62:  # CHAN
-                # chan is interpreted as unsigned char
-                chan[ai] = filebytes[bpi, 0]
-                cpychan = 0
-                bpi = bpi + 1
-            elif AT == 60:  # NUM
-                # num is interpreted as signed char
-                num[ai] = filebytes[bpi, 0].astype('i1')
-                cpynum = 0
-                bpi = bpi + 1
-            elif AT == 63:  # AUX
-                # length of aux string. Max 256? No need to check other bits of
-                # second byte?
-                auxlen = filebytes[bpi, 0]
-                auxbytes = filebytes[
-                    bpi +
-                    1:bpi +
-                    1 +
-                    math.ceil(
-                        auxlen /
-                        2.),
-                    :].flatten()  # The aux bytes
-                if auxlen & 1:
-                    auxbytes = auxbytes[:-1]
-                aux[ai] = "".join([chr(char)
-                                   for char in auxbytes])  # The aux string
-                bpi = bpi + 1 + math.ceil(auxlen / 2.)
+
+            subtype,bpi,num,chan,cpychan,cpynum,aux = proc_extra_fields(AT,
+                subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux)
+
             # Only aux and sub are reset between annotations. Chan and num keep
             # previous value if missing.
             AT = filebytes[bpi, 1] >> 2
