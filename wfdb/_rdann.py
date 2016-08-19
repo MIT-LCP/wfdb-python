@@ -70,12 +70,14 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     # Allocate for the maximum possible number of annotations contained in the
     # file.
-    annsamp = np.empty(filebytes.shape[0])
-    anntype = np.empty(filebytes.shape[0])
-    subtype = np.empty(filebytes.shape[0])
-    chan = np.empty(filebytes.shape[0])
-    num = np.empty(filebytes.shape[0])
+    annsamp = np.zeros(filebytes.shape[0])
+    anntype = np.zeros(filebytes.shape[0])
+    subtype = np.zeros(filebytes.shape[0])
+    chan = np.zeros(filebytes.shape[0])
+    num = np.zeros(filebytes.shape[0])
     aux = [''] * filebytes.shape[0]
+
+    print subtype
 
     # Annotation index, the number of annotations processed. Not to be
     # comfused with the 'num' field of an annotation.
