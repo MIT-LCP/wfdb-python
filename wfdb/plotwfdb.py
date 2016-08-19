@@ -1,5 +1,4 @@
 import numpy as np
-import readsignal
 import matplotlib.pyplot as plt
 
 
@@ -9,8 +8,8 @@ def plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1):
     Usage: plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1): 
     
     Input arguments: 
-    - sig (required): An nxm numpy array containing the signal to be plotted - first output argument of readsignal.rdsamp 
-    - fields (required): A dictionary of metadata about the record - second output argument of readsignal.rdsamp
+    - sig (required): An nxm numpy array containing the signal to be plotted - first output argument of rdsamp 
+    - fields (required): A dictionary of metadata about the record - second output argument of rdsamp
     - annsamp (optional): A 1d numpy array of annotation locations to be plotted on top of selected channels - first output argument of readannot.rdann().
     - annch (default=[0]): A list of channels on which to plot the annotations. 
     - title (optional): A string containing the title of the graph.

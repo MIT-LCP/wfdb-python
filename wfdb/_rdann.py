@@ -31,29 +31,25 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All other fields default to 0 or empty if not present. 
     """
     
-    if sampto:
-        if sampto<sampfrom:
-            sys.exit("sampto must be greater than sampfrom")
+    if sampto and sampto<=sampfrom:
+        raise ValueError("sampto must be greater than sampfrom")
     
-    #fields=readheader(recordname) # Get the info from the header file
+    # Get the info from the header file
+    #fields=readheader(recordname) 
     dirname, baserecordname=os.path.split(recordname)
     
-    if dirname:
-        dirname=dirname+"/"
-
-    f=open(recordname+'.'+annot, 'rb')
-    filebytes=np.fromfile(f, '<u1').reshape([-1, 2]) # Read the file's byte pairs.
-    f.close()
+    # Read the file's byte pairs.
+    with open(recordname+'.'+annot, 'rb') as f:
+        filebytes=np.fromfile(f, '<u1').reshape([-1, 2])
     
     # Allocate for the maximum possible number of annotations contained in the file. 
-    annsamp=np.zeros(filebytes.shape[0])
-    anntype=np.zeros(filebytes.shape[0])
-    subtype=np.zeros(filebytes.shape[0])
-    chan=np.zeros(filebytes.shape[0])
-    num=np.zeros(filebytes.shape[0])
+    annsamp=np.empty(filebytes.shape[0])
+    anntype=np.empty(filebytes.shape[0])
+    subtype=np.empty(filebytes.shape[0])
+    chan=np.empty(filebytes.shape[0])
+    num=np.empty(filebytes.shape[0])
     aux=['']*filebytes.shape[0] 
-    
-    annfs=[] # Stores the fs written in the annotation file if it exists. 
+    annfs=[] # Stores the frequencies written in the annotation file if it exists. 
     ai=0 # Annotation index, the number of annotations processed. Not to be comfused with the 'num' field of an annotation.
     bpi=0 # Byte pair index, for searching through bytes of the annotation file. 
     
@@ -169,7 +165,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
         elif anndisp==2:
             anntype=[anncodes[code] for code in anntype]
         
-        
     return (annsamp, anntype, subtype, chan, num, aux, annfs)
     
     
@@ -275,4 +270,7 @@ anncodes = {
     #40: 'JPT', # J point (end of QRS) */
     41: 'RONT' # R-on-T premature ventricular contraction */
     }
+
+if __name__ == '__main__':
+    rdann(sys.argv)
     
