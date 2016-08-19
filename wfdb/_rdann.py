@@ -6,6 +6,11 @@ import numpy as np
 import os
 import math
 
+def loaddata(recordname, annot):
+    with open(recordname + '.' + annot, 'rb') as f:
+        filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
+    return filebytes
+
 def get_sample_freq(filebytes,bpi):
     """Check the beginning of the annotation file to see if it is storing the
     'time resolution' field.
@@ -122,6 +127,25 @@ def format_anntype(anndisp,anntype):
         anntype = [anncodes[code] for code in anntype]
     return anntype
 
+def init_arrays(filebytes):
+    samplelength = filebytes.shape[0]
+    annsamp = np.zeros(samplelength)
+    anntype = np.zeros(samplelength)
+    subtype = np.zeros(samplelength)
+    chan = np.zeros(samplelength)
+    num = np.zeros(samplelength)
+    aux = [''] * samplelength
+    return samplelength, annsamp, anntype, subtype, chan, num, aux
+
+def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
+    annsamp = annsamp[0:ai].astype(int)
+    anntype = anntype[0:ai].astype(int)
+    num = num[0:ai].astype(int)
+    subtype = subtype[0:ai].astype(int)
+    chan = chan[0:ai].astype(int)
+    aux = aux[0:ai]
+    return annsamp,anntype,num,subtype,chan,aux
+
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
@@ -161,32 +185,19 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     # fields=readheader(recordname)
     dirname, baserecordname = os.path.split(recordname)
 
-    # Read the file's byte pairs.
-    with open(recordname + '.' + annot, 'rb') as f:
-        filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
+    # Read the file's byte pairs
+    filebytes = loaddata(recordname, annot)
 
-    # Allocate for the maximum possible number of annotations contained in the
-    # file.
-    samplelength = filebytes.shape[0]
-    annsamp = np.zeros(samplelength)
-    anntype = np.zeros(samplelength)
-    subtype = np.zeros(samplelength)
-    chan = np.zeros(samplelength)
-    num = np.zeros(samplelength)
-    aux = [''] * samplelength
+    # Initialise arrays to the total number of annotations in the file
+    samplelength, annsamp, anntype, subtype, chan, num, aux = init_arrays(filebytes)
 
-    # Check the beginning of the annotation file to see if it is storing the
-    # 'time resolution' field.
-    bpi = 0 # Byte pair index, for searching through bytes of the annotation file.
+    # Initialise variables
+    bpi = 0 # Byte pair index for searching the annotation file
+    ts = 0 # Total number of samples from beginning of record. Annotation bytes only store dt.
+    ai = 0 # Annotation index, the number of annotations processed.
+
+    # Check the beginning of the annotation file for optional 'time resolution'
     annfs,bpi = get_sample_freq(filebytes,bpi)
-
-    # Total number of samples of current annotation from beginning of record.
-    # Annotation bytes only store dt.
-    ts = 0
-
-    # Annotation index, the number of annotations processed. Not to be
-    # confused with the 'num' field of an annotation.
-    ai = 0
 
     # Processing annotations. Iterate across length of sequence
     # Sequence for one ann is: SKIP pair (if any) ->
@@ -200,8 +211,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
         # flags that specify whether to copy the previous channel/num value for
         # the current annotation.
-        cpychan = 1
-        cpynum = 1
+        cpychan, cpynum = 1, 1
         ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
 
         AT = filebytes[bpi, 1] >> 2
@@ -224,13 +234,8 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
         # Finished processing current annotation. Move onto next.
         ai = ai + 1
 
-    # Get rid of the unallocated parts of the arrays
-    annsamp = annsamp[0:ai].astype(int)
-    anntype = anntype[0:ai].astype(int)
-    num = num[0:ai].astype(int)
-    subtype = subtype[0:ai].astype(int)
-    chan = chan[0:ai].astype(int)
-    aux = aux[0:ai]
+    # Snip the unallocated end of the arrays
+    annsamp,anntype,num,subtype,chan,aux = snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai)
 
     # Apply annotation range (from X to Y)
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
