@@ -4,7 +4,6 @@ import os
 import math
 import sys
 import configparser 
-import configparser
 import requests
 
 def checkrecordfiles(recordname, filedirectory):
@@ -117,6 +116,7 @@ def dlrecordfiles(pbrecname, targetdir):
     - dledfiles:  The list of files downloaded from PhysioBank. 
      
     """
+    physioneturl = "http://physionet.org/physiobank/database/"
     pbdir, baserecname=os.path.split(pbrecname) 
     print('Downloading missing file(s) into directory: ', targetdir)
     
@@ -132,7 +132,7 @@ def dlrecordfiles(pbrecname, targetdir):
     if not os.path.isfile(os.path.join(targetdir, baserecname+".hea")):
         # Not calling dlorexit here. Extra instruction of removing the faulty created directory.
         try:
-            remotefile = "http://physionet.org/physiobank/database/"+pbrecname+".hea"
+            remotefile = physioneturl+pbrecname+".hea"
             targetfile = os.path.join(targetdir, baserecname+".hea")
             r = requests.get(remotefile)
             with open(targetfile, "w") as text_file:
@@ -141,7 +141,7 @@ def dlrecordfiles(pbrecname, targetdir):
         except HTTPError:
             if madetargetdir:
                 os.rmdir(targetdir) # Remove the recently created faulty directory. 
-            sys.exit("Attempted to download invalid target file: http://physionet.org/physiobank/database/"+pbrecname+".hea")
+            sys.exit("Attempted to download invalid target file: {}".format(remotefile))
      
     fields=readheader(os.path.join(targetdir, baserecname))
     
@@ -149,18 +149,18 @@ def dlrecordfiles(pbrecname, targetdir):
     if fields["nseg"]==1: # Single segment. Check for all the required dat files 
         for f in fields["filename"]:
             if not os.path.isfile(os.path.join(targetdir, f)): # Missing a dat file
-                dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
+                dledfiles=dlorexit(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
                 
     else: # Multi segment. Check for all segment headers and their dat files
         for segment in fields["filename"]:
             if segment!='~':
                 if not os.path.isfile(os.path.join(targetdir, segment+".hea")): # Missing a segment header
-                    dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles)
+                    dledfiles=dlorexit(physioneturl+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles)
                 segfields=readheader(os.path.join(targetdir, segment))
                 for f in segfields["filename"]:
                     if f!='~':
                         if not os.path.isfile(os.path.join(targetdir, f)): # Missing a segment's dat file     
-                            dledfiles=dlorexit("http://physionet.org/physiobank/database/"+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
+                            dledfiles=dlorexit(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles)
     
     print('Download complete')
     return dledfiles # downloaded files
