@@ -3,8 +3,8 @@
 
 # Master branch only
 branches:
-  only:
-    - master
+  except:
+    - gh-pages
 
 # Start the databases
 # See https://docs.travis-ci.com/user/database-setup/
