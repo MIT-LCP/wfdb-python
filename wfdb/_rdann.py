@@ -80,6 +80,42 @@ def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
         bpi = bpi + 1 + math.ceil(auxlen / 2.)
     return subtype,bpi,num,chan,cpychan,cpynum,aux
 
+def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux):
+    # Keep the annotations in the specified range
+    returnempty = 0
+
+    afterfrom = np.where(annsamp >= sampfrom)[0]
+    if len(afterfrom) > 0:
+        ik0 = afterfrom[0]  # index keep start
+    else:  # No annotations in specified range.
+        returnempty = 1
+
+    if not sampto:
+        sampto = annsamp[-1]
+    beforeto = np.where(annsamp <= sampto)[0]
+
+    if len(beforeto) > 0:
+        ik1 = beforeto[-1]
+    else:
+        returnempty = 1
+
+    if returnempty:
+        annsamp = []
+        anntype = []
+        num = []
+        subtype = []
+        chan = []
+        aux = []
+        print("No annotations in specified sample range")
+    else:
+        annsamp = annsamp[ik0:ik1 + 1]
+        anntype = anntype[ik0:ik1 + 1]
+        num = num[ik0:ik1 + 1]
+        subtype = subtype[ik0:ik1 + 1]
+        chan = chan[ik0:ik1 + 1]
+        aux = aux[ik0:ik1 + 1]
+    return annsamp,anntype,num,subtype,chan,aux
+
 def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
@@ -189,46 +225,16 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     chan = chan[0:ai].astype(int)
     aux = aux[0:ai]
 
-    # Keep the annotations in the specified range
-    returnempty = 0
+    # Apply annotation range (from X to Y)
+    annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
+        sampfrom,sampto,anntype,num,subtype,chan,aux)
 
-    afterfrom = np.where(annsamp >= sampfrom)[0]
-    if len(afterfrom) > 0:
-        ik0 = afterfrom[0]  # index keep start
-    else:  # No annotations in specified range.
-        returnempty = 1
-
-    if not sampto:
-        sampto = annsamp[-1]
-    beforeto = np.where(annsamp <= sampto)[0]
-
-    if len(beforeto) > 0:
-        ik1 = beforeto[-1]
-    else:
-        returnempty = 1
-
-    if returnempty:
-        annsamp = []
-        anntype = []
-        num = []
-        subtype = []
-        chan = []
-        aux = []
-        print("No annotations in specified sample range")
-    else:
-        annsamp = annsamp[ik0:ik1 + 1]
-        anntype = anntype[ik0:ik1 + 1]
-        num = num[ik0:ik1 + 1]
-        subtype = subtype[ik0:ik1 + 1]
-        chan = chan[ik0:ik1 + 1]
-        aux = aux[ik0:ik1 + 1]
-
-        # Return the annotation types as symbols or strings depending on input
-        # parameter
-        if anndisp == 1:
-            anntype = [annsyms[code] for code in anntype]
-        elif anndisp == 2:
-            anntype = [anncodes[code] for code in anntype]
+    # Return the annotation types as symbols or strings depending on input
+    # parameter
+    if anndisp == 1:
+        anntype = [annsyms[code] for code in anntype]
+    elif anndisp == 2:
+        anntype = [anncodes[code] for code in anntype]
 
     return (annsamp, anntype, subtype, chan, num, aux, annfs)
 
