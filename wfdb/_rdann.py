@@ -77,8 +77,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     num = np.zeros(filebytes.shape[0])
     aux = [''] * filebytes.shape[0]
 
-    print subtype
-
     # Annotation index, the number of annotations processed. Not to be
     # comfused with the 'num' field of an annotation.
     ai = 0
