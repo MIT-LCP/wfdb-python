@@ -6,7 +6,7 @@ import numpy as np
 import os
 import math
 
-def check_time_resolution(filebytes):
+def get_sample_freq(filebytes):
     """Check the beginning of the annotation file to see if it is storing the
     'time resolution' field.
     """
@@ -83,7 +83,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
     # Check the beginning of the annotation file to see if it is storing the
     # 'time resolution' field.
-    annfs,bpi = check_time_resolution(filebytes)
+    annfs,bpi = get_sample_freq(filebytes)
 
     # Total number of samples of current annotation from beginning of record.
     # Annotation bytes only store dt.
