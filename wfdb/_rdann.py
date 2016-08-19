@@ -6,44 +6,23 @@ import numpy as np
 import os
 import math
 
-def check_time_resolution(filebytes,annfs,bpi):
-    # Check the beginning of the annotation file to see if it is storing the
-    # 'time resolution' field.
+def check_time_resolution(filebytes):
+    """Check the beginning of the annotation file to see if it is storing the
+    'time resolution' field.
+    """
+    annfs = [] # Store frequencies if they appear in the annotation file.
+    bpi = 0 # Byte pair index, for searching through bytes of the annotation file.
     if filebytes.size > 24:
         testbytes = filebytes[:12, :].flatten()
         # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
         # and anntype=AUX. Then follows "## time resolution: "
         if [
                 testbytes[i] for i in [
-                    0,
-                    1] +
+                    0,1] +
                 list(
-                    range(
-                        3,
-                        24))] == [
-            0,
-            88,
-            252,
-            35,
-            35,
-            32,
-            116,
-            105,
-            109,
-            101,
-            32,
-            114,
-            101,
-            115,
-            111,
-            108,
-            117,
-            116,
-            105,
-            111,
-            110,
-            58,
-                32]:  # The file's leading bytes match the expected pattern for encoding fs.
+                    range(3,24))] == [0,88,252,35,35,32,116,105,109,101,32,114,
+                                      101,115,111,108,117,116,105,111,110,58,32]:  
+            # The file's leading bytes match the expected pattern for encoding fs.
             # Length of the auxilliary string that includes the fs written into
             # the file.
             auxlen = testbytes[2]
@@ -97,17 +76,14 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
     chan = np.empty(filebytes.shape[0])
     num = np.empty(filebytes.shape[0])
     aux = [''] * filebytes.shape[0]
-    # Stores the frequencies written in the annotation file if it exists.
-    annfs = []
+
     # Annotation index, the number of annotations processed. Not to be
     # comfused with the 'num' field of an annotation.
     ai = 0
-    # Byte pair index, for searching through bytes of the annotation file.
-    bpi = 0
 
     # Check the beginning of the annotation file to see if it is storing the
     # 'time resolution' field.
-    annfs,bpi = check_time_resolution(filebytes,annfs,bpi)
+    annfs,bpi = check_time_resolution(filebytes)
 
     # Total number of samples of current annotation from beginning of record.
     # Annotation bytes only store dt.
