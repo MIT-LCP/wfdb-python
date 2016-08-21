@@ -1,7 +1,6 @@
 import numpy as np
 import re
 import os
-import math
 import sys
 import configparser
 import requests
@@ -556,7 +555,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
     if fmt == '212':
         # The number of bytes needed to be loaded given the number of samples
         # needed
-        nbytesload = int(math.ceil((nsamp) * 1.5))
+        nbytesload = int(np.ceil((nsamp) * 1.5))
         sigbytes = np.fromfile(
             fp,
             dtype=np.dtype(
