@@ -29,7 +29,7 @@ def get_sample_freq(filebytes,bpi):
             # Length of the auxilliary string that includes the fs written into
             # the file.
             auxlen = testbytes[2]
-            testbytes = filebytes[:(12 + np.ceil(auxlen / 2.)), :].flatten()
+            testbytes = filebytes[:(12 + int(np.ceil(auxlen / 2.))), :].flatten()
             annfs = int("".join([chr(char)
                                  for char in testbytes[24:auxlen + 4]]))
             # byte pair index to start reading actual annotations.
@@ -76,11 +76,11 @@ def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
         # length of aux string. Max 256? No need to check other bits of
         # second byte?
         auxlen = filebytes[bpi, 0]
-        auxbytes = filebytes[bpi + 1:bpi + 1 + np.ceil(auxlen / 2.),:].flatten()
+        auxbytes = filebytes[bpi + 1:bpi + 1 + int(np.ceil(auxlen / 2.)),:].flatten()
         if auxlen & 1:
             auxbytes = auxbytes[:-1]
         aux[ai] = "".join([chr(char) for char in auxbytes])  # The aux string
-        bpi = bpi + 1 + np.ceil(auxlen / 2.)
+        bpi = bpi + 1 + int(np.ceil(auxlen / 2.))
     return subtype,bpi,num,chan,cpychan,cpynum,aux
 
 def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux):
