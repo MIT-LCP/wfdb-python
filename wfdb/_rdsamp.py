@@ -2,9 +2,9 @@ import numpy as np
 import re
 import os
 import sys
-import configparser
 import requests
-
+from ConfigParser import ConfigParser
+# from distutils.sysconfig import get_python_lib
 
 def checkrecordfiles(recordname, filedirectory):
     """Check a local directory along with the database cache directory specified in 
@@ -38,14 +38,9 @@ def checkrecordfiles(recordname, filedirectory):
     - downloadedfiles:  The list of files downloaded from PhysioBank.
     """
 
-    config = configparser.ConfigParser()
-    config.read(
-        os.path.join(
-            os.path.abspath(
-                os.path.dirname(__file__)),
-            "config.ini"))
-    # Base directory to store downloaded physiobank files, read from config.ini
-    dbcachedir = config['PBDOWNLOAD']['dbcachedir']
+    # Base directory to store downloaded physiobank files
+    config = loadconfig('wfdb.config')
+    dbcachedir = config.get('pbdownload','dbcachedir')
     basedir, baserecname = os.path.split(recordname)
 
     # At this point we do not know whether basedir is a local directory, a
@@ -845,6 +840,18 @@ arrangefields = [
     "initvalue",
     "signame"]
 
+def loadconfig(fn):
+    """
+    Search for a configuration file. Load the first version found.
+    """
+    config = ConfigParser()
+    for loc in [os.curdir,os.path.expanduser("~"),os.path.dirname(__file__)]:
+        try: 
+            with open(os.path.join(loc,fn)) as source:
+                config.readfp(source)
+        except IOError:
+            pass
+    return config
 
 def rdsamp(
         recordname,
@@ -883,23 +890,12 @@ def rdsamp(
     """
 
     filestoremove = []
-    if os.path.isfile(
-        os.path.join(
-            os.path.abspath(
-            os.path.dirname(__file__)),
-            "config.ini")):  # Read the configuration file if any.
-        config = configparser.ConfigParser()
-        config.read(
-            os.path.join(
-                os.path.abspath(
-                    os.path.dirname(__file__)),
-                "config.ini"))
-        if int(config['PBDOWNLOAD'][
-               'getPBfiles']):  # Flag specifying whether to allow downloading from physiobank
-            recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
-            if not int(config['PBDOWNLOAD'][
-                       'keepdledfiles']):  # Flag specifying whether to keep downloaded physiobank files
-                filestoremove = dledfiles
+    config = loadconfig('wfdb.config')
+
+    if config.get('pbdownload','getpbfiles'):  # Flag specifying whether to allow downloading from physiobank
+        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
+        if not int(config.get('pbdownload','keepdledfiles')):  # Flag specifying whether to keep downloaded physiobank files
+            filestoremove = dledfiles
 
     fields = readheader(recordname)  # Get the info from the header file
 
