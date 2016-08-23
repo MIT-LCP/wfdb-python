@@ -892,10 +892,11 @@ def rdsamp(
     filestoremove = []
     config = loadconfig('wfdb.config')
 
-    if config.get('pbdownload','getpbfiles'):  # Flag specifying whether to allow downloading from physiobank
+    if config.get('pbdownload','getpbfiles') == 1:  # Flag specifying whether to allow downloading from physiobank
         recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
-        if not int(config.get('pbdownload','keepdledfiles')):  # Flag specifying whether to keep downloaded physiobank files
-            filestoremove = dledfiles
+    
+    if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
+        filestoremove = dledfiles
 
     fields = readheader(recordname)  # Get the info from the header file
 
