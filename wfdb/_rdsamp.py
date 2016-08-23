@@ -7,20 +7,35 @@ import requests
 
 
 def checkrecordfiles(recordname, filedirectory):
-    """Check a local directory along with the database cache directory specified in 'config.ini' for all necessary files required to read a WFDB record. Calls pbdownload.dlrecordfiles to download any missing files into the database cache directory. Returns the base record name if all files were present, or a full path record name specifying where the downloaded files are to be read, and a list of files downloaded.
+    """Check a local directory along with the database cache directory specified in 
+        'config.ini' for all necessary files required to read a WFDB record. 
+        Calls pbdownload.dlrecordfiles to download any missing files into the database 
+        cache directory. Returns the base record name if all files were present, or a 
+        full path record name specifying where the downloaded files are to be read, 
+        and a list of files downloaded.
 
-    *If you wish to directly download files for a record, it highly recommended to call 'pbdownload.dlrecordfiles' directly. This is a helper function for rdsamp which tries to parse the 'recordname' input to deduce whether it contains a local directory, physiobank database, or both. Its usage format is different and more complex than that of 'dlrecordfiles'.
+    *If you wish to directly download files for a record, it highly recommended to call 
+    'pbdownload.dlrecordfiles' directly. This is a helper function for rdsamp which 
+    tries to parse the 'recordname' input to deduce whether it contains a local directory, 
+    physiobank database, or both. Its usage format is different and more complex than 
+    that of 'dlrecordfiles'.
 
     Usage: readrecordname, downloadedfiles = checkrecordfiles(recordname, filedirectory)
 
     Input arguments:
-    - recordname (required): The name of the WFDB record to be read (without any file extensions). Can be prepended with a local directory, or a physiobank subdirectory (or both if the relative local directory exists and takes the same name as the physiobank subdirectory). eg: recordname=mitdb/100
-    - filedirectory (required): The local directory to check for the files required to read the record before checking the database cache directory. If the 'recordname' argument is prepended with a directory, this function will assume that it is a local directory and prepend that to this 'filedirectory' argument and check the resulting directory instead.
+    - recordname (required): The name of the WFDB record to be read 
+      (without any file extensions). Can be prepended with a local directory, or a 
+      physiobank subdirectory (or both if the relative local directory exists and 
+      takes the same name as the physiobank subdirectory). eg: recordname=mitdb/100
+    - filedirectory (required): The local directory to check for the files required to 
+      read the record before checking the database cache directory. If the 'recordname' 
+      argument is prepended with a directory, this function will assume that it is a 
+      local directory and prepend that to this 'filedirectory' argument and check the 
+      resulting directory instead.
 
     Output arguments:
     - readrecordname: The record name prepended with the path the files are to be read from.
     - downloadedfiles:  The list of files downloaded from PhysioBank.
-
     """
 
     config = configparser.ConfigParser()
@@ -36,7 +51,8 @@ def checkrecordfiles(recordname, filedirectory):
     # At this point we do not know whether basedir is a local directory, a
     # physiobank directory, or both!
 
-    if not basedir:  # if there is no base directory then: 1. The files must be located in the current working directory.
+    if not basedir:  # if there is no base directory then: 1. The files must be located 
+        # in the current working directory.
         # 2. There will be no target files to download. So just directly
         # return. If files are missing we cannot download them anyway.
         return recordname, []
@@ -96,7 +112,10 @@ def checkrecordfiles(recordname, filedirectory):
         # All files were already present in the 'basedir' directory.
         return recordname, []
 
-    else:  # there is no 'basedir' directory. Therefore basedir must be a physiobank database directory. check the current working directory for files. If any are missing, check the cache directory for files and download missing files from physiobank.
+    else:  # there is no 'basedir' directory. Therefore basedir must be a 
+           # physiobank database directory. check the current working directory for files. 
+           # If any are missing, check the cache directory for files and download missing 
+           # files from physiobank.
 
         pbdir = basedir  # physiobank directory
         downloaddir = os.path.join(dbcachedir, pbdir)
@@ -144,13 +163,19 @@ def checkrecordfiles(recordname, filedirectory):
 
 
 def dlrecordfiles(pbrecname, targetdir):
-    """Check a specified local directory for all necessary files required to read a Physiobank record, and download any missing files into the same directory. Returns a list of files downloaded, or exits with error if an invalid Physiobank record is specified.
+    """Check a specified local directory for all necessary files required to read a Physiobank 
+       record, and download any missing files into the same directory. Returns a list of files 
+       downloaded, or exits with error if an invalid Physiobank record is specified.
 
     Usage: dledfiles = dlrecordfiles(pbrecname, targetdir)
 
     Input arguments:
-    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended with the Physiobank subdirectory the file is contain in (without any file extensions). eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea and 12727.dat
-    - targetdir (required): The local directory to check for files required to read the record, in which missing files are also downloaded.
+    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended 
+      with the Physiobank subdirectory the file is contain in (without any file extensions). 
+      eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea 
+      and 12727.dat
+    - targetdir (required): The local directory to check for files required to read the record, 
+      in which missing files are also downloaded.
 
     Output arguments:
     - dledfiles:  The list of files downloaded from PhysioBank.
@@ -270,7 +295,6 @@ def readheader(recordname):  # For reading signal headers
 
     # To do: Allow exponential input format for some fields
 
-    fp = open(recordname + ".hea", 'r')
     # Output dictionary
     fields = {
         'nseg': [],
@@ -337,19 +361,19 @@ def readheader(recordname):  # For reading signal headers
     # Watch out for potential float: ADCgain.
 
     # Split comment and non-comment lines
-    for line in fp:
-        line = line.strip()
-        if line.startswith('#'):  # comment line
-            commentlines.append(line)
-        elif line:  # Non-empty non-comment line = header line.
-            ci = line.find('#')
-            if ci > 0:
-                headerlines.append(line[:ci])  # header line
-                # comment on same line as header line
-                commentlines.append(line[ci:])
-            else:
-                headerlines.append(line)
-    fp.close()
+    with open(recordname + ".hea", 'r') as fp:
+        for line in fp:
+            line = line.strip()
+            if line.startswith('#'):  # comment line
+                commentlines.append(line)
+            elif line:  # Non-empty non-comment line = header line.
+                ci = line.find('#')
+                if ci > 0:
+                    headerlines.append(line[:ci])  # header line
+                    # comment on same line as header line
+                    commentlines.append(line[ci:])
+                else:
+                    headerlines.append(line)
 
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, basecounter, nsamp,
@@ -360,7 +384,7 @@ def readheader(recordname):  # For reading signal headers
         nseg = '1'
     if not fs:
         fs = '250'
-    fs = float(fs)
+    # fs = float(fs)
     fields['nseg'] = int(nseg)
     fields['fs'] = float(fs)
     fields['nsig'] = int(nsig)
@@ -456,7 +480,8 @@ def readdat(
         siglen,
         sampsperframe,
         skew):
-    # nsig defines whole file, not selected channels. siglen refers to signal length of whole file, not selected duration.
+    # nsig defines whole file, not selected channels. siglen refers to signal 
+    # length of whole file, not selected duration.
     # Recall that channel selection is not performed in this function but in
     # rdsamp.
 
@@ -843,11 +868,18 @@ def rdsamp(
 
 
     Output variables:
-    - sig: An nxm numpy array where n is the signal length and m is the number of channels. If the input record is a multi-segment record, depending on the input stacksegments flag, sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy array for each segment (0). For empty segments, stacked format will contain Nan values, and non-stacked format will contain a single integer specifying the length of the empty segment.
-    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. If the input record is a multi-segment record, the output argument will be a list of dictionaries:
+    - sig: An nxm numpy array where n is the signal length and m is the number of channels. 
+      If the input record is a multi-segment record, depending on the input stacksegments flag, 
+      sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy 
+      array for each segment (0). For empty segments, stacked format will contain Nan values, 
+      and non-stacked format will contain a single integer specifying the length of the empty segment.
+    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. 
+      If the input record is a multi-segment record, the output argument will be a list of dictionaries:
               : The first list element will be a dictionary of metadata about the master header.
-              : If the record is in variable layout format, the next list element will be a dictionary of metadata about the layout specification header.
-              : The last list element will be a list of dictionaries of metadata for each segment. For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
+              : If the record is in variable layout format, the next list element will be a dictionary 
+                of metadata about the layout specification header.
+              : The last list element will be a list of dictionaries of metadata for each segment. 
+                For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """
 
     filestoremove = []
@@ -1097,7 +1129,8 @@ def rdsamp(
             else:
                 sig = np.empty((nsamp, len(channels)), dtype='float')
 
-            indstart = 0  # The overall signal index of the start of the current segment for filling in the large np array
+            indstart = 0  # The overall signal index of the start of the current segment for 
+                          # filling in the large np array
         else:  # Output a list of numpy arrays
             # Empty list for storing segment signals.
             sig = [None] * len(readsegs)
@@ -1119,7 +1152,8 @@ def rdsamp(
                     wantsignals = [layoutfields["signame"][c]
                                    for c in channels]  # Signal names of wanted channels
                     segchannels = []  # The channels wanted that are contained in the segment
-                    returninds = []  # 1 and 0 marking channels of the numpy array to be filled by the returned segment channels
+                    returninds = []  # 1 and 0 marking channels of the numpy array to be filled by 
+                                     # the returned segment channels
                     for ws in wantsignals:
                         if ws in sfields["signame"]:
                             segchannels.append(sfields["signame"].index(ws))
@@ -1151,7 +1185,8 @@ def rdsamp(
                         startseg -
                         readsegs[0]], segmentfields[i -
                                                     startseg -
-                                                    readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i -
+                                                    readsegs[0]] = rdsamp(recordname=os.path.join(dirname, 
+                                                        segrecordname), physical=physical, sampfrom=readsamps[i -
                                                                                                                                                                  startseg -
                                                                                                                                                                  readsegs[0]][0], sampto=readsamps[i -
                                                                                                                                                                                                    startseg -
