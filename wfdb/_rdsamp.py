@@ -3,7 +3,7 @@ import re
 import os
 import sys
 import requests
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 # from distutils.sysconfig import get_python_lib
 
 def checkrecordfiles(recordname, filedirectory):
