@@ -15,7 +15,7 @@ def checkrecordfiles(recordname, filedirectory):
         and a list of files downloaded.
 
     *If you wish to directly download files for a record, it highly recommended to call 
-    'pbdownload.dlrecordfiles' directly. This is a helper function for rdsamp which 
+    'dlrecordfiles' directly. This is a helper function for rdsamp which 
     tries to parse the 'recordname' input to deduce whether it contains a local directory, 
     physiobank database, or both. Its usage format is different and more complex than 
     that of 'dlrecordfiles'.
@@ -285,6 +285,24 @@ def dlannfiles():
 def dlPBdatabase(database, targetdir):
     return dledfiles
 
+# Read header file to get comment and non-comment lines
+def getheaderlines(recordname):
+    with open(recordname + ".hea", 'r') as fp:
+        headerlines = []  # Store record line followed by the signal lines if any
+        commentlines = []  # Comments
+        for line in fp:
+            line = line.strip()
+            if line.startswith('#'):  # comment line
+                commentlines.append(line)
+            elif line:  # Non-empty non-comment line = header line.
+                ci = line.find('#')
+                if ci > 0:
+                    headerlines.append(line[:ci])  # header line
+                    # comment on same line as header line
+                    commentlines.append(line[ci:])
+                else:
+                    headerlines.append(line)                
+    return headerlines, commentlines
 
 def readheader(recordname):  # For reading signal headers
 
@@ -313,8 +331,6 @@ def readheader(recordname):  # For reading signal headers
     # filename stores file names for both multi and single segment headers.
     # nsampseg is only for multi-segment
 
-    commentlines = []  # Store comments
-    headerlines = []  # Store record line followed by the signal lines if any
 
     # RECORD LINE fields (o means optional, delimiter is space or tab unless specified):
     # record name, nsegments (o, delim=/), nsignals, fs (o), counter freq (o, delim=/, needs fs),
@@ -355,20 +371,8 @@ def readheader(recordname):  # For reading signal headers
     # Watch out for potentially negative fields: baseline, ADCzero, initialvalue, checksum,
     # Watch out for potential float: ADCgain.
 
-    # Split comment and non-comment lines
-    with open(recordname + ".hea", 'r') as fp:
-        for line in fp:
-            line = line.strip()
-            if line.startswith('#'):  # comment line
-                commentlines.append(line)
-            elif line:  # Non-empty non-comment line = header line.
-                ci = line.find('#')
-                if ci > 0:
-                    headerlines.append(line[:ci])  # header line
-                    # comment on same line as header line
-                    commentlines.append(line[ci:])
-                else:
-                    headerlines.append(line)
+    # Read the header file and get the comment and non-comment lines
+    headerlines, commentlines = getheaderlines(recordname)
 
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, basecounter, nsamp,
@@ -379,7 +383,7 @@ def readheader(recordname):  # For reading signal headers
         nseg = '1'
     if not fs:
         fs = '250'
-    # fs = float(fs)
+        
     fields['nseg'] = int(nseg)
     fields['fs'] = float(fs)
     fields['nsig'] = int(nsig)
@@ -390,6 +394,7 @@ def readheader(recordname):  # For reading signal headers
     fields['basetime'] = basetime
     fields['basedate'] = basedate
 
+    
     # Signal or Segment line paramters
     # Multi segment header - Process segment spec lines in current master
     # header.
@@ -397,12 +402,9 @@ def readheader(recordname):  # For reading signal headers
         for i in range(0, int(nseg)):
             (filename, nsampseg) = re.findall(
                 '(?P<filename>\w*~?)[ \t]+(?P<nsampseg>\d+)', headerlines[i + 1])[0]
-            # filename might be ~ for null segment.
             fields["filename"].append(filename)
-            # number of samples for the segment
             fields["nsampseg"].append(int(nsampseg))
-    # Single segment header - Process signal spec lines in current regular
-    # header.
+    # Single segment header - Process signal spec lines in regular header.
     else:
         for i in range(0, int(nsig)):  # will not run if nsignals=0
             # get signal line parameters
@@ -457,12 +459,59 @@ def readheader(recordname):  # For reading signal headers
             fields["initvalue"].append(int(initvalue))
             fields["signame"].append(signame)
 
-    if commentlines:
-        for comment in commentlines:
-            fields["comments"].append(comment.strip('\s#'))
+    for comment in commentlines:
+        fields["comments"].append(comment.strip('\s#'))
 
     return fields
 
+
+
+def skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, nbytesread, byteoffset, sampsperframe, tsampsperframe):
+    if max(skew) > 0:
+        # Array of samples to fill in the final samples of the skewed channels.
+        extrasig = np.empty([max(skew), nsig])
+        extrasig.fill(wfdbInvalids[fmt])
+
+        # Load the extra samples if the end of the file hasn't been reached.
+        if siglen - (sampto - sampfrom):
+            startbyte = startbyte + nbytesread
+            # Point the the file pointer to the start of a block of 3 or 4 and
+            # keep track of how many samples to discard after reading. For
+            # regular formats the file pointer is already at the correct
+            # location.
+            if fmt == '212':
+                # Extra samples to read
+                floorsamp = (startbyte - byteoffset) % 3
+                # Now the byte pointed to is the first of a byte triplet
+                # storing 2 samples. It happens that the extra samples match
+                # the extra bytes for fmt 212
+                startbyte = startbyte - floorsamp
+            elif (fmt == '310') | (fmt == '311'):
+                floorsamp = (startbyte - byteoffset) % 4
+                # Now the byte pointed to is the first of a byte quartet
+                # storing 3 samples.
+                startbyte = startbyte - floorsamp
+            startbyte = startbyte
+            fp.seek(startbyte)
+            # The length of extra signals to be loaded
+            extraloadlen = min(siglen - (sampto - sampfrom), max(skew))
+            nsampextra = extraloadlen * tsampsperframe
+            extraloadedsig = processwfdbbytes(
+                fp,
+                fmt,
+                extraloadlen,
+                nsig,
+                sampsperframe,
+                floorsamp)[0]  # Array of extra loaded samples
+            # Fill in the extra loaded samples
+            extrasig[:extraloadedsig.shape[0], :] = extraloadedsig
+
+        # Fill in the skewed channels with the appropriate values.
+        for ch in range(0, nsig):
+            if skew[ch] > 0:
+                sig[:-skew[ch], ch] = sig[skew[ch]:, ch]
+                sig[-skew[ch]:, ch] = extrasig[:skew[ch], ch]
+    return sig
 
 # Get samples from a WFDB binary file
 def readdat(
@@ -509,51 +558,8 @@ def readdat(
         fp, fmt, sampto - sampfrom, nsig, sampsperframe, floorsamp)
 
     # Shift the samples in the channels with skew if any
-    if max(skew) > 0:
-        # Array of samples to fill in the final samples of the skewed channels.
-        extrasig = np.empty([max(skew), nsig])
-        extrasig.fill(wfdbInvalids[fmt])
-
-        # Load the extra samples if the end of the file hasn't been reached.
-        if siglen - (sampto - sampfrom):
-            startbyte = startbyte + nbytesread
-            # Point the the file pointer to the start of a block of 3 or 4 and
-            # keep track of how many samples to discard after reading. For
-            # regular formats the file pointer is already at the correct
-            # location.
-            if fmt == '212':
-                # Extra samples to read
-                floorsamp = (startbyte - byteoffset) % 3
-                # Now the byte pointed to is the first of a byte triplet
-                # storing 2 samples. It happens that the extra samples match
-                # the extra bytes for fmt 212
-                startbyte = startbyte - floorsamp
-            elif (fmt == '310') | (fmt == '311'):
-                floorsamp = (startbyte - byteoffset) % 4
-                # Now the byte pointed to is the first of a byte quartet
-                # storing 3 samples.
-                startbyte = startbyte - floorsamp
-            startbyte = startbyte
-            fp.seek(startbyte)
-            # The length of extra signals to be loaded
-            extraloadlen = min(siglen - (sampto - sampfrom), max(skew))
-            nsampextra = extraloadlen * tsampsperframe
-            extraloadedsig = processwfdbbytes(
-                fp,
-                fmt,
-                extraloadlen,
-                nsig,
-                sampsperframe,
-                floorsamp)[0]  # Array of extra loaded samples
-            # Fill in the extra loaded samples
-            extrasig[:extraloadedsig.shape[0], :] = extraloadedsig
-
-        # Fill in the skewed channels with the appropriate values.
-        for ch in range(0, nsig):
-            if skew[ch] > 0:
-                sig[:-skew[ch], ch] = sig[skew[ch]:, ch]
-                sig[-skew[ch]:, ch] = extrasig[:skew[ch], ch]
-
+    sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, nbytesread, byteoffset, sampsperframe, tsampsperframe)
+    
     fp.close()
 
     return sig
@@ -668,7 +674,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
             # > 2^9-1 are negative.
             sig[sig > 511] -= 1024
 
-        else:  # At least one channel has multiple samples per frame. All extra samples are discarded.
+        else:  # At least one channel has multiple samples per frame. All extra samples are averaged.
             # Turn the bytes into actual samples.
             # 1d array of actual samples. Fill the individual triplets.
             sigall = np.zeros(nsamp)
@@ -734,7 +740,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
             # > 2^9-1 are negative.
             sig[sig > 511] -= 1024
 
-        else:  # At least one channel has multiple samples per frame. All extra samples are discarded.
+        else:  # At least one channel has multiple samples per frame. All extra samples are averaged.
             # Turn the bytes into actual samples.
             # 1d array of actual samples. Fill the individual triplets.
             sigall = np.zeros(nsamp)
@@ -779,7 +785,7 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
         if tsampsperframe == nsig:  # No extra samples/frame
             sig = np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nsamp)
             sig = sig.reshape(siglen, nsig).astype('int')
-        else:  # At least one channel has multiple samples per frame. Extra samples are discarded.
+        else:  # At least one channel has multiple samples per frame. Extra samples are averaged.
             sigall = np.fromfile(fp,
                                  dtype=np.dtype(datatypes[fmt]),
                                  count=nsamp)  # All samples loaded
