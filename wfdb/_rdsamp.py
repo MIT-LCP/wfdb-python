@@ -859,61 +859,9 @@ def loadconfig(fn):
             pass
     return config
 
-def rdsamp(
-        recordname,
-        sampfrom=0,
-        sampto=[],
-        channels=[],
-        physical=1,
-        stacksegments=1):
-    """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
 
-    Usage:
-    sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments)
-
-    Input arguments:
-    - recordname (required): The name of the WFDB record to be read (without any file extensions).
-    - sampfrom (default=0): The starting sample number to read for each channel.
-    - sampto (default=length of entire signal): The final sample number to read for each channel.
-    - channels (default=all channels): Indices specifying the channel to be returned.
-    - physical (default=1): Flag that specifies whether to return signals in physical (1) or digital (0) units.
-    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0).
-
-
-    Output variables:
-    - sig: An nxm numpy array where n is the signal length and m is the number of channels. 
-      If the input record is a multi-segment record, depending on the input stacksegments flag, 
-      sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy 
-      array for each segment (0). For empty segments, stacked format will contain Nan values, 
-      and non-stacked format will contain a single integer specifying the length of the empty segment.
-    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. 
-      If the input record is a multi-segment record, the output argument will be a list of dictionaries:
-              : The first list element will be a dictionary of metadata about the master header.
-              : If the record is in variable layout format, the next list element will be a dictionary 
-                of metadata about the layout specification header.
-              : The last list element will be a list of dictionaries of metadata for each segment. 
-                For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
-    """
-
-    filestoremove = []
-    config = loadconfig('wfdb.config')
-
-    if config.get('pbdownload','getpbfiles') == 1:  # Flag specifying whether to allow downloading from physiobank
-        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
-    
-    if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
-        filestoremove = dledfiles
-
-    fields = readheader(recordname)  # Get the info from the header file
-
-    if fields["nsig"] == 0:
-        sys.exit("This record has no signals. Use rdann to read annotations")
-    if sampfrom < 0:
-        sys.exit("sampfrom must be non-negative")
-    dirname, baserecordname = os.path.split(recordname)
-
-    if fields["nseg"] == 1:  # single segment file
-        if (len(set(fields["filename"])) ==
+def processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical):
+    if (len(set(fields["filename"])) ==
                 1):  # single dat (or binary) file in the segment
             # Signal length was not specified in the header, calculate it from
             # the file size.
@@ -967,8 +915,8 @@ def rdsamp(
                 sig = np.subtract(sig, np.array(
                     [float(i) for i in fields["baseline"]]))
                 sig = np.divide(sig, np.array([fields["gain"]]))
-
-        else:  # Multiple dat files in the segment. Read different dats and merge them channel wise.
+                
+    else:  # Multiple dat files in the segment. Read different dats and merge them channel wise.
 
             if not channels:  # Default all channels
                 channels = list(range(0, fields["nsig"]))
@@ -1055,15 +1003,12 @@ def rdsamp(
                         fields["fmt"][ch]], ch] = np.nan
                 sig = np.subtract(sig, np.array(
                     [float(b) for b in fields["baseline"]]))
-                sig = np.divide(sig, np.array([fields["gain"]]))
+                sig = np.divide(sig, np.array([fields["gain"]]))    
+                
+    return sig, fields
 
-    # Multi-segment file. Preprocess and recursively call rdsamp on single
-    # segments.
-    else:
-
-        # Determine if this record is fixed or variable layout. startseg is the
-        # first signal segment.
-        if fields["nsampseg"][
+def fixedorvariable:
+    if fields["nsampseg"][
                 0] == 0:  # variable layout - first segment is layout specification file
             startseg = 1
             # Store the layout header info.
@@ -1073,6 +1018,75 @@ def rdsamp(
                     fields["filename"][0]))
         else:  # fixed layout - no layout specification file.
             startseg = 0
+            layoutfields=[]
+    return startseg, layoutfields
+
+def rdsamp(
+        recordname,
+        sampfrom=0,
+        sampto=[],
+        channels=[],
+        physical=1,
+        stacksegments=1):
+    """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
+
+    Usage:
+    sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments)
+
+    Input arguments:
+    - recordname (required): The name of the WFDB record to be read (without any file extensions).
+    - sampfrom (default=0): The starting sample number to read for each channel.
+    - sampto (default=length of entire signal): The final sample number to read for each channel.
+    - channels (default=all channels): Indices specifying the channel to be returned.
+    - physical (default=1): Flag that specifies whether to return signals in physical (1) or digital (0) units.
+    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0).
+
+
+    Output variables:
+    - sig: An nxm numpy array where n is the signal length and m is the number of channels. 
+      If the input record is a multi-segment record, depending on the input stacksegments flag, 
+      sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy 
+      array for each segment (0). For empty segments, stacked format will contain Nan values, 
+      and non-stacked format will contain a single integer specifying the length of the empty segment.
+    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. 
+      If the input record is a multi-segment record, the output argument will be a list of dictionaries:
+              : The first list element will be a dictionary of metadata about the master header.
+              : If the record is in variable layout format, the next list element will be a dictionary 
+                of metadata about the layout specification header.
+              : The last list element will be a list of dictionaries of metadata for each segment. 
+                For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
+    """
+
+    filestoremove = []
+    config = loadconfig('wfdb.config')
+
+    if config.get('pbdownload','getpbfiles') == 1:  # Flag specifying whether to allow downloading from physiobank
+        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
+    
+    if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
+        filestoremove = dledfiles
+
+        
+    fields = readheader(recordname)  # Get the info from the header file
+
+    
+    if fields["nsig"] == 0:
+        sys.exit("This record has no signals. Use rdann to read annotations")
+    if sampfrom < 0:
+        sys.exit("sampfrom must be non-negative")
+    dirname, baserecordname = os.path.split(recordname)
+
+    
+    if fields["nseg"] == 1:  # single segment file
+        sig, fields = processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical)
+
+    # Multi-segment file. Preprocess and recursively call rdsamp on single
+    # segments.
+    else:
+            
+        # Determine if this record is fixed or variable layout. startseg is the
+        # first signal segment.    
+        startseg, layoutfields = fixedorvariable(fields)
 
         # Determine the segments and samples that have to be read based on
         # sampfrom and sampto
