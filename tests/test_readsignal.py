@@ -102,7 +102,7 @@ class test_rdsamp():
         targetsig = np.genfromtxt('tests/targetoutputdata/target10')
         assert np.array_equal(sig, targetsig)
 
-    #### Temporarily removing multi-segment tests due to differences in functi
+    #### Temporarily removing multi-segment tests due to differences in function workings
 
     # Test 11 - Multi-segment variable layout/Entire signal/Physical
     # Target file created with: rdsamp -r sampledata/matched/s25047/s25047-2704-05-04-10-44 -P | cut -f 2- > target11

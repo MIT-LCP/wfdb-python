@@ -1007,19 +1007,127 @@ def processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, 
                 
     return sig, fields
 
-def fixedorvariable:
+def fixedorvariable(fields, dirname):
     if fields["nsampseg"][
-                0] == 0:  # variable layout - first segment is layout specification file
-            startseg = 1
-            # Store the layout header info.
-            layoutfields = readheader(
-                os.path.join(
-                    dirname,
-                    fields["filename"][0]))
-        else:  # fixed layout - no layout specification file.
-            startseg = 0
-            layoutfields=[]
+            0] == 0:  # variable layout - first segment is layout specification file
+        startseg = 1
+        # Store the layout header info.
+        layoutfields = readheader(
+            os.path.join(
+                dirname,
+                fields["filename"][0]))
+    else:  # fixed layout - no layout specification file.
+        startseg = 0
+        layoutfields=[]
     return startseg, layoutfields
+
+# Determine the segments and samples that have to be read in a multi-segment record
+def requiredsections(fields, sampfrom, sampto, startseg):
+    # Cumulative sum of segment lengths
+    cumsumlengths = list(np.cumsum(fields["nsampseg"][startseg:]))
+
+    if not sampto:
+        sampto = cumsumlengths[len(cumsumlengths) - 1]
+
+    if sampto > cumsumlengths[len(cumsumlengths) - 1]:  
+        sys.exit(
+            "sampto exceeds length of record: ",
+            cumsumlengths[
+                len(cumsumlengths) - 1])
+
+    # First segment
+    readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
+    if sampto == cumsumlengths[len(cumsumlengths) - 1]:
+        readsegs.append(len(cumsumlengths) - 1)  # Final segment
+    else:
+        readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
+            
+    if readsegs[1] == readsegs[0]:  # Only one segment to read
+        readsegs = [readsegs[0]]
+        # The sampfrom and sampto for each segment
+        readsamps = [[sampfrom, sampto]]
+    else:
+        readsegs = list(
+            range(
+                readsegs[0],
+                readsegs[1] +
+                1))  # Expand into list
+        # The sampfrom and sampto for each segment. Most are [0, nsampseg]
+        readsamps = [[0, fields["nsampseg"][s + startseg]]
+                     for s in readsegs]
+        # Starting sample for first segment
+        readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]]
+        readsamps[len(readsamps) - 1][1] = sampto - ([0] + cumsumlengths)[
+            readsegs[len(readsamps) - 1]]  # End sample for last segment
+    # Done obtaining segments to read and samples to read in each segment.
+    return readsegs, readsamps, sampto 
+
+
+# Allocate empty structures for storing information from multiple segments
+def allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, startseg, readsegs):
+
+    if not channels:
+        channels = list(range(0, fields["nsig"]))  # All channels
+        
+    # Figure out the dimensions of the entire signal
+    if sampto:  # User inputs sampto
+        nsamp = sampto-sampfrom
+    elif fields["nsamp"]:  # master header has number of samples
+        nsamp = fields["nsamp"]-sampfrom
+    else:  # Have to figure out length by adding up all segment lengths
+        nsamp = sum(fields["nsampseg"][startseg:])-sampfrom
+        
+    if stacksegments == 1:  # Output a single concatenated numpy array
+        indstart = 0  # The start index of the stacked numpy array to begin filling in the current segment 
+        if physical == 0:
+            sig = np.empty((nsamp, len(channels)), dtype='int')
+        else:
+            sig = np.empty((nsamp, len(channels)), dtype='float')
+    else:  # Output a list of numpy arrays
+        # Empty list for storing segment signals.
+        sig = [None] * len(readsegs)
+        indstart=[]
+    # List for storing segment fields.
+    segmentfields = [None] * len(readsegs)
+    
+    return sig, channels, nsamp, segmentfields, indstart
+    
+    
+    
+    
+    
+    
+# Determine the channels to be returned for each segment    
+def getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels):
+                
+    if startseg == 0:  # Fixed layout signal. Channels for record are always same.
+        segchannels = channels
+    else:  # Variable layout signal. Work out which channels from the segment to load if any.
+        if segrecordname != '~':
+            sfields = readheader(os.path.join(dirname, segrecordname))
+            wantsignals = [layoutfields["signame"][c] for c in channels]  # Signal names of wanted channels
+            segchannels = []  # The channel numbers wanted that are contained in the segment
+            returninds = []  # 1 and 0 marking channels of the numpy array to be filled by 
+                                     # the returned segment channels
+            for ws in wantsignals:
+                if ws in sfields["signame"]:
+                    segchannels.append(sfields["signame"].index(ws))
+                    returninds.append(1)
+                else:
+                    returninds.append(0)
+            returninds = np.array(returninds)
+            # The channels of the overall array that the segment doesn't contain
+            emptyinds = np.where(returninds == 0)[0]
+            # The channels of the overall array that the segment contains
+            returninds = np.where(returninds == 1)[0]
+        else:
+            segchannels = []    
+            
+    return segchannels, returninds, emptyinds 
+
+
+
+
 
 def rdsamp(
         recordname,
@@ -1084,149 +1192,76 @@ def rdsamp(
     # segments.
     else:
             
-        # Determine if this record is fixed or variable layout. startseg is the
-        # first signal segment.    
-        startseg, layoutfields = fixedorvariable(fields)
+        # Determine if the record is fixed or variable layout. 
+        # startseg is the first signal segment, 1 or 0.    
+        startseg, layoutfields = fixedorvariable(fields, dirname)
 
-        # Determine the segments and samples that have to be read based on
-        # sampfrom and sampto
-        # Cumulative sum of segment lengths
-        cumsumlengths = list(np.cumsum(fields["nsampseg"][startseg:]))
-
-        if not sampto:
-            sampto = cumsumlengths[len(cumsumlengths) - 1]
-
-        if sampto > cumsumlengths[
-                len(cumsumlengths) -
-                1]:  # Error check sampto
-            sys.exit(
-                "sampto exceeds length of record: ",
-                cumsumlengths[
-                    len(cumsumlengths) - 1])
-
-        # First segment
-        readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
-        if sampto == cumsumlengths[len(cumsumlengths) - 1]:
-            readsegs.append(len(cumsumlengths) - 1)  # Final segment
-        else:
-            readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
-        if readsegs[1] == readsegs[0]:  # Only one segment to read
-            readsegs = [readsegs[0]]
-            # The sampfrom and sampto for each segment
-            readsamps = [[sampfrom, sampto]]
-        else:
-            readsegs = list(
-                range(
-                    readsegs[0],
-                    readsegs[1] +
-                    1))  # Expand into list
-            # The sampfrom and sampto for each segment. Most are [0, nsampseg]
-            readsamps = [[0, fields["nsampseg"][s + startseg]]
-                         for s in readsegs]
-            # Starting sample for first segment
-            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]]
-            readsamps[len(readsamps) - 1][1] = sampto - ([0] + cumsumlengths)[
-                readsegs[len(readsamps) - 1]]  # End sample for last segment
-        # Done obtaining segments to read and samples to read in each segment.
-
-        # Preprocess/preallocate according to chosen output format
-        if not channels:
-            channels = list(range(0, fields["nsig"]))  # All channels
-        if stacksegments == 1:  # Output a single concatenated numpy array
-            # Figure out the dimensions of the entire signal
-            if sampto:  # User inputs sampto
-                nsamp = sampto
-            elif fields["nsamp"]:  # master header has number of samples
-                nsamp = fields["nsamp"]
-            else:  # Have to figure out length by adding up all segment lengths
-                nsamp = sum(fields["nsampseg"][startseg:])
-            nsamp = nsamp - sampfrom
-            if physical == 0:
-                sig = np.empty((nsamp, len(channels)), dtype='int')
-            else:
-                sig = np.empty((nsamp, len(channels)), dtype='float')
-
-            indstart = 0  # The overall signal index of the start of the current segment for 
-                          # filling in the large np array
-        else:  # Output a list of numpy arrays
-            # Empty list for storing segment signals.
-            sig = [None] * len(readsegs)
-        # List for storing segment fields.
-        segmentfields = [None] * len(readsegs)
-
+        # Determine the segments and samples that have to be read
+        readsegs, readsamps, sampto = requiredsections(fields, sampfrom, sampto, startseg)        
+        
+        # Preprocess/preallocate according to the chosen output format
+        sig, channels, nsamp, segmentfields, indstart= allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, startseg, readsegs)
+        
         # Read and store segments one at a time.
-        # i is the segment number. It accounts for the layout record if exists
+        # segnum (the segment number) accounts for the layout record if exists
         # and skips past it.
-        for i in [r + startseg for r in readsegs]:
-            segrecordname = fields["filename"][i]
-
-            # Work out the relative channels to return from each segment
-            if startseg == 0:  # Fixed layout signal. Channels for record are always same.
-                segchannels = channels
-            else:  # Variable layout signal. Work out which channels from the segment to load if any.
-                if segrecordname != '~':
-                    sfields = readheader(os.path.join(dirname, segrecordname))
-                    wantsignals = [layoutfields["signame"][c]
-                                   for c in channels]  # Signal names of wanted channels
-                    segchannels = []  # The channels wanted that are contained in the segment
-                    returninds = []  # 1 and 0 marking channels of the numpy array to be filled by 
-                                     # the returned segment channels
-                    for ws in wantsignals:
-                        if ws in sfields["signame"]:
-                            segchannels.append(sfields["signame"].index(ws))
-                            returninds.append(1)
-                        else:
-                            returninds.append(0)
-                    returninds = np.array(returninds)
-                    # The channels of the overall array that the segment
-                    # doesn't contain
-                    emptyinds = np.where(returninds == 0)[0]
-                    # The channels of the overall array that the segment
-                    # contains
-                    returninds = np.where(returninds == 1)[0]
-                else:
-                    segchannels = []
-
+        for segnum in [r + startseg for r in readsegs]:
+            
+            segrecordname = fields["filename"][segnum]
+            
+            
+            
+            
+            
+            
+            # Work out the relative channels to return this segment
+            segchannels, returninds, emptyinds = getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels)
+          
+        
+        
+        
+        
+        
             if stacksegments == 0:  # Return list of np arrays
-                # Empty segment or wrong channels. Store indicator and segment
+                # Empty segment or no desired channels in segment. Store indicator and segment
                 # length.
                 if (segrecordname == '~') | (not segchannels):
-                    # sig[i-startseg-readsegs[0]]=fields["nsampseg"][i] # store
-                    # the segment length
-                    sig[i - startseg - readsegs[0]] = readsamps[i - startseg - \
-                        readsegs[0]][1] - readsamps[i - startseg - readsegs[0]][0]
-                    segmentfields[i - startseg - readsegs[0]] = "Empty Segment"
+                    # sig[segnum-startseg-readsegs[0]]=fields["nsampseg"][segnum] # store
+                    # the entire segment length? Or just selected length? Preference...  
+                    
+                    sig[segnum - startseg - readsegs[0]] = readsamps[segnum - startseg - \
+                        readsegs[0]][1] - readsamps[segnum - startseg - readsegs[0]][0]
+                    segmentfields[segnum - startseg - readsegs[0]] = "Empty Segment"
 
                 else:  # Non-empty segment that contains wanted channels. Read its signal and header fields
-                    sig[i -
+                    sig[segnum -
                         startseg -
-                        readsegs[0]], segmentfields[i -
+                        readsegs[0]], segmentfields[segnum -
                                                     startseg -
                                                     readsegs[0]] = rdsamp(recordname=os.path.join(dirname, 
-                                                        segrecordname), physical=physical, sampfrom=readsamps[i -
+                                                        segrecordname), physical=physical, sampfrom=readsamps[segnum -
                                                                                                                                                                  startseg -
-                                                                                                                                                                 readsegs[0]][0], sampto=readsamps[i -
+                                                                                                                                                                 readsegs[0]][0], sampto=readsamps[segnum -
                                                                                                                                                                                                    startseg -
                                                                                                                                                                                                    readsegs[0]][1], channels=segchannels)
 
             else:  # Return single stacked np array of all (selected) channels
-                indend = indstart + readsamps[i - startseg - readsegs[0]][1] - readsamps[
-                    i - startseg - readsegs[0]][0]  # end index of the large array for this segment
-                if (segrecordname == '~') | (
-                        not segchannels):  # Empty segment or no wanted channels: fill in invalids
+
+                indend = indstart + readsamps[segnum - startseg - readsegs[0]][1] - readsamps[
+                    segnum - startseg - readsegs[0]][0]  # end index of the large array for this segment
+                if (segrecordname == '~') | (not segchannels):  # Empty segment or no wanted channels: fill in invalids
                     if physical == 0:
-                        sig[indstart:indend, :] = sig[
-                            indstart:indend, :] = -2147483648
+                        sig[indstart:indend, :] = -2147483648
                     else:
                         sig[indstart:indend, :] = np.nan
-                    segmentfields[i - startseg - readsegs[0]] = "Empty Segment"
+                    segmentfields[segnum - startseg - readsegs[0]] = "Empty Segment"
                 else:  # Non-empty segment - Get samples
                     if startseg == 1:  # Variable layout format. Load data then rearrange channels.
-                        sig[indstart:indend, returninds], segmentfields[i -
+                        sig[indstart:indend, returninds], segmentfields[segnum -
                                                                         startseg -
-                                                                        readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[i -
+                                                                        readsegs[0]] = rdsamp(recordname=os.path.join(dirname, segrecordname), physical=physical, sampfrom=readsamps[segnum -
                                                                                                                                                                                      startseg -
-                                                                                                                                                                                     readsegs[0]][0], sampto=readsamps[i -
+                                                                                                                                                                                     readsegs[0]][0], sampto=readsamps[segnum -
                                                                                                                                                                                                                        startseg -
                                                                                                                                                                                                                        readsegs[0]][1], channels=segchannels)  # Load all the wanted channels that the segment contains
                         if physical == 0:  # Fill the rest with invalids
@@ -1239,27 +1274,27 @@ def rdsamp(
                         # wish to keep the returned channels' fields without
                         # any 'no channel' placeholders between.
                         expandedfields = dict.copy(
-                            segmentfields[i - startseg - readsegs[0]])
+                            segmentfields[segnum - startseg - readsegs[0]])
                         for fielditem in arrangefields:
                             expandedfields[fielditem] = [
                                 'No Channel'] * len(channels)
                             for c in range(0, len(returninds)):
                                 expandedfields[fielditem][
                                     returninds[c]] = segmentfields[
-                                    i - startseg - readsegs[0]][fielditem][c]
+                                    segnum - startseg - readsegs[0]][fielditem][c]
                             segmentfields[
-                                i - startseg - readsegs[0]][fielditem] = expandedfields[fielditem]
+                                segnum - startseg - readsegs[0]][fielditem] = expandedfields[fielditem]
                         # Keep fields['nsig'] as the value of returned channels
                         # from the segments.
 
                     else:  # Fixed layout - channels already arranged
                         sig[
                             indstart:indend, :], segmentfields[
-                            i - startseg] = rdsamp(
+                            segnum - startseg] = rdsamp(
                             recordname=os.path.join(
                                 dirname, segrecordname), physical=physical, sampfrom=readsamps[
-                                i - startseg - readsegs[0]][0], sampto=readsamps[
-                                i - startseg - readsegs[0]][1], channels=segchannels)
+                                segnum - startseg - readsegs[0]][0], sampto=readsamps[
+                                segnum - startseg - readsegs[0]][1], channels=segchannels)
                 indstart = indend  # Update the start index for filling in the next part of the array
 
         # Done reading all segments
