@@ -44,17 +44,14 @@ def checkrecordfiles(recordname, filedirectory):
     basedir, baserecname = os.path.split(recordname)
 
     # At this point we do not know whether basedir is a local directory, a
-    # physiobank directory, or both!
+    # physiobank directory, or both.
 
-    if not basedir:  # if there is no base directory then: 1. The files must be located 
-        # in the current working directory.
-        # 2. There will be no target files to download. So just directly
-        # return. If files are missing we cannot download them anyway.
+    if not basedir:  # if basedir is not defined, then there is no physiobank
+        # database specified. If files are missing we cannot download them anyway.
         return recordname, []
 
     # If this is reached, basedir is defined. Check if there is a directory
-    # called 'basedir':
-    # the 'basedir' directory exists. Check it for files.
+    # called 'basedir'. If it exists, check it for files.
     if os.path.isdir(basedir):
         # It is possible that basedir is also a physiobank database. Therefore
         # if any files are missing, ,try to download files  assuming basedir is
@@ -107,11 +104,11 @@ def checkrecordfiles(recordname, filedirectory):
         # All files were already present in the 'basedir' directory.
         return recordname, []
 
-    else:  # there is no 'basedir' directory. Therefore basedir must be a 
+    else:  # there is no 'basedir' directory in your relative path. Therefore basedir must be a 
            # physiobank database directory. check the current working directory for files. 
            # If any are missing, check the cache directory for files and download missing 
            # files from physiobank.
-
+    
         pbdir = basedir  # physiobank directory
         downloaddir = os.path.join(dbcachedir, pbdir)
 
@@ -176,9 +173,10 @@ def dlrecordfiles(pbrecname, targetdir):
     - dledfiles:  The list of files downloaded from PhysioBank.
 
     """
+    
     physioneturl = "http://physionet.org/physiobank/database/"
     pbdir, baserecname = os.path.split(pbrecname)
-    print('Downloading missing file(s) into directory: ', targetdir)
+    displaydlmsg=1
 
     if not os.path.isdir(
             targetdir):  # Make the target directory if it doesn't already exist
@@ -198,7 +196,9 @@ def dlrecordfiles(pbrecname, targetdir):
         try:
             remotefile = physioneturl + pbrecname + ".hea"
             targetfile = os.path.join(targetdir, baserecname + ".hea")
+            print('Downloading missing file(s) into directory: ', targetdir)
             r = requests.get(remotefile)
+            displaydlmsg=0
             with open(targetfile, "w") as text_file:
                 text_file.write(r.text)
             dledfiles.append(targetfile)
@@ -224,7 +224,8 @@ def dlrecordfiles(pbrecname, targetdir):
                     os.path.join(
                         targetdir,
                         f),
-                    dledfiles)
+                    dledfiles, displaydlmsg, targetdir)
+                displaydlmsg=0
 
     else:  # Multi segment. Check for all segment headers and their dat files
         for segment in fields["filename"]:
@@ -244,28 +245,30 @@ def dlrecordfiles(pbrecname, targetdir):
                             targetdir,
                             segment +
                             ".hea"),
-                        dledfiles)
+                        dledfiles, displaydlmsg, targetdir)
+                    displaydlmsg=0
                 segfields = readheader(os.path.join(targetdir, segment))
                 for f in segfields["filename"]:
                     if f != '~':
-                        if not os.path.isfile(
-                            os.path.join(
-                                targetdir,
-                                f)):  # Missing a segment's dat file
+                        if not os.path.isfile(os.path.join(targetdir, f)):  # Missing a segment's dat file
                             dledfiles = dlorexit(
                                 physioneturl + pbdir + "/" + f,
                                 os.path.join(
                                     targetdir,
                                     f),
-                                dledfiles)
-
-    print('Download complete')
+                                dledfiles, displaydlmsg, targetdir)
+                            displaydlmsg=0
+    if dledfiles:
+        print('Downloaded all files for record')
     return dledfiles  # downloaded files
 
 
 # Helper function for dlrecordfiles. Download the file from the specified
 # 'url' as the 'filename', or exit with warning.
-def dlorexit(url, filename, dledfiles):
+def dlorexit(url, filename, dledfiles, displaydlmsg=0, targetdir=[]):
+    
+    if displaydlmsg: # We want this message to be called once for all files downloaded. 
+        print('Downloading missing file(s) into directory: ', targetdir)
     try:
         r = requests.get(url)
         with open(filename, "w") as text_file:
@@ -1173,10 +1176,9 @@ def rdsamp(
 
     filestoremove = []
     config = loadconfig('wfdb.config')
-
-    if config.get('pbdownload','getpbfiles') == 1:  # Flag specifying whether to allow downloading from physiobank
-        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
     
+    if int(config.get('pbdownload','getpbfiles')) == 1:  # Flag specifying whether to allow downloading from physiobank
+        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
     if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
         filestoremove = dledfiles
         

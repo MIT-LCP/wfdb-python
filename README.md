@@ -26,9 +26,8 @@ See the <strong>wfdbdemo.ipynb</strong> file for example scripts on how to call 
 <strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
 
 ```
-import numpy as np
-from wfdb import readsignal
-sig, fields = readsignal.rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
+import wfdb
+sig, fields = wfdb.rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
 ```
 
 Input Arguments: 
@@ -58,9 +57,8 @@ Output Arguments:
 <strong>rdann</strong> - Read a WFDB annotation file <code>recordname.annot</code> and return the fields as lists or arrays.
 
 ```
-import numpy as np
-from wfdb import readannot
-annsamp, anntype, subtype, chan, num, aux, annfs) = readannot.rdann(recordname, annot, sampfrom, sampto, anndisp)
+import wfdb
+annsamp, anntype, subtype, chan, num, aux, annfs) = wfdb.rdann(recordname, annot, sampfrom, sampto, anndisp)
 ```
 
 Input Arguments: 
@@ -92,11 +90,10 @@ Output arguments:
 <strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on selected channels if present.  
 
 ```
-import numpy as np
-from wfdb import readsignal
+import wfdb
 from wfdb import plotwfdb
-sig, fields = readsignal.rdsamp(recordname)
-annsamp=readannot.rdann('recordname', 'annot')[0]
+sig, fields = wfdb.rdsamp(recordname)
+annsamp=wfdb.rdann('recordname', 'annot')[0]
 plotwfdb.plotsigs(sig, fields, annsamp, annch, title, plottime): 
  
 ```
