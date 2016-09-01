@@ -4,7 +4,6 @@ import os
 import sys
 import requests
 from configparser import ConfigParser
-import urllib2
 # from distutils.sysconfig import get_python_lib
 
 def checkrecordfiles(recordname, filedirectory):
