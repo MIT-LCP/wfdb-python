@@ -55,7 +55,6 @@ setup(
         'nose>=1.3.7',
         'numpy>=1.11.0',
         'matplotlib>=1.5.1',
-        'cairocffi>=0.7.2',
         'configparser>=3.5.0',
         'requests>=2.10.0'
         ],
