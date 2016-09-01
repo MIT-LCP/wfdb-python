@@ -1,6 +1,6 @@
 # Include the license file
 include LICENSE
-include wfdb/wfdb.config
+include wfdb.config
 
 # Include the data files
 # recursive-include data *
