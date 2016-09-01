@@ -7,30 +7,30 @@ from configparser import ConfigParser
 # from distutils.sysconfig import get_python_lib
 
 def checkrecordfiles(recordname, filedirectory):
-    """Check a local directory along with the database cache directory specified in 
-        'config.ini' for all necessary files required to read a WFDB record. 
-        Calls pbdownload.dlrecordfiles to download any missing files into the database 
-        cache directory. Returns the base record name if all files were present, or a 
-        full path record name specifying where the downloaded files are to be read, 
+    """Check a local directory along with the database cache directory specified in
+        'config.ini' for all necessary files required to read a WFDB record.
+        Calls pbdownload.dlrecordfiles to download any missing files into the database
+        cache directory. Returns the base record name if all files were present, or a
+        full path record name specifying where the downloaded files are to be read,
         and a list of files downloaded.
 
-    *If you wish to directly download files for a record, it highly recommended to call 
-    'dlrecordfiles' directly. This is a helper function for rdsamp which 
-    tries to parse the 'recordname' input to deduce whether it contains a local directory, 
-    physiobank database, or both. Its usage format is different and more complex than 
+    *If you wish to directly download files for a record, it highly recommended to call
+    'dlrecordfiles' directly. This is a helper function for rdsamp which
+    tries to parse the 'recordname' input to deduce whether it contains a local directory,
+    physiobank database, or both. Its usage format is different and more complex than
     that of 'dlrecordfiles'.
 
     Usage: readrecordname, downloadedfiles = checkrecordfiles(recordname, filedirectory)
 
     Input arguments:
-    - recordname (required): The name of the WFDB record to be read 
-      (without any file extensions). Can be prepended with a local directory, or a 
-      physiobank subdirectory (or both if the relative local directory exists and 
+    - recordname (required): The name of the WFDB record to be read
+      (without any file extensions). Can be prepended with a local directory, or a
+      physiobank subdirectory (or both if the relative local directory exists and
       takes the same name as the physiobank subdirectory). eg: recordname=mitdb/100
-    - filedirectory (required): The local directory to check for the files required to 
-      read the record before checking the database cache directory. If the 'recordname' 
-      argument is prepended with a directory, this function will assume that it is a 
-      local directory and prepend that to this 'filedirectory' argument and check the 
+    - filedirectory (required): The local directory to check for the files required to
+      read the record before checking the database cache directory. If the 'recordname'
+      argument is prepended with a directory, this function will assume that it is a
+      local directory and prepend that to this 'filedirectory' argument and check the
       resulting directory instead.
 
     Output arguments:
@@ -104,11 +104,11 @@ def checkrecordfiles(recordname, filedirectory):
         # All files were already present in the 'basedir' directory.
         return recordname, []
 
-    else:  # there is no 'basedir' directory in your relative path. Therefore basedir must be a 
-           # physiobank database directory. check the current working directory for files. 
-           # If any are missing, check the cache directory for files and download missing 
+    else:  # there is no 'basedir' directory in your relative path. Therefore basedir must be a
+           # physiobank database directory. check the current working directory for files.
+           # If any are missing, check the cache directory for files and download missing
            # files from physiobank.
-    
+
         pbdir = basedir  # physiobank directory
         downloaddir = os.path.join(dbcachedir, pbdir)
 
@@ -155,25 +155,25 @@ def checkrecordfiles(recordname, filedirectory):
 
 
 def dlrecordfiles(pbrecname, targetdir):
-    """Check a specified local directory for all necessary files required to read a Physiobank 
-       record, and download any missing files into the same directory. Returns a list of files 
+    """Check a specified local directory for all necessary files required to read a Physiobank
+       record, and download any missing files into the same directory. Returns a list of files
        downloaded, or exits with error if an invalid Physiobank record is specified.
 
     Usage: dledfiles = dlrecordfiles(pbrecname, targetdir)
 
     Input arguments:
-    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended 
-      with the Physiobank subdirectory the file is contain in (without any file extensions). 
-      eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea 
+    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended
+      with the Physiobank subdirectory the file is contain in (without any file extensions).
+      eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea
       and 12727.dat
-    - targetdir (required): The local directory to check for files required to read the record, 
+    - targetdir (required): The local directory to check for files required to read the record,
       in which missing files are also downloaded.
 
     Output arguments:
     - dledfiles:  The list of files downloaded from PhysioBank.
 
     """
-    
+
     physioneturl = "http://physionet.org/physiobank/database/"
     pbdir, baserecname = os.path.split(pbrecname)
     displaydlmsg=1
@@ -196,7 +196,7 @@ def dlrecordfiles(pbrecname, targetdir):
         try:
             remotefile = physioneturl + pbrecname + ".hea"
             targetfile = os.path.join(targetdir, baserecname + ".hea")
-            print('Downloading missing file(s) into directory: ', targetdir)
+            print('Downloading missing file(s) into directory: {}'.format(targetdir))
             r = requests.get(remotefile)
             displaydlmsg=0
             with open(targetfile, "w") as text_file:
@@ -266,9 +266,9 @@ def dlrecordfiles(pbrecname, targetdir):
 # Helper function for dlrecordfiles. Download the file from the specified
 # 'url' as the 'filename', or exit with warning.
 def dlorexit(url, filename, dledfiles, displaydlmsg=0, targetdir=[]):
-    
-    if displaydlmsg: # We want this message to be called once for all files downloaded. 
-        print('Downloading missing file(s) into directory: ', targetdir)
+
+    if displaydlmsg: # We want this message to be called once for all files downloaded.
+        print('Downloading missing file(s) into directory: {}'.format(targetdir))
     try:
         r = requests.get(url)
         with open(filename, "w") as text_file:
@@ -304,7 +304,7 @@ def getheaderlines(recordname):
                     # comment on same line as header line
                     commentlines.append(line[ci:])
                 else:
-                    headerlines.append(line)                
+                    headerlines.append(line)
     return headerlines, commentlines
 
 def readheader(recordname):  # For reading signal headers
@@ -386,7 +386,7 @@ def readheader(recordname):  # For reading signal headers
         nseg = '1'
     if not fs:
         fs = '250'
-        
+
     fields['nseg'] = int(nseg)
     fields['fs'] = float(fs)
     fields['nsig'] = int(nsig)
@@ -397,7 +397,7 @@ def readheader(recordname):  # For reading signal headers
     fields['basetime'] = basetime
     fields['basedate'] = basedate
 
-    
+
     # Signal or Segment line paramters
     # Multi segment header - Process segment spec lines in current master
     # header.
@@ -527,7 +527,7 @@ def readdat(
         siglen,
         sampsperframe,
         skew):
-    # nsig defines whole file, not selected channels. siglen refers to signal 
+    # nsig defines whole file, not selected channels. siglen refers to signal
     # length of whole file, not selected duration.
     # Recall that channel selection is not performed in this function but in
     # rdsamp.
@@ -562,7 +562,7 @@ def readdat(
 
     # Shift the samples in the channels with skew if any
     sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, nbytesread, byteoffset, sampsperframe, tsampsperframe)
-    
+
     fp.close()
 
     return sig
@@ -855,7 +855,7 @@ def loadconfig(fn):
     """
     config = ConfigParser()
     for loc in [os.curdir,os.path.expanduser("~"),os.path.dirname(__file__)]:
-        try: 
+        try:
             with open(os.path.join(loc,fn)) as source:
                 config.readfp(source)
         except IOError:
@@ -918,7 +918,7 @@ def processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, 
                 sig = np.subtract(sig, np.array(
                     [float(i) for i in fields["baseline"]]))
                 sig = np.divide(sig, np.array([fields["gain"]]))
-                
+
     else:  # Multiple dat files in the segment. Read different dats and merge them channel wise.
 
             if not channels:  # Default all channels
@@ -1006,8 +1006,8 @@ def processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, 
                         fields["fmt"][ch]], ch] = np.nan
                 sig = np.subtract(sig, np.array(
                     [float(b) for b in fields["baseline"]]))
-                sig = np.divide(sig, np.array([fields["gain"]]))    
-                
+                sig = np.divide(sig, np.array([fields["gain"]]))
+
     return sig, fields
 
 def fixedorvariable(fields, dirname):
@@ -1032,7 +1032,7 @@ def requiredsections(fields, sampfrom, sampto, startseg):
     if not sampto:
         sampto = cumsumlengths[len(cumsumlengths) - 1]
 
-    if sampto > cumsumlengths[len(cumsumlengths) - 1]:  
+    if sampto > cumsumlengths[len(cumsumlengths) - 1]:
         sys.exit(
             "sampto exceeds length of record: ",
             cumsumlengths[
@@ -1044,7 +1044,7 @@ def requiredsections(fields, sampfrom, sampto, startseg):
         readsegs.append(len(cumsumlengths) - 1)  # Final segment
     else:
         readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
-            
+
     if readsegs[1] == readsegs[0]:  # Only one segment to read
         readsegs = [readsegs[0]]
         # The sampfrom and sampto for each segment
@@ -1063,7 +1063,7 @@ def requiredsections(fields, sampfrom, sampto, startseg):
         readsamps[len(readsamps) - 1][1] = sampto - ([0] + cumsumlengths)[
             readsegs[len(readsamps) - 1]]  # End sample for last segment
     # Done obtaining segments to read and samples to read in each segment.
-    return readsegs, readsamps, sampto 
+    return readsegs, readsamps, sampto
 
 
 # Allocate empty structures for storing information from multiple segments
@@ -1071,7 +1071,7 @@ def allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, 
 
     if not channels:
         channels = list(range(0, fields["nsig"]))  # All channels
-        
+
     # Figure out the dimensions of the entire signal
     if sampto:  # User inputs sampto
         nsamp = sampto-sampfrom
@@ -1079,9 +1079,9 @@ def allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, 
         nsamp = fields["nsamp"]-sampfrom
     else:  # Have to figure out length by adding up all segment lengths
         nsamp = sum(fields["nsampseg"][startseg:])-sampfrom
-        
+
     if stacksegments == 1:  # Output a single concatenated numpy array
-        indstart = 0  # The start index of the stacked numpy array to begin filling in the current segment 
+        indstart = 0  # The start index of the stacked numpy array to begin filling in the current segment
         if physical == 0:
             sig = np.empty((nsamp, len(channels)), dtype='int')
         else:
@@ -1092,12 +1092,12 @@ def allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, 
         indstart=[]
     # List for storing segment fields.
     segmentfields = [None] * len(readsegs)
-    
+
     return sig, channels, nsamp, segmentfields, indstart
-     
-# Determine the channels to be returned for each segment    
+
+# Determine the channels to be returned for each segment
 def getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels):
-                
+
     if startseg == 0:  # Fixed layout signal. Channels for record are always same.
         segchannels = channels
     else:  # Variable layout signal. Work out which channels from the segment to load if any.
@@ -1105,7 +1105,7 @@ def getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels)
             sfields = readheader(os.path.join(dirname, segrecordname))
             wantsignals = [layoutfields["signame"][c] for c in channels]  # Signal names of wanted channels
             segchannels = []  # The channel numbers wanted that are contained in the segment
-            returninds = []  # 1 and 0 marking channels of the numpy array to be filled by 
+            returninds = []  # 1 and 0 marking channels of the numpy array to be filled by
                                      # the returned segment channels
             for ws in wantsignals:
                 if ws in sfields["signame"]:
@@ -1119,15 +1119,15 @@ def getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels)
             # returninds: the channels of the overall array that the segment does contain
             returninds = np.where(returninds == 1)[0]
         else:
-            segchannels = []   
+            segchannels = []
             returninds=[]
             emptyinds=[]
-            
-    return segchannels, returninds, emptyinds 
 
-# Expand the channel dependent fields of a segment to match the overall layout specification header. 
+    return segchannels, returninds, emptyinds
+
+# Expand the channel dependent fields of a segment to match the overall layout specification header.
 def expandfields(segmentfields, segnum, startseg, readsegs, channels, returninds):
-                    
+
     expandedfields = dict.copy(segmentfields[segnum - startseg - readsegs[0]])
     for fielditem in arrangefields:
         expandedfields[fielditem] = ['No Channel'] * len(channels)
@@ -1160,71 +1160,71 @@ def rdsamp(
 
 
     Output variables:
-    - sig: An nxm numpy array where n is the signal length and m is the number of channels. 
-      If the input record is a multi-segment record, depending on the input stacksegments flag, 
-      sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy 
-      array for each segment (0). For empty segments, stacked format will contain Nan values, 
+    - sig: An nxm numpy array where n is the signal length and m is the number of channels.
+      If the input record is a multi-segment record, depending on the input stacksegments flag,
+      sig will either be a single stacked/concatenated numpy array (1) or a list of one numpy
+      array for each segment (0). For empty segments, stacked format will contain Nan values,
       and non-stacked format will contain a single integer specifying the length of the empty segment.
-    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file. 
+    - fields: A dictionary of metadata about the record extracted or deduced from the header/signal file.
       If the input record is a multi-segment record, the output argument will be a list of dictionaries:
               : The first list element will be a dictionary of metadata about the master header.
-              : If the record is in variable layout format, the next list element will be a dictionary 
+              : If the record is in variable layout format, the next list element will be a dictionary
                 of metadata about the layout specification header.
-              : The last list element will be a list of dictionaries of metadata for each segment. 
+              : The last list element will be a list of dictionaries of metadata for each segment.
                 For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """
 
     filestoremove = []
     config = loadconfig('wfdb.config')
-    
+
     if int(config.get('pbdownload','getpbfiles')) == 1:  # Flag specifying whether to allow downloading from physiobank
         recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
     if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
         filestoremove = dledfiles
-        
+
     fields = readheader(recordname)  # Get the info from the header file
-    
+
     if fields["nsig"] == 0:
         sys.exit("This record has no signals. Use rdann to read annotations")
     if sampfrom < 0:
         sys.exit("sampfrom must be non-negative")
     dirname, baserecordname = os.path.split(recordname)
 
-    
+
     if fields["nseg"] == 1:  # single segment file
         sig, fields = processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical)
 
     # Multi-segment file. Preprocess and recursively call rdsamp on single
     # segments.
     else:
-            
-        # Determine if the record is fixed or variable layout. 
-        # startseg is the first signal segment, 1 or 0.    
+
+        # Determine if the record is fixed or variable layout.
+        # startseg is the first signal segment, 1 or 0.
         startseg, layoutfields = fixedorvariable(fields, dirname)
 
         # Determine the segments and samples that have to be read
-        readsegs, readsamps, sampto = requiredsections(fields, sampfrom, sampto, startseg)        
-        
+        readsegs, readsamps, sampto = requiredsections(fields, sampfrom, sampto, startseg)
+
         # Preprocess/preallocate according to the chosen output format
         sig, channels, nsamp, segmentfields, indstart= allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, startseg, readsegs)
-        
+
         # Read and store segments one at a time.
         # segnum (the segment number) accounts for the layout record if exists
         # and skips past it.
         for segnum in [r + startseg for r in readsegs]:
-            
+
             segrecordname = fields["filename"][segnum]
-            
+
             # Work out the relative channels to return from this segment
             segchannels, returninds, emptyinds = getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels)
-          
+
             if stacksegments == 0:  # Return list of np arrays
                 # Empty segment or no desired channels in segment. Store indicator and segment
                 # length.
                 if (segrecordname == '~') | (not segchannels):
                     # sig[segnum-startseg-readsegs[0]]=fields["nsampseg"][segnum] # store
-                    # the entire segment length? Or just selected length? Preference...  
-                    
+                    # the entire segment length? Or just selected length? Preference...
+
                     sig[segnum - startseg - readsegs[0]] = readsamps[segnum - startseg - \
                         readsegs[0]][1] - readsamps[segnum - startseg - readsegs[0]][0]
                     segmentfields[segnum - startseg - readsegs[0]] = "Empty Segment"
@@ -1234,7 +1234,7 @@ def rdsamp(
                         startseg -
                         readsegs[0]], segmentfields[segnum -
                                                     startseg -
-                                                    readsegs[0]] = rdsamp(recordname=os.path.join(dirname, 
+                                                    readsegs[0]] = rdsamp(recordname=os.path.join(dirname,
                                                         segrecordname), physical=physical, sampfrom=readsamps[segnum - startseg -readsegs[0]][0], sampto=readsamps[segnum - startseg - readsegs[0]][1], channels=segchannels)
 
             else:  # Return single stacked np array of all (selected) channels
@@ -1256,9 +1256,9 @@ def rdsamp(
                             sig[indstart:indend, emptyinds] = -2147483648
                         else:
                             sig[indstart:indend, emptyinds] = np.nan
-                        # Expand the channel dependent fields to match the overall layout. 
+                        # Expand the channel dependent fields to match the overall layout.
                         segmentfields=expandfields(segmentfields, segnum, startseg, readsegs, channels, returninds)
-                        
+
                     else:  # Fixed layout - channels are already arranged
                         sig[
                             indstart:indend, :], segmentfields[
