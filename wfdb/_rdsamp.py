@@ -855,11 +855,11 @@ def loadconfig(fn):
     """
     config = ConfigParser()
     for loc in [os.curdir,os.path.expanduser("~"),os.path.dirname(__file__)]:
-        try:
-            with open(os.path.join(loc,fn)) as source:
+        configfn = os.path.join(loc,fn)
+        if os.path.isfile(configfn):
+            with open(configfn) as source:
                 config.readfp(source)
-        except IOError:
-            pass
+                break
     return config
 
 
