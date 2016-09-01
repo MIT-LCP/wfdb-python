@@ -4,6 +4,7 @@ import os
 import sys
 import requests
 from configparser import ConfigParser
+import urllib2
 # from distutils.sysconfig import get_python_lib
 
 def checkrecordfiles(recordname, filedirectory):
@@ -202,7 +203,7 @@ def dlrecordfiles(pbrecname, targetdir):
             with open(targetfile, "w") as text_file:
                 text_file.write(r.text)
             dledfiles.append(targetfile)
-        except HTTPError:
+        except requests.HTTPError:
             if madetargetdir:
                 # Remove the recently created faulty directory.
                 os.rmdir(targetdir)
@@ -275,7 +276,7 @@ def dlorexit(url, filename, dledfiles, displaydlmsg=0, targetdir=[]):
             text_file.write(r.text)
         dledfiles.append(filename)
         return dledfiles
-    except HTTPError:
+    except requests.HTTPError:
         sys.exit("Attempted to download invalid target file: " + url)
 
 
