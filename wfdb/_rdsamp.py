@@ -379,7 +379,7 @@ def readheader(recordname):  # For reading signal headers
 
     # Get record line parameters
     (_, nseg, nsig, fs, counterfs, basecounter, nsamp,
-     basetime, basedate) = rxRECORD.findall(headerlines[0])[0]
+    basetime, basedate) = rxRECORD.findall(headerlines[0])[0]
 
     # These fields are either mandatory or set to defaults.
     if not nseg:
@@ -412,20 +412,20 @@ def readheader(recordname):  # For reading signal headers
         for i in range(0, int(nsig)):  # will not run if nsignals=0
             # get signal line parameters
             (filename,
-             fmt,
-             sampsperframe,
-             skew,
-             byteoffset,
-             adcgain,
-             baseline,
-             units,
-             adcres,
-             adczero,
-             initvalue,
-             checksum,
-             blocksize,
-             signame) = rxSIGNAL.findall(headerlines[i + 1])[0]
-
+            fmt,
+            sampsperframe,
+            skew,
+            byteoffset,
+            adcgain,
+            baseline,
+            units,
+            adcres,
+            adczero,
+            initvalue,
+            checksum,
+            blocksize,
+            signame) = rxSIGNAL.findall(headerlines[i + 1])[0]
+            
             # Setting defaults
             if not sampsperframe:
                 # Setting strings here so we can always convert strings case
