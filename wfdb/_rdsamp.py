@@ -3,156 +3,6 @@ import re
 import os
 import sys
 import requests
-from configparser import ConfigParser
-# from distutils.sysconfig import get_python_lib
-
-def checkrecordfiles(recordname, filedirectory):
-    """Check a local directory along with the database cache directory specified in
-        'config.ini' for all necessary files required to read a WFDB record.
-        Calls pbdownload.dlrecordfiles to download any missing files into the database
-        cache directory. Returns the base record name if all files were present, or a
-        full path record name specifying where the downloaded files are to be read,
-        and a list of files downloaded.
-
-    *If you wish to directly download files for a record, it highly recommended to call
-    'dlrecordfiles' directly. This is a helper function for rdsamp which
-    tries to parse the 'recordname' input to deduce whether it contains a local directory,
-    physiobank database, or both. Its usage format is different and more complex than
-    that of 'dlrecordfiles'.
-
-    Usage: readrecordname, downloadedfiles = checkrecordfiles(recordname, filedirectory)
-
-    Input arguments:
-    - recordname (required): The name of the WFDB record to be read
-      (without any file extensions). Can be prepended with a local directory, or a
-      physiobank subdirectory (or both if the relative local directory exists and
-      takes the same name as the physiobank subdirectory). eg: recordname=mitdb/100
-    - filedirectory (required): The local directory to check for the files required to
-      read the record before checking the database cache directory. If the 'recordname'
-      argument is prepended with a directory, this function will assume that it is a
-      local directory and prepend that to this 'filedirectory' argument and check the
-      resulting directory instead.
-
-    Output arguments:
-    - readrecordname: The record name prepended with the path the files are to be read from.
-    - downloadedfiles:  The list of files downloaded from PhysioBank.
-    """
-
-    # Base directory to store downloaded physiobank files
-    config = loadconfig('wfdb.config')
-    dbcachedir = config.get('pbdownload','dbcachedir')
-    basedir, baserecname = os.path.split(recordname)
-
-    # At this point we do not know whether basedir is a local directory, a
-    # physiobank directory, or both.
-
-    if not basedir:  # if basedir is not defined, then there is no physiobank
-        # database specified. If files are missing we cannot download them anyway.
-        return recordname, []
-
-    # If this is reached, basedir is defined. Check if there is a directory
-    # called 'basedir'. If it exists, check it for files.
-    if os.path.isdir(basedir):
-        # It is possible that basedir is also a physiobank database. Therefore
-        # if any files are missing, ,try to download files  assuming basedir is
-        # the physiobank database directory. If it turns out that basedir is
-        # not a pb database, an error will be triggered. The record would not
-        # be readable without the missing file(s) anyway.
-
-        downloaddir = os.path.join(dbcachedir, basedir)
-
-        # The basedir directory is missing the header file.
-        if not os.path.isfile(os.path.join(basedir, baserecname + ".hea")):
-            # If invalid pb database, function would exit.
-            dledfiles = dlrecordfiles(recordname, downloaddir)
-            # Files downloaded, confirmed valid pb database.
-            return os.path.join(downloaddir, baserecname), dledfiles
-
-        # Header is present in basedir
-        fields = readheader(recordname)
-
-        if fields[
-                "nseg"] == 1:  # Single segment. Check for all the required dat files
-            for f in fields["filename"]:
-                # Missing a dat file. Download in db cache dir.
-                if not os.path.isfile(os.path.join(basedir, f)):
-                    dledfiles = dlrecordfiles(recordname, downloaddir)
-                    return os.path.join(downloaddir, baserecname), dledfiles
-        else:  # Multi segment. Check for all segment headers and their dat files
-            for segment in fields["filename"]:
-                if segment != '~':
-                    if not os.path.isfile(
-                        os.path.join(
-                            basedir,
-                            segment +
-                            ".hea")):  # Missing a segment header
-                        dledfiles = dlrecordfiles(recordname, downloaddir)
-                        return os.path.join(
-                            downloaddir, baserecname), dledfiles
-                    segfields = readheader(os.path.join(basedir, segment))
-                    for f in segfields["filename"]:
-                        if f != '~':
-                            if not os.path.isfile(
-                                os.path.join(
-                                    basedir,
-                                    f)):  # Missing a segment's dat file
-                                dledfiles = dlrecordfiles(
-                                    recordname, downloaddir)
-                                return os.path.join(
-                                    downloaddir, baserecname), dledfiles
-
-        # All files were already present in the 'basedir' directory.
-        return recordname, []
-
-    else:  # there is no 'basedir' directory in your relative path. Therefore basedir must be a
-           # physiobank database directory. check the current working directory for files.
-           # If any are missing, check the cache directory for files and download missing
-           # files from physiobank.
-
-        pbdir = basedir  # physiobank directory
-        downloaddir = os.path.join(dbcachedir, pbdir)
-
-        if not os.path.isfile(baserecname + ".hea"):
-            dledfiles = dlrecordfiles(recordname, downloaddir)
-            return os.path.join(downloaddir, baserecname), dledfiles
-
-        # Header is present in current working dir.
-        fields = readheader(baserecname)
-
-        if fields[
-                "nseg"] == 1:  # Single segment. Check for all the required dat files
-            for f in fields["filename"]:
-                # Missing a dat file. Download in db cache dir.
-                if not os.path.isfile(f):
-                    dledfiles = dlrecordfiles(recordname, downloaddir)
-                    return os.path.join(downloaddir, baserecname), dledfiles
-        else:  # Multi segment. Check for all segment headers and their dat files
-            for segment in fields["filename"]:
-                if segment != '~':
-                    if not os.path.isfile(
-                        os.path.join(
-                            targetdir,
-                            segment +
-                            ".hea")):  # Missing a segment header
-                        dledfiles = dlrecordfiles(recordname, downloaddir)
-                        return os.path.join(
-                            downloaddir, baserecname), dledfiles
-                    segfields = readheader(os.path.join(targetdir, segment))
-                    for f in segfields["filename"]:
-                        if f != '~':
-                            if not os.path.isfile(
-                                os.path.join(
-                                    targetdir,
-                                    f)):  # Missing a segment's dat file
-                                dledfiles = dlrecordfiles(
-                                    recordname, downloaddir)
-                                return os.path.join(
-                                    downloaddir, baserecname), dledfiles
-
-        # All files are present in current directory. Return base record name
-        # and no dled files.
-        return baserecname, []
-
 
 def dlrecordfiles(pbrecname, targetdir):
     """Check a specified local directory for all necessary files required to read a Physiobank
@@ -163,7 +13,7 @@ def dlrecordfiles(pbrecname, targetdir):
 
     Input arguments:
     - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended
-      with the Physiobank subdirectory the file is contain in (without any file extensions).
+      with the Physiobank subdirectory the file is contained in (without any file extensions).
       eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea
       and 12727.dat
     - targetdir (required): The local directory to check for files required to read the record,
@@ -849,19 +699,6 @@ arrangefields = [
     "initvalue",
     "signame"]
 
-def loadconfig(fn):
-    """
-    Search for a configuration file. Load the first version found.
-    """
-    config = ConfigParser()
-    for loc in [os.curdir,os.path.expanduser("~"),os.path.dirname(__file__)]:
-        configfn = os.path.join(loc,fn)
-        if os.path.isfile(configfn):
-            with open(configfn) as source:
-                config.readfp(source)
-                break
-    return config
-
 
 def processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical):
     if (len(set(fields["filename"])) ==
@@ -1137,27 +974,66 @@ def expandfields(segmentfields, segnum, startseg, readsegs, channels, returninds
         # Keep fields['nsig'] as the number of returned channels from the segments.
     return segmentfields
 
+            
+def checkrecordfiles(recordname, pbdl, dldir, keepfiles):
+    """Figure out the directory in which to process record files and download missing 
+    files if specified. *If you wish to directly download files for a record, call
+    'dlrecordfiles'. This is a helper function for rdsamp. 
 
+    Input arguments:
+    - recordname: name of the record
+    - pbdl: flag specifying whether a physiobank record should be downloaded
+    - dldir: directory in which to download physiobank files
+    - keepfiles: flag specifying whether to keep downloaded files
+
+    Output arguments:
+    - dirname: the directory name from where the data files will be read
+    - baserecordname: the base name of the WFDB record without any file paths
+    - filestoremove: a list of downloaded files that are to be removed
+    """
+    
+    filestoremove=[]
+    
+    # Download physiobank files if specified
+    if pbdl == 1:  
+        dledfiles = dlrecordfiles(recordname, dldir)
+        if keepfiles==0:
+            filestoremove = dledfiles
+        # The directory to read the files from is the downloaded directory
+        dirname = dldir
+        (_, baserecordname)= os.path.split(recordname)
+    else:
+        dirname, baserecordname = os.path.split(recordname)
+        
+    return dirname, baserecordname, filestoremove
+    
+            
+            
 def rdsamp(
         recordname,
         sampfrom=0,
         sampto=[],
         channels=[],
         physical=1,
-        stacksegments=1):
+        stacksegments=1,
+        pbdl=0,
+        dldir=os.getcwd(),
+        keepfiles=0):
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
 
     Usage:
     sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments)
 
     Input arguments:
-    - recordname (required): The name of the WFDB record to be read (without any file extensions).
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). If the argument contains any path delimiter characters, the argument will be interpreted as PATH/baserecord and the data files will be searched for in the local path. If the pbdownload flag is set to 1, recordname will be interpreted as a physiobank record name including the database subdirectory. 
     - sampfrom (default=0): The starting sample number to read for each channel.
     - sampto (default=length of entire signal): The final sample number to read for each channel.
     - channels (default=all channels): Indices specifying the channel to be returned.
     - physical (default=1): Flag that specifies whether to return signals in physical (1) or digital (0) units.
     - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0).
-
+    - pbdl (default=0): If this argument is set, the function will assume that the user is trying to download a physiobank file. Therefore the 'recordname' argument will be interpreted as a physiobank record name including the database subdirectory, rather than a local directory. 
+    - dldir (default=os.getcwd()): The directory to download physiobank files to. 
+    - keepfiles (default=0): Flag specifying whether to keep physiobank files newly downloaded through the function call.
 
     Output variables:
     - sig: An nxm numpy array where n is the signal length and m is the number of channels.
@@ -1173,31 +1049,27 @@ def rdsamp(
               : The last list element will be a list of dictionaries of metadata for each segment.
                 For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
     """
-
-    filestoremove = []
-    config = loadconfig('wfdb.config')
-
-    if int(config.get('pbdownload','getpbfiles')) == 1:  # Flag specifying whether to allow downloading from physiobank
-        recordname, dledfiles = checkrecordfiles(recordname, os.getcwd())
-    if int(config.get('pbdownload','keepdledfiles')) == 0:  # Flag specifying whether to keep downloaded physiobank files
-        filestoremove = dledfiles
-
-    fields = readheader(recordname)  # Get the info from the header file
+    
+    if sampfrom < 0:
+        sys.exit("sampfrom must be non-negative")
+    if channels and min(channels) < 0:
+        sys.exit("input channels must be non-negative")
+    
+    dirname, baserecordname, filestoremove = checkrecordfiles(recordname, pbdl, dldir, keepfiles)
+    
+    fields = readheader(os.path.join(dirname, baserecordname))  
 
     if fields["nsig"] == 0:
         sys.exit("This record has no signals. Use rdann to read annotations")
-    if sampfrom < 0:
-        sys.exit("sampfrom must be non-negative")
-    dirname, baserecordname = os.path.split(recordname)
 
-
-    if fields["nseg"] == 1:  # single segment file
+    # Begin processing the data files.
+    
+    # Single segment file
+    if fields["nseg"] == 1:  
         sig, fields = processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical)
 
-    # Multi-segment file. Preprocess and recursively call rdsamp on single
-    # segments.
+    # Multi-segment file. Preprocess and recursively call rdsamp on segments
     else:
-
         # Determine if the record is fixed or variable layout.
         # startseg is the first signal segment, 1 or 0.
         startseg, layoutfields = fixedorvariable(fields, dirname)
@@ -1278,8 +1150,7 @@ def rdsamp(
         else:  # Fixed layout format.
             fields = [fields, segmentfields]
 
-    if filestoremove:
-        for fr in filestoremove:
+    for fr in filestoremove:
             os.remove(fr)
 
     return (sig, fields)

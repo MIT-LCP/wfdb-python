@@ -8,9 +8,6 @@ from setuptools import setup, find_packages
 from codecs import open
 from os import path
 
-xx=find_packages(exclude=['contrib', 'docs', 'tests'])
-print('look at this!:', xx)
-
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the README file
@@ -58,7 +55,6 @@ setup(
         'nose>=1.3.7',
         'numpy>=1.11.0',
         'matplotlib>=1.5.1',
-        'configparser>=3.5.0',
         'requests>=2.10.0'
         ],
 
@@ -74,9 +70,8 @@ setup(
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
-    #package_dir={'wfdb': ''},
-    package_data={'wfdb': ['wfdb.config'],
-    },
+    # package_data={'wfdb': ['wfdb.config'],
+    # },
 
     # Although 'package_data' is the preferred approach, in some case you may
     # need to place data files outside of your packages. See:
