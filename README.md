@@ -7,15 +7,7 @@
 </p>
 
 ## Introduction
-<p>Native python scripts for reading and writing WFDB signals and annotations. Currently in development. Library files are in the <strong>wfdb</strong> directory.</p> 
-
-<ul>
-	<li>15 July 2016 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta usage.</li>
-	<li>27 July 2016 - <code>rdann</code> (for reading WFDB annotations) is ready for beta usage.</li>
-	<li>27 July 2016 - <code>plotwfdb</code> is able to plot signals and annotations output by <em>rdsamp</em> and <em>rdann</em></li>
-</ul>
-
-
+<p>Native python scripts for reading and writing WFDB signals and annotations.
 
 ## Usage
 
@@ -26,8 +18,13 @@ See the <strong>wfdbdemo.ipynb</strong> file for example scripts on how to call 
 <strong>rdsamp</strong> - Read a WFDB file and return the signal as a numpy array and the metadata as a dictionary. 
 
 ```
+sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
+```
+
+Example Usage:
+```
 import wfdb
-sig, fields = wfdb.rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments) 
+sig, fields = wfdb.rdsamp('mitdb/100', sampto=2000, pbdl=1)
 ```
 
 Input Arguments: 
@@ -38,6 +35,9 @@ Input Arguments:
 <li><code>channels</code> (default=all channels) - Indices specifying the channel to be returned.</li>
 <li><code>physical</code> (default=1) - Flag that specifies whether to return signals in physical (1) or digital (0) units.</li>
 <li><code>stacksegments</code> (default=1) - Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0). </li>
+<li>pbdl (default=0): If this argument is set, the function will assume that the user is trying to download a physiobank file. Therefore the 'recordname' argument will be interpreted as a physiobank record name including the database subdirectory, rather than a local directory.</li> 
+<li>dldir (default=os.getcwd()): The directory to download physiobank files to.</li> 
+<li>keepfiles (default=0): Flag specifying whether to keep physiobank files newly downloaded through the function call.</li>
 </ul>
 
 Output Arguments:
@@ -57,8 +57,13 @@ Output Arguments:
 <strong>rdann</strong> - Read a WFDB annotation file <code>recordname.annot</code> and return the fields as lists or arrays.
 
 ```
+annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
+```
+
+Example Usage:
+```
 import wfdb
-annsamp, anntype, subtype, chan, num, aux, annfs) = wfdb.rdann(recordname, annot, sampfrom, sampto, anndisp)
+annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann('100', 'atr')
 ```
 
 Input Arguments: 
@@ -90,10 +95,15 @@ Output arguments:
 <strong>plotwfdb</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on selected channels if present.  
 
 ```
+plotwfdb(sig, fields, annsamp=[], annch=[0], title=[], plottime=1)
+```
+
+Example Usage:
+```
 import wfdb
-sig, fields = wfdb.rdsamp(recordname)
-annsamp=wfdb.rdann('recordname', 'annot')[0]
-wfdb.plotwfdb(sig, fields, annsamp, annch, title, plottime): 
+sig, fields = wfdb.rdsamp('100')
+annsamp=wfdb.rdann('100', 'atr')[0]
+wfdb.plotwfdb(sig, fields, annsamp, 'mitdb record 100'): 
  
 ```
 

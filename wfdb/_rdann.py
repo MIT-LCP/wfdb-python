@@ -162,7 +162,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
       annotations to be returned.
     - anndisp (default = 1): The annotation display flag that controls the data type 
       of the 'anntype' output parameter. 'anntype' will either be an integer key(0), 
-      a shorthand display symbol(1), or a longer annotation code.
+      a shorthand display symbol(1), or a longer annotation code(2).
 
     Output arguments:
     - annsamp: The annotation location in samples relative to the beginning of the record.

@@ -993,7 +993,7 @@ def rdsamp(
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
 
     Usage:
-    sig, fields = rdsamp(recordname, sampfrom, sampto, channels, physical, stacksegments)
+    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions). If the argument contains any path delimiter characters, the argument will be interpreted as PATH/baserecord and the data files will be searched for in the local path. If the pbdownload flag is set to 1, recordname will be interpreted as a physiobank record name including the database subdirectory. 
@@ -1019,6 +1019,8 @@ def rdsamp(
                 of metadata about the layout specification header.
               : The last list element will be a list of dictionaries of metadata for each segment.
                 For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
+                
+    Example: sig, fields = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, pbdl=1, dldir='/home/username/Downloads/wfdb')
     """
     
     if sampfrom < 0:
