@@ -12,7 +12,7 @@
 <ul>
 	<li>15 July 2016 - <code>rdsamp</code> (for reading WFDB signals) is ready for beta usage.</li>
 	<li>27 July 2016 - <code>rdann</code> (for reading WFDB annotations) is ready for beta usage.</li>
-	<li>27 July 2016 - <code>plotsigs</code> is able to plot signals and annotations output by <em>rdsamp</em> and <em>rdann</em></li>
+	<li>27 July 2016 - <code>plotwfdb</code> is able to plot signals and annotations output by <em>rdsamp</em> and <em>rdann</em></li>
 </ul>
 
 
@@ -87,14 +87,13 @@ Output arguments:
 
 ### Plotting Data
 
-<strong>plotsigs</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on selected channels if present.  
+<strong>plotwfdb</strong> - Subplot and label each channel of an nxm signal on a graph. Also subplot annotation locations on selected channels if present.  
 
 ```
 import wfdb
-from wfdb import plotwfdb
 sig, fields = wfdb.rdsamp(recordname)
 annsamp=wfdb.rdann('recordname', 'annot')[0]
-plotwfdb.plotsigs(sig, fields, annsamp, annch, title, plottime): 
+wfdb.plotwfdb(sig, fields, annsamp, annch, title, plottime): 
  
 ```
 

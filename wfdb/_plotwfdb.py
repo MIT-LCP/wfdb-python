@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1): 
+def plotwfdb(sig, fields, annsamp=[], annch=[0], title=[], plottime=1): 
     """ Subplot and label each channel of a WFDB signal. Also subplot annotation locations on selected channels if present.  
     
     Usage: plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1): 
@@ -58,4 +58,6 @@ def plotsigs(sig, fields, annsamp=[], annch=[0], title=[], plottime=1):
         plt.ylabel(chanlabel+"/"+unitlabel)
         
     plt.show(f1)
-       
+    
+if __name__ == '__main__':
+    plotwfdb(sys.argv)
