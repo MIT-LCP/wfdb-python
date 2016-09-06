@@ -27,104 +27,75 @@ def dlrecordfiles(pbrecname, targetdir):
     physioneturl = "http://physionet.org/physiobank/database/"
     pbdir, baserecname = os.path.split(pbrecname)
     displaydlmsg=1
-
-    if not os.path.isdir(
-            targetdir):  # Make the target directory if it doesn't already exist
+    dledfiles = [] 
+    
+    if not os.path.isdir(targetdir):  # Make the target dir if it doesn't exist
         os.makedirs(targetdir)
-        madetargetdir = 1
-    else:
-        madetargetdir = 0
-    dledfiles = []  # List of downloaded files
-
+        print("Created local directory: ", targetdir)
+    
     # For any missing file, check if the input physiobank record name is
     # valid, ie whether the file exists on physionet. Download if valid, exit
     # if invalid.
-
-    if not os.path.isfile(os.path.join(targetdir, baserecname + ".hea")):
-        # Not calling dlorexit here. Extra instruction of removing the faulty
-        # created directory.
-        try:
-            remotefile = physioneturl + pbrecname + ".hea"
-            targetfile = os.path.join(targetdir, baserecname + ".hea")
-            print('Downloading missing file(s) into directory: {}'.format(targetdir))
-            r = requests.get(remotefile)
-            displaydlmsg=0
-            with open(targetfile, "w") as text_file:
-                text_file.write(r.text)
-            dledfiles.append(targetfile)
-        except requests.HTTPError:
-            if madetargetdir:
-                # Remove the recently created faulty directory.
-                os.rmdir(targetdir)
-            sys.exit(
-                "Attempted to download invalid target file: {}".format(remotefile))
-
+    dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+baserecname+".hea", os.path.join(targetdir, baserecname+".hea"), dledfiles, displaydlmsg, targetdir)
+        
     fields = readheader(os.path.join(targetdir, baserecname))
 
-    # Even if the header file exists, it could have been downloaded prior.
     # Need to check validity of link if ANY file is missing.
     if fields["nseg"] == 1:  # Single segment. Check for all the required dat files
-        for f in fields["filename"]:
-            if not os.path.isfile(
-                os.path.join(
-                    targetdir,
-                    f)):  # Missing a dat file
-                dledfiles = dlorexit(
-                    physioneturl + pbdir + "/" + f,
-                    os.path.join(
-                        targetdir,
-                        f),
-                    dledfiles, displaydlmsg, targetdir)
-                displaydlmsg=0
-
+        for f in set(fields["filename"]):
+            # Missing dat file
+            dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
     else:  # Multi segment. Check for all segment headers and their dat files
         for segment in fields["filename"]:
             if segment != '~':
-                if not os.path.isfile(
-                    os.path.join(
-                        targetdir,
-                        segment +
-                        ".hea")):  # Missing a segment header
-                    dledfiles = dlorexit(
-                        physioneturl +
-                        pbdir +
-                        "/" +
-                        segment +
-                        ".hea",
-                        os.path.join(
-                            targetdir,
-                            segment +
-                            ".hea"),
-                        dledfiles, displaydlmsg, targetdir)
-                    displaydlmsg=0
+                # Check the segment header
+                dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles, displaydlmsg, targetdir)    
                 segfields = readheader(os.path.join(targetdir, segment))
-                for f in segfields["filename"]:
+                for f in set(segfields["filename"]):
                     if f != '~':
-                        if not os.path.isfile(os.path.join(targetdir, f)):  # Missing a segment's dat file
-                            dledfiles = dlorexit(
-                                physioneturl + pbdir + "/" + f,
-                                os.path.join(
-                                    targetdir,
-                                    f),
-                                dledfiles, displaydlmsg, targetdir)
-                            displaydlmsg=0
+                        # Check the segment's dat file
+                        dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
+                            
     if dledfiles:
-        print('Downloaded all files for record')
+        print('Downloaded all missing files for record.')
     return dledfiles  # downloaded files
 
 
-# Helper function for dlrecordfiles. Download the file from the specified
-# 'url' as the 'filename', or exit with warning.
-def dlorexit(url, filename, dledfiles, displaydlmsg=0, targetdir=[]):
-
+# Download a file if it is missing. Also error check 0 byte files.  
+def dlifmissing(url, filename, dledfiles, displaydlmsg, targetdir):
+    
+    if os.path.isfile(filename):
+        # Likely interrupted download
+        if os.path.getsize(filename)==0:
+            userresponse=input("Warning - File "+filename+" is 0 bytes. Likely interrupted download.\nRemove file and redownload? [y/n] - ")
+            while userresponse not in ['y','n']:
+                userresponse=input("Remove file and redownload? [y/n] - ")
+            if userresponse=='y':
+                os.remove(filename)
+                dledfiles.append(dlorexit(url, filename, displaydlmsg, targetdir))
+                displaydlmsg=0
+            else:
+                print("Skipping download.")
+        # File is already present.
+        else:
+            print("File "+filename+" is already present.")
+    else:
+        dledfiles.append(dlorexit(url, filename, displaydlmsg, targetdir))
+        displaydlmsg=0
+    
+    # If a file gets downloaded, displaydlmsg is set to 0. No need to print the message more than once. 
+    return dledfiles, displaydlmsg
+                 
+    
+# Download the file from the specified 'url' as the 'filename', or exit with warning.
+def dlorexit(url, filename, displaydlmsg=0, targetdir=[]):
     if displaydlmsg: # We want this message to be called once for all files downloaded.
         print('Downloading missing file(s) into directory: {}'.format(targetdir))
     try:
         r = requests.get(url)
         with open(filename, "w") as text_file:
             text_file.write(r.text)
-        dledfiles.append(filename)
-        return dledfiles
+        return filename
     except requests.HTTPError:
         sys.exit("Attempted to download invalid target file: " + url)
 
