@@ -93,8 +93,8 @@ def dlorexit(url, filename, displaydlmsg=0, targetdir=[]):
         print('Downloading missing file(s) into directory: {}'.format(targetdir))
     try:
         r = requests.get(url)
-        with open(filename, "w") as text_file:
-            text_file.write(r.text)
+        with open(filename, "wb") as writefile:
+            writefile.write(r.content)
         return filename
     except requests.HTTPError:
         sys.exit("Attempted to download invalid target file: " + url)
