@@ -1022,7 +1022,7 @@ def rdsamp(
                 
     Example: sig, fields = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, pbdl=1, dldir='/home/username/Downloads/wfdb')
     """
-    
+
     if sampfrom < 0:
         sys.exit("sampfrom must be non-negative")
     if channels and min(channels) < 0:
