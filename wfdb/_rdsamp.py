@@ -951,7 +951,7 @@ def expandfields(segmentfields, segnum, startseg, readsegs, channels, returninds
     return segmentfields
 
             
-def checkrecordfiles(recordname, pbdl, dldir, keepfiles):
+def checkrecordfiles(recordname, pbdl, dldir):
     """Figure out the directory in which to process record files and download missing 
     files if specified. *If you wish to directly download files for a record, call
     'dlrecordfiles'. This is a helper function for rdsamp. 
@@ -960,7 +960,6 @@ def checkrecordfiles(recordname, pbdl, dldir, keepfiles):
     - recordname: name of the record
     - pbdl: flag specifying whether a physiobank record should be downloaded
     - dldir: directory in which to download physiobank files
-    - keepfiles: flag specifying whether to keep downloaded files
 
     Output arguments:
     - dirname: the directory name from where the data files will be read
@@ -973,15 +972,14 @@ def checkrecordfiles(recordname, pbdl, dldir, keepfiles):
     # Download physiobank files if specified
     if pbdl == 1:  
         dledfiles = dlrecordfiles(recordname, dldir)
-        if keepfiles==0:
-            filestoremove = dledfiles
+
         # The directory to read the files from is the downloaded directory
         dirname = dldir
         (_, baserecordname)= os.path.split(recordname)
     else:
         dirname, baserecordname = os.path.split(recordname)
         
-    return dirname, baserecordname, filestoremove
+    return dirname, baserecordname
     
             
             
@@ -993,12 +991,11 @@ def rdsamp(
         physical=1,
         stacksegments=1,
         pbdl=0,
-        dldir=os.getcwd(),
-        keepfiles=0):
+        dldir=os.getcwd()):
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
 
     Usage:
-    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
+    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd())
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions). If the argument contains any path delimiter characters, the argument will be interpreted as PATH/baserecord and the data files will be searched for in the local path. If the pbdownload flag is set to 1, recordname will be interpreted as a physiobank record name including the database subdirectory. 
@@ -1009,7 +1006,6 @@ def rdsamp(
     - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0).
     - pbdl (default=0): If this argument is set, the function will assume that the user is trying to download a physiobank file. Therefore the 'recordname' argument will be interpreted as a physiobank record name including the database subdirectory, rather than a local directory. 
     - dldir (default=os.getcwd()): The directory to download physiobank files to. 
-    - keepfiles (default=0): Flag specifying whether to keep physiobank files newly downloaded through the function call.
 
     Output variables:
     - sig: An nxm numpy array where n is the signal length and m is the number of channels.
@@ -1033,7 +1029,7 @@ def rdsamp(
     if channels and min(channels) < 0:
         sys.exit("input channels must be non-negative")
     
-    dirname, baserecordname, filestoremove = checkrecordfiles(recordname, pbdl, dldir, keepfiles)
+    dirname, baserecordname = checkrecordfiles(recordname, pbdl, dldir)
     
     fields = readheader(os.path.join(dirname, baserecordname))  
 
@@ -1127,9 +1123,6 @@ def rdsamp(
             fields = [fields, layoutfields, segmentfields]
         else:  # Fixed layout format.
             fields = [fields, segmentfields]
-
-    for fr in filestoremove:
-            os.remove(fr)
 
     return (sig, fields)
 

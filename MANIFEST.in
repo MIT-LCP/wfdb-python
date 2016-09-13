@@ -2,7 +2,7 @@
 include LICENSE
 
 # Include readme file
-include README.md
+include README.rst
 
 # Include the data files
 # recursive-include data *
