@@ -30,7 +30,8 @@ the metadata as a dictionary.
 
 ::
 
-    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
+    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, 
+        stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
 
 Example Usage:
 
@@ -96,7 +97,8 @@ the fields as lists or arrays.
 
 ::
 
-    annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
+    annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(recordname, 
+        annot, sampfrom=0, sampto=[], anndisp=1)
 
 Example Usage:
 
