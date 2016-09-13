@@ -31,7 +31,7 @@ the metadata as a dictionary.
 ::
 
     sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, 
-        stacksegments=1, pbdl=0, dldir=os.cwd(), keepfiles=0)
+        stacksegments=1, pbdl=0, dldir=os.cwd())
 
 Example Usage:
 
@@ -63,8 +63,6 @@ Input Arguments:
    than a local directory.
 -  ``dldir`` (default=os.getcwd()): The directory to download physiobank
    files to.
--  ``keepfiles`` (default=0): Flag specifying whether to keep physiobank
-   files newly downloaded through the function call.
 
 Output Arguments:
 
