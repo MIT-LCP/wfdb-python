@@ -67,8 +67,8 @@ def dlrecordfiles(pbrecname, targetdir):
 
 # Download a file if it is missing. Also error check 0 byte files.  
 def dlifmissing(url, filename, dledfiles, displaydlmsg, targetdir):
-    
-    if os.path.isfile(filename):
+    fileexists = os.path.isfile(filename)  
+    if fileexists:
         # Likely interrupted download
         if os.path.getsize(filename)==0:
             try:
@@ -79,7 +79,7 @@ def dlifmissing(url, filename, dledfiles, displaydlmsg, targetdir):
                 "Likely interrupted download. Remove file and redownload? [y/n]: ")
             # override input for python 2 compatibility
             while userresponse not in ['y','n']:
-                userresponse=input("Remove file and redownload? [y/n] - ")
+                userresponse=input("Remove file and redownload? [y/n]: ")
             if userresponse=='y':
                 os.remove(filename)
                 dledfiles.append(dlorexit(url, filename, displaydlmsg, targetdir))
