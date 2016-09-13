@@ -36,7 +36,8 @@ def dlrecordfiles(pbrecname, targetdir):
     # For any missing file, check if the input physiobank record name is
     # valid, ie whether the file exists on physionet. Download if valid, exit
     # if invalid.
-    dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+baserecname+".hea", os.path.join(targetdir, baserecname+".hea"), dledfiles, displaydlmsg, targetdir)
+    dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+baserecname+".hea", os.path.join(targetdir, 
+        baserecname+".hea"), dledfiles, displaydlmsg, targetdir)
         
     fields = readheader(os.path.join(targetdir, baserecname))
 
@@ -44,17 +45,20 @@ def dlrecordfiles(pbrecname, targetdir):
     if fields["nseg"] == 1:  # Single segment. Check for all the required dat files
         for f in set(fields["filename"]):
             # Missing dat file
-            dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
+            dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), 
+                dledfiles, displaydlmsg, targetdir)
     else:  # Multi segment. Check for all segment headers and their dat files
         for segment in fields["filename"]:
             if segment != '~':
                 # Check the segment header
-                dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+segment+".hea", os.path.join(targetdir, segment+".hea"), dledfiles, displaydlmsg, targetdir)    
+                dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+segment+".hea", 
+                    os.path.join(targetdir, segment+".hea"), dledfiles, displaydlmsg, targetdir)    
                 segfields = readheader(os.path.join(targetdir, segment))
                 for f in set(segfields["filename"]):
                     if f != '~':
                         # Check the segment's dat file
-                        dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
+                        dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, 
+                            os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
                             
     if dledfiles:
         print('Downloaded all missing files for record.')
@@ -295,7 +299,8 @@ def readheader(recordname):  # For reading signal headers
 
 
 
-def skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, nbytesread, byteoffset, sampsperframe, tsampsperframe):
+def skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
+    nbytesread, byteoffset, sampsperframe, tsampsperframe):
     if max(skew) > 0:
         # Array of samples to fill in the final samples of the skewed channels.
         extrasig = np.empty([max(skew), nsig])
@@ -387,7 +392,8 @@ def readdat(
         fp, fmt, sampto - sampfrom, nsig, sampsperframe, floorsamp)
 
     # Shift the samples in the channels with skew if any
-    sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, nbytesread, byteoffset, sampsperframe, tsampsperframe)
+    sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
+        nbytesread, byteoffset, sampsperframe, tsampsperframe)
 
     fp.close()
 
@@ -995,16 +1001,26 @@ def rdsamp(
     """Read a WFDB record and return the signal as a numpy array and the metadata as a dictionary.
 
     Usage:
-    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, pbdl=0, dldir=os.cwd())
+    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, stacksegments=1, 
+        pbdl=0, dldir=os.cwd())
 
     Input arguments:
-    - recordname (required): The name of the WFDB record to be read (without any file extensions). If the argument contains any path delimiter characters, the argument will be interpreted as PATH/baserecord and the data files will be searched for in the local path. If the pbdownload flag is set to 1, recordname will be interpreted as a physiobank record name including the database subdirectory. 
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). 
+      If the argument contains any path delimiter characters, the argument will be interpreted as 
+      PATH/baserecord and the data files will be searched for in the local path. If the pbdownload 
+      flag is set to 1, recordname will be interpreted as a physiobank record name including the 
+      database subdirectory. 
     - sampfrom (default=0): The starting sample number to read for each channel.
     - sampto (default=length of entire signal): The final sample number to read for each channel.
     - channels (default=all channels): Indices specifying the channel to be returned.
-    - physical (default=1): Flag that specifies whether to return signals in physical (1) or digital (0) units.
-    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to return the signal as a single stacked/concatenated numpy array (1) or as a list of one numpy array for each segment (0).
-    - pbdl (default=0): If this argument is set, the function will assume that the user is trying to download a physiobank file. Therefore the 'recordname' argument will be interpreted as a physiobank record name including the database subdirectory, rather than a local directory. 
+    - physical (default=1): Flag that specifies whether to return signals in physical (1) or 
+      digital (0) units.
+    - stacksegments (default=1): Flag used only for multi-segment files. Specifies whether to 
+      return the signal as a single stacked/concatenated numpy array (1) or as a list of one 
+      numpy array for each segment (0).
+    - pbdl (default=0): If this argument is set, the function will assume that the user is trying 
+      to download a physiobank file. Therefore the 'recordname' argument will be interpreted as 
+      a physiobank record name including the database subdirectory, rather than a local directory. 
     - dldir (default=os.getcwd()): The directory to download physiobank files to. 
 
     Output variables:
@@ -1021,7 +1037,8 @@ def rdsamp(
               : The last list element will be a list of dictionaries of metadata for each segment.
                 For empty segments, the dictionary will be replaced by a single string: 'Empty Segment'
                 
-    Example: sig, fields = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, pbdl=1, dldir='/home/username/Downloads/wfdb')
+    Example: sig, fields = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, pbdl=1, 
+        dldir='/home/username/Downloads/wfdb')
     """
 
     if sampfrom < 0:
@@ -1040,7 +1057,8 @@ def rdsamp(
     
     # Single segment file
     if fields["nseg"] == 1:  
-        sig, fields = processsegment(fields, dirname, baserecordname, sampfrom, sampto, channels, physical)
+        sig, fields = processsegment(fields, dirname, baserecordname, sampfrom, sampto, 
+            channels, physical)
 
     # Multi-segment file. Preprocess and recursively call rdsamp on segments
     else:
@@ -1052,7 +1070,8 @@ def rdsamp(
         readsegs, readsamps, sampto = requiredsections(fields, sampfrom, sampto, startseg)
 
         # Preprocess/preallocate according to the chosen output format
-        sig, channels, nsamp, segmentfields, indstart= allocateoutput(fields, channels, stacksegments, sampfrom, sampto, physical, startseg, readsegs)
+        sig, channels, nsamp, segmentfields, indstart= allocateoutput(fields, channels, 
+            stacksegments, sampfrom, sampto, physical, startseg, readsegs)
 
         # Read and store segments one at a time.
         # segnum (the segment number) accounts for the layout record if exists
@@ -1062,7 +1081,8 @@ def rdsamp(
             segrecordname = fields["filename"][segnum]
 
             # Work out the relative channels to return from this segment
-            segchannels, returninds, emptyinds = getsegmentchannels(startseg, segrecordname, dirname, layoutfields, channels)
+            segchannels, returninds, emptyinds = getsegmentchannels(startseg, segrecordname, 
+                dirname, layoutfields, channels)
 
             if stacksegments == 0:  # Return list of np arrays
                 # Empty segment or no desired channels in segment. Store indicator and segment
