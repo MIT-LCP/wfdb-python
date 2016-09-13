@@ -68,6 +68,11 @@ def dlifmissing(url, filename, dledfiles, displaydlmsg, targetdir):
         # Likely interrupted download
         if os.path.getsize(filename)==0:
             userresponse=input("Warning - File "+filename+" is 0 bytes. Likely interrupted download.\nRemove file and redownload? [y/n] - ")
+            # override input for python 2 compatibility
+            try:
+                input = raw_input
+            except NameError:
+                pass
             while userresponse not in ['y','n']:
                 userresponse=input("Remove file and redownload? [y/n] - ")
             if userresponse=='y':
