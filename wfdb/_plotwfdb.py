@@ -37,7 +37,8 @@ def plotwfdb(sig, fields, annsamp=[], annch=[0], title=[], plottime=1):
         plt.subplot(100*sig.shape[1]+11+ch)
         plt.plot(t, sig[:,ch]) # Plot signal channel
         if (annsamp!=[]) & (ch in annch): # If there are annotations to plot and the channel is specified
-            plt.plot(annplott, sig[annsamp, ch], 'r+') # Plot annotations
+            plt.plot(annplott, sig[annsamp, ch], 'r+',
+            linewidth=2, markersize=12)
 
         if (title!=[])&(ch==0):
             plt.title(title)
