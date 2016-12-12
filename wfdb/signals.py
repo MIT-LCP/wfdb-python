@@ -9,24 +9,29 @@ from ._downloadsamp import downloadsamp
 
 
 # Write a wfdb record file. Output will be filename.dat and filename.hea 
-def wrsamp(filename, sig, fields):
+def wrsamp(sig, fields, targetdir=os.cwd()):
     
     # Check that the input fields are valid and write the header file
     wrheader(fields)
     
     # Check that the input signal is the appropriate size/dimension according to the input fields
-    if checksignaldims(sig, fields):
+    if np.size(sig) == (fields['siglen'], fields['nsig']):
         # Write the dat file
         wrdat(sig, fields['fmt'])
     else:
-        os.path.remove(".hea")
-
-        
+        os.path.remove(targetdir+fields['recordname']+'.hea')
+    
+    # Write the dat file
+    
+    _wrdat(sig, fmt, fields['filename'][0], targetdir)
+    
         
 # Write a WFDB dat file    
-def _wrdat(filename, sig, fmt):
+def _wrdat(sig, fmt, filename, targetdir):
 
     siglen, nchannels = np.shape(sig)
+    
+    f=open(os.path.join(targetdir, filename), 'wb')
     
     
 
