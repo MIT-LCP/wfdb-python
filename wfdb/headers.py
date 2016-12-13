@@ -3,6 +3,7 @@ import re
 import os
 import sys
 import requests
+from collections import OrderedDict
 
 # The information contained in a WFDB header file
 WFDBfields = {
@@ -28,61 +29,103 @@ WFDBfields = {
         'comments': []}
 
 
-# The information that can be contained in a WFDB header file. Separated into record line and signal lines. 
-WFDBfields = [['recordname',
+
+# The fields that may be contained in a WFDB header file. https://www.physionet.org/physiotools/wag/header-5.htm
+# Items separated into record line, signal lines, multisegment lines, and comment lines. 
+headerfields = [['recordname',
+                 'nseg',
+                 'nsig',
+                 'fs',
+                 'counterfreq',
+                 'basecounter',
+                 'siglen',
+                 'basetime',
+                 'basedate'],
+                
+                ['filename',
+                 'fmt',
+                 'sampsperframe',
+                 'skew',
+                 'byteoffset',
+                 'adcgain',
+                 'baseline',
+                 'units',
+                 'adcres',
+                 'adczero',
+                 'initvalue',
+                 'checksum',
+                 'blocksize',
+                 'signame'],
+                
+                ['segname',
+                 'seglen'],
+                
+                'comments']
+                
+
+# The useful information to be extracted from or contained in a wfdb record.
+infofields = [['recordname',
                'nseg',
                'nsig',
                'fs',
                'siglen',
                'basetime',
-               'basedate'], 
+               'basedate'],  
               
               ['filename',
-               'fmt',
+               'resolution',
                'sampsperframe',
-               'skew',
-               'byteoffset',
-               'gain',
                'units',
-               'baseline',
-               'initvalue',
-               'signame',
-               'nsampseg',
-               'comments']]
+               'signame'],
+              
+              ['segname',
+               'seglen'],
+              
+              'comments']
 
 # The required explicit fields contained in all WFDB headers. 
 req_read_fields = [['recordname', 'nsig'], ['filename', 'fmt']]
 
-# The required input fields used to write WFDB headers. This python library requires mandatory fs and siglen. 
+# The required input fields used to write WFDB headers. This python library enforces explicit fs and siglen. 
 req_write_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt']]
 
 
-# Write a wfdb header file
-def wrheader(inputfields, targetdir=os.cwd()):
-       
+
+
+# Write a wfdb header file. 
+# When setsigreqs = 1, missing signal specification dependencies will be set. When it is 0, they must be explicitly set. 
+def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
+    
     # Check that the input fields are valid
-    checkheaderfields(inputfields)
+
+    # Check the header keys
+    keycheckedfields = _checkheaderkeys(inputfields, setsigreqs)
+    
+    # Check the header values
+    valuecheckedfields = checkheadervalues(inputfields, setsigreqs)
     
     # Expand the signal specification fields of length 1
-    finalfields = expand_signal_fields(inputfields)
-
-    
-    ### Wait, note that the writing can be separated by dat files....
+    finalfields = _expand_signal_fields(inputfields)
     
     
-    # Write the output file
-    writeheaderfile(finalfields)
+    # Write the output header file
+    _writeheaderfile(finalfields)
             
+        
+        
+        
+        
+        
+        
             
-# Check that the dictionary of fields contains valid keys/values according to WFDB standards.
-def checkheaderfields(inputfields):
-    errors = []
+# Check that the dictionary of fields contains valid keys according to WFDB standards.
+def _checkheaderkeys(inputfields, setsigreqs):
     
     # Make sure the input field is a dictionary.
     if type(inputfields)!=dict:
         sys.exit("'fields' must be a dictionary")
 
-    # Check for invalid dictionary keys. Cannot proceed with invalid keys. 
+    # Check for invalid dictionary keys.
     for inputfield in inputfields:
         if inputfield not in WFDBfields[0]+WFDBfields[1]:
             sys.exit('Invalid input key: '+inputfield)
@@ -91,28 +134,82 @@ def checkheaderfields(inputfields):
     for req_field in req_write_fields[0]:
         if req_field not in list(inputfields):
             sys.exit('Missing required input key: '+req_field)
-    if nsig>0:
+    if inputfields['nsig']>0:
         for req_field in req_write_fields[1]:
             if req_field not in list(inputfields):
                 sys.exit('Missing required input key: '+req_field)
     
     # Check that signal specification fields have their dependent fields present
-    checkdependentfields(inputfields)
+    _checksigreqs(inputfields, setsigreqs)
     
-    # Check for invalid dictionary values
-    for field in inputfields:
-        valueerrors=checkheadervalue(field, inputfields[field], nsig)
-    if valueerrors:
-        for ve in valueerrors:
-            errors.append(ve)
+    return keycheckedfields
 
-    return errors
+
+headerfields = [['recordname',
+                 'nseg',
+                 'nsig',
+                 'fs',
+                 'counterfreq',
+                 'basecounter',
+                 'siglen',
+                 'basetime',
+                 'basedate'],
+                
+                ['filename',
+                 'fmt',
+                 'sampsperframe',
+                 'skew',
+                 'byteoffset',
+                 'adcgain',
+                 'baseline',
+                 'units',
+                 'adcres',
+                 'adczero',
+                 'initvalue',
+                 'checksum',
+                 'blocksize',
+                 'signame'],
+                
+                ['segname',
+                 'seglen'],
+                
+                'comments']
+
+    
+# Check that each signal specification field's dependent field is also present.    
+def _checksigreqs(fields, setsigreqs):
+   
+    # The required preceding field for each header field. Specified in reverse order to check. 
+    dependencies = OrderedDict([('signame', 'checksum'),
+                                ('blocksize', 'checksum'),
+                                ('checksum', 'initvalue'),
+                                ('initvalue', 'adczero'),
+                                ('adczero', 'adcres'),
+                                ('adcres', 'adcgain'),
+                                ('units', 'adcgain'),
+                                ('baseline', 'adcgain'),
+                                ('adcgain', 'fmt'),
+                                ('byteoffset', 'fmt'),
+                                ('skew', 'fmt'),
+                                ('sampsperframe', 'fmt')
+                               ])
+    
+    # Add dependent keys if option is specified. 
+    if setsigreqs:
+        for d in dependencies:
+            if (d in fields) and (dependencies[d] not in fields):
+                
+            
+        
+    
+    for field in fields:
+        if field in list(dependencies):
+            
+            
     
     
-    
-    
-# Check the validity of each header value    
-def checkheadervalue(field, value, nsig)
+# Check the validity of each header value. Remember that gain crap...     
+def _checkheadervalues(inputfields):
     
     errors=[]
     
@@ -127,8 +224,10 @@ def checkheadervalue(field, value, nsig)
     return errors
     
 
+    
+    
 # Expand length 1 signal specification fields into the length of the number of signals.   
-def expandsignalfields(fields):
+def _expandsignalfields(fields):
     
     nsig=fields['nsig']
     if nsig==1 or nsig==0:
@@ -144,7 +243,7 @@ def expandsignalfields(fields):
     return fields
     
     
-def writeheaderfile(fields):
+def _writeheaderfile(fields):
     
     f=open(fields['recordname']+'.hea','w')
     
@@ -154,8 +253,17 @@ def writeheaderfile(fields):
     
     
     
+    
+# Write a multi-segment wfdb header file. 
+def wrmultiheader:
+    return 1
+    
 
-def rdheader(recordname):  # For reading signal headers
+
+    
+    
+# For reading WFDB header files
+def rdheader(recordname): 
 
     # To do: Allow exponential input format for some fields
 

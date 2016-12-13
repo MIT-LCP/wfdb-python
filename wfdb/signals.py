@@ -8,6 +8,11 @@ from .headers import rdheader, wrheader
 from ._downloadsamp import downloadsamp
 
 
+# If digital input, need to specify all that. Otherwise no need. 
+req_dig_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt', 'gain', 'baseline']]
+
+
+
 # Write a wfdb record file. Output will be filename.dat and filename.hea 
 def wrsamp(sig, fields, targetdir=os.cwd()):
     
