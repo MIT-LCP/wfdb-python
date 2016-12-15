@@ -13,8 +13,54 @@ req_dig_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt', 'g
 
 
 
-# Write a wfdb record file. Output will be filename.dat and filename.hea 
-def wrsamp(sig, fields, targetdir=os.cwd()):
+# Write a wfdb record file. Output will be filename.dat and filename.hea
+# If simpleinput, fields is info summary. Otherwise it is exact fields. 
+# A 2d signal array MUST be a numpy array. A list of lists will NOT be accepted. sig may therefore be a 2d numpy array, or a list of 2d numpy arrays.
+def wrsamp(sig, fields, targetdir=os.cwd(), simpleinput=1):
+    
+    # Make sure the input field is a dictionary.
+    if type(inputfields)!=dict:
+        sys.exit("'fields' must be a dictionary")
+        
+        
+    # There is the option of writing multiple dat files. Pass in an list of numpy arrays. 
+    # Doesn't work if it's just 1 big ordered numpy array because some might have multiple samples/frame. 
+    # The same files MUST be consecutive. This simplifies things! 
+    
+    
+   
+
+    
+    # Check whether multiple dat files need to be written.  
+    
+    # List of numpy arrays. Multiple dat files.
+    if type(sig)==list:
+        if type(sig[0])!=np.ndarray or sig[0].ndim>2:
+            sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
+        multidat=1
+    
+    # Single numpy array. Single dat file. 
+    elif type(sig)==np.ndarray:
+        if type(sig[0])!=np.ndarray or sig[0].ndim>2:
+            sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
+    
+        if 'siglen' in fields:
+            if fields['siglen']!=np.shape[0]:
+                sys.exit("fields['siglen'] does not match the signal length")
+        if 'nsig' in fields:
+            if fields['nsig']!=np.shape[1]:
+                sys.exit("fields['nsig'] does not match the signal length")
+    
+        multidat=0
+    else:
+        sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
+        
+        
+    
+        
+    # Fill in the signal dimensions if missing
+    if 
+    
     
     # Check that the input fields are valid and write the header file
     wrheader(fields)

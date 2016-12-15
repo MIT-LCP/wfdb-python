@@ -6,29 +6,7 @@ import requests
 from collections import OrderedDict
 
 
-# A field of the WFDB header file
-class WFDBfield():
-    
-    def __init__(self, speclist):
-        # Name
-        self.name = speclist[0] 
-        
-        # Data types the field can take
-        self.allowedtypes = speclist[1]
-        
-        # The text delimiter that preceeds the field
-        self.delimiter = speclist[2]
-        
-        # The required/dependent field which must also be present
-        self.field_req = speclist[3]
 
-        # Whether the field is mandatory specified by the WFDB guidelines
-        self.is_req = speclist[4]
-        
-        # Whether the field is mandatory for writing (extra rules enforced by this library).
-        # Being required for writing is not the same as the user having to specify. There are defaults. 
-        self.write_req = speclist[5]
-        
         
 # The information contained in a WFDB header file
 WFDBfields = {
@@ -53,25 +31,44 @@ WFDBfields = {
         'nsampseg': [],
         'comments': []}
 
-
+# A field of the WFDB header file
+class WFDBfield():
+    
+    def __init__(self, speclist):
+        # Name
+        self.name = speclist[0] 
+        # Data types the field can take
+        self.allowedtypes = speclist[1]
+        # The text delimiter that preceeds the field
+        self.delimiter = speclist[2]
+        # The required/dependent field which must also be present
+        self.dependency = speclist[3]
+        # Whether the field is mandatory specified by the WFDB guidelines
+        self.is_req = speclist[4]
+        # Whether the field is mandatory for writing (extra rules enforced by this library).
+        # Being required for writing is not the same as the user having to specify. There are defaults. 
+        self.write_req = speclist[5]
+        # The default value to write
+        self.write_default = speclist[6]
+        
 # The fields that may be contained in a WFDB header file. https://www.physionet.org/physiotools/wag/header-5.htm
 # name, allowedtypes, delimiter, field_req, is_req, write_req
 WFDBfields = [
     
     # record specification fields
-    OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True])),
-                 ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False])),
-                 ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True])),
-                 ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True])),
-                 ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False])),
-                 ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False])),
-                 ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True])),
-                 ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False])),
-                 ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False]))]),
+    OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
+                 ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
+                 ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
+                 ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
+                 ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
+                 ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
+                 ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
+                 ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
+                 ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))]),
     
     # signal specification fields
-    OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True])),
-                 ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True])),
+    OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
+                 ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
                  ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
                  ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
                  ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
@@ -96,6 +93,7 @@ WFDBfields = [
 
 
 # The useful summary information contained in a wfdb record.
+# Note: Not a direct subset of WFDBfields. 
 infofields = [['recordname',
                'nseg',
                'nsig',
@@ -123,13 +121,14 @@ req_write_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt'],
 
 
 
+# Return a dictionary with the essential keys + empty values for wrsamp. 
+def getwritefields(base=1):
+    return 0
               
 # Write a wfdb header file. 
 # When setsigreqs = 1, missing signal specification dependencies will be set. When it is 0, they must be explicitly set. 
 def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
     
-    # Check that the input fields are valid
-
     # Check the header keys
     keycheckedfields = _checkheaderkeys(inputfields, setsigreqs)
     
@@ -139,7 +138,6 @@ def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
     # Write the output header file
     _writeheaderfile(finalfields)
                         
-              
               
 # Check that the dictionary of fields contains valid keys according to WFDB standards.
 def _checkheaderkeys(inputfields, setsigreqs):
@@ -168,62 +166,86 @@ def _checkheaderkeys(inputfields, setsigreqs):
     return keycheckedfields
 
     
-# Check that each signal specification field's dependent field is also present.    
+# Check that each signal specification field's dependent field is also present.
+# Helper function to _checkheaderkeys
 def _checkfieldreqs(fields, setsigreqs):
    
-    # The required preceding field for each header field. 
-    dependencies = OrderedDict([('signame', 'checksum'),
-                                ('blocksize', 'checksum'),
-                                ('checksum', 'initvalue'),
-                                ('initvalue', 'adczero'),
-                                ('adczero', 'adcres'),
-                                ('adcres', 'adcgain'),
-                                ('units', 'adcgain'),
-                                ('baseline', 'adcgain'),
-                                ('adcgain', 'fmt'),
-                                ('byteoffset', 'fmt'),
-                                ('skew', 'fmt'),
-                                ('sampsperframe', 'fmt')
-                               ])
+    # The required preceding field for each header field. Must check keys in reverse order.
+    rec_dependencies = OrderedDict(reversed(list(WFDBfields[0].items())))
+    sig_dependencies = OrderedDict(reversed(list(WFDBfields[1].items())))
     
-    # Add dependent keys if option is specified. 
+    # Add dependent keys if option is specified.
     if setsigreqs:
-        for d in dependencies:
-            if (d in fields) and (dependencies[d] not in fields):
-                fields[dependencies[d]]=[]
+        for d in rec_dependencies:
+            if (d in fields) and (rec_dependencies[d].dependency not in fields):
+                fields[rec_dependencies[d].dependency]=[]
+        for d in sig_dependencies:
+            if (d in fields) and (sig_dependencies[d].dependency not in fields):
+                fields[sig_dependencies[d].dependency]=[]
     
     # Check for missing dependent fields        
-    for d in dependencies:
-        if (d in fields) and (dependencies[d] not in fields):
-            sys.exit('Missing required signal specification field: '+dependencies[d]+' for field: '+d)
+    for d in rec_dependencies:
+        if (d in fields) and (rec_dependencies[d] not in fields):
+            sys.exit('Missing required signal specification field: '+rec_dependencies[d]+' for field: '+d)
+    for d in sig_dependencies:
+        if (d in fields) and (sig_dependencies[d] not in fields):
+            sys.exit('Missing required signal specification field: '+sig_dependencies[d]+' for field: '+d)
             
     return fields
     
     
+    
 # Check the validity of each header value. Remember that gain crap...     
-def _checkheadervalues(inputfields, setsigreqs):
+def _checkheadervalues(fields, setsigreqs):
+    
+    # At this point, all the required keys should be present. Now need to check their values. 
     
     
+    # [0, 1, 3] are record, signal, and comment lines. 
     
-    
-    
-    
-    
-    
-    
-    # Add missing signal specification values if option is specified. 
-    if setsigreqs:
+    # Check the mandatory explicit fields
+    for i in [0, 1, 3]:
+        items=WFDBfields[i]
+        
+        for i in items:
+            if items[i].write_req:
+                
         
     
     
     
-    # Check the size of signal specification fields
-    if field in WFDBfields[1]:
-        if np.size(value)!=1 & np.size(value)!=nsig:
+    
+    
+   
+    
+    # Fill missing values to defaults if option is specified.
+    # Only fill fields where write_req==0. Users must explicitly set fields where write_req==1
+    if setsigreqs:
+        
+        rec_ = 
+        sig
+        
+        
+        for i in WFDBfields[0]:
             
+
+        
+        
+    # Check the content of the fields
+    nsig = fields['nsig']
+    
+    # MAKE SURE FILES names are consecutive and not interleaved. 
     
     
+    # Check the size of signal specification fields.
+    if field in WFDBfields[1]:
+        if np.size(value)==1 
+            # Expand 
+        elif np.size(value)!=nsig:
+            sys.exit("The ")
     
+    
+    return fields
     
     
 def _writeheaderfile(fields):
@@ -240,6 +262,11 @@ def _writeheaderfile(fields):
     
 # Write a multi-segment wfdb header file. 
 def wrmultiheader:
+    
+    # check that each signal component has the same fs and the correct number of signals. 
+    
+    # Write the header file
+    
     return 1
     
 
