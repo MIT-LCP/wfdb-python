@@ -44,52 +44,54 @@ class WFDBfield():
         # The required/dependent field which must also be present
         self.dependency = speclist[3]
         # Whether the field is mandatory specified by the WFDB guidelines
-        self.is_req = speclist[4]
+        self.read_req = speclist[4]
         # Whether the field is mandatory for writing (extra rules enforced by this library).
         # Being required for writing is not the same as the user having to specify. There are defaults. 
         self.write_req = speclist[5]
         # The default value to write
         self.write_default = speclist[6]
         
+        
+        
 # The fields that may be contained in a WFDB header file. https://www.physionet.org/physiotools/wag/header-5.htm
 # name, allowedtypes, delimiter, field_req, is_req, write_req
-WFDBfields = [
+
+# 1. Record specification fields
+recfields = OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
+                         ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
+                         ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
+                         ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
+                         ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
+                         ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
+                         ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
+                         ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
+                         ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))])
     
-    # record specification fields
-    OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
-                 ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
-                 ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
-                 ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
-                 ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
-                 ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
-                 ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
-                 ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
-                 ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))]),
+# 2. Signal specification fields
+sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
+                         ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
+                         ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
+                         ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
+                         ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
+                         ('adcgain', WFDBfield(['adcgain', [int], ' ', 'fmt', False, False])),
+                         ('baseline', WFDBfield(['baseline', [int], '(', 'adcgain', False, False])),
+                         ('units', WFDBfield(['units', [str], '/', 'adcgain', False, False])),
+                         ('adcres', WFDBfield(['adcres', [int], ' ', 'adcgain', False, False])),
+                         ('adczero', WFDBfield(['adczero', [int], ' ', 'adcres', False, False])),
+                         ('initvalue', WFDBfield(['initvalue', [int], ' ', 'adczero', False, False])),
+                         ('checksum', WFDBfield(['checksum', [int], ' ', 'initvalue', False, False])),
+                         ('blocksize', WFDBfield(['blocksize', [int], ' ', 'checksum', False, False])),
+                         ('signame', WFDBfield(['signame', [str], ' ', 'blocksize', False, False]))])
     
-    # signal specification fields
-    OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
-                 ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
-                 ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
-                 ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
-                 ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
-                 ('adcgain', WFDBfield(['adcgain', [int], ' ', 'fmt', False, False])),
-                 ('baseline', WFDBfield(['baseline', [int], '(', 'adcgain', False, False])),
-                 ('units', WFDBfield(['units', [str], '/', 'adcgain', False, False])),
-                 ('adcres', WFDBfield(['adcres', [int], ' ', 'adcgain', False, False])),
-                 ('adczero', WFDBfield(['adczero', [int], ' ', 'adcres', False, False])),
-                 ('initvalue', WFDBfield(['initvalue', [int], ' ', 'adczero', False, False])),
-                 ('checksum', WFDBfield(['checksum', [int], ' ', 'initvalue', False, False])),
-                 ('blocksize', WFDBfield(['blocksize', [int], ' ', 'checksum', False, False])),
-                 ('signame', WFDBfield(['signame', [str], ' ', 'blocksize', False, False]))]),
+# 3. Segment specification fields
+segfields = OrderedDict([('segname', WFDBfield(['segname', [str], '', None, True, True])),
+                         ('seglen', WFDBfield(['seglen', [int], ' ', 'segname', True, True]))])
     
-    # segment specification fields
-    OrderedDict([('segname', WFDBfield(['segname', [str], '', None, True, True])),
-                 ('seglen', WFDBfield(['seglen', [int], ' ', 'segname', True, True]))]),
-    
-    # comment fields
-    OrderedDict([('comments', WFDBfield(['comments', [int], '', None, False, False]))])
-]
-# Should specify limits too...     
+# 4. Comment fields
+comfields = OrderedDict([('comments', WFDBfield(['comments', [int], '', None, False, False]))])
+
+# All fields combined
+allfields=_mergeODlist([recfields, sigfields, segfields, comfields])
 
 
 # The useful summary information contained in a wfdb record.
@@ -124,102 +126,164 @@ req_write_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt'],
 # Return a dictionary with the essential keys + empty values for wrsamp. 
 def getwritefields(base=1):
     return 0
-              
-# Write a wfdb header file. 
+
+    
+    
+# Write a single segment wfdb header file.
 # When setsigreqs = 1, missing signal specification dependencies will be set. When it is 0, they must be explicitly set. 
 def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
     
+    # Make sure user is not trying to write multi-segment headers. 
+    if 'nseg' in inputfields:
+        if type(inputfields['nseg'])!= int:
+            sys.error("nseg must be an integer.")
+        if inputfields['nseg']>1:
+            sys.error("nseg is greater than 1. For writing multi-segment headers, use the 'wrmultiheader' function.")
+        else:
+            del(inputfields['nseg'])
+    
+    WFDBfieldlist = [recfields, sigfields, comfields]
+   
+
     # Check the header keys
-    keycheckedfields = _checkheaderkeys(inputfields, setsigreqs)
+    keycheckedfields = _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, 0)
     
     # Check the header values
-    valuecheckedfields = checkheadervalues(keycheckedfields, setsigreqs)
+    valuecheckedfields = checkheadervalues(keycheckedfields, WFDBfields, setsigreqs, 0)
 
     # Write the output header file
     _writeheaderfile(finalfields)
-                        
+                   
+        
+        
+        
+# Write a multi-segment wfdb header file. 
+def wrmultiheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
+    
+    # Make sure user is not trying to write single segment headers. 
+    if 'nseg' in inputfields:
+        if type(inputfields['nseg'])!= int:
+            sys.exit("fields['nseg'] must be an integer.")
+        if inputfields['nseg']<2:
+            sys.exit("fields['nseg'] is less than 2. For writing regular WFDB headers, use the 'wrheader' function.")
+    else:
+        sys.exit("Missing input fields['nseg'] for writing multi-segment header.\nFor writing regular WFDB headers, use the 'wrheader' function.")
+    
+    WFDBfieldlist = [recfields, segfields, comfields]
+    
+    keycheckedfields = _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, 1)
+    
+    # Check the header values
+    valuecheckedfields = checkheadervalues(keycheckedfields, WFDBfields, setsigreqs, 0)
+    
+    
+    # check that each signal component has the same fs and the correct number of signals. 
+    
+    # Write the header file
+    
+
+
               
 # Check that the dictionary of fields contains valid keys according to WFDB standards.
-def _checkheaderkeys(inputfields, setsigreqs):
+def _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, multiseg):
+    
+    WFDBfields=_mergeODlist(WFDBfieldlist): 
     
     # Make sure the input field is a dictionary.
     if type(inputfields)!=dict:
         sys.exit("'fields' must be a dictionary")
 
-    # Check for invalid dictionary keys.
-    for inputfield in inputfields:
-        if inputfield not in list(WFDBfields[0])+list(WFDBfields[1])+list(WFDBfields[3]):
-            sys.exit('Invalid input key: '+inputfield)
-
-    # Check for mandatory input fields
-    for f in WFDBfields[0]:
-        if (WFDBfields[0][f].is_req) and (f not in inputfields):
+    # Check for invalid keys.
+    for infield in inputfields:
+        if infield not in WFDBfields:
+            sys.exit('Invalid input key: '+infield)
+        
+    # Check for mandatory keys    
+    
+    # Record specification fields
+    for f in WFDBfieldlist[0]:
+        if (WFDBfieldlist[0][f].is_req) and (f not in inputfields):
             sys.exit('Missing required input key: '+f)
-    if inputfields['nsig']>0:
-        for f in WFDBfields[0]:
-            if (WFDBfields[0][f].is_req) and (f not in inputfields):
+            
+    # Check value of nsig. 
+    _checkval('nsig', inputfields['nsig'], WFDBfields)    
+        
+    # Check segment or signal specification keys
+    if multiseg or inputfields['nsig']:
+        for f in WFDBfieldlist[1]:
+            if (WFDBfieldlist[1][f].is_req) and (f not in inputfields):
                 sys.exit('Missing required input key: '+f)
     
-    # Check that fields have their dependent fields present
-    keycheckedfields = _checkfieldreqs(inputfields, setsigreqs)
+    # Check that fields have their dependent field keys present
+    keycheckedfields = _checkkeydeps(inputfields, setsigreqs, multiseg)
     
     return keycheckedfields
 
-    
-# Check that each signal specification field's dependent field is also present.
+# Merge the ordered dictionaries in a list together. 
+def _mergeODlist(ODlist):
+    mergedOD=ODlist[0].copy()
+    for od in ODlist[1:]:
+        mergedOD.update(od)
+    return mergedOD
+
+
+# Check that each header field key's dependent key is also present.
 # Helper function to _checkheaderkeys
-def _checkfieldreqs(fields, setsigreqs):
+def _checkkeydeps(fields, setsigreqs, multiseg):
    
-    # The required preceding field for each header field. Must check keys in reverse order.
+    # The required preceding field for each header field. Must check dependencies in reverse order.
+    # record line fields
     rec_dependencies = OrderedDict(reversed(list(WFDBfields[0].items())))
-    sig_dependencies = OrderedDict(reversed(list(WFDBfields[1].items())))
+    # signal or segment line fields
+    other_dependencies = OrderedDict(reversed(list(WFDBfields[1].items())))
     
     # Add dependent keys if option is specified.
     if setsigreqs:
+        # Add empty keys for record line
         for d in rec_dependencies:
             if (d in fields) and (rec_dependencies[d].dependency not in fields):
                 fields[rec_dependencies[d].dependency]=[]
-        for d in sig_dependencies:
-            if (d in fields) and (sig_dependencies[d].dependency not in fields):
-                fields[sig_dependencies[d].dependency]=[]
+        # Add empty keys for signal line. All segment line fields are mandatory.         
+        if not multiseg:
+            for d in other_dependencies:
+                if (d in fields) and (other_dependencies[d].dependency not in fields):
+                    fields[other_dependencies[d].dependency]=[]
     
-    # Check for missing dependent fields        
+
+    # Check for missing record line dependent fields.         
     for d in rec_dependencies:
-        if (d in fields) and (rec_dependencies[d] not in fields):
-            sys.exit('Missing required signal specification field: '+rec_dependencies[d]+' for field: '+d)
-    for d in sig_dependencies:
-        if (d in fields) and (sig_dependencies[d] not in fields):
-            sys.exit('Missing required signal specification field: '+sig_dependencies[d]+' for field: '+d)
+        if (d in fields) and (rec_dependencies[d].write_req not in fields):
+            sys.exit('Missing field dependency: '+rec_dependencies[d].write_req+' for field: '+d)
+    # Check for missing signal line dependent fields. All segment line fields are mandatory.         
+    if not multiseg:
+        for d in other_dependencies:
+            if (d in fields) and (sig_dependencies[d].write_req not in fields):
+                sys.exit('Missing field dependency: '+other_dependencies[d].write_req+' for field: '+d)
             
     return fields
     
     
     
-# Check the validity of each header value. Remember that gain crap...     
-def _checkheadervalues(fields, setsigreqs):
+    
+    
+# Check the validity of each header value. Includes setting defaults. Remember that gain crap...     
+def _checkheadervalues(keycheckedfields, WFDBfieldlist, setsigreqs, multiseg):
     
     # At this point, all the required keys should be present. Now need to check their values. 
     
-    
-    # [0, 1, 3] are record, signal, and comment lines. 
+    WFDBfields=_mergeODlist(WFDBfieldlist):
     
     # Check the mandatory explicit fields
-    for i in [0, 1, 3]:
-        items=WFDBfields[i]
-        
-        for i in items:
-            if items[i].write_req:
+    for f in keycheckedfields:
+        if WFDBfields[f].write_req:
+            _checkval(f, keycheckedfields[f], WFDBfields)
+                    
                 
-        
-    
-    
-    
-    
-    
-   
-    
+                
+                
     # Fill missing values to defaults if option is specified.
-    # Only fill fields where write_req==0. Users must explicitly set fields where write_req==1
+    # Only fill fields where write_req==0. Users must explicitly set fields where write_req==1. No need to worry about those because
+    # they would've thrown an error already. 
     if setsigreqs:
         
         rec_ = 
@@ -229,10 +293,17 @@ def _checkheadervalues(fields, setsigreqs):
         for i in WFDBfields[0]:
             
 
-        
+            
+            
+            
+            
+            
+            
+            
         
     # Check the content of the fields
-    nsig = fields['nsig']
+    nsig = fields['nsig'] 
+    
     
     # MAKE SURE FILES names are consecutive and not interleaved. 
     
@@ -245,7 +316,35 @@ def _checkheadervalues(fields, setsigreqs):
             sys.exit("The ")
     
     
-    return fields
+    return valuecheckedfields
+    
+    
+    
+    
+# Check an individual header value. Helper subfunction to checkheadervalues. Does not set defaults. Other functions should have set defaults by this point if intended. Does not allow empty values.
+def _checkval(key, value, WFDBfields):
+        
+    # Check the data type
+    if type(value) not in WFDBfields[key].allowedtypes:
+        sys.exit("fields["+key+"] must be one of the following types: "+WFDBfields[key].allowedtypes)
+        
+    # If numeric, check the allowed range
+    
+    if type(value) in [int, float]:
+        
+        
+        
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
 def _writeheaderfile(fields):
@@ -260,14 +359,7 @@ def _writeheaderfile(fields):
     
     
     
-# Write a multi-segment wfdb header file. 
-def wrmultiheader:
-    
-    # check that each signal component has the same fs and the correct number of signals. 
-    
-    # Write the header file
-    
-    return 1
+
     
 
 
