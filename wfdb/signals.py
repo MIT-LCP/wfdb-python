@@ -12,57 +12,133 @@ from ._downloadsamp import downloadsamp
 req_dig_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt', 'gain', 'baseline']]
 
 
+# 1. Record specification fields
+recfields = OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
+                         ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
+                         ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
+                         ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
+                         ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
+                         ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
+                         ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
+                         ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
+                         ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))])
+    
+# 2. Signal specification fields
+sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
+                         ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
+                         ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
+                         ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
+                         ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
+                         ('adcgain', WFDBfield(['adcgain', [int], ' ', 'fmt', False, False])),
+                         ('baseline', WFDBfield(['baseline', [int], '(', 'adcgain', False, False])),
+                         ('units', WFDBfield(['units', [str], '/', 'adcgain', False, False])),
+                         ('adcres', WFDBfield(['adcres', [int], ' ', 'adcgain', False, False])),
+                         ('adczero', WFDBfield(['adczero', [int], ' ', 'adcres', False, False])),
+                         ('initvalue', WFDBfield(['initvalue', [int], ' ', 'adczero', False, False])),
+                         ('checksum', WFDBfield(['checksum', [int], ' ', 'initvalue', False, False])),
+                         ('blocksize', WFDBfield(['blocksize', [int], ' ', 'checksum', False, False])),
+                         ('signame', WFDBfield(['signame', [str], ' ', 'blocksize', False, False]))])
+
+
+# The fields required to write any WFDB header. There are other required fields depending on user inputs.   
+req_write_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt'], ['segname', 'seglen']]
+
+
+# The user MUST put these in manually. 
+req_user_inputs = ['recordname', 'fs']
+
+
+# So the fields that can have defaults must NOT include the ones in req_user_inputs
+
+
+
+# Default values for certain fields. This function will only be called from wrsamp, and only on fields that are required to be present for writing the header (which also depends on the other fields input), but not on the ones required to be entered by the user. 
+# If the user enters an empty field that is not in here, it will throw an error. ie. skew. Why would they put in skew anyway? 
+def get_default(sig, fields, fielditem, physical):
+    
+    defaultvalues = {'nsig': sig.shape[1], 
+                     'siglen':sig.shape[0], 
+                     'basetime':'00:00:00', 
+                     'filename': fields['recordname']+'.dat',
+                     'fmt': '16', # maybe can do a resolution estimator here
+                     'gain':, # if physical=0 and these are missing, error would have already been triggered.
+                     'baseline':,
+                     'units':'NU',
+                     
+                    }
+    
+    
+    if fielditem not in defaultvalues:
+        sys.exit('There is no default for field '+field)
+
+    return defaultvalues[fielditem]
+
+
+
+# Estimate the resolution of a 2d array. Will return the maximum channel resolution. (maybe to be updated later).  
+def estres(sig):
+    
+    # The resolution in bits
+    res=sig.shape[1]*[0]
+    bitlevels=np.power(2, np.array(range(1, 33)))
+    
+    for ch in range(0, sig.shape[1]):
+        
+        chansig=sig[:,ch].sort()    
+        minincrement = min(abs(np.diff(chansig)))
+        
+        # flat signal defaults to 0 res 
+        if minincrement !=0 
+            nlevels = (max(chansig)-min(chansig))/minincrement
+            
+            # Return a maximum resolution of 32 bits
+            if nlevels > bitlevels[-1]:
+                resolution = 32
+            else:      
+                resolution = np.argmax(bitlevels>nlevels)
+        
+    # The maximum resolution in bits
+    return max(resolution)
+
+
+
+
+
 
 # Write a wfdb record file. Output will be filename.dat and filename.hea
-# If simpleinput, fields is info summary. Otherwise it is exact fields. 
-# A 2d signal array MUST be a numpy array. A list of lists will NOT be accepted. sig may therefore be a 2d numpy array, or a list of 2d numpy arrays.
-def wrsamp(sig, fields, targetdir=os.cwd(), simpleinput=1):
-    
-    # Make sure the input field is a dictionary.
-    if type(inputfields)!=dict:
-        sys.exit("'fields' must be a dictionary")
-        
-        
-    # There is the option of writing multiple dat files. Pass in an list of numpy arrays. 
-    # Doesn't work if it's just 1 big ordered numpy array because some might have multiple samples/frame. 
-    # The same files MUST be consecutive. This simplifies things! 
-    
-    
-   
+# If simpleinput, fields is info summary. Otherwise it is actual header fields. Make some function convert simpleinput into header fields. Then use functions to process actual header fields as normal.
 
+
+# A 2d signal MUST be a numpy array. A list of lists will NOT be accepted. sig may therefore be a 2d numpy array, or a list of 2d numpy arrays.
+def wrsamp(sig, fields, targetdir=os.cwd(), physical=1, simpleinput=1): 
     
-    # Check whether multiple dat files need to be written.  
+    # Check the input signal   
+    ndatfiles, nsig, siglen = checksig(sig)
     
-    # List of numpy arrays. Multiple dat files.
-    if type(sig)==list:
-        if type(sig[0])!=np.ndarray or sig[0].ndim>2:
-            sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
-        multidat=1
+    # Check the input signal and field compatibility
+    # Fill in default values for missing required fields that the user is not forced to input. 
     
-    # Single numpy array. Single dat file. 
-    elif type(sig)==np.ndarray:
-        if type(sig[0])!=np.ndarray or sig[0].ndim>2:
-            sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
+    fields = 
     
+    
+    
+    # Fill in the signal dimensions if missing. Currently only support single dat records... 
+    if ndatfiles ==1:
         if 'siglen' in fields:
             if fields['siglen']!=np.shape[0]:
                 sys.exit("fields['siglen'] does not match the signal length")
+        else:
+            fields['siglen']=siglen
         if 'nsig' in fields:
             if fields['nsig']!=np.shape[1]:
                 sys.exit("fields['nsig'] does not match the signal length")
-    
-        multidat=0
-    else:
-        sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
-        
-        
-    
-        
-    # Fill in the signal dimensions if missing
-    if 
+        else:
+            fields['nsig']=nsig
     
     
-    # Check that the input fields are valid and write the header file
+    
+    
+    # write the header file
     wrheader(fields)
     
     # Check that the input signal is the appropriate size/dimension according to the input fields
@@ -73,9 +149,62 @@ def wrsamp(sig, fields, targetdir=os.cwd(), simpleinput=1):
         os.path.remove(targetdir+fields['recordname']+'.hea')
     
     # Write the dat file
-    
     _wrdat(sig, fmt, fields['filename'][0], targetdir)
     
+        
+        
+# Check the input signal(s) to be written to one or multiple dat files
+def checksig(sig):
+    
+    # List of numpy arrays. Multiple dat files.
+    if type(sig)==list:    
+        nsig=[]
+        siglen=[]
+        for subsig in sig:
+            nsig_sub, siglen_sub = checksinglesig(subsig)
+            nsig.append(nsig_sub)
+            siglen.append(siglen_sub)
+            
+        ndatfiles = len(sig)
+        
+    # Single numpy array. Single dat file. 
+    elif type(sig)==np.ndarray:
+        checksinglesig(sig)
+        ndatfiles = 1
+        
+    else:
+        sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 1d/2d numpy arrays")
+        
+    return ndatfiles, nsig, siglen
+        
+# Check a single input signal to be written to one dat file. 
+def checksinglesig(sig):
+    if type(sig)!=np.ndarray or sig.ndim>2:
+        sys.exit("Invalid input sig. sig must be a 1d/2d numpy array or a list of 2d numpy arrays")
+    siglen, nsig = sig.shape
+    return nsig, siglen
+     
+    
+        
+# Check the input signal and field compatibility
+# Fill in default values for missing required fields that the user is not forced to input.      
+def checksigfield(sig, field):
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
 # Write a WFDB dat file    
 def _wrdat(sig, fmt, filename, targetdir):

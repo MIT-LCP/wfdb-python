@@ -37,39 +37,60 @@ class WFDBfield():
     def __init__(self, speclist):
         # Name
         self.name = speclist[0] 
+        
         # Data types the field can take
         self.allowedtypes = speclist[1]
+        
         # The text delimiter that preceeds the field
         self.delimiter = speclist[2]
+        
         # The required/dependent field which must also be present
         self.dependency = speclist[3]
-        # Whether the field is mandatory specified by the WFDB guidelines
-        self.read_req = speclist[4]
-        # Whether the field is mandatory for writing (extra rules enforced by this library).
-        # Being required for writing is not the same as the user having to specify. There are defaults. 
-        self.write_req = speclist[5]
+        
+        # Whether the field is mandatory for writing (WFDB requirements + extra rules enforced by this library).
+        # Being required for writing is not the same as the user having to specify via wrsamp. wrsamp sets defaults (wrheader does not).  
+        self.write_req = speclist[4]
+        
         # The default value to write
-        self.write_default = speclist[6]
+        self.write_default = speclist[5]
         
         
         
 # The fields that may be contained in a WFDB header file. https://www.physionet.org/physiotools/wag/header-5.htm
-# name, allowedtypes, delimiter, field_req, is_req, write_req
+# name, allowedtypes, delimiter, dependency, is_req (absolutely required specified by wfdb... why do we even care? reading headers is based on regexp, can't enforce this... ), write_req (required to be written into any header specified by this package),  
 
-# 1. Record specification fields
-recfields = OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
-                         ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
-                         ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
-                         ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
-                         ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
-                         ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
-                         ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
-                         ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
-                         ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))])
+
+
+# List of fields that must be present to write a header in this python package: 
+
+- recordname, (nseg or nsig), fs, siglen,  if signal: filename, fmt 
+
     
-# 2. Signal specification fields
-sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
-                         ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
+# List of fields that must be passed into wrsamp:
+
+# List of fields that wrsamp can fill:
+
+# ^^ For the rest, wrsamp can not fill. When they are passed as empty into wrheader, wrheader will trigger an error.  
+
+
+
+
+
+
+
+
+recfields = OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, None])),
+                         ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, None])),
+                         ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, None])),
+                         ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', True, None])),
+                         ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, None])),
+                         ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, None])),
+                         ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', True, None])),
+                         ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, None])),
+                         ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, None]))])
+
+sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, None])),
+                         ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, None])),
                          ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
                          ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
                          ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
@@ -83,11 +104,10 @@ sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, Tr
                          ('blocksize', WFDBfield(['blocksize', [int], ' ', 'checksum', False, False])),
                          ('signame', WFDBfield(['signame', [str], ' ', 'blocksize', False, False]))])
     
-# 3. Segment specification fields
+
 segfields = OrderedDict([('segname', WFDBfield(['segname', [str], '', None, True, True])),
                          ('seglen', WFDBfield(['seglen', [int], ' ', 'segname', True, True]))])
-    
-# 4. Comment fields
+
 comfields = OrderedDict([('comments', WFDBfield(['comments', [int], '', None, False, False]))])
 
 # All fields combined
@@ -136,9 +156,9 @@ def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
     # Make sure user is not trying to write multi-segment headers. 
     if 'nseg' in inputfields:
         if type(inputfields['nseg'])!= int:
-            sys.error("nseg must be an integer.")
+            sys.error("fields['nseg'] must be an integer.")
         if inputfields['nseg']>1:
-            sys.error("nseg is greater than 1. For writing multi-segment headers, use the 'wrmultiheader' function.")
+            sys.error("fields['nseg'] is greater than 1. For writing multi-segment headers, use the 'wrmultiheader' function.")
         else:
             del(inputfields['nseg'])
     
@@ -146,7 +166,7 @@ def wrheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
    
 
     # Check the header keys
-    keycheckedfields = _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, 0)
+    keycheckedfields = checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, 0)
     
     # Check the header values
     valuecheckedfields = checkheadervalues(keycheckedfields, WFDBfields, setsigreqs, 0)
@@ -182,10 +202,17 @@ def wrmultiheader(inputfields, targetdir=os.cwd(), setsigreqs=1):
     # Write the header file
     
 
+    
+# Merge the ordered dictionaries in a list into one ordered dictionary. 
+def _mergeODlist(ODlist):
+    mergedOD=ODlist[0].copy()
+    for od in ODlist[1:]:
+        mergedOD.update(od)
+    return mergedOD
 
               
 # Check that the dictionary of fields contains valid keys according to WFDB standards.
-def _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, multiseg):
+def checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, multiseg):
     
     WFDBfields=_mergeODlist(WFDBfieldlist): 
     
@@ -219,12 +246,6 @@ def _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, multiseg):
     
     return keycheckedfields
 
-# Merge the ordered dictionaries in a list together. 
-def _mergeODlist(ODlist):
-    mergedOD=ODlist[0].copy()
-    for od in ODlist[1:]:
-        mergedOD.update(od)
-    return mergedOD
 
 
 # Check that each header field key's dependent key is also present.
