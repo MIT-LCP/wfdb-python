@@ -8,49 +8,6 @@ from .headers import rdheader, wrheader
 from ._downloadsamp import downloadsamp
 
 
-# If digital input, need to specify all that. Otherwise no need. 
-req_dig_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt', 'gain', 'baseline']]
-
-
-# 1. Record specification fields
-recfields = OrderedDict([('recordname', WFDBfield(['recordname', [str], '', None, True, True, None])),
-                         ('nseg', WFDBfield(['nseg', [int], '/', 'recordname', False, False, None])),
-                         ('nsig', WFDBfield(['nsig', [int], ' ', 'recordname', True, True, None])),
-                         ('fs', WFDBfield(['fs', [int, float], ' ', 'nsig', False, True, None])),
-                         ('counterfreq', WFDBfield(['counterfreq', [int, float], '/', 'fs', False, False, None])),
-                         ('basecounter', WFDBfield(['basecounter', [int, float], '(', 'counterfreq', False, False, None])),
-                         ('siglen', WFDBfield(['siglen', [int], ' ', 'fs', False, True, None])),
-                         ('basetime', WFDBfield(['basetime', [str], ' ', 'siglen', False, False, None])),
-                         ('basedate', WFDBfield(['basedate', [str], ' ', 'basetime', False, False, None]))])
-    
-# 2. Signal specification fields
-sigfields = OrderedDict([('filename', WFDBfield(['filename', [str], '', None, True, True, None])),
-                         ('fmt', WFDBfield(['fmt', [int, str], ' ', 'filename', True, True, None])),
-                         ('sampsperframe', WFDBfield(['sampsperframe', [int], 'x', 'fmt', False, False])),
-                         ('skew', WFDBfield(['skew', [int], ':', 'fmt', False, False])),
-                         ('byteoffset', WFDBfield(['byteoffset', [int], '+', 'fmt', False, False])),
-                         ('adcgain', WFDBfield(['adcgain', [int], ' ', 'fmt', False, False])),
-                         ('baseline', WFDBfield(['baseline', [int], '(', 'adcgain', False, False])),
-                         ('units', WFDBfield(['units', [str], '/', 'adcgain', False, False])),
-                         ('adcres', WFDBfield(['adcres', [int], ' ', 'adcgain', False, False])),
-                         ('adczero', WFDBfield(['adczero', [int], ' ', 'adcres', False, False])),
-                         ('initvalue', WFDBfield(['initvalue', [int], ' ', 'adczero', False, False])),
-                         ('checksum', WFDBfield(['checksum', [int], ' ', 'initvalue', False, False])),
-                         ('blocksize', WFDBfield(['blocksize', [int], ' ', 'checksum', False, False])),
-                         ('signame', WFDBfield(['signame', [str], ' ', 'blocksize', False, False]))])
-
-
-# The fields required to write any WFDB header. There are other required fields depending on user inputs.   
-req_write_fields = [['recordname', 'nsig', 'fs', 'siglen'], ['filename', 'fmt'], ['segname', 'seglen']]
-
-
-# The user MUST put these in manually. 
-req_user_inputs = ['recordname', 'fs']
-
-
-# So the fields that can have defaults must NOT include the ones in req_user_inputs
-
-
 
 # Default values for certain fields. This function will only be called from wrsamp, and only on fields that are required to be present for writing the header (which also depends on the other fields input), but not on the ones required to be entered by the user. 
 # If the user enters an empty field that is not in here, it will throw an error. ie. skew. Why would they put in skew anyway? 
@@ -110,7 +67,7 @@ def estres(sig):
 
 
 # A 2d signal MUST be a numpy array. A list of lists will NOT be accepted. sig may therefore be a 2d numpy array, or a list of 2d numpy arrays.
-def wrsamp(sig, fields, targetdir=os.cwd(), physical=1, simpleinput=1): 
+def wrsamp(sig, recinfo, targetdir=os.cwd(), physical=1): 
     
     # Check the input signal   
     ndatfiles, nsig, siglen = checksig(sig)
@@ -118,8 +75,9 @@ def wrsamp(sig, fields, targetdir=os.cwd(), physical=1, simpleinput=1):
     # Check the input signal and field compatibility
     # Fill in default values for missing required fields that the user is not forced to input. 
     
-    fields = 
     
+    # write the header file. This will do all the checks and place defaults because you passed in a non None sig.
+    wrheader(recinfo, sig)
     
     
     # Fill in the signal dimensions if missing. Currently only support single dat records... 
@@ -138,8 +96,7 @@ def wrsamp(sig, fields, targetdir=os.cwd(), physical=1, simpleinput=1):
     
     
     
-    # write the header file
-    wrheader(fields)
+    
     
     # Check that the input signal is the appropriate size/dimension according to the input fields
     if np.size(sig) == (fields['siglen'], fields['nsig']):
