@@ -7,8 +7,6 @@ import requests
 from .headers import rdheader, wrheader
 from ._downloadsamp import downloadsamp
 
-
-
 # Default values for certain fields. This function will only be called from wrsamp, and only on fields that are required to be present for writing the header (which also depends on the other fields input), but not on the ones required to be entered by the user. 
 # If the user enters an empty field that is not in here, it will throw an error. ie. skew. Why would they put in skew anyway? 
 def get_default(sig, fields, fielditem, physical):
