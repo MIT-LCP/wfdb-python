@@ -31,11 +31,167 @@ WFDBfields = {
 ###############################################
 
 
-# The fields permitted in the WFDBrecord class. Need to check this before writing records in case users add foreign fields
+# The fields permitted in the WFDBrecord class.
 wfdbsinglefields = ['signals', 'recordname', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'filename', 'fmt', 'sampsperframe', 'skew', 'byteoffset', 'adcgain', 'baseline', 'units', 'adcres', 'adczero', 'initvalue', 'checksum', 'blocksize', 'signame', 'comments']
 
-# A class for storing a single segment wfdb record.
-class WFDBrecord():
+# The fields permitted in the WFDBmultirecord class.
+wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
+
+# Get the list of required fields needed to write the wfdb record. Method for both single and multi-segment records. 
+# Returns the default required fields, the user defined fields, and their dependencies.
+def getreqfields(self, fieldspeclist):
+
+    # Record specification fields
+    reqfields=getreqsubset(self, reversed(list(fieldspeclist[1].items())))
+    
+    # Single-segment record
+    if fieldspeclist[0] == signalspecs:
+        
+        checkfield(self, 'nsig')
+        
+        if self.nsig>0:
+            # signals is not always required because this method is called via wrheader. 
+            # Enforce the presence of signals at the start of rdsamp to ensure it gets added here. 
+            if self.signals!=None:
+                reqfields.append('signals')
+
+            reqfields=reqfields+getreqsubset(self, reversed(list(fieldspeclist[2].items())))
+
+    # Multi-segment record
+    else:
+        # Segment specification fields and segments
+        reqfields=reqfields+['segments', 'seglen', 'segname']
+        
+    # Comments
+    if self.comments !=None:
+        reqfields.append('comments')
+
+    return reqfields
+
+
+# Helper function to getreqfields
+def getreqsubset(self, fieldspecs):
+    reqfields=[]
+    for f in fieldspecs:
+        if f in reqfields:
+            continue
+        # If the field is default required or has been defined by the user...
+        if f[1].write_req or self.f!=None:
+            rf=f
+            # Add the field and its recurrent dependencies
+            while rf!=None:
+                reqfields.append(rf)
+                rf=fieldspeclist[1][rf].dependency
+
+    return reqfields
+
+
+# Set the single field specified. Notice how many fields do not have an automatically set value. 
+def _setfield(self, field):
+        
+    # have to check the dependent fields for validity. There is a lot of redundancy here.... 
+    
+    
+    # if the field cannot be set because it relies on another field that has not been set, return without doing anything. 
+    
+    if field == 'nseg':
+        checkfield(self, 'segments')
+        self.nseg = len(self.nsegments)
+    
+    elif field == 'nsig':
+        if self.signals == None:
+            self.nsig=0
+        else:
+            checkfield(self, 'signals')
+    
+    elif field == 'fs':
+    
+    elif field == 'counterfreq':
+    
+    elif field == 'basecounter':
+    
+    elif field == 'siglen':    
+    
+    elif field == 'basetime':  
+        self.basetime = '00:00:00'
+            
+            
+    elif field == 'filename':  
+        checkfield(self, 'recordname')
+        checkfield(nsig)
+        self.filename = [self.recordname+'.dat']*nsig
+        
+    elif field == 'fmt':      
+          
+    elif field == 'adcgain':    
+    elif field == 'baseline':  
+    elif field == 'units':
+        checkfield(nsig)
+        print('Note: Setting units to nU or no units. If there are units please set them.')
+        self.units = ['nU']*nsig
+        
+    elif field == 'adcres':  
+    elif field == 'adczero':      
+        self.adczero = [0]*nsig
+    elif field == 'initvalue':
+        checkfield(signals)
+        
+        if signals:
+            self.initvalue = list(signals[0,:])
+        
+    elif field == 'checksum':  
+        checkfield(signals)
+    
+    elif field == 'blocksize':
+        self.blocksize = [0]*nsig
+    
+    # Not filling in channel names.  
+    
+    elif field == 'seglen':  
+        self.seglen=[]
+        for s in self.segments:
+            self.seglen.append(np.shape(s)[])
+
+            
+            
+            
+            
+            
+            
+            
+            
+# The base class to inherit from containing common helper functions            
+class WFDBbaserecord():
+    # Constructor
+    
+    def __init__(self, recordname=None, nsig=None, 
+                 fs=None, counterfreq=None, basecounter = None, 
+                 siglen = None, basetime = None,basedate = None, 
+                 comments = None)
+    
+    
+    def __init__(self, signals=None, recordname=None, nsig=None, 
+                 fs=None, counterfreq=None, basecounter=None, 
+                 siglen=None, basetime=None, basedate=None, 
+                 filename=None, fmt=None, sampsperframe=None, 
+                 skew=None, byteoffset=None, adcgain=None, 
+                 baseline=None, units=None, adcres=None, 
+                 adczero=None, initvalue=None, checksum=None, 
+                 blocksize=None, signame=None, comments=None):
+        
+    def __init__(self, segments=None, recordname=None, nseg=None, nsig=None, 
+                  fs=None, counterfreq=None, basecounter=None,
+                  siglen=None, basetime=None, basedate=None,
+                  seglen=None, segname=None, segment=None, 
+                  comments=None):
+            
+            
+            
+            
+
+            
+# Class representing a single segment WFDB record.
+class WFDBrecord(WFDBbaserecord):
     
     # Constructor
     def __init__(self, signals=None, recordname=None, nsig=None, 
@@ -77,27 +233,40 @@ class WFDBrecord():
         self.signame=signame
         
         self.comments=comments
+                                 
         
-    # Set default fields or infer them based on the 'signals' field. 
-    def setfields(self):
-        
-        for field in self.fields:
-            if WFDB[5] == 1 and signals!=None:
-                setfield(field)
-            elif WFDB[5] == 2
-                setfield()
+    # Set missing fields that a default, or can be inferred.
+    # This method does NOT overwrite values. 
+    def setfields(self, fieldstoset = getreqfields(self, singlefieldspeclist.copy())):
+                                 
+        # Set the missing required fields if possible. 
+        for f in fieldstoset:
+            # Do not overwrite fields set by the user
+            if f == None:
+                setfield(self, f)
     
+    
+  
+# The fields permitted in the WFDBrecord class.
+#wfdbsinglefields = ['signals', 'recordname', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'filename', 'fmt', 'sampsperframe', 'skew', 'byteoffset', 'adcgain', 'baseline', 'units', 'adcres', 'adczero', 'initvalue', 'checksum', 'blocksize', 'signame', 'comments']
+
+# The fields permitted in the WFDBmultirecord class.
+#wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
     # Check the validity of the fields
-    def checkfields(self):
+    
+    # Check certain fields 
+    def checkfields(self ,fieldstocheck = getreqfields(self)):
+        
+        fielderrors=[]
         
         # Check for foreign fields added by users.
         _checkforeignfields(self)
         
-        # Get the list of required fields to check: default required fields, set fields, and their dependencies. Watch out for nseg. 
-        fieldstocheck = getreqfields(self)
+        # Get the list of required fields to check: default required fields, user set fields, and their dependencies. Watch out for nseg. 
+        requiredfields = getreqfields(self)
         
         # Check whether the fields' values are permitted, and if signals is included, valid. 
-        _checkfieldvalues(self, fields)
+        _checkfieldvalues(self, requiredfields)
         
         
         
@@ -105,17 +274,12 @@ class WFDBrecord():
         
         # Check whether dependent fields
         
-       
-    
-    
-    
-    
-    # option 1: check set variables, get list of all required, check all required variables. Redundant!
-    # Option 2: Get list of all required, check all required variables.  USE THIS!!! 
+
+    # Option 2: Get list of all required, check all required variables.  USE THIS!!! required includes user set. 
     
     
     # Check for and possibly remove foreign fields
-    def _checkforeignfields(self):
+    def _checkforeignfields(self, permittedfields):
         for f in vars(self)
             if f not in wfdbsinglefields:
                 choice = []
@@ -135,25 +299,6 @@ class WFDBrecord():
             if f not in wfdbsinglefields:
                 delattr(self, f)
     
-    # Get the list of required fields needed to write the wfdb record
-    def getreqfields(self):
-        reqfields = []
-        
-        # The default required fields
-        for f in wfdbsinglefields:
-            if singlefieldspecs[f].write_req:
-                reqfields.append(f)
-        
-        # The set fields and their dependencies 
-        for f in vars(self):
-            if f !=None:
-                reqfields.append(f)
-                if singlefieldspecs[f].dependency!=None:
-                    reqfields.append()
-        
-        return reqfields
-        
-        
     # Check whether the the field values are valid
     def _checkfieldvalues(self, fields):
         # check the data types
@@ -176,7 +321,45 @@ class WFDBrecord():
     
     
     
-wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
+    
+# Set the single field specified. 
+    def checkfield(self, field):
+        
+        if field == 'signals':
+            
+        elif field == 'segments':
+            
+            
+        elif field == 'recordname':
+        elif field == 'nseg':
+        elif field == 'nsig':
+        elif field == 'fs':
+        elif field == 'counterfreq':
+        elif field == 'basecounter':
+        elif field == 'siglen':    
+        elif field == 'basetime':  
+        elif field == 'basedate': 
+            
+        elif field == 'filename':  
+        elif field == 'fmt':      
+        elif field == 'sampsperframe':  
+        elif field == 'skew':  
+        elif field == 'byteoffset':  
+        elif field == 'adcgain':    
+        elif field == 'baseline':  
+        elif field == 'units':  
+        elif field == 'adcres':  
+        elif field == 'adczero':      
+        elif field == 'initvalue':  
+        elif field == 'checksum':  
+        elif field == 'blocksize':
+        elif field == 'signame': 
+            
+            
+        elif field == 'segname':      
+        elif field == 'seglen':  
+            
+        elif field == 'comments':
 
 # Multi segment WFDB record. Stores a list of individual WFDBrecord objects in the 'segment' field.
 class WFDBmultirecord():
@@ -216,11 +399,6 @@ class WFDBmultirecord():
 
 
 # The specifications of a WFDB field
-# 0. type
-# 1. delimiter
-# 2. dependency
-# 3. required to write? (nseg starts as F but will be set by wrmultiheader and wrmultiseg to True.)
-# 4. default fill function available? 0-2. 
 class WFDBfieldspecs():
     
     def __init__(self, speclist):
@@ -247,14 +425,14 @@ class WFDBfieldspecs():
          
 
 # The signal field
-signalspecs = OrderedDict([('signals', WFDBfield([[np.ndarray], '', None, False, 2]))])
+signalspecs = OrderedDict([('signal', WFDBfield([[np.ndarray], '', None, False, 2]))])
 
 # The segment field
-segmentspecs = OrderedDict([('signals', WFDBfield([[np.ndarray], '', None, False, 2]))])
+segmentspecs = OrderedDict([('segment', WFDBfield([[list], '', None, True, 2]))])
 
 # Record specification fields            
 recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True, 0])),
-                         ('nseg', WFDBfield([[int], '/', 'recordname', False, 0])), 
+                         ('nseg', WFDBfield([[int], '/', 'recordname', True, 0])), # Essential for multi but illegal for single.
                          ('nsig', WFDBfield([[int], ' ', 'recordname', True, 1])),
                          ('fs', WFDBfield([[int, float], ' ', 'nsig', True, 0])),
                          ('counterfreq', WFDBfield([[int, float], '/', 'fs', False, 0])),
@@ -285,9 +463,10 @@ segfieldspecs = OrderedDict([('segname', WFDBfield([[str], '', None, True, 0])),
 comfieldspecs = OrderedDict([('comments', WFDBfield([[int], '', None, False, False]))])
 
 
-singlefieldspecs = mergeODlist([signalspecs.copy(), recfieldspecs.copy(), sigfieldspecs.copy(), comfieldspecs.copy()])
-multifieldspecs = mergeODlist([segmentspecs.copy(), recfieldspecs.copy(), segfieldspecs.copy(), comfieldspecs.copy()])
-multifieldspecs['nseg'].write_req = True
+singlefieldspeclist = [signalspecs.copy(), recfieldspecs.copy(), sigfieldspecs.copy(), comfieldspecs.copy()]
+del(singlefieldspeclist[1]['nseg']
+multifieldspeclist = [segmentspecs.copy(), recfieldspecs.copy(), segfieldspecs.copy(), comfieldspecs.copy()]
+
 
 
 
@@ -310,39 +489,25 @@ infofields = [['recordname',
               ['segname',
                'seglen'],
               
-              'comments']
+              ['comments']]
 
 # Write a single segment wfdb header file.
 # When setsigreqs = 1, missing signal specification dependencies will be set. When it is 0, they must be explicitly set.
 # setinfo == 1 when wrheader is called from wrsamp. setinfo parameter should be 0 when wrheader is directly called. Should not be changeable. sig is set as the input signal when wrheader is called from wrsamp. 
 # recinfo is a WFDBrecord object.
-def wrheader(recinfo, targetdir=os.cwd(), sig=None):
+def wrheader(record, targetdir=os.cwd(), sig=None):
     
-    # Make sure user is not trying to write multi-segment headers. The nseg field is not allowed in regular headers. 
-    if getattr(recinfo, 'nseg')!=None:
-        sys.error("The 'nseg' field is not allowed in regular WFDB headers."
-                  "\nFor writing multi-segment headers, use the 'wrmultiheader' function.")
-        
-    WFDBfieldlist = [recfields.copy(), sigfields.copy(), comfields.copy()]
+    # The fields required to write this header
+    requiredfields = getreqfields(record)
     
+    # Fill in missing info if possible
+    record.setfields(requiredfields)
     
     # Check the record info
-    checkhrecinfo(recinfo, WFDBfieldlist, setinfo, ismultiseg)  
-    
-    
-    # Check the header keys
-    #keycheckedinfo = checkheaderkeys(recinfo, WFDBfieldlist, setinfo, 0)
-    
-    # Check the header values
-    #valuecheckedinfo = checkheadervalues(keycheckedinfo, WFDBfields, setinfo, 0)
-
-    
-    
-    
-    
+    record.checkfields(requiredfields)  
     
     # Write the output header file
-    _writeheaderfile(finalfields)
+    writeheaderfile(record)
     
                    
         
@@ -392,244 +557,6 @@ def _mergeODlist(ODlist):
                   
 
               
-                  
-                  
-# Check the values of the record information according to WFDB standards 
-# Will perform differently depending on whether it's called from wrheader or wrsamp. 
-def checkrecinfo(recinfo, WFDBfieldlist, setinfos, ismultiseg):
-    WFDBfields=_mergeODlist(WFDBfieldlist)
-    
-    # Make sure the input record info is a WFDBrecord obejct.
-    if type(recinfo).__name__!='WFDBrecord':
-        sys.exit("'recinfo' must be a WFDBrecord object")
-    
-    
-    
-    # First, get a list of all the fields that are required to write this header, which are then to be checked. This list is comprised of the always essential fields, the fields not equal to None set by the user, and their recurrent dependent fields. 
-    required_info = []
-    # Check the fields in reverse to capture all dependencies. 
-    rev_rfields = OrderedDict(reversed(list(WFDBfieldlist[0].items())))
-    rev_sfields = OrderedDict(reversed(list(WFDBfieldlist[1].items())))
-    
-    # 1. record fields
-    for f in rev_rfields:
-        # The user has set this field. Add it and its recurrent dependencies. 
-        if getattr(recinfo, f)!=None:
-            
-            if f in required_info:
-                continue
-            
-            required_info.append(f)
-            
-            depfield = rev_rfields[f].dependency
-            
-            #while rev_rfields[depfield].dependency!=None:
-            while depfield!=None:
-                required_info.append(depfield)
-                depfield=rev_rfields[depfield].dependency
-        
-        # Default mandatory write fields
-        if rev_rfields[f].write_req:
-            if f in required_info:
-                continue
-            required_info.append(f)
-            # No need to recursively add dependencies because dependencies of required fields are all required. 
-        
-        
-    # Check the info fields. If specified, place the defaults in them before checking. 
-    
-    for i in required_info:
-        if setinfo and rev_rfields[i].has_write_default:
-            recinfo=add_default(recinfo, )
-        
-        checkinfovalue()
-        
-        
-        
-        
-        
-        
-    # 2. signal/segment fields
-    
-    if ismultiseg:
-        
-    else:
-        
-          
-        
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-                
-                
-                  
-# Check that the dictionary of fields contains valid keys according to WFDB standards.
-def checkheaderkeys(inputfields, WFDBfieldlist, setinfo, ismultiseg):
-    
-    WFDBfields=_mergeODlist(WFDBfieldlist): 
-    
-    # Make sure the input field is a dictionary.
-    if type(inputfields)!=dict:
-        sys.exit("'fields' must be a dictionary")
-
-    # Check for invalid keys.
-    for infield in inputfields:
-        if infield not in WFDBfields:
-            sys.exit('Invalid input key: '+infield)
-        
-    # Check for required keys and dependencies of entered keys    
-    
-    # Record specification fields
-    for f in WFDBfieldlist[0]:
-        if (WFDBfieldlist[0][f].write_req) and (inputfields.f ):
-            sys.exit('Missing required input key: '+f)
-            
-    # Check value of nsig. 
-    _checkval('nsig', inputfields['nsig'], WFDBfields)    
-        
-    # Check segment or signal specification keys
-    if multiseg or inputfields['nsig']:
-        for f in WFDBfieldlist[1]:
-            if (WFDBfieldlist[1][f].is_req) and (f not in inputfields):
-                sys.exit('Missing required input key: '+f)
-    
-    # Check that fields have their dependent field keys present
-    keycheckedfields = _checkkeydeps(inputfields, setsigreqs, multiseg)
-    
-    return keycheckedfields
-
-
-
-# Check that each header field key's dependent key is also present.
-# Helper function to _checkheaderkeys
-def _checkkeydeps(fields, setsigreqs, multiseg):
-                  
-   
-    # The required preceding field for each header field. Must check dependencies in reverse order.
-    # record line fields
-    rec_dependencies = OrderedDict(reversed(list(WFDBfields[0].items())))
-    # signal or segment line fields
-    other_dependencies = OrderedDict(reversed(list(WFDBfields[1].items())))
-    
-    # Add dependent keys if option is specified.
-    if setsigreqs:
-        # Add empty keys for record line
-        for d in rec_dependencies:
-            if (d in fields) and (rec_dependencies[d].dependency not in fields):
-                fields[rec_dependencies[d].dependency]=[]
-        # Add empty keys for signal line. All segment line fields are mandatory.         
-        if not multiseg:
-            for d in other_dependencies:
-                if (d in fields) and (other_dependencies[d].dependency not in fields):
-                    fields[other_dependencies[d].dependency]=[]
-    
-
-    # Check for missing record line dependent fields.         
-    for d in rec_dependencies:
-        if (d in fields) and (rec_dependencies[d].write_req not in fields):
-            sys.exit('Missing field dependency: '+rec_dependencies[d].write_req+' for field: '+d)
-    # Check for missing signal line dependent fields. All segment line fields are mandatory.         
-    if not multiseg:
-        for d in other_dependencies:
-            if (d in fields) and (sig_dependencies[d].write_req not in fields):
-                sys.exit('Missing field dependency: '+other_dependencies[d].write_req+' for field: '+d)
-            
-    return fields
-    
-    
-    
-    
-    
-# Check the validity of each header value. Includes setting defaults. Remember that gain crap...     
-def _checkheadervalues(keycheckedinfo, WFDBfieldlist, setsiginfo, multiseg):
-    
-    # At this point, all the required keys should be present. Now need to check their values. 
-    
-    WFDBfields=_mergeODlist(WFDBfieldlist):
-    
-    # Check the mandatory explicit fields
-    for f in keycheckedfields:
-        if WFDBfields[f].write_req:
-            _checkval(f, keycheckedfields[f], WFDBfields)
-                    
-                
-                
-                
-    # Fill missing values to defaults if option is specified.
-    # Only fill fields where write_req==0. Users must explicitly set fields where write_req==1. No need to worry about those because
-    # they would've thrown an error already. 
-    if setsigreqs:
-        
-        rec_ = 
-        sig
-        
-        
-        for i in WFDBfields[0]:
-            
-
-            
-            
-            
-            
-            
-            
-            
-        
-    # Check the content of the fields
-    nsig = fields['nsig'] 
-    
-    
-    # MAKE SURE FILES names are consecutive and not interleaved. 
-    
-    
-    # Check the size of signal specification fields.
-    if field in WFDBfields[1]:
-        if np.size(value)==1 
-            # Expand 
-        elif np.size(value)!=nsig:
-            sys.exit("The ")
-    
-    
-    return valuecheckedfields
-    
-    
-    
-    
-# Check an individual header value. Helper subfunction to checkheadervalues. Does not set defaults. Other functions should have set defaults by this point if intended. Does not allow empty values.
-def _checkval(key, value, WFDBfields):
-        
-    # Check the data type
-    if type(value) not in WFDBfields[key].allowedtypes:
-        sys.exit("fields["+key+"] must be one of the following types: "+WFDBfields[key].allowedtypes)
-        
-    # If numeric, check the allowed range
-    
-    if type(value) in [int, float]:
-        
-        
-        
-    
-    
-    
-    
-    
-    
     
     
     
