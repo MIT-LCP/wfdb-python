@@ -37,130 +37,15 @@ wfdbsinglefields = ['signals', 'recordname', 'nsig', 'fs', 'counterfreq', 'basec
 # The fields permitted in the WFDBmultirecord class.
 wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
 
-# Get the list of required fields needed to write the wfdb record. Method for both single and multi-segment records. 
-# Returns the default required fields, the user defined fields, and their dependencies.
-def getreqfields(self, fieldspeclist):
-
-    # Record specification fields
-    reqfields=getreqsubset(self, reversed(list(fieldspeclist[1].items())))
-    
-    # Single-segment record
-    if fieldspeclist[0] == signalspecs:
-        
-        checkfield(self, 'nsig')
-        
-        if self.nsig>0:
-            # signals is not always required because this method is called via wrheader. 
-            # Enforce the presence of signals at the start of rdsamp to ensure it gets added here. 
-            if self.signals!=None:
-                reqfields.append('signals')
-
-            reqfields=reqfields+getreqsubset(self, reversed(list(fieldspeclist[2].items())))
-
-    # Multi-segment record
-    else:
-        # Segment specification fields and segments
-        reqfields=reqfields+['segments', 'seglen', 'segname']
-        
-    # Comments
-    if self.comments !=None:
-        reqfields.append('comments')
-
-    return reqfields
 
 
-# Helper function to getreqfields
-def getreqsubset(self, fieldspecs):
-    reqfields=[]
-    for f in fieldspecs:
-        if f in reqfields:
-            continue
-        # If the field is default required or has been defined by the user...
-        if f[1].write_req or self.f!=None:
-            rf=f
-            # Add the field and its recurrent dependencies
-            while rf!=None:
-                reqfields.append(rf)
-                rf=fieldspeclist[1][rf].dependency
 
-    return reqfields
-
-
-# Set the single field specified. Notice how many fields do not have an automatically set value. 
-def _setfield(self, field):
-        
-    # have to check the dependent fields for validity. There is a lot of redundancy here.... 
-    
-    
-    # if the field cannot be set because it relies on another field that has not been set, return without doing anything. 
-    
-    if field == 'nseg':
-        checkfield(self, 'segments')
-        self.nseg = len(self.nsegments)
-    
-    elif field == 'nsig':
-        if self.signals == None:
-            self.nsig=0
-        else:
-            checkfield(self, 'signals')
-    
-    elif field == 'fs':
-    
-    elif field == 'counterfreq':
-    
-    elif field == 'basecounter':
-    
-    elif field == 'siglen':    
-    
-    elif field == 'basetime':  
-        self.basetime = '00:00:00'
-            
-            
-    elif field == 'filename':  
-        checkfield(self, 'recordname')
-        checkfield(nsig)
-        self.filename = [self.recordname+'.dat']*nsig
-        
-    elif field == 'fmt':      
-          
-    elif field == 'adcgain':    
-    elif field == 'baseline':  
-    elif field == 'units':
-        checkfield(nsig)
-        print('Note: Setting units to nU or no units. If there are units please set them.')
-        self.units = ['nU']*nsig
-        
-    elif field == 'adcres':  
-    elif field == 'adczero':      
-        self.adczero = [0]*nsig
-    elif field == 'initvalue':
-        checkfield(signals)
-        
-        if signals:
-            self.initvalue = list(signals[0,:])
-        
-    elif field == 'checksum':  
-        checkfield(signals)
-    
-    elif field == 'blocksize':
-        self.blocksize = [0]*nsig
-    
-    # Not filling in channel names.  
-    
-    elif field == 'seglen':  
-        self.seglen=[]
-        for s in self.segments:
-            self.seglen.append(np.shape(s)[])
 
             
             
             
-            
-            
-            
-            
-            
-# The base class to inherit from containing common helper functions            
+    
+# The base WFDB class to inherit. Containings common helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
     
@@ -168,27 +53,175 @@ class WFDBbaserecord():
                  fs=None, counterfreq=None, basecounter = None, 
                  siglen = None, basetime = None,basedate = None, 
                  comments = None)
-    
-    
-    def __init__(self, signals=None, recordname=None, nsig=None, 
-                 fs=None, counterfreq=None, basecounter=None, 
-                 siglen=None, basetime=None, basedate=None, 
-                 filename=None, fmt=None, sampsperframe=None, 
-                 skew=None, byteoffset=None, adcgain=None, 
-                 baseline=None, units=None, adcres=None, 
-                 adczero=None, initvalue=None, checksum=None, 
-                 blocksize=None, signame=None, comments=None):
-        
-    def __init__(self, segments=None, recordname=None, nseg=None, nsig=None, 
-                  fs=None, counterfreq=None, basecounter=None,
-                  siglen=None, basetime=None, basedate=None,
-                  seglen=None, segname=None, segment=None, 
-                  comments=None):
-            
-            
-            
-            
 
+    # Get the list of required fields needed to write the wfdb record. Method for both single and multi-segment records. 
+    # Returns the default required fields, the user defined fields, and their dependencies.
+    def getreqfields(self, fieldspeclist):
+
+        # Record specification fields
+        reqfields=getreqsubset(self, reversed(list(fieldspeclist[1].items())))
+
+        # Single-segment record
+        if fieldspeclist[0] == signalspecs:
+
+            checkfield(self, 'nsig')
+
+            if self.nsig>0:
+                # signals is not always required because this method is called via wrheader. 
+                # Enforce the presence of signals at the start of rdsamp to ensure it gets added here. 
+                if self.signals!=None:
+                    reqfields.append('signals')
+
+                reqfields=reqfields+getreqsubset(self, reversed(list(fieldspeclist[2].items())))
+
+        # Multi-segment record
+        else:
+            # Segment specification fields and segments
+            reqfields=reqfields+['segments', 'seglen', 'segname']
+
+        # Comments
+        if self.comments !=None:
+            reqfields.append('comments')
+        return reqfields
+
+
+    # Helper function to getreqfields
+    def getreqsubset(self, fieldspecs):
+        reqfields=[]
+        for f in fieldspecs:
+            if f in reqfields:
+                continue
+            # If the field is default required or has been defined by the user...
+            if f[1].write_req or self.f!=None:
+                rf=f
+                # Add the field and its recurrent dependencies
+                while rf!=None:
+                    reqfields.append(rf)
+                    rf=fieldspeclist[1][rf].dependency
+
+        return reqfields
+            
+    # Set the single field specified if possible. Most fields do not have an automatically set value. 
+    # This function should only be called on fields == none. It should NOT be used to overwrite set fields. 
+    def setfield(self, field):
+
+        # if the field cannot be set, return without doing anything. 
+
+        if field == 'nseg':
+            checkfield(self, 'segments')
+            self.nseg = len(self.nsegments)
+
+        elif field == 'nsig':
+            if self.signals == None:
+                self.nsig=0
+            else:
+                checkfield(self, 'signals')
+                self.nsig = np.shape(self.signals)[1]
+
+        elif field == 'siglen':    
+
+
+        elif field == 'basetime':  
+            self.basetime = '00:00:00'
+
+        elif field == 'filename':  
+            checkfield(self, 'recordname')
+            checkfield(nsig)
+            self.filename = [self.recordname+'.dat']*nsig
+
+        elif field == 'fmt':      
+
+        elif field == 'adcgain':    
+        elif field == 'baseline':  
+        elif field == 'units':
+            checkfield(nsig)
+            print('Note: Setting units to nU or no units. If there are units please set them.')
+            self.units = ['nU']*nsig
+
+        elif field == 'adcres':  
+        elif field == 'adczero':      
+            self.adczero = [0]*nsig
+        elif field == 'initvalue':
+            checkfield(signals)
+
+            if signals:
+                self.initvalue = list(signals[0,:])
+
+        elif field == 'checksum':  
+            checkfield(signals)
+
+        elif field == 'blocksize':
+            self.blocksize = [0]*nsig
+
+        # Not filling in channel names.  
+
+        elif field == 'seglen':  
+            self.seglen=[]
+            for s in self.segments:
+                self.seglen.append(np.shape(s)[])
+      
+    # Check the single field specified. 
+    def checkfield(self, field):
+
+        if field == 'signals':
+
+        elif field == 'segments':
+
+
+        elif field == 'recordname':
+        elif field == 'nseg':
+        elif field == 'nsig':
+        elif field == 'fs':
+        elif field == 'counterfreq':
+        elif field == 'basecounter':
+        elif field == 'siglen':    
+        elif field == 'basetime':  
+        elif field == 'basedate': 
+
+        elif field == 'filename':  
+        elif field == 'fmt':      
+        elif field == 'sampsperframe':  
+        elif field == 'skew':  
+        elif field == 'byteoffset':  
+        elif field == 'adcgain':    
+        elif field == 'baseline':  
+        elif field == 'units':  
+        elif field == 'adcres':  
+        elif field == 'adczero':      
+        elif field == 'initvalue':  
+        elif field == 'checksum':  
+        elif field == 'blocksize':
+        elif field == 'signame': 
+
+
+        elif field == 'segname':      
+        elif field == 'seglen':  
+
+        elif field == 'comments':
+            
+            
+   # Check for and possibly remove foreign fields
+    def _checkforeignfields(self, allowedfields, objecttype):
+        for f in vars(self)
+            if f not in allowedfields:
+                choice = []
+                while choice not in ['y','n', 'a']:
+                    choice = input("Foreign attribute '"+f+"' in "+objecttype+" object not allowed.\n"
+                                   "Remove attribute? [y = yes, n = no, a = remove all foreign fields]: ")
+                if choice=='y':
+                    delattr(self, f)
+                elif choice=='n':
+                    sys.exit('Exiting. '+objecttype+' objects may only contain the following attributes:\n'+allowedfields)
+                else:
+                    _clearforeignfields(self, allowedfields)
+    
+    # Remove all the foreign user added fields in the object
+    def _clearforeignfields(self, allowedfields):
+        for f in vars(self):
+            if f not in allowedfields:
+                delattr(self, f)         
+            
+            
             
 # Class representing a single segment WFDB record.
 class WFDBrecord(WFDBbaserecord):
@@ -206,16 +239,12 @@ class WFDBrecord(WFDBbaserecord):
         # Note the lack of 'nseg' field. Single segment records cannot have this field. Even nseg = 1 makes 
         # the header a multi-segment header. 
         
-        self.signals = signals
+        super(self, recordname=recordname, nsig=nsig, 
+              fs=fs, counterfreq=counterfreq, basecounter =basecounter,
+              siglen = siglen, basetime = basetime, basedate = basedate, 
+              comments = comments)
         
-        self.recordname=recordname
-        self.nsig=nsig
-        self.fs=fs
-        self.counterfreq=counterfreq
-        self.basecounter=basecounter
-        self.siglen=siglen
-        self.basetime=basetime
-        self.basedate=basedate
+        self.signals = signals
         
         self.filename=filename
         self.fmt=fmt
@@ -231,12 +260,11 @@ class WFDBrecord(WFDBbaserecord):
         self.checksum=checksum
         self.blocksize=blocksize
         self.signame=signame
-        
-        self.comments=comments
                                  
         
     # Set missing fields that a default, or can be inferred.
     # This method does NOT overwrite values. 
+    # If a field requires another field which is invalid or not set, just return. 
     def setfields(self, fieldstoset = getreqfields(self, singlefieldspeclist.copy())):
                                  
         # Set the missing required fields if possible. 
@@ -245,69 +273,20 @@ class WFDBrecord(WFDBbaserecord):
             if f == None:
                 setfield(self, f)
     
-    
-  
-# The fields permitted in the WFDBrecord class.
-#wfdbsinglefields = ['signals', 'recordname', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'filename', 'fmt', 'sampsperframe', 'skew', 'byteoffset', 'adcgain', 'baseline', 'units', 'adcres', 'adczero', 'initvalue', 'checksum', 'blocksize', 'signame', 'comments']
-
-# The fields permitted in the WFDBmultirecord class.
-#wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
-    # Check the validity of the fields
-    
-    # Check certain fields 
-    def checkfields(self ,fieldstocheck = getreqfields(self)):
+    # Check the specified fields of the WFDBrecord object for validity. 
+    def checkfields(self ,fieldstocheck = getreqfields(self), objecttype='WFDBrecord'):
         
         fielderrors=[]
         
         # Check for foreign fields added by users.
-        _checkforeignfields(self)
+        _checkforeignfields(self, allowedfields = wfdbsinglefields)
         
-        # Get the list of required fields to check: default required fields, user set fields, and their dependencies. Watch out for nseg. 
-        requiredfields = getreqfields(self)
-        
-        # Check whether the fields' values are permitted, and if signals is included, valid. 
-        _checkfieldvalues(self, requiredfields)
+        # Check whether the fields' values are valid. 
+        _checkfieldvalues(self, fieldstocheck)
         
         
-        
-        # Check whether essential fields have been set (including dependencies)
-        
-        # Check whether dependent fields
-        
+    
 
-    # Option 2: Get list of all required, check all required variables.  USE THIS!!! required includes user set. 
-    
-    
-    # Check for and possibly remove foreign fields
-    def _checkforeignfields(self, permittedfields):
-        for f in vars(self)
-            if f not in wfdbsinglefields:
-                choice = []
-                while choice not in ['y','n', 'a']:
-                    choice = input("Foreign attribute '" + f + "' in WFDBrecord object not allowed.\n"
-                                   "Remove attribute? [y = yes, n = no, a = remove all foreign fields]: ")
-                if choice=='y':
-                    delattr(self, f)
-                elif choice=='n':
-                    sys.exit('Exiting. WFDBrecord objects may only contain the following attributes:\n'+wfdbsinglefields)
-                else:
-                    _clearforeignfields(self)
-    
-    # Remove all the foreign user added fields in the object
-    def _clearforeignfields(self):
-        for f in vars(self):
-            if f not in wfdbsinglefields:
-                delattr(self, f)
-    
-    # Check whether the the field values are valid
-    def _checkfieldvalues(self, fields):
-        # check the data types
-        _checkfieldtypes(self, fields)
-        
-        
-        
-    
-    
     # Check the data types of the specified fields
     def _checkfieldtypes(self, fields):
         for f in vars(self):
@@ -316,50 +295,13 @@ class WFDBrecord(WFDBbaserecord):
                 
     # Return a list of all the fields this class is allowed to have    
     def getallowedfields():
-        return wfdbsinglefields
+        return wfdbsinglefields.copy()
     
     
     
     
     
-# Set the single field specified. 
-    def checkfield(self, field):
-        
-        if field == 'signals':
-            
-        elif field == 'segments':
-            
-            
-        elif field == 'recordname':
-        elif field == 'nseg':
-        elif field == 'nsig':
-        elif field == 'fs':
-        elif field == 'counterfreq':
-        elif field == 'basecounter':
-        elif field == 'siglen':    
-        elif field == 'basetime':  
-        elif field == 'basedate': 
-            
-        elif field == 'filename':  
-        elif field == 'fmt':      
-        elif field == 'sampsperframe':  
-        elif field == 'skew':  
-        elif field == 'byteoffset':  
-        elif field == 'adcgain':    
-        elif field == 'baseline':  
-        elif field == 'units':  
-        elif field == 'adcres':  
-        elif field == 'adczero':      
-        elif field == 'initvalue':  
-        elif field == 'checksum':  
-        elif field == 'blocksize':
-        elif field == 'signame': 
-            
-            
-        elif field == 'segname':      
-        elif field == 'seglen':  
-            
-        elif field == 'comments':
+
 
 # Multi segment WFDB record. Stores a list of individual WFDBrecord objects in the 'segment' field.
 class WFDBmultirecord():
@@ -376,21 +318,16 @@ class WFDBmultirecord():
                      "\nUse the 'WFDBrecord' class for creating "
                      "single segment records.")
     
-        self.segments=sements  
+        super(self, recordname=recordname, nsig=nsig, 
+              fs=fs, counterfreq=counterfreq, basecounter =basecounter,
+              siglen = siglen, basetime = basetime, basedate = basedate, 
+              comments = comments)
     
-        self.recordname=recordname
+        self.segments=sements  
         self.nseg=nseg
-        self.fs=fs
-        self.counterfreq=counterfreq
-        self.basecounter=basecounter
-        self.siglen=siglen
-        self.basetime=basetime
-        self.basedate=basedate
         
         self.seglen=seglen
         self.segname=segname
-        
-        self.comments=comments
     
     # Return a list of all the fields this class is allowed to have    
     def getallowedfields():
@@ -492,18 +429,17 @@ infofields = [['recordname',
               ['comments']]
 
 # Write a single segment wfdb header file.
-# When setsigreqs = 1, missing signal specification dependencies will be set. When it is 0, they must be explicitly set.
-# setinfo == 1 when wrheader is called from wrsamp. setinfo parameter should be 0 when wrheader is directly called. Should not be changeable. sig is set as the input signal when wrheader is called from wrsamp. 
-# recinfo is a WFDBrecord object.
+# record is a WFDBrecord object
 def wrheader(record, targetdir=os.cwd(), sig=None):
     
     # The fields required to write this header
     requiredfields = getreqfields(record)
     
-    # Fill in missing info if possible
+    # Fill in any missing info possible 
+    # for the set of required fields
     record.setfields(requiredfields)
     
-    # Check the record info
+    # Check every field to be used
     record.checkfields(requiredfields)  
     
     # Write the output header file
