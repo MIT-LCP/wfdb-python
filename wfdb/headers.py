@@ -28,24 +28,10 @@ WFDBfields = {
         'signame': [],
         'nsampseg': [],
         'comments': []}
-###############################################
-
-
-# The fields permitted in the WFDBrecord class.
-wfdbsinglefields = ['signals', 'recordname', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'filename', 'fmt', 'sampsperframe', 'skew', 'byteoffset', 'adcgain', 'baseline', 'units', 'adcres', 'adczero', 'initvalue', 'checksum', 'blocksize', 'signame', 'comments']
-
-# The fields permitted in the WFDBmultirecord class.
-wfdbmultifields = ['segments', 'recordname', 'nseg', 'nsig', 'fs', 'counterfreq', 'basecounter', 'siglen', 'basetime', 'basedate', 'seglen', 'segname', 'comments']
-
-
-
-
-
-            
-            
-            
+#########################################            
     
-# The base WFDB class to inherit. Containings common helper functions and fields.             
+    
+# The base WFDB class to extend. Containings common helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
     
@@ -200,7 +186,7 @@ class WFDBbaserecord():
         elif field == 'comments':
             
             
-   # Check for and possibly remove foreign fields
+    # Check for and possibly remove foreign fields
     def _checkforeignfields(self, allowedfields, objecttype):
         for f in vars(self)
             if f not in allowedfields:
@@ -273,32 +259,31 @@ class WFDBrecord(WFDBbaserecord):
             if f == None:
                 setfield(self, f)
     
+    
     # Check the specified fields of the WFDBrecord object for validity. 
     def checkfields(self ,fieldstocheck = getreqfields(self), objecttype='WFDBrecord'):
         
         fielderrors=[]
         
-        # Check for foreign fields added by users.
-        _checkforeignfields(self, allowedfields = wfdbsinglefields)
+        # Check for foreign fields
+        _checkforeignfields(self, allowedfields = self.getallowedfields())
         
         # Check whether the fields' values are valid. 
         _checkfieldvalues(self, fieldstocheck)
         
         
-    
-
-    # Check the data types of the specified fields
-    def _checkfieldtypes(self, fields):
-        for f in vars(self):
-            if type(getattr(self, f)) not in allfieldspecs[f]:
-                sys.exit('WFDBrecord field '+f+'must be one of types: '+singlefieldspecs[f])
+        
+        
+        
+        
+        
+        
+        
+        
                 
     # Return a list of all the fields this class is allowed to have    
     def getallowedfields():
-        return wfdbsinglefields.copy()
-    
-    
-    
+        return list(mergeODlist(singlefieldspeclist).keys())
     
     
 
@@ -331,7 +316,7 @@ class WFDBmultirecord():
     
     # Return a list of all the fields this class is allowed to have    
     def getallowedfields():
-        return wfdbmultifields
+        return list(mergeODlist(multifieldspeclist).keys())
         
 
 
@@ -364,12 +349,12 @@ class WFDBfieldspecs():
 # The signal field
 signalspecs = OrderedDict([('signal', WFDBfield([[np.ndarray], '', None, False, 2]))])
 
-# The segment field
+# The segment field. A list of WFDBrecord objects
 segmentspecs = OrderedDict([('segment', WFDBfield([[list], '', None, True, 2]))])
 
 # Record specification fields            
 recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True, 0])),
-                         ('nseg', WFDBfield([[int], '/', 'recordname', True, 0])), # Essential for multi but illegal for single.
+                         ('nseg', WFDBfield([[int], '/', 'recordname', True, 0])), # Essential for multi but not present in single.
                          ('nsig', WFDBfield([[int], ' ', 'recordname', True, 1])),
                          ('fs', WFDBfield([[int, float], ' ', 'nsig', True, 0])),
                          ('counterfreq', WFDBfield([[int, float], '/', 'fs', False, 0])),
@@ -430,10 +415,10 @@ infofields = [['recordname',
 
 # Write a single segment wfdb header file.
 # record is a WFDBrecord object
-def wrheader(record, targetdir=os.cwd(), sig=None):
+def wrheader(record, targetdir=os.cwd()):
     
     # The fields required to write this header
-    requiredfields = getreqfields(record)
+    requiredfields = record.getreqfields()
     
     # Fill in any missing info possible 
     # for the set of required fields
@@ -445,7 +430,9 @@ def wrheader(record, targetdir=os.cwd(), sig=None):
     # Write the output header file
     writeheaderfile(record)
     
-                   
+    # The reason why this is more complicated than the ML toolbox's rdsamp:
+    # That one only accepts a few fields, and sets defaults for the rest. 
+    # This one accepts any combination of fields and tries to set what it can. Also does checking. 
         
         
         
