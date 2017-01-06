@@ -87,64 +87,7 @@ class WFDBbaserecord():
 
         return reqfields
             
-    # Set the single field specified if possible. Most fields do not have an automatically set value. 
-    # This function should only be called on fields == none. It should NOT be used to overwrite set fields. 
-    def setfield(self, field):
-
-        # if the field cannot be set, return without doing anything. 
-
-        if field == 'nseg':
-            checkfield(self, 'segments')
-            self.nseg = len(self.nsegments)
-
-        elif field == 'nsig':
-            if self.signals == None:
-                self.nsig=0
-            else:
-                checkfield(self, 'signals')
-                self.nsig = np.shape(self.signals)[1]
-
-        elif field == 'siglen':    
-
-
-        elif field == 'basetime':  
-            self.basetime = '00:00:00'
-
-        elif field == 'filename':  
-            checkfield(self, 'recordname')
-            checkfield(nsig)
-            self.filename = [self.recordname+'.dat']*nsig
-
-        elif field == 'fmt':      
-
-        elif field == 'adcgain':    
-        elif field == 'baseline':  
-        elif field == 'units':
-            checkfield(nsig)
-            print('Note: Setting units to nU or no units. If there are units please set them.')
-            self.units = ['nU']*nsig
-
-        elif field == 'adcres':  
-        elif field == 'adczero':      
-            self.adczero = [0]*nsig
-        elif field == 'initvalue':
-            checkfield(signals)
-
-            if signals:
-                self.initvalue = list(signals[0,:])
-
-        elif field == 'checksum':  
-            checkfield(signals)
-
-        elif field == 'blocksize':
-            self.blocksize = [0]*nsig
-
-        # Not filling in channel names.  
-
-        elif field == 'seglen':  
-            self.seglen=[]
-            for s in self.segments:
-                self.seglen.append(np.shape(s)[])
+   
       
     # Check the single field specified. 
     def checkfield(self, field):
@@ -271,15 +214,6 @@ class WFDBrecord(WFDBbaserecord):
         # Check whether the fields' values are valid. 
         _checkfieldvalues(self, fieldstocheck)
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
                 
     # Return a list of all the fields this class is allowed to have    
     def getallowedfields():
@@ -362,7 +296,7 @@ recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True, 0]
                          ('siglen', WFDBfield([[int], ' ', 'fs', True, 1])),
                          ('basetime', WFDBfield([[str], ' ', 'siglen', False, 2])),
                          ('basedate', WFDBfield([[str], ' ', 'basetime', False, 0]))])
-# Signal specification fields 
+# Signal specification fields. May be np.ndarrays or lists. Or scalars if nsig = 1???  
 sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True, 2])),
                          ('fmt', WFDBfield([[int, str], ' ', 'filename', True, 2])),
                          ('sampsperframe', WFDBfield([[int], 'x', 'fmt', False, 0])),
