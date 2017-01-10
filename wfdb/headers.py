@@ -6,32 +6,7 @@ import requests
 from collections import OrderedDict
 
         
-# The old confused fields ....####################
-WFDBfields = {
-        'recordname': [],
-        'nseg': [],
-        'nsig': [],
-        'fs': [],
-        'siglen': [],
-        'basetime': [],
-        'basedate': [],
-    
-        'filename': [],
-        'fmt': [],
-        'sampsperframe': [],
-        'skew': [],
-        'byteoffset': [],
-        'gain': [],
-        'units': [],
-        'baseline': [],
-        'initvalue': [],
-        'signame': [],
-        'nsampseg': [],
-        'comments': []}
-#########################################            
-    
-    
-# The base WFDB class to extend. Containings common helper functions and fields.             
+# The base WFDB class to extend. Contains shared helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
     
@@ -156,7 +131,8 @@ class WFDBbaserecord():
 class WFDBrecord(WFDBbaserecord):
     
     # Constructor
-    def __init__(self, signals=None, recordname=None, nsig=None, 
+    def __init__(self, signals=None, isphysical=1, recordname=None, 
+                 nsig=None, 
                  fs=None, counterfreq=None, basecounter=None, 
                  siglen=None, basetime=None, basedate=None, 
                  filename=None, fmt=None, sampsperframe=None, 
@@ -174,6 +150,7 @@ class WFDBrecord(WFDBbaserecord):
               comments = comments)
         
         self.signals = signals
+        self.isphysical = isphysical
         
         self.filename=filename
         self.fmt=fmt
@@ -262,55 +239,49 @@ class WFDBfieldspecs():
         # Data types the field can take
         self.allowedtypes = speclist[0]
         
-        # The text delimiter that preceeds the field
+        # The text delimiter that preceeds the field if it is a field that gets written to header files.
         self.delimiter = speclist[1]
         
         # The required/dependent field which must also be present
         self.dependency = speclist[2]
         
         # Whether the field is mandatory for writing a header (WFDB requirements + extra rules enforced by this library).
-        # Being required for writing is not the same as the user having to specify via wrsamp/wrhea. These functions can set defaults.
+        # Being required for writing is not the same as the user having to specify via wrsamp/wrhea.
         self.write_req = speclist[3]
         
-        # Whether there is a default value for this field that can be inferred or calculated, and also whether ther setfield function will actually set the field. 
-        # 0 = no, 1 = yes but only if signals is present, 2 = yes without needing signals (although it may still use it).  
-        # Watch out for: adcgain, baseline. Set them to 1 but have a check statement in the function. Should be 0 if isdigital.
-        # sampsperframe, skew, and byteoffset do have defaults but the setfields will not return anything because we do not want to write anything. So value = 0. Conversely when reading, these fields will be left as None if not present. 
-        # This field is used to see if we can call the 'setfield' function on that field.
-        self.has_write_default = speclist[4]
-         
-
-# The signal field
-signalspecs = OrderedDict([('signal', WFDBfield([[np.ndarray], '', None, False, 2]))])
+        
+# The signal field and its physical indicator
+signalspecs = OrderedDict([('signal', WFDBfield([[np.ndarray], None, None, False])),
+                          ('physical', WFDBfield([[bool], None, None, False]))])
 
 # The segment field. A list of WFDBrecord objects
-segmentspecs = OrderedDict([('segment', WFDBfield([[list], '', None, True, 2]))])
+segmentspecs = OrderedDict([('segment', WFDBfield([[list], None, None, True]))])
 
 # Record specification fields            
-recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True, 0])),
-                         ('nseg', WFDBfield([[int], '/', 'recordname', True, 0])), # Essential for multi but not present in single.
-                         ('nsig', WFDBfield([[int], ' ', 'recordname', True, 1])),
-                         ('fs', WFDBfield([[int, float], ' ', 'nsig', True, 0])),
-                         ('counterfreq', WFDBfield([[int, float], '/', 'fs', False, 0])),
-                         ('basecounter', WFDBfield([[int, float], '(', 'counterfreq', False, 0])),
-                         ('siglen', WFDBfield([[int], ' ', 'fs', True, 1])),
-                         ('basetime', WFDBfield([[str], ' ', 'siglen', False, 2])),
-                         ('basedate', WFDBfield([[str], ' ', 'basetime', False, 0]))])
+recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True])),
+                         ('nseg', WFDBfield([[int], '/', 'recordname', True])), # Essential for multi but not present in single.
+                         ('nsig', WFDBfield([[int], ' ', 'recordname', True])),
+                         ('fs', WFDBfield([[int, float], ' ', 'nsig', True])),
+                         ('counterfreq', WFDBfield([[int, float], '/', 'fs', False])),
+                         ('basecounter', WFDBfield([[int, float], '(', 'counterfreq', False])),
+                         ('siglen', WFDBfield([[int], ' ', 'fs', True])),
+                         ('basetime', WFDBfield([[str], ' ', 'siglen', False])),
+                         ('basedate', WFDBfield([[str], ' ', 'basetime', False]))])
 # Signal specification fields. May be np.ndarrays or lists. Or scalars if nsig = 1???  
-sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True, 2])),
-                         ('fmt', WFDBfield([[int, str], ' ', 'filename', True, 2])),
-                         ('sampsperframe', WFDBfield([[int], 'x', 'fmt', False, 0])),
-                         ('skew', WFDBfield([[int], ':', 'fmt', False, 0])),
-                         ('byteoffset', WFDBfield([[int], '+', 'fmt', False, 0])),
-                         ('adcgain', WFDBfield([[int], ' ', 'fmt', True, 1])),
-                         ('baseline', WFDBfield([[int], '(', 'adcgain', True, 1])),
-                         ('units', WFDBfield([[str], '/', 'adcgain', True, 2])),
-                         ('adcres', WFDBfield([[int], ' ', 'adcgain', False, 2])),
-                         ('adczero', WFDBfield([[int], ' ', 'adcres', False, 2])),
-                         ('initvalue', WFDBfield([[int], ' ', 'adczero', False, 1])),
-                         ('checksum', WFDBfield([[int], ' ', 'initvalue', False, 1])),
-                         ('blocksize', WFDBfield([[int], ' ', 'checksum', False, 2])),
-                         ('signame', WFDBfield([[str], ' ', 'blocksize', False, 1]))])
+sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True])),
+                         ('fmt', WFDBfield([[int, str], ' ', 'filename', True])),
+                         ('sampsperframe', WFDBfield([[int], 'x', 'fmt', False])),
+                         ('skew', WFDBfield([[int], ':', 'fmt', False])),
+                         ('byteoffset', WFDBfield([[int], '+', 'fmt', False])),
+                         ('adcgain', WFDBfield([[int], ' ', 'fmt', True])),
+                         ('baseline', WFDBfield([[int], '(', 'adcgain', True])),
+                         ('units', WFDBfield([[str], '/', 'adcgain', True])),
+                         ('adcres', WFDBfield([[int], ' ', 'adcgain', False])),
+                         ('adczero', WFDBfield([[int], ' ', 'adcres', False])),
+                         ('initvalue', WFDBfield([[int], ' ', 'adczero', False])),
+                         ('checksum', WFDBfield([[int], ' ', 'initvalue', False])),
+                         ('blocksize', WFDBfield([[int], ' ', 'checksum', False])),
+                         ('signame', WFDBfield([[str], ' ', 'blocksize', False]))])
     
 # Segment specification fields
 segfieldspecs = OrderedDict([('segname', WFDBfield([[str], '', None, True, 0])),
