@@ -3,7 +3,7 @@ import re
 import os
 import sys
 import requests
-from collections import OrderedDict
+from collections import OrderedDict, OrderedSet
 
         
 # The base WFDB class to extend. Contains shared helper functions and fields.             
@@ -70,7 +70,6 @@ class WFDBbaserecord():
         if field == 'signals':
 
         elif field == 'segments':
-
 
         elif field == 'recordname':
         elif field == 'nseg':
@@ -267,13 +266,13 @@ recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True])),
                          ('siglen', WFDBfield([[int], ' ', 'fs', True])),
                          ('basetime', WFDBfield([[str], ' ', 'siglen', False])),
                          ('basedate', WFDBfield([[str], ' ', 'basetime', False]))])
-# Signal specification fields. May be np.ndarrays or lists. Or scalars if nsig = 1???  
+# Signal specification fields. Type will be list. Maybe numpy nd array?
 sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True])),
                          ('fmt', WFDBfield([[int, str], ' ', 'filename', True])),
                          ('sampsperframe', WFDBfield([[int], 'x', 'fmt', False])),
                          ('skew', WFDBfield([[int], ':', 'fmt', False])),
                          ('byteoffset', WFDBfield([[int], '+', 'fmt', False])),
-                         ('adcgain', WFDBfield([[int], ' ', 'fmt', True])),
+                         ('adcgain', WFDBfield([[int, float], ' ', 'fmt', True])),
                          ('baseline', WFDBfield([[int], '(', 'adcgain', True])),
                          ('units', WFDBfield([[str], '/', 'adcgain', True])),
                          ('adcres', WFDBfield([[int], ' ', 'adcgain', False])),
@@ -283,18 +282,18 @@ sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True])),
                          ('blocksize', WFDBfield([[int], ' ', 'checksum', False])),
                          ('signame', WFDBfield([[str], ' ', 'blocksize', False]))])
     
-# Segment specification fields
+# Segment specification fields. Type will be list. 
 segfieldspecs = OrderedDict([('segname', WFDBfield([[str], '', None, True, 0])),
                          ('seglen', WFDBfield([[int], ' ', 'segname', True, 0]))])
 # Comment field
 comfieldspecs = OrderedDict([('comments', WFDBfield([[int], '', None, False, False]))])
 
-
+# I don't think I need these ... I need something else
 singlefieldspeclist = [signalspecs.copy(), recfieldspecs.copy(), sigfieldspecs.copy(), comfieldspecs.copy()]
 del(singlefieldspeclist[1]['nseg']
 multifieldspeclist = [segmentspecs.copy(), recfieldspecs.copy(), segfieldspecs.copy(), comfieldspecs.copy()]
 
-
+allfieldspecs = mergeODlist([signalspecs, segmentspecs, recfieldspecs, sigfieldspecs, segfieldspecs, comfieldspecs])
 
 
 # The useful summary information contained in a wfdb record.
@@ -377,6 +376,7 @@ def wrmultiheader(recinfo, targetdir=os.cwd(), setinfo=0):
 
     
 # Merge the ordered dictionaries in a list into one ordered dictionary. 
+# Belongs to the module
 def _mergeODlist(ODlist):
     mergedOD=ODlist[0].copy()
     for od in ODlist[1:]:
