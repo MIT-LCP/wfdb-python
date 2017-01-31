@@ -63,74 +63,14 @@ class WFDBbaserecord():
         return reqfields
             
    
-      
-    # Check the single field specified. 
-    def checkfield(self, field):
-
-        if field == 'signals':
-
-        elif field == 'segments':
-
-        elif field == 'recordname':
-        elif field == 'nseg':
-        elif field == 'nsig':
-        elif field == 'fs':
-        elif field == 'counterfreq':
-        elif field == 'basecounter':
-        elif field == 'siglen':    
-        elif field == 'basetime':  
-        elif field == 'basedate': 
-
-        elif field == 'filename':  
-        elif field == 'fmt':      
-        elif field == 'sampsperframe':  
-        elif field == 'skew':  
-        elif field == 'byteoffset':  
-        elif field == 'adcgain':    
-        elif field == 'baseline':  
-        elif field == 'units':  
-        elif field == 'adcres':  
-        elif field == 'adczero':      
-        elif field == 'initvalue':  
-        elif field == 'checksum':  
-        elif field == 'blocksize':
-        elif field == 'signame': 
-
-
-        elif field == 'segname':      
-        elif field == 'seglen':  
-
-        elif field == 'comments':
-            
-            
-    # Check for and possibly remove foreign fields
-    def _checkforeignfields(self, allowedfields, objecttype):
-        for f in vars(self)
-            if f not in allowedfields:
-                choice = []
-                while choice not in ['y','n', 'a']:
-                    choice = input("Foreign attribute '"+f+"' in "+objecttype+" object not allowed.\n"
-                                   "Remove attribute? [y = yes, n = no, a = remove all foreign fields]: ")
-                if choice=='y':
-                    delattr(self, f)
-                elif choice=='n':
-                    sys.exit('Exiting. '+objecttype+' objects may only contain the following attributes:\n'+allowedfields)
-                else:
-                    _clearforeignfields(self, allowedfields)
-    
-    # Remove all the foreign user added fields in the object
-    def _clearforeignfields(self, allowedfields):
-        for f in vars(self):
-            if f not in allowedfields:
-                delattr(self, f)         
-            
+       
             
             
 # Class representing a single segment WFDB record.
 class WFDBrecord(WFDBbaserecord):
     
     # Constructor
-    def __init__(self, signals=None, isphysical=1, recordname=None, 
+    def __init__(self, p_signals=None, d_signals=None, recordname=None, 
                  nsig=None, 
                  fs=None, counterfreq=None, basecounter=None, 
                  siglen=None, basetime=None, basedate=None, 
@@ -148,8 +88,8 @@ class WFDBrecord(WFDBbaserecord):
               siglen = siglen, basetime = basetime, basedate = basedate, 
               comments = comments)
         
-        self.signals = signals
-        self.isphysical = isphysical
+        self.p_signals = p_signals
+        self.d_signals = d_signals
         
         self.filename=filename
         self.fmt=fmt
