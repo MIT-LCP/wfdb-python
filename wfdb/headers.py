@@ -3,7 +3,8 @@ import re
 import os
 import sys
 import requests
-from collections import OrderedDict, OrderedSet
+from collections import OrderedDict
+from calendar import monthrange
 
         
 # The base WFDB class to extend. Contains shared helper functions and fields.             
@@ -194,7 +195,7 @@ signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, Non
                           ('d_signals', WFDBfieldspecs([[np.ndarray], None, None, False]))])
 
 # The segment field. A list of WFDBrecord objects?
-segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[list], None, None, True]))])
+segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[WFDBrecord], None, None, True]))])
 
 # Record specification fields            
 recfieldspecs_m = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
