@@ -189,51 +189,56 @@ class WFDBfieldspecs():
         self.write_req = speclist[3]
         
         
-# The signal field and its physical indicator
-signalspecs = OrderedDict([('signal', WFDBfield([[np.ndarray], None, None, False])),
-                          ('physical', WFDBfield([[bool], None, None, False]))])
+# The physical and digital signals.
+signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, None, False])),
+                          ('d_signals', WFDBfieldspecs([[np.ndarray], None, None, False]))])
 
-# The segment field. A list of WFDBrecord objects
-segmentspecs = OrderedDict([('segment', WFDBfield([[list], None, None, True]))])
+# The segment field. A list of WFDBrecord objects?
+segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[list], None, None, True]))])
 
 # Record specification fields            
-recfieldspecs = OrderedDict([('recordname', WFDBfield([[str], '', None, True])),
-                         ('nseg', WFDBfield([[int], '/', 'recordname', True])), # Essential for multi but not present in single.
-                         ('nsig', WFDBfield([[int], ' ', 'recordname', True])),
-                         ('fs', WFDBfield([[int, float], ' ', 'nsig', True])),
-                         ('counterfreq', WFDBfield([[int, float], '/', 'fs', False])),
-                         ('basecounter', WFDBfield([[int, float], '(', 'counterfreq', False])),
-                         ('siglen', WFDBfield([[int], ' ', 'fs', True])),
-                         ('basetime', WFDBfield([[str], ' ', 'siglen', False])),
-                         ('basedate', WFDBfield([[str], ' ', 'basetime', False]))])
+recfieldspecs_m = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
+                         ('nseg', WFDBfieldspecs([[int], '/', 'recordname', True])),
+                         ('nsig', WFDBfieldspecs([[int], ' ', 'recordname', True])),
+                         ('fs', WFDBfieldspecs([[int, float], ' ', 'nsig', True])),
+                         ('counterfreq', WFDBfieldspecs([[int, float], '/', 'fs', False])),
+                         ('basecounter', WFDBfieldspecs([[int, float], '(', 'counterfreq', False])),
+                         ('siglen', WFDBfieldspecs([[int], ' ', 'fs', True])),
+                         ('basetime', WFDBfieldspecs([[str], ' ', 'siglen', False])),
+                         ('basedate', WFDBfieldspecs([[str], ' ', 'basetime', False]))])
+
+recfieldspecs_s = recfieldspecs_m.copy()
+def(recfieldspecs_s['nseg']) # nseg is essential for multi but not present in single.
+
 # Signal specification fields. Type will be list. Maybe numpy nd array?
-sigfieldspecs = OrderedDict([('filename', WFDBfield([[str], '', None, True])),
-                         ('fmt', WFDBfield([[int, str], ' ', 'filename', True])),
-                         ('sampsperframe', WFDBfield([[int], 'x', 'fmt', False])),
-                         ('skew', WFDBfield([[int], ':', 'fmt', False])),
-                         ('byteoffset', WFDBfield([[int], '+', 'fmt', False])),
-                         ('adcgain', WFDBfield([[int, float], ' ', 'fmt', True])),
-                         ('baseline', WFDBfield([[int], '(', 'adcgain', True])),
-                         ('units', WFDBfield([[str], '/', 'adcgain', True])),
-                         ('adcres', WFDBfield([[int], ' ', 'adcgain', False])),
-                         ('adczero', WFDBfield([[int], ' ', 'adcres', False])),
-                         ('initvalue', WFDBfield([[int], ' ', 'adczero', False])),
-                         ('checksum', WFDBfield([[int], ' ', 'initvalue', False])),
-                         ('blocksize', WFDBfield([[int], ' ', 'checksum', False])),
-                         ('signame', WFDBfield([[str], ' ', 'blocksize', False]))])
+sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True])),
+                         ('fmt', WFDBfieldspecs([[int, str], ' ', 'filename', True])),
+                         ('sampsperframe', WFDBfieldspecs([[int], 'x', 'fmt', False])),
+                         ('skew', WFDBfieldspecs([[int], ':', 'fmt', False])),
+                         ('byteoffset', WFDBfieldspecs([[int], '+', 'fmt', False])),
+                         ('adcgain', WFDBfieldspecs([[int, float], ' ', 'fmt', True])),
+                         ('baseline', WFDBfieldspecs([[int], '(', 'adcgain', True])),
+                         ('units', WFDBfieldspecs([[str], '/', 'adcgain', True])),
+                         ('adcres', WFDBfieldspecs([[int], ' ', 'adcgain', False])),
+                         ('adczero', WFDBfieldspecs([[int], ' ', 'adcres', False])),
+                         ('initvalue', WFDBfieldspecs([[int], ' ', 'adczero', False])),
+                         ('checksum', WFDBfieldspecs([[int], ' ', 'initvalue', False])),
+                         ('blocksize', WFDBfieldspecs([[int], ' ', 'checksum', False])),
+                         ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
     
 # Segment specification fields. Type will be list. 
-segfieldspecs = OrderedDict([('segname', WFDBfield([[str], '', None, True, 0])),
-                         ('seglen', WFDBfield([[int], ' ', 'segname', True, 0]))])
+segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True, 0])),
+                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True, 0]))])
 # Comment field
-comfieldspecs = OrderedDict([('comments', WFDBfield([[int], '', None, False, False]))])
+comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[int], '', None, False, False]))])
+
+
 
 # I don't think I need these ... I need something else
-singlefieldspeclist = [signalspecs.copy(), recfieldspecs.copy(), sigfieldspecs.copy(), comfieldspecs.copy()]
-del(singlefieldspeclist[1]['nseg']
-multifieldspeclist = [segmentspecs.copy(), recfieldspecs.copy(), segfieldspecs.copy(), comfieldspecs.copy()]
-
-allfieldspecs = mergeODlist([signalspecs, segmentspecs, recfieldspecs, sigfieldspecs, segfieldspecs, comfieldspecs])
+#singlefieldspeclist = [signalspecs.copy(), recfieldspecs.copy(), sigfieldspecs.copy(), comfieldspecs.copy()]
+#del(singlefieldspeclist[1]['nseg']
+#multifieldspeclist = [segmentspecs.copy(), recfieldspecs.copy(), segfieldspecs.copy(), comfieldspecs.copy()]
+#allfieldspecs = mergeODlist([signalspecs, segmentspecs, recfieldspecs, sigfieldspecs, segfieldspecs, comfieldspecs])
 
 
 # The useful summary information contained in a wfdb record.
