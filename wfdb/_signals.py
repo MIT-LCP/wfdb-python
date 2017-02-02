@@ -44,7 +44,7 @@ class Signals_Mixin():
             print('d_signals.shape: ', self.d_signals.shape)
             sys.exit()
 
-        # For each channel, make sure there are no values out of bounds for the digital format
+        # For each channel (if any), make sure the digital format has no values out of bounds
         for ch in range(0, self.nsig):
             fmt = self.fmt[ch]
             dmin, dmax = digi_bounds(fmt)
@@ -54,92 +54,74 @@ class Signals_Mixin():
             if (chmin < dmin) or (chmax > dmax):
                 sys.exit("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
                     
+        # Ensure that the checksums and initial value fields match the digital signal
+        if self.nsig>0:
+            realchecksum = calc_checksum(self.d_signals)
+            if self.checksum != realchecksum:
+                print("checksum field does not match actual checksum(s) of d_signals: ", realchecksum)
+                sys.exit()
+            realinitvalues = list(self.d_signals[0,:])
+            if self.initvalues != realinitvalues:
+                print("initvalue field does not match actual initvalue(s) of d_signals: ", realinitvalue)
+                sys.exit()
+
+
+    # Using p_signals and potentially fmt, compute optimal gain and baseline, and use them to perform ADC. 
+    # Using the calculated results, set: siglen, nsig, gain, baseline, and d_signals. 
+    # If fmt has been set, it will be 
+    def set_adc_fields(self):
+
+        request_approval('This method will set the following fields: siglen, nsig, gain, baseline, and d_signals. Continue?')
+
+        # First, check the physical signal
+        self.checkfield('p_signals') 
+            
+        # Fields potentially set via p_signals: nsig, siglen, d_signals, fmt, gain, baseline, initvalue, checksum
+        
+        self.nsig = p_signals.shape[1]
+        self.siglen = p_signals.shape[0]
+        
+        # fmt is necessary to obtain gain and baseline.
+        if self.fmt == 'None':
+            res = estres(self.signals)
+            self.fmt = self.nsig*[wfdbfmt(max(res))]
+        else:
+            self.checkfield('fmt') 
 
         
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    # Use the chosen signals fields to potentially set missing required fields
-    # This method WILL overwrite fields
-    # Separate out the adc? 
-    def setsignalfeatures(self, writefields):
+        # Check fmt before performing adc. No need to check gain and baseline which are automatically calculated.
+        self.checkfield('fmt')
         
-        # Physical signal
-        if usesignals == 1:
-            
-            # First, check the signal
-            errormsg = self.checkfield(self, p_signals) 
-            if errormsg:
-                sys.exit(errormsg)
-                
-            # Fields potentially set via p_signals: nsig, siglen, d_signals, fmt, gain, baseline, initvalue, checksum
-            
-            self.nsig = p_signals.shape[1]
-            self.siglen = p_signals.shape[0]
-            
-            # fmt is necessary to obtain gain and baseline.
-            if self.fmt == 'None':
-                res = estres(self.signals)
-                self.fmt = self.nsig*[wfdbfmt(max(res))]
-            else:
-                errormsg = self.checkfield('fmt', 0) 
-                if errormsg:
-                    sys.exit(errormsg)
-            
-            # Check fmt before performing adc. No need to check gain and baseline which are automatically calculated.
-            self.checkfield('fmt', 0)
-            
-            # Do ADC and store value in d_signals. 
-            print('Calculating optimal gain and baseline values to convert physical signal...')
-            self.gain, self.baseline = adcparams(self.p_signals, self.fmt)
-            print('Performing ADC and storing result in d_signals field...')
-            self.d_signals = self.adc()
-            
-            if 'initvalue' in writefields:
-                self.initvalue = list(self.d_signals[0,:])
-            if 'checksum' in writefields:
-                self.checksum = calc_checksum(self.d_signals)
-
-        # Digital signal
-        elif usesignals == 2:
-
-            # First, check the signal
-            errormsg = self.checkfield(self, d_signals) 
-            if errormsg:
-                sys.exit(errormsg)
-                
-            # Fields potentially set via d_signals: nsig, siglen, initvalue, checksum
-
-            self.nsig = d_signals.shape[1]
-            self.siglen = d_signals.shape[0]
-            if 'initvalue' in writefields:
-                self.initvalue = list(self.d_signals[0,:])
-            if 'checksum' in writefields:
-                self.checksum = calc_checksum(self.d_signals) 
+        # Do ADC and store value in d_signals. 
+        print('Calculating optimal gain and baseline values to convert physical signal...')
+        self.gain, self.baseline = adcparams(self.p_signals, self.fmt)
+        print('Performing ADC and storing result in d_signals field...')
+        self.d_signals = self.adc()
         
-        # No need to call checkfieldcohesion here. It will be called at the end of wrheader. 
+        if 'initvalue' in writefields:
+            self.initvalue = list(self.d_signals[0,:])
+        if 'checksum' in writefields:
+            self.checksum = calc_checksum(self.d_signals)
+
+
+    # Using gain, baseline, and d_signals, perform DAC.
+    # Using the calculated result, set: nsig, siglen, p_signals.
+    def set_dac_fields(self):
+
+        request_approval('This method will set the following fields: siglen, nsig, and p_signals. Continue?')
+
+        # First, check the digital signal
+        self.checkfield('d_signals') 
+
+        # Fields potentially set via d_signals: nsig, siglen, initvalue, checksum
+
+        self.nsig = d_signals.shape[1]
+        self.siglen = d_signals.shape[0]
+        if 'initvalue' in writefields:
+            self.initvalue = list(self.d_signals[0,:])
+        if 'checksum' in writefields:
+            self.checksum = calc_checksum(self.d_signals) 
         
-        return
 
 
 # Return min and max digital values for each format type.
@@ -173,4 +155,7 @@ def digi_nan(fmt):
         return -8388608
     elif fmt == '32':
         return -2147483648
-    
+
+# Calculate the checksums of a multi-channel digital signal
+def calc_checksum(signals):
+    return list(np.sum(signals, 0) % 65536)

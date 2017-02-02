@@ -77,7 +77,6 @@ comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[int], '', None, False
 
 
 
-
 # The base WFDB class to extend to create WFDBrecord and WFDBmultirecord. Contains shared helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
@@ -100,17 +99,21 @@ class WFDBbaserecord():
         # Individual specific field checks:
         if field == 'd_signals':
             # Check shape
+            if self.d_signals.ndim == 1:
+                request_approval('d_signals is a 1d array. Convert to 2d?')
+                self.d_signals.shape = [-1,1]  
             if self.d_signals.ndim != 2:
-                errormsg = "signals must be a 2d numpy array"
-                return errormsg
+                sys.exit("signals must be a 2d numpy array")
             # Check dtype
             if self.d_signals.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                errormsg = 'd_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.'
-                return errormsg     
+                sys.exit('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
         elif field =='p_signals':        
             # Check shape
+            if self.p_signals.ndim == 1:
+                request_approval('d_signals is a 1d array. Convert to 2d?')
+                self.p_signals.shape = [-1,1]  
             if self.p_signals.ndim != 2:
-                errormsg = "signals must be a 2d numpy array"
+                sys.exit("signals must be a 2d numpy array")
             
         # Add this later. 
         #elif field == 'segment':
@@ -119,25 +122,25 @@ class WFDBbaserecord():
         elif field == 'recordname':       
             # Allow letters, digits, and underscores.
             if re.match('\w+', self.recordname).string != self.recordname:
-                errormsg = 'recordname must only comprise of letters, digits, and underscores.'
+                sys.exit('recordname must only comprise of letters, digits, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
-                errormsg = 'nseg must be a positive integer'
+                sys.exit('nseg must be a positive integer')
         elif field == 'nsig':
             if self.nsig <=0:
-                errormsg = 'nsig must be a positive integer'
+                sys.exit('nsig must be a positive integer')
         elif field == 'fs':
             if self.fs<=0:
-                errormsg = 'fs must be a positive number'
+                sys.exit('fs must be a positive number')
         elif field == 'counterfreq':
             if self.counterfreq <=0:
-                errormsg = 'counterfreq must be a positive number'
+                sys.exit('counterfreq must be a positive number')
         elif field == 'basecounter':
             if self.basecounter <=0:
-                errormsg = 'basecounter must be a positive number' 
+                sys.exit('basecounter must be a positive number') 
         elif field == 'siglen':
             if self.siglen <=0:
-                errormsg = 'siglen must be a positive integer'
+                sys.exit('siglen must be a positive integer')
         elif field == 'basetime':
             _ = parsetimestring(self.basetime)
         elif field == 'basedate':
@@ -160,7 +163,7 @@ class WFDBbaserecord():
         elif field == 'sampsperframe':
             for f in self.sampsperframe:
                 if f < 1:
-                    sys.exit(errormsg = 'sampsperframe values must be positive integers')
+                    sys.exit('sampsperframe values must be positive integers')
                 sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
         elif field == 'skew':
             for f in self.skew:
@@ -390,4 +393,26 @@ def linestofile(filename, lines):
     f.close()              
                 
                 
-                
+# Display a message to the user, asking whether they would like to continue. 
+def request_approval(message):
+    
+    pyversion = sys.version_info[0]
+    if pyversion not in [2, 3]:
+        # Exit before printing the message if python is unsupported
+        sys.exit('This package is only supported for python 2 and 3')
+
+    print(message)
+    answer=[]
+    if sys.version_info[0] == 2:
+        while answer not in ['y', 'n']:
+            answer = raw_input('[y/n]: ')
+
+    else sys.version_info[0] == 3:
+        while answer not in ['y', 'n']:
+            answer = input('[y/n]: ')
+
+    if answer == 'y':
+        return
+    else:
+        sys.exit('Exiting')
+        
