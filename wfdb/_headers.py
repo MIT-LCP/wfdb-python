@@ -7,7 +7,7 @@ from collections import OrderedDict
 from calendar import monthrange
 
         
-# The base WFDB class to extend. Contains shared helper functions and fields.             
+# The base WFDB class to extend to create WFDBrecord and WFDBmultirecord. Contains shared helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
     
