@@ -12,6 +12,8 @@ import os
 import sys
 from collections import OrderedDict
 from calendar import monthrange
+import ._headers
+import ._signals
 
 # The specifications of a WFDB fields.
 class WFDBfieldspecs():
@@ -308,8 +310,9 @@ class WFDBrecord(WFDBbaserecord, _headers.Headers_Mixin, _signals.Signals_Mixin)
         # Perform field validity and cohesion checks, and write the header file.
         self.wrheader()
 
-        # Perform signal validity and cohesion checks, and write the associated dat files.
-        self.wrdats()
+        if self.nsig>0:
+            # Perform signal validity and cohesion checks, and write the associated dat files.
+            self.wrdats()
             
     
 
@@ -377,8 +380,14 @@ def parsedatestring(datestring):
                 
                 
                 
-                
-                
+  
+
+# Write each line in a list of strings to a text file
+def linestofile(filename, lines):
+    f = open(headername,'w')
+    for l in lines:
+        f.write("%s\n" % l)
+    f.close()              
                 
                 
                 

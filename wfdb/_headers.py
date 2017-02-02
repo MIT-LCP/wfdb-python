@@ -6,8 +6,7 @@ from collections import OrderedDict
 from calendar import monthrange
 
 
-
-# Class with header method definitions. 
+# Class with header methods
 # To be inherited by WFDBrecord from records.py. (May split this into multi and single header)
 class Headers_Mixin():
 
@@ -26,7 +25,6 @@ class Headers_Mixin():
         
         # Write the header file using the specified fields
         self.wrheaderfile(writefields)
-
 
 
     # Get the list of fields used to write the header. (Does NOT include d_signals.)
@@ -94,29 +92,62 @@ class Headers_Mixin():
     # Write a header file using the specified fields
     def writeheaderfile(self, writefields):
 
-        # Record specification line
+        headerlines=[]
+
+        # Create record specification line
         recordline = ''
-        # Traversing the ordered dictionary
+        # Traverse the ordered dictionary
         for field in recfieldspecs:
-            # Add the field with its delimiter
+            # If the field is being used, add it with its delimiter
             if field in writefields:
-                recordline = recordline + recfieldspecs[field].delimiter + fieldstring = lambda getattr(self, field)
+                recordline = recordline + recfieldspecs[field].delimiter + str(getattr(self, field))
+        headerlines.append(recordline)
 
+        # Create signal specification lines (if any)
+        if self.nsig>0:
+            signallines = self.nsig*['']
+            # Traverse the ordered dictionary
+            for field in sigfieldspecs:
+                # If the field is being used, add each of its elements with the delimiter to the appropriate line 
+                if field in writefields:
+                    for ch in range(0, nsig):
+                        signallines[ch]=signallines[ch] + recfieldspecs[field].delimiter + str(getattr(self, field)[ch])
+            headerlines = headerlines + signallines
 
-
-
-        # Signal specification fields
-
-        # Comment fields
-        commentlines = None
+        # Create comment lines (if any)
         if 'comments' in writefields
+            commentlines = ['# '+comment for comment in self.comments]
+            headerlines = headerlines + commentlines
+
+        linestofile(self.recordname+'.hea', headerlines)
 
 
+    # Set all defaults for dependent fields needed to write the header if they have defaults
+    # This is intended to be directly called by the user. 
+    def setdefaults(self):
+        for field in self.getwritefields():
+            # Should I skip set fields or just trigger a y/n message?
+            if getattr(self, field) != None:
+                self.setdefault(field)
 
 
-
-
-
+    # Set a field's default value if it has one
+    # This method WILL overwrite the field. To avoid this, do not call it on fields already set.
+    def setdefault(self, field):
+        
+        # Record specification fields
+        if field == 'basetime':
+            self.basetime = '00:00:00'
+            
+        # Signal specification fields    
+        elif field == 'filename':
+            self.filename = self.nsig*[self.recordname+'.dat']
+        elif field == 'adcres':
+            self.adcres=wfdbfmtres(self.fmt)
+        elif field == 'adczero':
+            self.adczero = self.nsig*[0]
+        elif field == 'blocksize':
+            self.blocksize = self.nsig*[0]
 
 
 
