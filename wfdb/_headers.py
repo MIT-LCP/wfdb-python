@@ -8,7 +8,7 @@ from calendar import monthrange
 
 # Class with header methods
 # To be inherited by WFDBrecord from records.py. (May split this into multi and single header)
-class Headers_Mixin():
+class HeadersMixin():
 
     # Write a wfdb header file. The signals fields are not used. 
     def wrheader(self):
@@ -70,7 +70,7 @@ class Headers_Mixin():
             # The length of all signal specification fields must match nsig
             for f in writefields:
                 if f in sigfieldspecs:
-                    if length(getattr(self, f)) != self.nsig:
+                    if len(getattr(self, f)) != self.nsig:
                         sys.exit('The length of field: '+f+' does not match field nsig.')
 
             # Each filename must correspond to only one fmt, and only one blocksize if defined. 
@@ -88,6 +88,47 @@ class Headers_Mixin():
                 else:
                     if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
                         sys.exit('Each filename (dat file) specified must have the same byte offset')
+
+    
+
+
+    # Set defaults for fields needed to write the header if they have defaults.
+    # Returns a list of fields set by this function.
+    # Set overwrite == 1 to enable overwriting of populated fields.
+    def setdefaults(self, overwrite = 0):
+        setfields = [] # The fields set
+        for field in self.getwritefields():
+            if setfields.append(self.setdefault(field)):
+                setfields.append(field)
+        return setfields
+
+    # Set a field to its default value if there is a default. Returns 1 if the field is set. 
+    # Set overwrite == 1 to enable overwriting of populated fields.
+    # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
+    def setdefault(self, field, overwrite = 0):
+        
+        # Check whether the field is empty before trying to set.
+        if overwrite == 0:
+            if getattr(self, field) != None:
+                return 0
+                
+        # Going to set the field. 
+        # Record specification fields
+        if field == 'basetime':
+            self.basetime = '00:00:00'
+        # Signal specification fields    
+        elif field == 'filename':
+            self.filename = self.nsig*[self.recordname+'.dat']
+        elif field == 'adcres':
+            self.adcres=wfdbfmtres(self.fmt)
+        elif field == 'adczero':
+            self.adczero = self.nsig*[0]
+        elif field == 'blocksize':
+            self.blocksize = self.nsig*[0]
+        # Most fields have no default. 
+        else:
+            return 0
+        return 1
 
     # Write a header file using the specified fields
     def writeheaderfile(self, writefields):
@@ -120,152 +161,3 @@ class Headers_Mixin():
             headerlines = headerlines + commentlines
 
         linestofile(self.recordname+'.hea', headerlines)
-
-
-    # Set all defaults for dependent fields needed to write the header if they have defaults
-    # This is intended to be directly called by the user. 
-    def setdefaults(self):
-        for field in self.getwritefields():
-            # Should I skip set fields or just trigger a y/n message?
-            if getattr(self, field) != None:
-                self.setdefault(field)
-
-
-    # Set a field's default value if it has one
-    # This method WILL overwrite the field. To avoid this, do not call it on fields already set.
-    def setdefault(self, field):
-        
-        # Record specification fields
-        if field == 'basetime':
-            self.basetime = '00:00:00'
-            
-        # Signal specification fields    
-        elif field == 'filename':
-            self.filename = self.nsig*[self.recordname+'.dat']
-        elif field == 'adcres':
-            self.adcres=wfdbfmtres(self.fmt)
-        elif field == 'adczero':
-            self.adczero = self.nsig*[0]
-        elif field == 'blocksize':
-            self.blocksize = self.nsig*[0]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
-            
-   
-    
-    
-    
-    
-
-
-
-
-
-# The useful summary information contained in a wfdb record.
-# Note: NOT a direct subset of WFDBrecord's fields. 
-infofields = [['recordname',
-               'nseg',
-               'nsig',
-               'fs',
-               'siglen',
-               'basetime',
-               'basedate'],
-              
-              ['filename',
-               'maxresolution',
-               'sampsperframe',
-               'units',
-               'signame'],
-              
-              ['segname',
-               'seglen'],
-              
-              ['comments']]
-
-
-
-
-
-        
-# Write a multi-segment wfdb header file. 
-def wrmultiheader(recinfo, targetdir=os.cwd(), setinfo=0):
-    
-    # Make sure user is not trying to write single segment headers. 
-    if getattr(recinfo, 'nseg')!=None:
-        if type(getattr(recinfo, 'nseg'))!= int:
-            
-            sys.exit("The 'nseg' field must be an integer.")
-            
-        if getattr(recinfo, 'nseg')==0:
-            
-            sys.exit("The 'nseg' field is 0. You cannot write a multi-segment header with zero segments.")
-            
-        elif getattr(recinfo, 'nseg')==1:
-            
-            print("Warning: The 'nseg' field is 1. You are attempting to write a multi-segment header which encompasses only one segment.\nContinuing ...")
-            
-    else:
-        sys.exit("Missing input field 'nseg' for writing multi-segment header.\nFor writing regular WFDB headers, use the 'wrheader' function.")
-                  
-    
-    WFDBfieldlist = [recfields.copy(), segfields.copy(), comfields.copy()]
-                  
-    
-    keycheckedfields = _checkheaderkeys(inputfields, WFDBfieldlist, setsigreqs, 1)
-    
-    # Check the header values
-    valuecheckedfields = checkheadervalues(keycheckedfields, WFDBfields, setsigreqs, 0)
-    
-    # check that each signal component has the same fs and the correct number of signals. 
-    
-    # Write the header file
-    
-    
-# Merge the ordered dictionaries in a list into one ordered dictionary. 
-# Belongs to the module
-def _mergeODlist(ODlist):
-    mergedOD=ODlist[0].copy()
-    for od in ODlist[1:]:
-        mergedOD.update(od)
-    return mergedOD
-                  
-
-            

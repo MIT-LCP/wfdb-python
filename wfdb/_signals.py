@@ -10,7 +10,7 @@ datformats = ["80","212","16","24","32"]
 
 # Class with signal methods
 # To be inherited by WFDBrecord from records.py.
-class Signals_Mixin():
+class SignalsMixin():
 
     def wrdats(self):
     
@@ -56,106 +56,339 @@ class Signals_Mixin():
                     
         # Ensure that the checksums and initial value fields match the digital signal
         if self.nsig>0:
-            realchecksum = calc_checksum(self.d_signals)
+            realchecksum = self.calc_checksum()
             if self.checksum != realchecksum:
-                print("checksum field does not match actual checksum(s) of d_signals: ", realchecksum)
+                print("checksum field does not match actual checksum of d_signals: ", realchecksum)
                 sys.exit()
-            realinitvalues = list(self.d_signals[0,:])
-            if self.initvalues != realinitvalues:
-                print("initvalue field does not match actual initvalue(s) of d_signals: ", realinitvalue)
+            realinitvalue = list(self.d_signals[0,:])
+            if self.initvalue != realinitvalue:
+                print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
                 sys.exit()
 
 
-    # Using p_signals and potentially fmt, compute optimal gain and baseline, and use them to perform ADC. 
-    # Using the calculated results, set: siglen, nsig, gain, baseline, and d_signals. 
-    # If fmt has been set, it will be 
-    def set_adc_fields(self):
 
-        request_approval('This method will set the following fields: siglen, nsig, gain, baseline, and d_signals. Continue?')
+    # Use properties of the p_signals field to set other fields: nsig, siglen
+    # If do_dac == 1, the d_signals field will be used to perform digital to analogue conversion
+    # to set the p_signals field, before using it. 
+    # Regarding dac conversion:
+    #     1. fmt, gain, and baseline must all be set in order to perform dac.
+    #        Unlike with adc, there is no way to infer these fields.
+    #     2. Using the fmt, gain and baseline fields, dac is performed, and p_signals is set.  
+    def set_p_features(self, do_dac = 0):
+        if do_dac == 1:
+            self.checkfield('d_signals')
+            self.checkfield('fmt')
+            self.checkfield('gain')
+            self.checkfield('baseline')
 
-        # First, check the physical signal
-        self.checkfield('p_signals') 
+            # All required fields are present and valid. Perform DAC
+            self.p_signals = self.dac()
+
+        # Use p_signals to set fields
+        self.checkfield('p_signals')
+        self.siglen = self.p_signals.shape[0]
+        self.nsig = self.p_signals.shape[1]
+
+
+    # Use properties of the d_signals field to set other fields: nsig, siglen, fmt*, initvalue*, checksum* 
+    # If do_adc == 1, the p_signals field will first be used to perform analogue to digital conversion
+    # to set the d_signals field, before using it. 
+    # Regarding adc conversion:
+    #     1. If fmt is unset, the most appropriate fmt for the signals will 
+    #        be calculated and the field will be set. If singlefmt ==1, only one 
+    #        fmt will be returned for all channels. If fmt is already set, it will be kept.
+    #     2. If either gain or baseline are missing, optimal gains and baselines 
+    #        will be calculated and the fields will be set. If they are already set, they will be kept.
+    #     3. Using the fmt, gain and baseline fields, adc is performed, and d_signals is set.   
+    def set_d_features(self, do_adc = 0, singlefmt = 1):
+
+        # adc is performed.
+        if do_adc == 1:
+            self.checkfield('p_signals')
+
+            # If there is no fmt, choose appropriate fmts. 
+            if self.fmt == None:
+                res = estres(self.p_signals)
+                self.fmt = wfdbfmt(res, singlefmt)
+            self.checkfield('fmt')
+
+            # If either gain or baseline are missing, compute and set optimal values
+            if self.gain == None or self.baseline == None:
+                print('Calculating optimal gain and baseline values to convert physical signal')
+                self.gain, self.baseline = self.calculate_adcparams()
+            self.checkfield('gain')
+            self.checkfield('baseline')
+
+            # All required fields are present and valid. Perform ADC
+            print('Performing ADC')
+            self.d_signals = self.adc()
+
+        # Use d_signals to set fields
+        self.checkfield('d_signals')
+        self.siglen = self.d_signals.shape[0]
+        self.nsig = self.d_signals.shape[1]
+        self.initvalue = list(self.d_signals[0,:])
+        self.checksum = self.calc_checksum() 
+
+
+
+
+
+    # Returns the analogue to digital conversion for the physical signal stored in p_signals. 
+    # The p_signals, fmt, gain, and baseline fields must all be valid.
+    def adc(self):
+        
+        # The digital nan values for each channel
+        dnans = digi_nan(self.fmt) 
+        
+        d_signals = self.p_signals * self.gain + self.baseline
+        
+        for ch in range(0, np.shape(self.p_signals)[1]):
+            # Nan values 
+            nanlocs = np.isnan(self.p_signals[:,ch])
+            if nanlocs.any():
+                d_signals[nanlocs,ch] = dnans[ch]
+        
+        return d_signals
+
+    # Returns the digital to analogue conversion for a WFDBrecord signal stored in d_signals
+    # The d_signals, fmt, gain, and baseline fields must all be valid.
+    def dac(self):
+        
+        # The digital nan values for each channel
+        dnans = digi_nan(fmt) 
+        
+        # Get nan indices, indicated by minimum value. 
+        nanlocs = self.d_signals == dnans
+        
+        p_signal = (self.signals - self.baseline)/self.gain
             
-        # Fields potentially set via p_signals: nsig, siglen, d_signals, fmt, gain, baseline, initvalue, checksum
+        p_signal[nanlocs] = np.nan
+                
+        return p_signal
+
+
+    # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
+    # self.fmt must be a list with length equal to the number of signal channels in self.p_signals 
+    def calculate_adcparams(self):
+             
+        # digital - baseline / gain = physical     
+        # physical * gain + baseline = digital
+
+        gains = []
+        baselines = []
         
-        self.nsig = p_signals.shape[1]
-        self.siglen = p_signals.shape[0]
+        # min and max ignoring nans, unless whole channel is nan. Should suppress warning message. 
+        minvals = np.nanmin(self.p_signals, axis=0) 
+        maxvals = np.nanmax(self.p_signals, axis=0)
         
-        # fmt is necessary to obtain gain and baseline.
-        if self.fmt == 'None':
-            res = estres(self.signals)
-            self.fmt = self.nsig*[wfdbfmt(max(res))]
-        else:
-            self.checkfield('fmt') 
-
+        dnans = digi_nan(fmt)
         
-        # Check fmt before performing adc. No need to check gain and baseline which are automatically calculated.
-        self.checkfield('fmt')
+        for ch in range(0, np.shape(self.p_signals)[1]):
+            dmin, dmax = digi_bounds(self.fmt[ch]) # Get the minimum and maximum (valid) storage values
+            dmin = dmin + 1 # add 1 because the lowest value is used to store nans
+            dnan = dnans[ch]
+            
+            pmin = minvals[ch]
+            pmax = maxvals[ch]
+            
+            # map values using full digital range.
+            
+            # If the entire signal is nan, just put any. 
+            if pmin == np.nan:
+                gain = 1 
+                baseline = 1
+            # If the signal is just one value, store all values as digital 1. 
+            elif pmin == pmax:
+                if minval ==0:
+                    gain = 1
+                    baseline = 1
+                else:
+                    gain = 1/minval # wait.. what if minval is 0... 
+                    baseline = 0 
+            else:
+                
+                gain = (dmax-dmin) / (pmax - pmin)
+                baseline = dmin - gain * pmin
+
+            # What about roundoff error? Make sure values don't map to beyond range. 
+            baseline = int(baseline) 
+            
+            # WFDB library limits...     
+            if abs(gain)>214748364 or abs(baseline)>2147483648:
+                sys.exit('Chen, please fix this')
+                    
+            gains.append(gain)
+            baselines.append(baseline)     
         
-        # Do ADC and store value in d_signals. 
-        print('Calculating optimal gain and baseline values to convert physical signal...')
-        self.gain, self.baseline = adcparams(self.p_signals, self.fmt)
-        print('Performing ADC and storing result in d_signals field...')
-        self.d_signals = self.adc()
+        return (gains, baselines)
+
+    # Return min and max digital values for each format type. Accepts lists.
+    def digi_bounds(self):
+        fmt = self.fmt
+        if type(fmt) == list:
+            digibounds = []
+            for f in fmt:
+                digibounds.append(digi_bounds(f))
+            return digibounds
+
+        if fmt == '80':
+            return (-128, 127)
+        elif fmt == '212':
+            return (-2048, 2047)
+        elif fmt == '16':
+            return (-32768, 32767)
+        elif fmt == '24':
+            return (-8388608, 8388607)
+        elif fmt == '32':
+            return (-2147483648, 2147483647)
         
-        if 'initvalue' in writefields:
-            self.initvalue = list(self.d_signals[0,:])
-        if 'checksum' in writefields:
-            self.checksum = calc_checksum(self.d_signals)
+    # Return nan value for the format type(s). 
+    def digi_nan(self):
+        fmt = self.fmt
+        if type(fmt) == list:
+            diginans = []
+            for f in fmt:
+                diginans.append(digi_nan(f))
+            return diginans
+            
+        if fmt == '80':
+            return -128
+        elif fmt == '212':
+            return -2048
+        elif fmt == '16':
+            return -32768
+        elif fmt == '24':
+            return -8388608
+        elif fmt == '32':
+            return -2147483648
+
+    # Calculate the checksum(s) of the d_signals field
+    def calc_checksum(self):
+        return list(np.sum(self.d_signals, 0) % 65536)
+
+    # Write each of the specified dat files
+    def wrdatfiles():
+
+        # Get a collection of the dat files to be written, and
+        # the channels to be written to each file. 
+        filenames, datchannels = orderedsetlist(self.filename)
+
+        for i in range(0, len(filenames)):
+            print(filenames[i]) 
+            print(fmt[min(datchannels[filenames[i]])])
+            print(sig[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
+
+            wrdatfile(filenames[i], self.fmt[min(datchannels[filenames[i]])], 
+                d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
 
 
-    # Using gain, baseline, and d_signals, perform DAC.
-    # Using the calculated result, set: nsig, siglen, p_signals.
-    def set_dac_fields(self):
 
-        request_approval('This method will set the following fields: siglen, nsig, and p_signals. Continue?')
-
-        # First, check the digital signal
-        self.checkfield('d_signals') 
-
-        # Fields potentially set via d_signals: nsig, siglen, initvalue, checksum
-
-        self.nsig = d_signals.shape[1]
-        self.siglen = d_signals.shape[0]
-        if 'initvalue' in writefields:
-            self.initvalue = list(self.d_signals[0,:])
-        if 'checksum' in writefields:
-            self.checksum = calc_checksum(self.d_signals) 
-        
-
-
-# Return min and max digital values for each format type.
-def digi_bounds(fmt):
-    if fmt == '80':
-        return (-128, 127)
-    elif fmt == '212':
-        return (-2048, 2047)
-    elif fmt == '16':
-        return (-32768, 32767)
-    elif fmt == '24':
-        return (-8388608, 8388607)
-    elif fmt == '32':
-        return (-2147483648, 2147483647)
+# Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits. 
+reslevels = np.power(2, np.arange(0,33))
+def estres(signals):
     
-# Return nan value for the format type (accepts lists) 
-def digi_nan(fmt):
-    if type(fmt) == list:
-        diginans = []
-        for f in fmt:
-            diginans.append(digi_nan(f))
-        return diginans
+    if signals.ndim ==1:
+        nsig = 1
+    else:
+        nsig = signals.shape[1]
+    res = nsig*[]
+    
+    for ch in range(0, nsig):
+        # Estimate the number of steps as the range divided by the minimum increment. 
+        sortedsig = np.sort(signals[:,ch])
+        min_inc = min(np.diff(sortedsig))
         
-    if fmt == '80':
-        return -128
-    elif fmt == '212':
-        return -2048
-    elif fmt == '16':
-        return -32768
-    elif fmt == '24':
-        return -8388608
-    elif fmt == '32':
-        return -2147483648
+        if min_inc == 0:
+            # Case where signal is flat. Resolution is 0.  
+            res.append(0)
+        else:
+            nlevels = 1 + (sortedsig[-1]-sortedsig[0])/min_inc
+            if nlevels>=reslevels[-1]:
+                res.append(32)
+            else:
+                res.append(np.where(reslevels>nlevels)[0][0])
+            
+    return res
 
-# Calculate the checksums of a multi-channel digital signal
-def calc_checksum(signals):
-    return list(np.sum(signals, 0) % 65536)
+
+# Return the most suitable wfdb format(s) to use given signal resolutions.
+# If singlefmt == 1, the format for the maximum resolution will be returned.
+def wfdbfmt(res, singlefmt = 1):
+
+    if type(res) == list:
+        # Return a single format
+        if singlefmt == 1:
+            res = [max(res)]*len(res)
+
+        fmts = []
+        for r in res:
+            fmts.append(wfdbfmt(r))
+        return fmts
+    
+    if res<=8:
+        return '80'
+    elif res<=12:
+        return '212'
+    elif res<=16:
+        return '16'
+    elif res<=24:
+        return '24'
+    else:
+        return '32'
+
+# Return the resolution of the WFDB format(s).
+def wfdbfmtres(fmt):
+
+    if type(fmt)==list:
+        res = []
+        for f in fmt:
+            res.append(wfdbfmtres(f))
+        return res
+    
+    if fmt in ['8', '80']:
+        return 8
+    elif fmt in ['310', '311']:
+        return 10
+    elif fmt == '212':
+        return 12
+    elif fmt in ['16', '61']:
+        return 16
+    elif fmt == '24':
+        return 24
+    elif fmt == '32':
+        return 32
+    else:
+        sys.exit('Invalid WFDB format.')
+
+# Write a dat file.
+def wrdatfile(filename, fmt, d_signals):
+    f=open(filename,'wb')
+    
+    # All bytes are written one at a time
+    # to avoid endianness issues.
+    nsig = d_signals.shape[1]
+
+    if fmt == '80':
+        d_signals = d_signals.astype('int8')
+        np.tofile(f, d_signals)
+    
+    # These 3 formats are written in two's compliment form
+    elif fmt == '16':
+        b1 = d_signals & nsig*[255]
+
+        d_signals = d_signals.astype('int16')
+        np.tofile(f, d_signals)
+    
+    elif fmt == '24':
+        d_signals = d_signals.astype('int16')
+        np.tofile(f, d_signals)
+    
+    elif fmt == '32':
+        d_signals = d_signals.astype('int32')
+        np.tofile(f, d_signals)
+
+
+    
+
+    f.close()

@@ -68,11 +68,11 @@ sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True]
                          ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
     
 # Segment specification fields. Type will be list. 
-segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True, 0])),
-                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True, 0]))])
+segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True])),
+                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True]))])
 
 # Comment field. Type will be list.
-comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[int], '', None, False, False]))])
+comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[str], None, None, False]))])
 
 
 
@@ -99,9 +99,6 @@ class WFDBbaserecord():
         # Individual specific field checks:
         if field == 'd_signals':
             # Check shape
-            if self.d_signals.ndim == 1:
-                request_approval('d_signals is a 1d array. Convert to 2d?')
-                self.d_signals.shape = [-1,1]  
             if self.d_signals.ndim != 2:
                 sys.exit("signals must be a 2d numpy array")
             # Check dtype
@@ -109,9 +106,6 @@ class WFDBbaserecord():
                 sys.exit('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
         elif field =='p_signals':        
             # Check shape
-            if self.p_signals.ndim == 1:
-                request_approval('d_signals is a 1d array. Convert to 2d?')
-                self.p_signals.shape = [-1,1]  
             if self.p_signals.ndim != 2:
                 sys.exit("signals must be a 2d numpy array")
             
@@ -267,7 +261,7 @@ class WFDBbaserecord():
 
 
 # Class for single segment WFDB records.
-class WFDBrecord(WFDBbaserecord, _headers.Headers_Mixin, _signals.Signals_Mixin):
+class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
     
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
@@ -317,13 +311,38 @@ class WFDBrecord(WFDBbaserecord, _headers.Headers_Mixin, _signals.Signals_Mixin)
             # Perform signal validity and cohesion checks, and write the associated dat files.
             self.wrdats()
             
-    
+    # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
+    # 1. Initiate the WFDBrecord object with essential information. 
+    # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
+    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
+    # >> record1.set_d_features(do_adc = 1)
+    # 3. Set default values of any missing field dependencies
+    # >> record1.setdefaults()
+    # 4. Write the record files - header and associated dat
+    # >> record1.wrsamp()
+
+    # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
+    # 1. Initiate the WFDBrecord object with essential information. 
+    # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
+    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
+    # >> record1.set_d_features(do_adc = 1)
+    # 3. Set default values of any missing field dependencies
+    # >> record1.setdefaults()
+    # 4. Write the record files - header and associated dat
+    # >> record1.wrsamp()
 
 
 
         
+# Shortcut functions for wrsamp
 
-            
+def s_wrsamp()
+
+
+
+
+
+# General utility functions            
 
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
@@ -379,15 +398,10 @@ def parsedatestring(datestring):
     
     return (day, month, year)
     
-                    
-                
-                
-                
-  
 
 # Write each line in a list of strings to a text file
 def linestofile(filename, lines):
-    f = open(headername,'w')
+    f = open(filename,'w')
     for l in lines:
         f.write("%s\n" % l)
     f.close()              
@@ -415,4 +429,30 @@ def request_approval(message):
         return
     else:
         sys.exit('Exiting')
-        
+
+# Returns the unique elements in a list in the order that they appear. 
+# Also returns the indices of the original list that correspond to each output element. 
+def orderedsetlist(fulllist):
+    uniquelist = []
+    original_inds = {}
+
+    for i in range(0, len(fulllist)):
+        item = fulllist[i]
+        # new item
+        if item not in uniquelist:
+            uniquelist.append(item)
+            original_inds[item] = [i]
+        # previously seen item
+        else:
+            original_inds[item].append(i)
+    return uniquelist, original_inds
+
+# Returns elements in a list without consecutive repeated values.  
+def orderednoconseclist(fulllist):
+    noconseclist = [fulllist[0]]
+    if len(fulllist) == 1:
+        return noconseclist
+    for i in fulllist:
+        if i!= noconseclist[-1]:
+            noconseclist.append(i)
+    return noconseclist
