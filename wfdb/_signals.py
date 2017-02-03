@@ -367,28 +367,65 @@ def wrdatfile(filename, fmt, d_signals):
     
     # All bytes are written one at a time
     # to avoid endianness issues.
+
     nsig = d_signals.shape[1]
 
     if fmt == '80':
-        d_signals = d_signals.astype('int8')
-        np.tofile(f, d_signals)
+        # convert to 8 bit offset binary form
+        d_signals = d_signals + 128
+        # Convert to unsigned 8 bit dtype to write
+        bwrite = d_signals.astype('uint8')
     
-    # These 3 formats are written in two's compliment form
     elif fmt == '16':
-        b1 = d_signals & nsig*[255]
+        # convert to 16 bit two's complement 
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
+        # Split samples into separate bytes using binary masks
+        b1 = signals & [255]*nsig
+        b2 = ( signals & [65280]*nsig ) >> 8
+        # Interweave the bytes so that the same samples' bytes are consecutive 
+        b1 = b1.reshape((-1, 1))
+        b2 = b2.reshape((-1, 1))
+        bwrite = np.concatenate((b1, b2), axis=1)
+        bwrite = bwrite.reshape((1,-1))[0]
+        # Convert to unsigned 8 bit dtype to write
+        bwrite = bwrite.astype('uint8')
 
-        d_signals = d_signals.astype('int16')
-        np.tofile(f, d_signals)
-    
     elif fmt == '24':
-        d_signals = d_signals.astype('int16')
-        np.tofile(f, d_signals)
+        # convert to 24 bit two's complement 
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 16777216
+        # Split samples into separate bytes using binary masks
+        b1 = signals & [255]*nsig
+        b2 = ( signals & [65280]*nsig ) >> 8
+        b3 = ( signals & [16711680]*nsig ) >> 16
+        # Interweave the bytes so that the same samples' bytes are consecutive 
+        b1 = b1.reshape((-1, 1))
+        b2 = b2.reshape((-1, 1))
+        b3 = b3.reshape((-1, 1))
+        bwrite = np.concatenate((b1, b2, b3), axis=1)
+        bwrite = bwrite.reshape((1,-1))[0]
+        # Convert to unsigned 8 bit dtype to write
+        bwrite = bwrite.astype('uint8')
     
     elif fmt == '32':
-        d_signals = d_signals.astype('int32')
-        np.tofile(f, d_signals)
-
-
-    
+        # convert to 32 bit two's complement 
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 4294967296
+        # Split samples into separate bytes using binary masks
+        b1 = signals & [255]*nsig
+        b2 = ( signals & [65280]*nsig ) >> 8
+        b3 = ( signals & [16711680]*nsig ) >> 16
+        b4 = ( signals & [4278190080]*nsig ) >> 24
+        # Interweave the bytes so that the same samples' bytes are consecutive 
+        b1 = b1.reshape((-1, 1))
+        b2 = b2.reshape((-1, 1))
+        b3 = b3.reshape((-1, 1))
+        b4 = b4.reshape((-1, 1))
+        bwrite = np.concatenate((b1, b2, b3, b4), axis=1)
+        bwrite = bwrite.reshape((1,-1))[0]
+        # Convert to unsigned 8 bit dtype to write
+        bwrite = bwrite.astype('uint8')
+    else:
+        sys.exit('This library currently only supports the following formats: 80, 16, 24, 32')
+    # Write the file
+    bwrite.tofile(f)
 
     f.close()
