@@ -46,7 +46,7 @@ class SignalsMixin():
         # For each channel (if any), make sure the digital format has no values out of bounds
         for ch in range(0, self.nsig):
             fmt = self.fmt[ch]
-            dmin, dmax = digi_bounds(self.fmt)
+            dmin, dmax = digi_bounds(self.fmt[ch])
             
             chmin = min(self.d_signals[:,ch])
             chmax = max(self.d_signals[:,ch])
@@ -68,7 +68,7 @@ class SignalsMixin():
 
     # Use properties of the p_signals field to set other fields: nsig, siglen
     # If do_dac == 1, the d_signals field will be used to perform digital to analogue conversion
-    # to set the p_signals field, before using it. 
+    # to set the p_signals field, before p_signals is used. 
     # Regarding dac conversion:
     #     1. fmt, gain, and baseline must all be set in order to perform dac.
     #        Unlike with adc, there is no way to infer these fields.
@@ -91,7 +91,7 @@ class SignalsMixin():
 
     # Use properties of the d_signals field to set other fields: nsig, siglen, fmt*, initvalue*, checksum* 
     # If do_adc == 1, the p_signals field will first be used to perform analogue to digital conversion
-    # to set the d_signals field, before using it. 
+    # to set the d_signals field, before d_signals is used.
     # Regarding adc conversion:
     #     1. If fmt is unset, the most appropriate fmt for the signals will 
     #        be calculated and the field will be set. If singlefmt ==1, only one 
@@ -106,20 +106,20 @@ class SignalsMixin():
             self.checkfield('p_signals')
 
             # If there is no fmt, choose appropriate fmts. 
-            if self.fmt == None:
+            if self.fmt is None:
                 res = estres(self.p_signals)
                 self.fmt = wfdbfmt(res, singlefmt)
             self.checkfield('fmt')
 
             # If either gain or baseline are missing, compute and set optimal values
-            if self.adcgain == None or self.baseline == None:
-                print('Calculating optimal gain and baseline values to convert physical signal')
+            if self.adcgain is None or self.baseline is None:
+                #print('Calculating optimal gain and baseline values to convert physical signal')
                 self.adcgain, self.baseline = self.calculate_adcparams()
             self.checkfield('adcgain')
             self.checkfield('baseline')
 
             # All required fields are present and valid. Perform ADC
-            print('Performing ADC')
+            #print('Performing ADC')
             self.d_signals = self.adc()
 
         # Use d_signals to set fields
@@ -230,19 +230,21 @@ class SignalsMixin():
         return list(np.sum(self.d_signals, 0) % 65536)
 
     # Write each of the specified dat files
-    def wrdatfiles():
+    def wrdatfiles(self):
 
-        # Get a collection of the dat files to be written, and
+        # Get the set of dat files to be written, and
         # the channels to be written to each file. 
         filenames, datchannels = orderedsetlist(self.filename)
 
         for i in range(0, len(filenames)):
-            print(filenames[i]) 
-            print(fmt[min(datchannels[filenames[i]])])
-            print(sig[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
+            #print(filenames[i]) 
+            #print(fmt[min(datchannels[filenames[i]])])
+            #print(sig[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
 
             wrdatfile(filenames[i], self.fmt[min(datchannels[filenames[i]])], 
-                d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
+                self.d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
+
+
 
 # Return min and max digital values for each format type. Accepts lists.
 def digi_bounds(fmt):
@@ -378,8 +380,8 @@ def wrdatfile(filename, fmt, d_signals):
         # convert to 16 bit two's complement 
         d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
         # Split samples into separate bytes using binary masks
-        b1 = signals & [255]*nsig
-        b2 = ( signals & [65280]*nsig ) >> 8
+        b1 = d_signals & [255]*nsig
+        b2 = ( d_signals & [65280]*nsig ) >> 8
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -392,9 +394,9 @@ def wrdatfile(filename, fmt, d_signals):
         # convert to 24 bit two's complement 
         d_signals[d_signals<0] = d_signals[d_signals<0] + 16777216
         # Split samples into separate bytes using binary masks
-        b1 = signals & [255]*nsig
-        b2 = ( signals & [65280]*nsig ) >> 8
-        b3 = ( signals & [16711680]*nsig ) >> 16
+        b1 = d_signals & [255]*nsig
+        b2 = ( d_signals & [65280]*nsig ) >> 8
+        b3 = ( d_signals & [16711680]*nsig ) >> 16
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -408,10 +410,10 @@ def wrdatfile(filename, fmt, d_signals):
         # convert to 32 bit two's complement 
         d_signals[d_signals<0] = d_signals[d_signals<0] + 4294967296
         # Split samples into separate bytes using binary masks
-        b1 = signals & [255]*nsig
-        b2 = ( signals & [65280]*nsig ) >> 8
-        b3 = ( signals & [16711680]*nsig ) >> 16
-        b4 = ( signals & [4278190080]*nsig ) >> 24
+        b1 = d_signals & [255]*nsig
+        b2 = ( d_signals & [65280]*nsig ) >> 8
+        b3 = ( d_signals & [16711680]*nsig ) >> 16
+        b4 = ( d_signals & [4278190080]*nsig ) >> 24
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -427,3 +429,21 @@ def wrdatfile(filename, fmt, d_signals):
     bwrite.tofile(f)
 
     f.close()
+
+
+# Returns the unique elements in a list in the order that they appear. 
+# Also returns the indices of the original list that correspond to each output element. 
+def orderedsetlist(fulllist):
+    uniquelist = []
+    original_inds = {}
+
+    for i in range(0, len(fulllist)):
+        item = fulllist[i]
+        # new item
+        if item not in uniquelist:
+            uniquelist.append(item)
+            original_inds[item] = [i]
+        # previously seen item
+        else:
+            original_inds[item].append(i)
+    return uniquelist, original_inds

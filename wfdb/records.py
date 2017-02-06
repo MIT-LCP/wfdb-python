@@ -1,10 +1,9 @@
-# Actions:
-# For wrheader(), all fields must be already filled in and consistent with each other. The signals field will not be used.
-# For wrsamp(), the field to use will be d_signals (which may be empty). 
-# There will be a function to call on the object, with usesignals = digital or physical, which fills in the respective fields. setsignalfeatures( usesignals = 'digital' or 'physical'). 
-# This is separate from another method 'setdefaults' which they will have to call too. 
-# The checkfieldcohesion() function will be called in wrheader and check all the header fields, excluding the signals. 
-# The checkfieldcohesion() function will be called in wrsamp after wrhea and before wrdat to check the signals against each field.
+# For wrheader(), all fields must be already filled in and cohesive with one another other. The signals field will not be used.
+# For wrsamp(), the field to use will be d_signals (which is allowed to be empty for 0 channel records). 
+# set_p_features and set_d_features use characteristics of the p_signals or d_signals field to fill in other header fields. 
+# These are separate from another method 'setdefaults' which the user may call to  
+# The checkfieldcohesion() function will be called in wrheader which checks all the header fields.
+# The checksignalcohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
 import numpy as np
 import re
@@ -36,10 +35,11 @@ class WFDBbaserecord():
 
 
 
+
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
     def checkfield(self, field): 
         # Check that the field is present
-        if getattr(self, field) == None:
+        if getattr(self, field) is None:
             sys.exit("Missing field required: "+field)
            
         # Check the type of the field (and of its elements if it is to be a list) 
@@ -133,8 +133,8 @@ class WFDBbaserecord():
                     sys.exit('units strings may not contain whitespaces.')
         elif field == 'adcres':
             for f in self.adcres:
-                if f < 1:
-                    sys.exit('adcres values must be positive integers')
+                if f < 0:
+                    sys.exit('adcres values must be non-negative integers')
         # elif field == 'adczero': nothing to check here
         # elif field == 'initvalue': nothing to check here
         # elif field == 'checksum': nothing to check here
@@ -149,14 +149,25 @@ class WFDBbaserecord():
             
         # Segment specification fields
         elif field == 'segname':
+            # Segment names must be alphanumerics or just a single '~'
             for f in self.segname:
+                if f == '~':
+                    continue
                 acceptedstring = re.match('[\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
-                    sys.exit('Segment record names should only contain alphanumerics')
+                    sys.exit("Non-null segment names may only contain alphanumerics. Null segment names must be equal to '~'")
         elif field == 'seglen':
-            for f in self.seglen:
+            # For records with more than 1 segment, the first segment may be 
+            # the layout specification segment with a length of 0
+            if len(self.seglen)>1:
+                if self.seglen[0] < 0:
+                    sys.exit('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
+                sl = self.seglen[1:]
+            else:
+                sl = self.seglen 
+            for f in sl:
                 if f < 1:
-                    sys.exit('seglen values must be positive integers')
+                    sys.exit('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
                     
         # Comment field
         elif field == 'comments':
@@ -169,45 +180,6 @@ class WFDBbaserecord():
                     sys.exit('comments may not contain tabs or newlines (they may contain spaces and underscores).')
                     
 
-
-    # Check the data type of the specified field.
-    def checkfieldtype(self, field):
-        
-        # signal, segment, and comment specification, and segment fields are lists. Check their elements.    
-        if field in sigfieldspecs:
-            listcheck = 1
-            allowedtypes = sigfieldspecs[field].allowedtypes
-        elif field in segfieldspecs:
-            listcheck = 1
-            allowedtypes = segfieldspecs[field].allowedtypes
-        elif field in comfieldspecs:
-            listcheck = 1
-            allowedtypes = comfieldspecs[field].allowedtypes
-        elif field in signalspecs:
-            listcheck = 0
-            allowedtypes = signalspecs[field].allowedtypes
-        elif field in segmentspecs:
-            listcheck = 1
-            allowedtypes = segmentspecs[field].allowedtypes
-        elif field in recfieldspecs:
-            listcheck = 0
-            allowedtypes = recfieldspecs[field].allowedtypes
-
-        item = getattr(self, field)
-
-        # List fields and their elements
-        if listcheck:
-            if type(item)!=list:
-                sys.exit('Field: '+field+' must be a list')
-            for i in item:
-                if type(i) not in allowedtypes:
-                    print('Each element in field: '+field+' must be one of the following types:', allowedtypes)
-                    sys.exit()
-        # Non-list fields  
-        else:
-            if type(item) not in allowedtypes:
-                print('Field: '+field+' must be one of the following types:', allowedtypes)
-                sys.exit()
 
 
 # Class for single segment WFDB records.
@@ -228,13 +200,9 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         # the header a multi-segment header. 
         
         super(WFDBrecord, self).__init__(recordname, nsig,
-                    fs, counterfreq, basecounter,
-                    siglen, basetime, basedate, 
-                    comments)
-        # super(WFDBrecord, self).__init__(recordname=recordname, nsig=nsig,
-         #           fs=fs, counterfreq=counterfreq, basecounter =basecounter,
-         #           siglen = siglen, basetime = basetime, basedate = basedate, 
-         #           comments = comments)
+                    fs, counterfreq, basecounter, siglen,
+                    basetime, basedate, comments)
+        
         self.p_signals = p_signals
         self.d_signals = d_signals
         
@@ -265,115 +233,6 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
             self.wrdats()
     
 
-    ## I would actually prefer the following methods to go in _headers.py in the HeadersMixin class. 
-    ## But they require object variables defined in this module.
-
-
-    # Set defaults for fields needed to write the header if they have defaults.
-    # Returns a list of fields set by this function.
-    # Set overwrite == 1 to enable overwriting of populated fields.
-    def setdefaults(self, overwrite = 0):
-        setfields = [] # The fields set
-        for field in self.getwritefields():
-            if setfields.append(self.setdefault(field)):
-                setfields.append(field)
-        return setfields
-
-    # Set a field to its default value if there is a default. Returns 1 if the field is set. 
-    # Set overwrite == 1 to enable overwriting of populated fields.
-    # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
-    def setdefault(self, field, overwrite = 0):
-        
-        # Check whether the field is empty before trying to set.
-        if overwrite == 0:
-            if getattr(self, field) != None:
-                return 0
-                
-        # Going to set the field. 
-        # Record specification fields
-        if field == 'basetime':
-            self.basetime = '00:00:00'
-        # Signal specification fields    
-        elif field == 'filename':
-            self.filename = self.nsig*[self.recordname+'.dat']
-        elif field == 'adcres':
-            self.adcres=_signals.wfdbfmtres(self.fmt)
-        elif field == 'adczero':
-            self.adczero = self.nsig*[0]
-        elif field == 'blocksize':
-            self.blocksize = self.nsig*[0]
-        # Most fields have no default. 
-        else:
-            return 0
-        return 1
-
-    # Get the list of fields used to write the header. (Does NOT include d_signals.)
-    # Returns the default required fields, the user defined fields, and their dependencies.
-    def getwritefields(self):
-
-        # Record specification fields
-        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
-        writefields.remove('nseg')
-
-        # Determine whether there are signals. If so, get their required fields.
-        self.checkfield('nsig')
-        if self.nsig>0:
-            writefields=writefields+self.getwritesubset(OrderedDict(reversed(list(sigfieldspecs.items()))))
-
-        # Comments
-        if self.comments !=None:
-            writefields.append('comments')
-        return writefields
-
-    # Helper function for getwritefields
-    def getwritesubset(self, fieldspecs):
-        writefields=[]
-        for f in fieldspecs:
-            if f in writefields:
-                continue
-            # If the field is required by default or has been defined by the user
-            if fieldspecs[f].write_req or getattr(self, f)!=None:
-                rf=f
-                # Add the field and its recursive dependencies
-                while rf!=None:
-                    writefields.append(rf)
-                    rf=fieldspecs[rf].dependency
-
-        return writefields
-
-    # Check the cohesion of fields used to write the header
-    def checkfieldcohesion(self, writefields):
-
-        # If there are no signal specification fields, there is nothing to check. 
-        if self.nsig>0:
-            # The length of all signal specification fields must match nsig
-            for f in writefields:
-                if f in sigfieldspecs:
-                    if len(getattr(self, f)) != self.nsig:
-                        sys.exit('The length of field: '+f+' does not match field nsig.')
-
-            # Each filename must correspond to only one fmt, and only one byte offset (if defined). 
-            datfmts = {}
-            datoffsets = {}
-            for ch in range(0, self.nsig):
-                if self.filename[ch] not in datfmts:
-                    datfmts[self.filename[ch]] = self.fmt[ch]
-                else:
-                    if datfmts[self.filename[ch]] != self.fmt[ch]:
-                        sys.exit('Each filename (dat file) specified must have the same fmt')
-                
-                if self.byteoffset != None:
-                    if self.byteoffset[ch] not in datoffsets:
-                        print('self.byteoffset[ch]:', self.byteoffset[ch])
-                        print('datoffsets: ', datoffsets)
-                        datoffsets[self.byteoffset[ch]] = self.byteoffset[ch]
-                    else:
-                        if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
-                            sys.exit('Each filename (dat file) specified must have the same byte offset')
-
-
-
-
     # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
     # 1. Initiate the WFDBrecord object with essential information. 
     # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
@@ -394,80 +253,132 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
     # 4. Write the record files - header and associated dat
     # >> record1.wrsamp()
 
-
-
+    # Check the data type of the specified field.
+    def checkfieldtype(self, field):
         
+        # signal and comment specification fields are lists. Check their elements.  
+
+        # Record specification field  
+        if field in _headers.recfieldspecs:
+            listcheck = 0
+            allowedtypes = _headers.recfieldspecs[field].allowedtypes
+        # Signal specification field
+        elif field in _headers.sigfieldspecs:
+            listcheck = 1
+            allowedtypes = _headers.sigfieldspecs[field].allowedtypes
+        # Comments field
+        elif field == 'comments':
+            listcheck = 1
+            allowedtypes = [str]
+        # Signals field
+        elif field in ['p_signals','d_signals']:
+            listcheck = 0
+            allowedtypes = [np.ndarray]
+        else:
+            sys.exit('there has been a mistake')
+        
+
+        item = getattr(self, field)
+
+        # List fields and their elements
+        if listcheck:
+            if type(item)!=list:
+                sys.exit('Field: '+field+' must be a list with length equal to nsig')
+            for i in item:
+                if type(i) not in allowedtypes:
+                    print('Each element in field: '+field+' must be one of the following types:', allowedtypes)
+                    sys.exit()
+        # Non-list fields  
+        else:
+            if type(item) not in allowedtypes:
+                print('Field: '+field+' must be one of the following types:', allowedtypes)
+                sys.exit()
+
+
+
+
+# Class for multi segment WFDB records.
+class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
+    
+    # Constructor
+    def __init__(self, segments = None, recordname=None, 
+                 nsig=None, fs=None, counterfreq=None, 
+                 basecounter=None, siglen=None,
+                 basetime=None, basedate=None, segname = None,
+                 seglen = None, comments=None):
+
+
+        super(WFDBmultirecord, self).__init__(recordname, nsig,
+                    fs, counterfreq, basecounter, siglen,
+                    basetime, basedate, comments)
+
+        self.segments = segments
+        self.segname = segname
+        self.seglen = seglen
+
+
+
+    # Check the data type of the specified field.
+    def checkfieldtype(self, field):
+        
+        # segment and comment specification, and segment fields are lists. Check their elements.    
+        
+        # Record specification field  
+        if field in _headers.recfieldspecs:
+            listcheck = 0
+            allowedtypes = _headers.recfieldspecs[field].allowedtypes
+        # Segment specification field
+        elif field in _headers.segfieldspecs:
+            listcheck = 1
+            allowedtypes = _headers.segfieldspecs[field].allowedtypes
+        # Comments field
+        elif field == 'comments':
+            listcheck = 1
+            allowedtypes = [str]
+        # Segment field
+        elif field == 'segment':
+            listcheck = 1
+            allowedtypes = [WFDBrecord]
+        
+        item = getattr(self, field)
+
+        # List fields and their elements
+        if listcheck:
+            if type(item)!=list:
+                sys.exit('Field: '+field+' must be a list with length equal to nseg')
+
+            for i in item:
+                if type(i) not in allowedtypes:
+                    print('Each element in field: '+field+' must be one of the following types:', allowedtypes)
+                    sys.exit()
+        # Non-list fields  
+        else:
+            if type(item) not in allowedtypes:
+                print('Field: '+field+' must be one of the following types:', allowedtypes)
+                sys.exit()
+
+    
+    # Check the cohesion of the segments field with the other fields used to write the record
+    def checksegmentcohesion(self, writefields):
+
+        # Check the sum of siglens from each segment object against the stated seglen fields
+        validsiglen = 0
+        for s in self.segment:
+            validsiglen = validsiglen = getattr(s, 'siglen')
+
+        # Check that nseg is equal to the length of the segments field plus empty segments plus layout
+
+        # Check that sampling frequencies all match the one in the master header
+
+
+
 # Shortcut functions for wrsamp
 
 #def s_wrsamp()
 
 
 
-
-# The specifications of a WFDB fields.
-class WFDBfieldspecs():
-    
-    def __init__(self, speclist):
-
-    
-        # Data types the field (or its elements) can be
-        self.allowedtypes = speclist[0]
-        # The text delimiter that preceeds the field if it is a field that gets written to header files.
-        self.delimiter = speclist[1]
-        # The required/dependent field which must also be present
-        self.dependency = speclist[2]
-        # Whether the field is always required for writing a header (WFDB requirements + extra rules enforced by this library).
-        self.write_req = speclist[3]
-
-# The following dictionaries hold WFDB field specifications.
-
-# The physical and digital signals.
-signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, None, False])),
-                          ('d_signals', WFDBfieldspecs([[np.ndarray], None, None, False]))])
-
-# The segment field. A list of WFDBrecord objects?
-segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[WFDBrecord], None, None, True]))])
-
-# Record specification fields  
-# Note: nseg is essential for multi but not a field in single. 
-# getwritefields defined in _headers.Headers_Mixin will remove it.           
-recfieldspecs = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
-                         ('nseg', WFDBfieldspecs([[int, np.int64, np.int32], '/', 'recordname', True])), 
-                         ('nsig', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'recordname', True])),
-                         ('fs', WFDBfieldspecs([[int, float, np.float64, np.float32], ' ', 'nsig', True])),
-                         ('counterfreq', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], '/', 'fs', False])),
-                         ('basecounter', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], '(', 'counterfreq', False])),
-                         ('siglen', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'fs', True])),
-                         ('basetime', WFDBfieldspecs([[str], ' ', 'siglen', False])),
-                         ('basedate', WFDBfieldspecs([[str], ' ', 'basetime', False]))])
- 
-# Signal specification fields. Type will be list.
-sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True])),
-                         ('fmt', WFDBfieldspecs([[str], ' ', 'filename', True])),
-                         ('sampsperframe', WFDBfieldspecs([[int, np.int64, np.int32], 'x', 'fmt', False])),
-                         ('skew', WFDBfieldspecs([[int, np.int64, np.int32], ':', 'fmt', False])),
-                         ('byteoffset', WFDBfieldspecs([[int, np.int64, np.int32], '+', 'fmt', False])),
-                         ('adcgain', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], ' ', 'fmt', True])),
-                         ('baseline', WFDBfieldspecs([[int, np.int64, np.int32], '(', 'adcgain', True])),
-                         ('units', WFDBfieldspecs([[str], '/', 'adcgain', True])),
-                         ('adcres', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adcgain', False])),
-                         ('adczero', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adcres', False])),
-                         ('initvalue', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adczero', False])),
-                         ('checksum', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'initvalue', False])),
-                         ('blocksize', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'checksum', False])),
-                         ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
-    
-# Segment specification fields. Type will be list. 
-segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True])),
-                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True]))])
-
-# Comment field. Type will be list.
-comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[str], None, None, False]))])
-
-
-
-
-# General utility functions            
+      
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
 def parsetimestring(timestring):
@@ -522,14 +433,6 @@ def parsedatestring(datestring):
     
     return (day, month, year)
     
-
-# Write each line in a list of strings to a text file
-def linestofile(filename, lines):
-    f = open(filename,'w')
-    for l in lines:
-        f.write("%s\n" % l)
-    f.close()              
-                
                 
 # Display a message to the user, asking whether they would like to continue. 
 def request_approval(message):
