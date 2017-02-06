@@ -32,13 +32,13 @@ class HeadersMixin():
     def getwritefields(self):
 
         # Record specification fields
-        writefields=self.getreqsubset(sreversed(list(recfieldspecs.items())))
+        writefields=self.getwritesubset(reversed(list(recfieldspecs.items())))
         writefields.remove('nseg')
 
         # Determine whether there are signals. If so, get their required fields.
         self.checkfield('nsig')
         if self.nsig>0:
-            writefields=writefields+self.getwritesubset(reversed(list(fieldspeclist[2].items())))
+            writefields=writefields+self.getwritesubset(reversed(list(sigfieldspecs.items())))
 
         # Comments
         if self.comments !=None:
@@ -156,7 +156,7 @@ class HeadersMixin():
             headerlines = headerlines + signallines
 
         # Create comment lines (if any)
-        if 'comments' in writefields
+        if 'comments' in writefields:
             commentlines = ['# '+comment for comment in self.comments]
             headerlines = headerlines + commentlines
 

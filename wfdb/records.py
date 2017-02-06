@@ -12,67 +12,10 @@ import os
 import sys
 from collections import OrderedDict
 from calendar import monthrange
-import ._headers
-import ._signals
+from . import _headers
+from . import _signals
 
-# The specifications of a WFDB fields.
-class WFDBfieldspecs():
-    
-    def __init__(self, speclist):
-    
-        # Data types the field (or its elements) can be
-        self.allowedtypes = speclist[0]
-        # The text delimiter that preceeds the field if it is a field that gets written to header files.
-        self.delimiter = speclist[1]
-        # The required/dependent field which must also be present
-        self.dependency = speclist[2]
-        # Whether the field is always required for writing a header (WFDB requirements + extra rules enforced by this library).
-        self.write_req = speclist[3]
 
-# The following dictionaries hold WFDB field specifications, separated by category. 
-
-# The physical and digital signals.
-signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, None, False])),
-                          ('d_signals', WFDBfieldspecs([[np.ndarray], None, None, False]))])
-
-# The segment field. A list of WFDBrecord objects?
-segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[WFDBrecord], None, None, True]))])
-
-# Record specification fields  
-# Note: nseg is essential for multi but not a field in single. 
-# getwritefields defined in _headers.Headers_Mixin will remove it.           
-recfieldspecs = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
-                         ('nseg', WFDBfieldspecs([[int], '/', 'recordname', True])), 
-                         ('nsig', WFDBfieldspecs([[int], ' ', 'recordname', True])),
-                         ('fs', WFDBfieldspecs([[int, float], ' ', 'nsig', True])),
-                         ('counterfreq', WFDBfieldspecs([[int, float], '/', 'fs', False])),
-                         ('basecounter', WFDBfieldspecs([[int, float], '(', 'counterfreq', False])),
-                         ('siglen', WFDBfieldspecs([[int], ' ', 'fs', True])),
-                         ('basetime', WFDBfieldspecs([[str], ' ', 'siglen', False])),
-                         ('basedate', WFDBfieldspecs([[str], ' ', 'basetime', False]))])
- 
-# Signal specification fields. Type will be list.
-sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True])),
-                         ('fmt', WFDBfieldspecs([[int, str], ' ', 'filename', True])),
-                         ('sampsperframe', WFDBfieldspecs([[int], 'x', 'fmt', False])),
-                         ('skew', WFDBfieldspecs([[int], ':', 'fmt', False])),
-                         ('byteoffset', WFDBfieldspecs([[int], '+', 'fmt', False])),
-                         ('adcgain', WFDBfieldspecs([[int, float], ' ', 'fmt', True])),
-                         ('baseline', WFDBfieldspecs([[int], '(', 'adcgain', True])),
-                         ('units', WFDBfieldspecs([[str], '/', 'adcgain', True])),
-                         ('adcres', WFDBfieldspecs([[int], ' ', 'adcgain', False])),
-                         ('adczero', WFDBfieldspecs([[int], ' ', 'adcres', False])),
-                         ('initvalue', WFDBfieldspecs([[int], ' ', 'adczero', False])),
-                         ('checksum', WFDBfieldspecs([[int], ' ', 'initvalue', False])),
-                         ('blocksize', WFDBfieldspecs([[int], ' ', 'checksum', False])),
-                         ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
-    
-# Segment specification fields. Type will be list. 
-segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True])),
-                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True]))])
-
-# Comment field. Type will be list.
-comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[str], None, None, False]))])
 
 
 
@@ -83,14 +26,24 @@ class WFDBbaserecord():
     
     def __init__(self, recordname=None, nsig=None, 
                  fs=None, counterfreq=None, basecounter = None, 
-                 siglen = None, basetime = None,basedate = None, 
-                 comments = None)
+                 siglen = None, basetime = None, basedate = None, 
+                 comments = None):
+        self.recordname = recordname
+        self.nsig = nsig
+        self.fs = fs
+        self.counterfreq = counterfreq
+        self.basecounter = basecounter
+        self.siglen = siglen
+        self.basetime = basetime
+        self.basedate = basedate
+        self.comments = comments
+
+
 
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
     def checkfield(self, field): 
-        
         # Check that the field is present
-        if self.field == None:
+        if getattr(self, field) == None:
             sys.exit("Missing field required: "+field)
            
         # Check the type of the field (and of its elements if it is to be a list) 
@@ -152,8 +105,8 @@ class WFDBbaserecord():
                 sys.exit('filename error: all entries for signals that share a given file must be consecutive')
         elif field == 'fmt':
             for f in self.fmt:
-                if f not in datformats:
-                    sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(datformats))    
+                if f not in _signals.datformats:
+                    sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
         elif field == 'sampsperframe':
             for f in self.sampsperframe:
                 if f < 1:
@@ -223,7 +176,7 @@ class WFDBbaserecord():
     # Check the data type of the specified field.
     def checkfieldtype(self, field):
         
-        # signal, segment, and comment specification fields are lists. Check their elements.    
+        # signal, segment, and comment specification, and segment fields are lists. Check their elements.    
         if field in sigfieldspecs:
             listcheck = 1
             allowedtypes = sigfieldspecs[field].allowedtypes
@@ -234,13 +187,13 @@ class WFDBbaserecord():
             listcheck = 1
             allowedtypes = comfieldspecs[field].allowedtypes
         elif field in signalspecs:
-            listcheck = 1
+            listcheck = 0
             allowedtypes = signalspecs[field].allowedtypes
         elif field in segmentspecs:
             listcheck = 1
             allowedtypes = segmentspecs[field].allowedtypes
         elif field in recfieldspecs:
-            listcheck = 1
+            listcheck = 0
             allowedtypes = recfieldspecs[field].allowedtypes
 
         item = getattr(self, field)
@@ -277,11 +230,14 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         # Note the lack of 'nseg' field. Single segment records cannot have this field. Even nseg = 1 makes 
         # the header a multi-segment header. 
         
-        super(self, recordname=recordname, nsig=nsig, 
-              fs=fs, counterfreq=counterfreq, basecounter =basecounter,
-              siglen = siglen, basetime = basetime, basedate = basedate, 
-              comments = comments)
-        
+        super(WFDBrecord, self).__init__(recordname, nsig,
+                    fs, counterfreq, basecounter,
+                    siglen, basetime, basedate, 
+                    comments)
+        # super(WFDBrecord, self).__init__(recordname=recordname, nsig=nsig,
+         #           fs=fs, counterfreq=counterfreq, basecounter =basecounter,
+         #           siglen = siglen, basetime = basetime, basedate = basedate, 
+         #           comments = comments)
         self.p_signals = p_signals
         self.d_signals = d_signals
         
@@ -321,7 +277,7 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
     # 4. Write the record files - header and associated dat
     # >> record1.wrsamp()
 
-    # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
+    # Example sequence for a user to call wrsamp on a digital ecg signal x with 3 channels:
     # 1. Initiate the WFDBrecord object with essential information. 
     # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
     # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
@@ -336,7 +292,68 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         
 # Shortcut functions for wrsamp
 
-def s_wrsamp()
+#def s_wrsamp()
+# The specifications of a WFDB fields.
+class WFDBfieldspecs():
+    
+    def __init__(self, speclist):
+
+    
+        # Data types the field (or its elements) can be
+        self.allowedtypes = speclist[0]
+        # The text delimiter that preceeds the field if it is a field that gets written to header files.
+        self.delimiter = speclist[1]
+        # The required/dependent field which must also be present
+        self.dependency = speclist[2]
+        # Whether the field is always required for writing a header (WFDB requirements + extra rules enforced by this library).
+        self.write_req = speclist[3]
+
+# The following dictionaries hold WFDB field specifications, separated by category. 
+
+# The physical and digital signals.
+signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, None, False])),
+                          ('d_signals', WFDBfieldspecs([[np.ndarray], None, None, False]))])
+
+# The segment field. A list of WFDBrecord objects?
+segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[WFDBrecord], None, None, True]))])
+
+# Record specification fields  
+# Note: nseg is essential for multi but not a field in single. 
+# getwritefields defined in _headers.Headers_Mixin will remove it.           
+recfieldspecs = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
+                         ('nseg', WFDBfieldspecs([[int], '/', 'recordname', True])), 
+                         ('nsig', WFDBfieldspecs([[int], ' ', 'recordname', True])),
+                         ('fs', WFDBfieldspecs([[int, float], ' ', 'nsig', True])),
+                         ('counterfreq', WFDBfieldspecs([[int, float], '/', 'fs', False])),
+                         ('basecounter', WFDBfieldspecs([[int, float], '(', 'counterfreq', False])),
+                         ('siglen', WFDBfieldspecs([[int], ' ', 'fs', True])),
+                         ('basetime', WFDBfieldspecs([[str], ' ', 'siglen', False])),
+                         ('basedate', WFDBfieldspecs([[str], ' ', 'basetime', False]))])
+ 
+# Signal specification fields. Type will be list.
+sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True])),
+                         ('fmt', WFDBfieldspecs([[int, str], ' ', 'filename', True])),
+                         ('sampsperframe', WFDBfieldspecs([[int], 'x', 'fmt', False])),
+                         ('skew', WFDBfieldspecs([[int], ':', 'fmt', False])),
+                         ('byteoffset', WFDBfieldspecs([[int], '+', 'fmt', False])),
+                         ('adcgain', WFDBfieldspecs([[int, float, np.float64, np.float32], ' ', 'fmt', True])),
+                         ('baseline', WFDBfieldspecs([[int], '(', 'adcgain', True])),
+                         ('units', WFDBfieldspecs([[str], '/', 'adcgain', True])),
+                         ('adcres', WFDBfieldspecs([[int], ' ', 'adcgain', False])),
+                         ('adczero', WFDBfieldspecs([[int], ' ', 'adcres', False])),
+                         ('initvalue', WFDBfieldspecs([[int], ' ', 'adczero', False])),
+                         ('checksum', WFDBfieldspecs([[int], ' ', 'initvalue', False])),
+                         ('blocksize', WFDBfieldspecs([[int], ' ', 'checksum', False])),
+                         ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
+    
+# Segment specification fields. Type will be list. 
+segfieldspecs = OrderedDict([('segname', WFDBfieldspecs([[str], '', None, True])),
+                         ('seglen', WFDBfieldspecs([[int], ' ', 'segname', True]))])
+
+# Comment field. Type will be list.
+comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[str], None, None, False]))])
+
+
 
 
 
@@ -421,9 +438,10 @@ def request_approval(message):
         while answer not in ['y', 'n']:
             answer = raw_input('[y/n]: ')
 
-    else sys.version_info[0] == 3:
+    else:
         while answer not in ['y', 'n']:
             answer = input('[y/n]: ')
+
 
     if answer == 'y':
         return

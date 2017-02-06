@@ -2,7 +2,6 @@ import numpy as np
 import re
 import os
 import sys
-import _headers
 
 # All defined WFDB dat formats
 datformats = ["80","212","16","24","32"]
@@ -47,7 +46,7 @@ class SignalsMixin():
         # For each channel (if any), make sure the digital format has no values out of bounds
         for ch in range(0, self.nsig):
             fmt = self.fmt[ch]
-            dmin, dmax = digi_bounds(fmt)
+            dmin, dmax = digi_bounds(self.fmt)
             
             chmin = min(self.d_signals[:,ch])
             chmax = max(self.d_signals[:,ch])
@@ -78,7 +77,7 @@ class SignalsMixin():
         if do_dac == 1:
             self.checkfield('d_signals')
             self.checkfield('fmt')
-            self.checkfield('gain')
+            self.checkfield('adcgain')
             self.checkfield('baseline')
 
             # All required fields are present and valid. Perform DAC
@@ -113,10 +112,10 @@ class SignalsMixin():
             self.checkfield('fmt')
 
             # If either gain or baseline are missing, compute and set optimal values
-            if self.gain == None or self.baseline == None:
+            if self.adcgain == None or self.baseline == None:
                 print('Calculating optimal gain and baseline values to convert physical signal')
-                self.gain, self.baseline = self.calculate_adcparams()
-            self.checkfield('gain')
+                self.adcgain, self.baseline = self.calculate_adcparams()
+            self.checkfield('adcgain')
             self.checkfield('baseline')
 
             # All required fields are present and valid. Perform ADC
@@ -139,9 +138,9 @@ class SignalsMixin():
     def adc(self):
         
         # The digital nan values for each channel
-        dnans = digi_nan(self.fmt) 
+        dnans = digi_nan(self.fmt)
         
-        d_signals = self.p_signals * self.gain + self.baseline
+        d_signals = self.p_signals * self.adcgain + self.baseline
         
         for ch in range(0, np.shape(self.p_signals)[1]):
             # Nan values 
@@ -149,6 +148,8 @@ class SignalsMixin():
             if nanlocs.any():
                 d_signals[nanlocs,ch] = dnans[ch]
         
+        d_signals = d_signals.astype('int64')
+
         return d_signals
 
     # Returns the digital to analogue conversion for a WFDBrecord signal stored in d_signals
@@ -156,12 +157,12 @@ class SignalsMixin():
     def dac(self):
         
         # The digital nan values for each channel
-        dnans = digi_nan(fmt) 
+        dnans = digi_nan(self.fmt) 
         
         # Get nan indices, indicated by minimum value. 
         nanlocs = self.d_signals == dnans
         
-        p_signal = (self.signals - self.baseline)/self.gain
+        p_signal = (self.signals - self.baseline)/self.adcgain
             
         p_signal[nanlocs] = np.nan
                 
@@ -182,7 +183,7 @@ class SignalsMixin():
         minvals = np.nanmin(self.p_signals, axis=0) 
         maxvals = np.nanmax(self.p_signals, axis=0)
         
-        dnans = digi_nan(fmt)
+        dnans = digi_nan(self.fmt)
         
         for ch in range(0, np.shape(self.p_signals)[1]):
             dmin, dmax = digi_bounds(self.fmt[ch]) # Get the minimum and maximum (valid) storage values
@@ -223,45 +224,7 @@ class SignalsMixin():
         
         return (gains, baselines)
 
-    # Return min and max digital values for each format type. Accepts lists.
-    def digi_bounds(self):
-        fmt = self.fmt
-        if type(fmt) == list:
-            digibounds = []
-            for f in fmt:
-                digibounds.append(digi_bounds(f))
-            return digibounds
-
-        if fmt == '80':
-            return (-128, 127)
-        elif fmt == '212':
-            return (-2048, 2047)
-        elif fmt == '16':
-            return (-32768, 32767)
-        elif fmt == '24':
-            return (-8388608, 8388607)
-        elif fmt == '32':
-            return (-2147483648, 2147483647)
-        
-    # Return nan value for the format type(s). 
-    def digi_nan(self):
-        fmt = self.fmt
-        if type(fmt) == list:
-            diginans = []
-            for f in fmt:
-                diginans.append(digi_nan(f))
-            return diginans
-            
-        if fmt == '80':
-            return -128
-        elif fmt == '212':
-            return -2048
-        elif fmt == '16':
-            return -32768
-        elif fmt == '24':
-            return -8388608
-        elif fmt == '32':
-            return -2147483648
+    
 
     # Calculate the checksum(s) of the d_signals field
     def calc_checksum(self):
@@ -282,7 +245,43 @@ class SignalsMixin():
             wrdatfile(filenames[i], self.fmt[min(datchannels[filenames[i]])], 
                 d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
 
+# Return min and max digital values for each format type. Accepts lists.
+def digi_bounds(fmt):
+    if type(fmt) == list:
+        digibounds = []
+        for f in fmt:
+            digibounds.append(digi_bounds(f))
+        return digibounds
 
+    if fmt == '80':
+        return (-128, 127)
+    elif fmt == '212':
+        return (-2048, 2047)
+    elif fmt == '16':
+        return (-32768, 32767)
+    elif fmt == '24':
+        return (-8388608, 8388607)
+    elif fmt == '32':
+        return (-2147483648, 2147483647)
+    
+# Return nan value for the format type(s). 
+def digi_nan(fmt):
+    if type(fmt) == list:
+        diginans = []
+        for f in fmt:
+            diginans.append(digi_nan(f))
+        return diginans
+        
+    if fmt == '80':
+        return -128
+    elif fmt == '212':
+        return -2048
+    elif fmt == '16':
+        return -32768
+    elif fmt == '24':
+        return -8388608
+    elif fmt == '32':
+        return -2147483648
 
 # Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits. 
 reslevels = np.power(2, np.arange(0,33))
