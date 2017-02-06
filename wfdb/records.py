@@ -16,10 +16,6 @@ from . import _headers
 from . import _signals
 
 
-
-
-
-
 # The base WFDB class to extend to create WFDBrecord and WFDBmultirecord. Contains shared helper functions and fields.             
 class WFDBbaserecord():
     # Constructor
@@ -68,7 +64,8 @@ class WFDBbaserecord():
         # Record specification fields
         elif field == 'recordname':       
             # Allow letters, digits, and underscores.
-            if re.match('\w+', self.recordname).string != self.recordname:
+            acceptedstring = re.match('\w+', self.recordname)
+            if not acceptedstring or acceptedstring.string != self.recordname:
                 sys.exit('recordname must only comprise of letters, digits, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
@@ -98,7 +95,7 @@ class WFDBbaserecord():
             # Check for filename characters
             for f in self.filename:
                 acceptedstring = re.match('[\w]+\.?[\w]+',f)
-                if not acceptedstring or acceptedstring != f:
+                if not acceptedstring or acceptedstring.string != f:
                     sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
             # Check that dat files are grouped together 
             if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
@@ -143,8 +140,8 @@ class WFDBbaserecord():
         # elif field == 'checksum': nothing to check here
         elif field == 'blocksize': 
             for f in self.blocksize:
-                if f < 1:
-                    sys.exit('blocksize values must be positive integers')
+                if f < 0:
+                    sys.exit('blocksize values must be non-negative integers')
         elif field == 'signame':
             for f in self.signame:
                 if re.search('\s', f):
@@ -154,7 +151,7 @@ class WFDBbaserecord():
         elif field == 'segname':
             for f in self.segname:
                 acceptedstring = re.match('[\w]+',f)
-                if not acceptedstring or acceptedstring != f:
+                if not acceptedstring or acceptedstring.string != f:
                     sys.exit('Segment record names should only contain alphanumerics')
         elif field == 'seglen':
             for f in self.seglen:
@@ -266,7 +263,117 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         if self.nsig>0:
             # Perform signal validity and cohesion checks, and write the associated dat files.
             self.wrdats()
-            
+    
+
+    ## I would actually prefer the following methods to go in _headers.py in the HeadersMixin class. 
+    ## But they require object variables defined in this module.
+
+
+    # Set defaults for fields needed to write the header if they have defaults.
+    # Returns a list of fields set by this function.
+    # Set overwrite == 1 to enable overwriting of populated fields.
+    def setdefaults(self, overwrite = 0):
+        setfields = [] # The fields set
+        for field in self.getwritefields():
+            if setfields.append(self.setdefault(field)):
+                setfields.append(field)
+        return setfields
+
+    # Set a field to its default value if there is a default. Returns 1 if the field is set. 
+    # Set overwrite == 1 to enable overwriting of populated fields.
+    # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
+    def setdefault(self, field, overwrite = 0):
+        
+        # Check whether the field is empty before trying to set.
+        if overwrite == 0:
+            if getattr(self, field) != None:
+                return 0
+                
+        # Going to set the field. 
+        # Record specification fields
+        if field == 'basetime':
+            self.basetime = '00:00:00'
+        # Signal specification fields    
+        elif field == 'filename':
+            self.filename = self.nsig*[self.recordname+'.dat']
+        elif field == 'adcres':
+            self.adcres=_signals.wfdbfmtres(self.fmt)
+        elif field == 'adczero':
+            self.adczero = self.nsig*[0]
+        elif field == 'blocksize':
+            self.blocksize = self.nsig*[0]
+        # Most fields have no default. 
+        else:
+            return 0
+        return 1
+
+    # Get the list of fields used to write the header. (Does NOT include d_signals.)
+    # Returns the default required fields, the user defined fields, and their dependencies.
+    def getwritefields(self):
+
+        # Record specification fields
+        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
+        writefields.remove('nseg')
+
+        # Determine whether there are signals. If so, get their required fields.
+        self.checkfield('nsig')
+        if self.nsig>0:
+            writefields=writefields+self.getwritesubset(OrderedDict(reversed(list(sigfieldspecs.items()))))
+
+        # Comments
+        if self.comments !=None:
+            writefields.append('comments')
+        return writefields
+
+    # Helper function for getwritefields
+    def getwritesubset(self, fieldspecs):
+        writefields=[]
+        for f in fieldspecs:
+            if f in writefields:
+                continue
+            # If the field is required by default or has been defined by the user
+            if fieldspecs[f].write_req or getattr(self, f)!=None:
+                rf=f
+                # Add the field and its recursive dependencies
+                while rf!=None:
+                    writefields.append(rf)
+                    rf=fieldspecs[rf].dependency
+
+        return writefields
+
+    # Check the cohesion of fields used to write the header
+    def checkfieldcohesion(self, writefields):
+
+        # If there are no signal specification fields, there is nothing to check. 
+        if self.nsig>0:
+            # The length of all signal specification fields must match nsig
+            for f in writefields:
+                if f in sigfieldspecs:
+                    if len(getattr(self, f)) != self.nsig:
+                        sys.exit('The length of field: '+f+' does not match field nsig.')
+
+            # Each filename must correspond to only one fmt, and only one byte offset (if defined). 
+            datfmts = {}
+            datoffsets = {}
+            for ch in range(0, self.nsig):
+                if self.filename[ch] not in datfmts:
+                    datfmts[self.filename[ch]] = self.fmt[ch]
+                else:
+                    if datfmts[self.filename[ch]] != self.fmt[ch]:
+                        sys.exit('Each filename (dat file) specified must have the same fmt')
+                
+                if self.byteoffset != None:
+                    if self.byteoffset[ch] not in datoffsets:
+                        print('self.byteoffset[ch]:', self.byteoffset[ch])
+                        print('datoffsets: ', datoffsets)
+                        datoffsets[self.byteoffset[ch]] = self.byteoffset[ch]
+                    else:
+                        if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
+                            sys.exit('Each filename (dat file) specified must have the same byte offset')
+
+
+
+
     # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
     # 1. Initiate the WFDBrecord object with essential information. 
     # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
@@ -293,6 +400,10 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
 # Shortcut functions for wrsamp
 
 #def s_wrsamp()
+
+
+
+
 # The specifications of a WFDB fields.
 class WFDBfieldspecs():
     
@@ -308,7 +419,7 @@ class WFDBfieldspecs():
         # Whether the field is always required for writing a header (WFDB requirements + extra rules enforced by this library).
         self.write_req = speclist[3]
 
-# The following dictionaries hold WFDB field specifications, separated by category. 
+# The following dictionaries hold WFDB field specifications.
 
 # The physical and digital signals.
 signalspecs = OrderedDict([('p_signals', WFDBfieldspecs([[np.ndarray], None, None, False])),
@@ -321,29 +432,29 @@ segmentspecs = OrderedDict([('segment', WFDBfieldspecs([[WFDBrecord], None, None
 # Note: nseg is essential for multi but not a field in single. 
 # getwritefields defined in _headers.Headers_Mixin will remove it.           
 recfieldspecs = OrderedDict([('recordname', WFDBfieldspecs([[str], '', None, True])),
-                         ('nseg', WFDBfieldspecs([[int], '/', 'recordname', True])), 
-                         ('nsig', WFDBfieldspecs([[int], ' ', 'recordname', True])),
-                         ('fs', WFDBfieldspecs([[int, float], ' ', 'nsig', True])),
-                         ('counterfreq', WFDBfieldspecs([[int, float], '/', 'fs', False])),
-                         ('basecounter', WFDBfieldspecs([[int, float], '(', 'counterfreq', False])),
-                         ('siglen', WFDBfieldspecs([[int], ' ', 'fs', True])),
+                         ('nseg', WFDBfieldspecs([[int, np.int64, np.int32], '/', 'recordname', True])), 
+                         ('nsig', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'recordname', True])),
+                         ('fs', WFDBfieldspecs([[int, float, np.float64, np.float32], ' ', 'nsig', True])),
+                         ('counterfreq', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], '/', 'fs', False])),
+                         ('basecounter', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], '(', 'counterfreq', False])),
+                         ('siglen', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'fs', True])),
                          ('basetime', WFDBfieldspecs([[str], ' ', 'siglen', False])),
                          ('basedate', WFDBfieldspecs([[str], ' ', 'basetime', False]))])
  
 # Signal specification fields. Type will be list.
 sigfieldspecs = OrderedDict([('filename', WFDBfieldspecs([[str], '', None, True])),
-                         ('fmt', WFDBfieldspecs([[int, str], ' ', 'filename', True])),
-                         ('sampsperframe', WFDBfieldspecs([[int], 'x', 'fmt', False])),
-                         ('skew', WFDBfieldspecs([[int], ':', 'fmt', False])),
-                         ('byteoffset', WFDBfieldspecs([[int], '+', 'fmt', False])),
-                         ('adcgain', WFDBfieldspecs([[int, float, np.float64, np.float32], ' ', 'fmt', True])),
-                         ('baseline', WFDBfieldspecs([[int], '(', 'adcgain', True])),
+                         ('fmt', WFDBfieldspecs([[str], ' ', 'filename', True])),
+                         ('sampsperframe', WFDBfieldspecs([[int, np.int64, np.int32], 'x', 'fmt', False])),
+                         ('skew', WFDBfieldspecs([[int, np.int64, np.int32], ':', 'fmt', False])),
+                         ('byteoffset', WFDBfieldspecs([[int, np.int64, np.int32], '+', 'fmt', False])),
+                         ('adcgain', WFDBfieldspecs([[int, np.int64, np.int32, float, np.float64, np.float32], ' ', 'fmt', True])),
+                         ('baseline', WFDBfieldspecs([[int, np.int64, np.int32], '(', 'adcgain', True])),
                          ('units', WFDBfieldspecs([[str], '/', 'adcgain', True])),
-                         ('adcres', WFDBfieldspecs([[int], ' ', 'adcgain', False])),
-                         ('adczero', WFDBfieldspecs([[int], ' ', 'adcres', False])),
-                         ('initvalue', WFDBfieldspecs([[int], ' ', 'adczero', False])),
-                         ('checksum', WFDBfieldspecs([[int], ' ', 'initvalue', False])),
-                         ('blocksize', WFDBfieldspecs([[int], ' ', 'checksum', False])),
+                         ('adcres', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adcgain', False])),
+                         ('adczero', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adcres', False])),
+                         ('initvalue', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'adczero', False])),
+                         ('checksum', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'initvalue', False])),
+                         ('blocksize', WFDBfieldspecs([[int, np.int64, np.int32], ' ', 'checksum', False])),
                          ('signame', WFDBfieldspecs([[str], ' ', 'blocksize', False]))])
     
 # Segment specification fields. Type will be list. 
@@ -356,11 +467,7 @@ comfieldspecs = OrderedDict([('comments', WFDBfieldspecs([[str], None, None, Fal
 
 
 
-
-
-
 # General utility functions            
-
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
 def parsetimestring(timestring):

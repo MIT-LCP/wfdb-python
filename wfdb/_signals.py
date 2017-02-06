@@ -224,7 +224,6 @@ class SignalsMixin():
         
         return (gains, baselines)
 
-    
 
     # Calculate the checksum(s) of the d_signals field
     def calc_checksum(self):
