@@ -256,7 +256,7 @@ def readheader(recordname):  # For reading signal headers
                 skew = '0'
             if not byteoffset:
                 byteoffset = '0'
-            if not adcgain:
+            if not float(adcgain):
                 adcgain = '200'
             if not baseline:
                 if not adczero:
