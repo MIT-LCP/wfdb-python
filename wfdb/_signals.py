@@ -53,16 +53,18 @@ class SignalsMixin():
             if (chmin < dmin) or (chmax > dmax):
                 sys.exit("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
                     
-        # Ensure that the checksums and initial value fields match the digital signal
+        # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
         if self.nsig>0:
-            realchecksum = self.calc_checksum()
-            if self.checksum != realchecksum:
-                print("checksum field does not match actual checksum of d_signals: ", realchecksum)
-                sys.exit()
-            realinitvalue = list(self.d_signals[0,:])
-            if self.initvalue != realinitvalue:
-                print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
-                sys.exit()
+            if 'checksum' in writefields:
+                realchecksum = self.calc_checksum()
+                if self.checksum != realchecksum:
+                    print("checksum field does not match actual checksum of d_signals: ", realchecksum)
+                    sys.exit()
+            if 'initvalue' in writefields:
+                realinitvalue = list(self.d_signals[0,:])
+                if self.initvalue != realinitvalue:
+                    print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
+                    sys.exit()
 
 
 
@@ -375,6 +377,20 @@ def wrdatfile(filename, fmt, d_signals):
         d_signals = d_signals + 128
         # Convert to unsigned 8 bit dtype to write
         bwrite = d_signals.astype('uint8')
+
+    elif fmt == '212':
+        # convert to 12 bit two's complement 
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
+        # Split samples into separate bytes using binary masks
+        b1 = d_signals & [255]*nsig
+        b2 = ( d_signals & [65280]*nsig ) >> 8
+        # Interweave the bytes so that the same samples' bytes are consecutive 
+        b1 = b1.reshape((-1, 1))
+        b2 = b2.reshape((-1, 1))
+        bwrite = np.concatenate((b1, b2), axis=1)
+        bwrite = bwrite.reshape((1,-1))[0]
+        # Convert to unsigned 8 bit dtype to write
+        bwrite = bwrite.astype('uint8')
     
     elif fmt == '16':
         # convert to 16 bit two's complement 

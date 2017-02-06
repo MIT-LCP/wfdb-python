@@ -83,8 +83,8 @@ class WFDBbaserecord():
             if self.basecounter <=0:
                 sys.exit('basecounter must be a positive number') 
         elif field == 'siglen':
-            if self.siglen <=0:
-                sys.exit('siglen must be a positive integer')
+            if self.siglen <0:
+                sys.exit('siglen must be a non-negative integer')
         elif field == 'basetime':
             _ = parsetimestring(self.basetime)
         elif field == 'basedate':
@@ -274,9 +274,6 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         elif field in ['p_signals','d_signals']:
             listcheck = 0
             allowedtypes = [np.ndarray]
-        else:
-            sys.exit('there has been a mistake')
-        
 
         item = getattr(self, field)
 
@@ -316,6 +313,8 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
         self.segname = segname
         self.seglen = seglen
 
+    # Write a multi-segment header, along with headers and dat files for all segments
+    def wrsamp():
 
 
     # Check the data type of the specified field.
@@ -358,18 +357,39 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
                 sys.exit()
 
     
-    # Check the cohesion of the segments field with the other fields used to write the record
-    def checksegmentcohesion(self, writefields):
+    # Check the cohesion of the segments field with other fields used to write the record
+    def checksegmentcohesion(self):
 
-        # Check the sum of siglens from each segment object against the stated seglen fields
-        validsiglen = 0
-        for s in self.segment:
-            validsiglen = validsiglen = getattr(s, 'siglen')
+        # Check that nseg is equal to the length of the segments field
+        if self.nseg != len(self.segments):
+            sys.exit('Length of segments must match the nseg field')
 
-        # Check that nseg is equal to the length of the segments field plus empty segments plus layout
+        for i in range(0, nseg):
+            s = self.segment[i]:
 
-        # Check that sampling frequencies all match the one in the master header
+            # If segment 1 is layout, check the signal names are all = ~ 
+            if i==1:
 
+
+            # Check that sampling frequencies all match the one in the master header
+            if s.fs != self.fs:
+                sys.exit()
+
+            # Check the signal length of the segment against the corresponding seglen field
+
+
+            totalsiglen = totalsiglen + getattr(s, 'siglen')
+
+        
+
+
+        # No need to check the sum of siglens from each segment object against the stated seglen field
+        # Already effectively done it when checking length of 
+
+
+
+
+        
 
 
 # Shortcut functions for wrsamp

@@ -137,6 +137,7 @@ class HeadersMixin(HeadersBaseMixin):
                         if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
                             sys.exit('Each filename (dat file) specified must have the same byte offset')
 
+
     # Write a header file using the specified fields
     def wrheaderfile(self, writefields):
 
@@ -223,6 +224,10 @@ class MultiHeadersMixin(BaseHeadersMixin):
         for f in ['segname', 'seglen']:
             if len(getattr(self, f)) != self.nseg:
                 sys.exit('The length of field: '+f+' does not match field nseg.')
+
+        # Check the sum of the 'seglen' fields against 'siglen'
+        if np.sum(self.seglen) != self.siglen:
+            sys.exit("The sum of the 'seglen' fields do not match the 'siglen' field")
 
 
     # Write a header file using the specified fields
