@@ -315,6 +315,7 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 
     # Write a multi-segment header, along with headers and dat files for all segments
     def wrsamp():
+        print('to do')
 
 
     # Check the data type of the specified field.
@@ -365,26 +366,26 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
             sys.exit('Length of segments must match the nseg field')
 
         for i in range(0, nseg):
-            s = self.segment[i]:
+            s = self.segments[i]
 
-            # If segment 1 is layout, check the signal names are all = ~ 
-            if i==1:
-
+            # If segment 0 is a layout specification record, check that its file names are all == '~'' 
+            if i==0 and self.seglen[0] == 0:
+                for filename in s.filename:
+                    if filename != '~':
+                        sys.exit("Layout specification records must have all filenames named '~'")
 
             # Check that sampling frequencies all match the one in the master header
             if s.fs != self.fs:
-                sys.exit()
+                sys.exit("The fs in each segment must match the overall record's fs")
 
             # Check the signal length of the segment against the corresponding seglen field
-
+            if s.siglen != self.seglen[i]:
+                sys.exit('The signal length of segment '+str(i)+' does not match the corresponding segment length')
 
             totalsiglen = totalsiglen + getattr(s, 'siglen')
 
-        
-
-
-        # No need to check the sum of siglens from each segment object against the stated seglen field
-        # Already effectively done it when checking length of 
+        # No need to check the sum of siglens from each segment object against siglen
+        # Already effectively done it when checking sum(seglen) against siglen
 
 
 
@@ -396,7 +397,46 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 
 #def s_wrsamp()
 
+# Read a WFDB header. Return a WFDBrecord object or WFDBmultirecord object
+def rdheader(recordname):  
 
+    # Read the header file. Separate comment and non-comment lines
+    headerlines, commentlines = _headers.getheaderlines(recordname)
+
+    # Get fields from record line
+    d_rec = _headers.read_rec_line(headerlines[0])
+
+    # Processing according to whether the header is single or multi segment
+
+    # Single segment header - Process signal specification lines
+    if d_rec['nseg'] is None:
+        # Create a single-segment WFDB record object
+        record = WFDBrecord()
+        # Read the fields from the signal lines
+        d_sig = _headers.read_sig_lines(headerlines[1:])
+        # Set the object's fields
+        for field in _headers.sigfieldspecs:
+            setattr(record, field, d_sig[field])    
+    # Multi segment header - Process segment specification lines
+    else:
+        # Create a multi-segment WFDB record object
+        record = WFDBmultirecord()
+        # Read the fields from the segment lines
+        d_seg = _headers.read_seg_lines(headerlines[1:])    
+        # Set the object's fields
+        for field in _headers.segfieldspecs:
+            setattr(record, field, d_seg[field])  
+
+    # Set the comments field
+    record.comments = []
+    for line in commentlines:
+        record.comments.append(line.strip('\s#'))
+
+    # Set the record line fields
+    for field in _headers.recfieldspecs:
+        setattr(record, field, d_rec[field])
+
+    return record
 
       
 

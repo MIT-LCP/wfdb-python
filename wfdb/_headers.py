@@ -54,7 +54,7 @@ class BaseHeadersMixin():
 
 # Class with single-segment header methods
 # To be inherited by WFDBrecord from records.py.
-class HeadersMixin(HeadersBaseMixin):
+class HeadersMixin(BaseHeadersMixin):
 
     # Set a field to its default value if there is a default. Returns 1 if the field is set. 
     # Set overwrite == 1 to enable overwriting of populated fields.
@@ -289,47 +289,6 @@ rxSIGNAL = re.compile(
 # Segment Line Fields
 rxSEGMENT = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
 
-# Read a WFDB header. Return a WFDBrecord object or WFDBmultirecord object
-def rdheader(recordname):  
-
-    # Read the header file. Separate comment and non-comment lines
-    headerlines, commentlines = getheaderlines(recordname)
-
-    # Get fields from record line
-    d_rec = read_record_line(headerlines[0])
-
-    # Processing according to whether the header is single or multi segment
-
-    # Single segment header - Process signal specification lines
-    if nseg is None:
-        # Create a single-segment WFDB record object
-        record = WFDBrecord()
-        # Read the fields from the signal lines
-        d_sig = read_sig_lines(headerlines[1:])
-        # Set the object's fields
-        for field in sigfieldspecs:
-            setattr(record, field, d_sig[field])    
-    # Multi segment header - Process segment specification lines
-    else:
-        # Create a multi-segment WFDB record object
-        record = WFDBmultirecord()
-        # Read the fields from the segment lines
-        d_seg = read_seg_lines(headerlines[1:])    
-        # Set the object's fields
-        for field in segfieldspecs:
-            setattr(record, field, d_seg[field])  
-
-    # Set the comments field
-    record.comments = []
-    for line in commentlines:
-        record.comments.append(line.strip('\s#'))
-
-    # Set the record line fields
-    for field in recfieldspecs:
-        setattr(record, field, d_rec[field])
-
-    return record
-
 
 # Read header file to get comment and non-comment lines
 def getheaderlines(recordname):
@@ -363,8 +322,8 @@ def read_rec_line(recline):
 
     # Read string fields from record line
     (d_rec['recordname'], d_rec['nseg'], d_rec['nsig'], d_rec['fs'], 
-    d_rec['counterfs'], d_rec['basecounter'], d_rec['siglen'],
-    d_rec['basetime'], d_rec['basedate']) = re.findall(rxRECORD, recordline)[0]
+    d_rec['counterfreq'], d_rec['basecounter'], d_rec['siglen'],
+    d_rec['basetime'], d_rec['basedate']) = re.findall(rxRECORD, recline)[0]
 
     for field in recfieldspecs:
         # Replace empty strings with their read defaults (which are mostly None)
@@ -439,7 +398,7 @@ def read_seg_lines(seglines):
                 d_seg[field][i] = segfieldspecs[field].read_def
             # Typecast non-empty strings for numerical field
             else:
-                if field == 'seglen'
+                if field == 'seglen':
                     d_seg[field][i] = int(d_seg[field][i])
                                  
     return d_seg
@@ -495,7 +454,7 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
-                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None)),
+                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200, None)),
