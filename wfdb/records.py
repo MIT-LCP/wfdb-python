@@ -388,14 +388,33 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
         # Already effectively done it when checking sum(seglen) against siglen
 
 
-
-
-        
-
-
 # Shortcut functions for wrsamp
 
 #def s_wrsamp()
+
+
+# Read a WFDB single or multi segment record. Return a WFDBrecord object or WFDBmultirecord object
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None):  
+
+    record = rdheader(recordname)
+
+    # A single segment record
+    if type(record) == WFDBrecord:
+
+        # Read signals from the associated dat files that contain wanted channels
+        record.d_signals = rddatfiles(record.filename, record.fmt, record.sampfrom, record.sampto, record.channels)
+        # Perform dac to get physical signal
+        record.p_signals = record.dac()
+
+        # Should we do the channel selection and edit the object fields here? 
+        record.alterfields(channels = channels, sampfrom = sampfrom, sampto = sampto)
+
+    # A multi segment record
+    else:
+        print('on it')
+
+    return record
+
 
 # Read a WFDB header. Return a WFDBrecord object or WFDBmultirecord object
 def rdheader(recordname):  
@@ -438,7 +457,37 @@ def rdheader(recordname):
 
     return record
 
-      
+
+# Read the dat files associated with a record that carry wanted channels
+def rddatfiles(filenames, fmt, sampfrom, sampto, channels):
+
+    # Get the set of dat files to be read, and
+    # the channels that belong to each file. 
+    filenames, datchannels = orderedsetlist(filenames)
+
+    # Remove dat files that do not contain wanted channels
+    for filename in filenames:
+        if datchannels[filename] not in channels:
+            filenames.remove(filename)
+            del(datchannels[filename])
+
+    # Get the fmt corresponding to each remaining dat file
+
+    # Allocate signal array
+
+    # Read the relevant dat files
+
+    # 
+
+    #for i in range(0, len(filenames)):
+            
+    #    rddatfile(filenames[i], self.fmt[min(datchannels[filenames[i]])],
+    #        self.d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
+
+# Read a single dat file
+def rddatfile(filename, fmt, sampfrom, sampto):
+
+
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
 def parsetimestring(timestring):

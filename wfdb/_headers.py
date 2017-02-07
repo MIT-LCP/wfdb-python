@@ -426,7 +426,7 @@ class WFDBheaderspecs():
         # The default value for the field when read if any
         self.read_def = read_def
         # The default value for the field to fill in before writing if any
-        self.read_def = write_def
+        self.write_def = write_def
 
         # The read vs write default values are different for 2 reasons:
         # 1. We want to force the user to be explicit with certain important
