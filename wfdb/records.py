@@ -34,8 +34,6 @@ class WFDBbaserecord():
         self.comments = comments
 
 
-
-
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
     def checkfield(self, field): 
         # Check that the field is present
@@ -179,7 +177,22 @@ class WFDBbaserecord():
                 if re.search('[\t\n\r\f\v]', f):
                     sys.exit('comments may not contain tabs or newlines (they may contain spaces and underscores).')
                     
+    # Ensure that input read parameters are valid for the record
+    def checkreadinputs(self, sampfrom, sampto, channels):
+        if sampfrom<0:
+            sys.exit('sampfrom must be a non-negative integer')
+        if sampfrom>self.siglen:
+            sys.exit('sampfrom must be shorter than the signal length')
+        if sampto<0:
+            sys.exit('sampto must be a non-negative integer')
+        if sampto>self.siglen:
+            sys.exit('sampto must be shorter than the signal length')
 
+        for c in channels:
+            if c<0:
+                sys.exit('Input channels must all be non-negative integers')
+            if c>self.nsig-1:
+                sys.exit('Input channels must all be lower than the total number of channels')
 
 
 # Class for single segment WFDB records.
@@ -292,6 +305,23 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
                 sys.exit()
 
 
+    # Arrange/edit object fields to reflect user channel and/or signal range input
+    def arrangefields(self, channels):
+        # Update record specification parameters
+        self.nsig = len(channels)
+        self.siglen = self.d_signals.shape[0]
+
+        # Rearrange signal specification fields
+        for field in _headers.sigfieldspecs:
+            item = getattr(self, field)
+            if item is not None:
+                setattr(self, field, item[channels]) 
+
+        # Checksum and initvalue to be updated if present
+        if self.checksum is not None:
+            self.checksum = self.calc_checksum()
+        if self.initvalue is not None:
+            self.initvalue = list(self.d_signals[0, :])
 
 
 # Class for multi segment WFDB records.
@@ -393,25 +423,43 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 #def s_wrsamp()
 
 
-# Read a WFDB single or multi segment record. Return a WFDBrecord object or WFDBmultirecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None):  
 
+#------------------- Reading Records -------------------#
+
+# Read a WFDB single or multi segment record. Return a WFDBrecord or WFDBmultirecord object
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):  
+
+    # Read the header fields into the appropriate record object
     record = rdheader(recordname)
+
+    # Set defaults for sampto and channels
+    if sampto is None:
+        sampto = record.siglen
+    if channels is None:
+        channels = list(range(record.nsig))
+
+    # Ensure that input fields are valid for the record
+    record.checkreadinputs(sampfrom, sampto, channels)
 
     # A single segment record
     if type(record) == WFDBrecord:
 
         # Read signals from the associated dat files that contain wanted channels
-        record.d_signals = rddatfiles(record.filename, record.fmt, record.sampfrom, record.sampto, record.channels)
-        # Perform dac to get physical signal
-        record.p_signals = record.dac()
+        record.d_signals = _signals.rdsegment(record.filename, record.nsig, record.fmt, record.siglen, 
+            record.byteoffset, record.sampsperframe, record.skew,
+            sampfrom, sampto, channels)
 
-        # Should we do the channel selection and edit the object fields here? 
-        record.alterfields(channels = channels, sampfrom = sampfrom, sampto = sampto)
+        # Arrange/edit the object fields to reflect user channel and/or signal range input
+        record.arrangefields(channels)
+
+        if physical == 1:
+            # Perform dac to get physical signal
+            record.p_signals = record.dac()
 
     # A multi segment record
     else:
-        print('on it')
+        # for each segment: rdheader, rdsegment. 
+        sys.exit('I will get to you soon!')
 
     return record
 
@@ -433,61 +481,37 @@ def rdheader(recordname):
         record = WFDBrecord()
         # Read the fields from the signal lines
         d_sig = _headers.read_sig_lines(headerlines[1:])
-        # Set the object's fields
+        # Set the object's signal line fields
         for field in _headers.sigfieldspecs:
-            setattr(record, field, d_sig[field])    
+            setattr(record, field, d_sig[field])   
+        # Set the object's record line fields
+        for field in _headers.recfieldspecs:
+            if field == 'nseg':
+                continue
+            setattr(record, field, d_rec[field])
     # Multi segment header - Process segment specification lines
     else:
         # Create a multi-segment WFDB record object
         record = WFDBmultirecord()
         # Read the fields from the segment lines
         d_seg = _headers.read_seg_lines(headerlines[1:])    
-        # Set the object's fields
+        # Set the object's segment line fields
         for field in _headers.segfieldspecs:
             setattr(record, field, d_seg[field])  
-
+        # Set the objects' record line fields
+        for field in _headers.recfieldspecs:
+            setattr(record, field, d_rec[field])
     # Set the comments field
     record.comments = []
     for line in commentlines:
         record.comments.append(line.strip('\s#'))
 
-    # Set the record line fields
-    for field in _headers.recfieldspecs:
-        setattr(record, field, d_rec[field])
+    
 
     return record
 
 
-# Read the dat files associated with a record that carry wanted channels
-def rddatfiles(filenames, fmt, sampfrom, sampto, channels):
-
-    # Get the set of dat files to be read, and
-    # the channels that belong to each file. 
-    filenames, datchannels = orderedsetlist(filenames)
-
-    # Remove dat files that do not contain wanted channels
-    for filename in filenames:
-        if datchannels[filename] not in channels:
-            filenames.remove(filename)
-            del(datchannels[filename])
-
-    # Get the fmt corresponding to each remaining dat file
-
-    # Allocate signal array
-
-    # Read the relevant dat files
-
-    # 
-
-    #for i in range(0, len(filenames)):
-            
-    #    rddatfile(filenames[i], self.fmt[min(datchannels[filenames[i]])],
-    #        self.d_signals[:, min(datchannels[filenames[i]]):max(datchannels[filenames[i]])+1])
-
-# Read a single dat file
-def rddatfile(filename, fmt, sampfrom, sampto):
-
-
+#------------------- /Reading Records -------------------#
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
 def parsetimestring(timestring):

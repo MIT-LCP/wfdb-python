@@ -61,6 +61,9 @@ class HeadersMixin(BaseHeadersMixin):
     # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
     def setdefault(self, field, overwrite = 0):
         
+        # UPDATE THIS!!!! 
+
+
         # Check whether the field is empty before trying to set.
         if overwrite == 0:
             if getattr(self, field) != None:
