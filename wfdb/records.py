@@ -307,15 +307,21 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
     def arrangefields(self, channels):
-        # Update record specification parameters
-        self.nsig = len(channels)
-        self.siglen = self.d_signals.shape[0]
-
+        
         # Rearrange signal specification fields
         for field in _headers.sigfieldspecs:
             item = getattr(self, field)
-            if item is not None:
-                setattr(self, field, item[channels]) 
+            if item is not self.nsig*[None]:
+                setattr(self, field, [item[c] for c in channels]) 
+
+        # Update record specification parameters
+        # Important that these get updated after ^^
+        self.nsig = len(channels)
+        self.siglen = self.d_signals.shape[0]
+
+        print('\n\n')
+        print(self.d_signals)
+        print(self.d_signals.shape)
 
         # Checksum and initvalue to be updated if present
         if self.checksum is not None:
@@ -429,6 +435,9 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 # Read a WFDB single or multi segment record. Return a WFDBrecord or WFDBmultirecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):  
 
+
+    dirname, baserecordname = os.path.split(recordname)
+
     # Read the header fields into the appropriate record object
     record = rdheader(recordname)
 
@@ -447,7 +456,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):
         # Read signals from the associated dat files that contain wanted channels
         record.d_signals = _signals.rdsegment(record.filename, record.nsig, record.fmt, record.siglen, 
             record.byteoffset, record.sampsperframe, record.skew,
-            sampfrom, sampto, channels)
+            sampfrom, sampto, channels, dirname)
 
         # Arrange/edit the object fields to reflect user channel and/or signal range input
         record.arrangefields(channels)

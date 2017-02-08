@@ -161,7 +161,7 @@ class SignalsMixin():
         # Get nan indices, indicated by minimum value. 
         nanlocs = self.d_signals == dnans
         
-        p_signal = (self.signals - self.baseline)/self.adcgain
+        p_signal = (self.d_signals - self.baseline)/self.adcgain
             
         p_signal[nanlocs] = np.nan
                 
@@ -252,28 +252,15 @@ class SignalsMixin():
 # Read the samples from a single segment record's associated dat file(s)
 # 'channels', 'sampfrom', and 'sampto' are user desired input fields.
 # All other input arguments are specifications of the segment
-def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels):
-
-    print(byteoffset)
-    print(sampsperframe)
-    print(skew)
+def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels, dirname):
 
     # Set defaults for empty fields
     if byteoffset == [None]*nsig:
-        print('yes 1')
         byteoffset = [0]*nsig
     if sampsperframe == [None]*nsig:
-        print('yes 2')
         sampsperframe = [1]*nsig
     if skew == [None]*nsig:
-        print('yes 3')
         skew = [0]*nsig
-
-    print(byteoffset)
-    print(sampsperframe)
-    print(skew)
-
-    print('\n\n')
 
     # Get the set of dat files, and the 
     # channels that belong to each file. 
@@ -285,7 +272,7 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
     w_fmt = {} # one scalar per dat file
     w_byteoffset = {} # one scalar per dat file
     w_sampsperframe = {} # one list per dat file
-    w_skew = {} # one scalar per dat file
+    w_skew = {} # one list per dat file
     w_channel = {} # one list per dat file
 
     for fn in filename:
@@ -298,22 +285,24 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
             w_fmt[fn] = fmt[datchannel[fn][0]]
             w_byteoffset[fn] = byteoffset[datchannel[fn][0]]
             w_sampsperframe[fn] = [sampsperframe[c] for c in datchannel[fn]]
-            w_skew[fn] = skew[datchannel[fn][0]]
+            w_skew[fn] = [skew[c] for c in datchannel[fn]]
             w_channel[fn] = idc
         
     # Wanted dat channels, relative to the dat file itself
     r_w_channel =  {}
     # The channels in the final output array that correspond to the read channels in each dat file
     out_datchannel = {}
-    for fn in r_w_channel:
-        r_w_channel[fn] = [c - min(datchannel[fn]) for c in r_w_channels[fn]]
+    for fn in w_channel:
+        r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
         out_datchannel[fn] = [channels.index(c) for c in w_channel[fn]]
         
     # Allocate signal array
-    signals = np.array([sampto-sampfrom, len(channels)])
+    signals = np.empty([sampto-sampfrom, len(channels)])
+    print('signals.shape: ', signals.shape)
 
     # Read each wanted dat file and store signals
     for fn in w_filename:
+        print('filename:')
         print(fn)
         print(w_fmt[fn])
         print(datchannel[fn])
@@ -321,11 +310,15 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
         print(w_sampsperframe[fn])
         print(w_skew[fn])
         print(r_w_channel[fn])
+        print('\n\n')
 
-        signals[out_datchannel[fn]] = rddat(fn, w_fmt[fn], len(datchannel[fn]), 
-            siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[r_w_channel[fn]]
+        signals[:, out_datchannel[fn]] = rddat(os.path.join(dirname, fn), w_fmt[fn], len(datchannel[fn]), 
+            siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
 
-    return (signals) # Should return other parameters? or is channels already enough?
+
+    print('signals: ', signals)
+
+    return signals # Should return other parameters? or is channels already enough?
 
 
 # Get samples from a WFDB dat file
@@ -369,6 +362,8 @@ def rddat(filename, fmt, nsig,
         nbytesread, byteoffset, sampsperframe, tsampsperframe)
 
     fp.close()
+
+    print('sig:', sig)
 
     return sig
 
