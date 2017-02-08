@@ -61,37 +61,31 @@ class HeadersMixin(BaseHeadersMixin):
     # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
     def setdefault(self, field, overwrite = 0):
         
-        # UPDATE THIS!!!! 
-
-
         # Check whether the field is empty before trying to set.
         if overwrite == 0:
             if getattr(self, field) != None:
                 return 0
-                
-        # Going to set the field. 
+        
+        setfield = 0
+
         # Record specification fields
-        if field == 'basetime':
-            self.basetime = '00:00:00'
-        # Signal specification fields    
-        elif field == 'filename':
-            self.filename = self.nsig*[self.recordname+'.dat']
-        elif field == 'adcres':
-            if self.fmt is None:
-                self.adcres = self.nsig*[0]
-            else:
+        if field in recfieldspecs:
+            setattr(self, field, recfieldspecs[field].write_def)
+            setfield = 1
+        # Signal specification fields
+        elif field in sigfieldspecs:
+            if sigfieldspecs[field].write_def is not None:
+                setattr(self, field, self.nsig*[sigfieldspecs[field].write_def])
+                setfield = 1
+            # Set more specific defaults if possible
+            if field == 'filename':
+                self.filename = self.nsig*[self.recordname+'.dat']
+                setfield = 1
+            elif field == 'adcres' and self.fmt is not None:
                 self.adcres=_signals.wfdbfmtres(self.fmt)
+                setfield = 1
 
-                # For all of these, including this, just use the default defined static field. THEN check for other like wfdbfmtres.... 
-
-        elif field == 'adczero':
-            self.adczero = self.nsig*[0]
-        elif field == 'blocksize':
-            self.blocksize = self.nsig*[0]
-        # Most fields have no default. 
-        else:
-            return 0
-        return 1
+        return setfield
 
     # Get the list of fields used to write the header. (Does NOT include d_signals.)
     # Returns the default required fields, the user defined fields, and their dependencies.
@@ -371,6 +365,9 @@ def read_sig_lines(siglines):
             # Replace empty strings with their read defaults (which are mostly None)
             if d_sig[field][i] == '':
                 d_sig[field][i] = sigfieldspecs[field].read_def
+                # Special case: missing baseline defaults to ADCzero if present
+                if field == 'baseline' and d_sig['adczero'][i] != '':
+                    d_sig['baseline'][i] = int(d_sig['adczero'][i])
             # Typecast non-empty strings for numerical fields
             else:
                 if sigfieldspecs[field].allowedtypes is inttypes:
@@ -461,7 +458,7 @@ sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True,
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200, None)),
-                         ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, 0, None)),
+                         ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, None, None)),
                          ('units', WFDBheaderspecs([str], '/', 'adcgain', True, 'mV', None)),
                          ('adcres', WFDBheaderspecs(inttypes, ' ', 'adcgain', False, None, 0)),
                          ('adczero', WFDBheaderspecs(inttypes, ' ', 'adcres', False, None, 0)),

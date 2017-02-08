@@ -319,10 +319,6 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
         self.nsig = len(channels)
         self.siglen = self.d_signals.shape[0]
 
-        print('\n\n')
-        print(self.d_signals)
-        print(self.d_signals.shape)
-
         # Checksum and initvalue to be updated if present
         if self.checksum is not None:
             self.checksum = self.calc_checksum()
@@ -423,6 +419,9 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
         # No need to check the sum of siglens from each segment object against siglen
         # Already effectively done it when checking sum(seglen) against siglen
 
+    # Perform adc on all segments and store results in p_signals fields 
+    def adcsegments(self):
+
 
 # Shortcut functions for wrsamp
 
@@ -434,7 +433,6 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 
 # Read a WFDB single or multi segment record. Return a WFDBrecord or WFDBmultirecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):  
-
 
     dirname, baserecordname = os.path.split(recordname)
 
@@ -452,7 +450,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):
 
     # A single segment record
     if type(record) == WFDBrecord:
-
         # Read signals from the associated dat files that contain wanted channels
         record.d_signals = _signals.rdsegment(record.filename, record.nsig, record.fmt, record.siglen, 
             record.byteoffset, record.sampsperframe, record.skew,
@@ -467,7 +464,34 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):
 
     # A multi segment record
     else:
-        # for each segment: rdheader, rdsegment. 
+        # Segments field is a list of WFDBrecord objects
+        record.segments = []*record.nseg
+
+        # Fixed layout
+        if record.seglen[0] == 0:
+            fixed = True
+        # Variable layout
+        else:
+            fixed = False
+            # Read the layout specification header
+            record.segments[0] = rdheader(os.path.join(basedir, record.segname[0]))
+
+        # Get the segments which contain samples in the desired range
+
+
+
+        # For variable layout records, get the 
+        # segments with the wanted channels
+
+
+
+
+
+        
+        for seg in record.segname:
+            record.segments.append()
+
+
         sys.exit('I will get to you soon!')
 
     return record
@@ -514,8 +538,6 @@ def rdheader(recordname):
     record.comments = []
     for line in commentlines:
         record.comments.append(line.strip('\s#'))
-
-    
 
     return record
 

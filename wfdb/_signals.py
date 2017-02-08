@@ -238,7 +238,7 @@ class SignalsMixin():
         # Get the fmt corresponding to each dat file
         datfmts={}
         for fn in filenames:
-            datfmts[fn] = self.fmt[datchannels[filename][0]]
+            datfmts[fn] = self.fmt[datchannels[fn][0]]
 
         # Write the dat files 
         for fn in filenames:
@@ -298,25 +298,11 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
         
     # Allocate signal array
     signals = np.empty([sampto-sampfrom, len(channels)])
-    print('signals.shape: ', signals.shape)
 
     # Read each wanted dat file and store signals
     for fn in w_filename:
-        print('filename:')
-        print(fn)
-        print(w_fmt[fn])
-        print(datchannel[fn])
-        print(w_byteoffset[fn])
-        print(w_sampsperframe[fn])
-        print(w_skew[fn])
-        print(r_w_channel[fn])
-        print('\n\n')
-
         signals[:, out_datchannel[fn]] = rddat(os.path.join(dirname, fn), w_fmt[fn], len(datchannel[fn]), 
             siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
-
-
-    print('signals: ', signals)
 
     return signals # Should return other parameters? or is channels already enough?
 
@@ -362,8 +348,6 @@ def rddat(filename, fmt, nsig,
         nbytesread, byteoffset, sampsperframe, tsampsperframe)
 
     fp.close()
-
-    print('sig:', sig)
 
     return sig
 
