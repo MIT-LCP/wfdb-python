@@ -246,26 +246,6 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
             self.wrdats()
     
 
-    # Example sequence for a user to call wrsamp on a physical ecg signal x with 3 channels:
-    # 1. Initiate the WFDBrecord object with essential information. 
-    # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
-    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
-    # >> record1.set_d_features(do_adc = 1)
-    # 3. Set default values of any missing field dependencies
-    # >> record1.setdefaults()
-    # 4. Write the record files - header and associated dat
-    # >> record1.wrsamp()
-
-    # Example sequence for a user to call wrsamp on a digital ecg signal x with 3 channels:
-    # 1. Initiate the WFDBrecord object with essential information. 
-    # >> record1 = WFDBrecord(recordname = 'record1', p_signals = x, fs = 125, units = ['mV','mV','mV'], signame = ['I','II','V'])
-    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
-    # >> record1.set_d_features(do_adc = 1)
-    # 3. Set default values of any missing field dependencies
-    # >> record1.setdefaults()
-    # 4. Write the record files - header and associated dat
-    # >> record1.wrsamp()
-
     # Check the data type of the specified field.
     def checkfieldtype(self, field):
         
@@ -330,11 +310,11 @@ class WFDBrecord(WFDBbaserecord, _headers.HeadersMixin, _signals.SignalsMixin):
 class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
     
     # Constructor
-    def __init__(self, segments = None, recordname=None, 
-                 nsig=None, fs=None, counterfreq=None, 
-                 basecounter=None, siglen=None,
-                 basetime=None, basedate=None, segname = None,
-                 seglen = None, comments=None):
+    def __init__(self, segments = None, layout = None,
+                 recordname=None, nsig=None, fs=None, 
+                 counterfreq=None, basecounter=None, 
+                 siglen=None, basetime=None, basedate=None, 
+                 segname = None, seglen = None, comments=None):
 
 
         super(WFDBmultirecord, self).__init__(recordname, nsig,
@@ -349,6 +329,9 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
     def wrsamp():
         print('to do')
 
+    # Write a multi-segment header
+    def wrhea():
+        print('to do')
 
     # Check the data type of the specified field.
     def checkfieldtype(self, field):
@@ -432,7 +415,16 @@ class WFDBmultirecord(WFDBbaserecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a WFDBrecord or WFDBmultirecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):  
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1, stackmulti = 1):  
+
+    # If the user specifies a sample or signal range, some fields 
+    # of  the output object will be updated from the fields directly
+    # read from the header, which represent the entire record being 
+    # read. 
+
+    # The goal of this function is to create an object, or objects, 
+    # with description fields that reflect the state its contents 
+    # when created. 
 
     dirname, baserecordname = os.path.split(recordname)
 
@@ -464,32 +456,51 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = 1):
 
     # A multi segment record
     else:
+        # Strategy: 
+        # 1. Read the required segments and store them in 
+        # WFDBrecord objects. 
+        # 2. Update the parameters of the objects to reflect
+        # the state of the sections read.
+        # 3. Update the parameters of the overall WFDBmultirecord
+        # object to reflect the state of the individual segments.
+        # 4. If specified, convert the WFDBmultirecord object
+        # into a single WFDBrecord object.
+
         # Segments field is a list of WFDBrecord objects
         record.segments = []*record.nseg
 
         # Fixed layout
         if record.seglen[0] == 0:
-            fixed = True
+            self.layout = 'Fixed'
         # Variable layout
         else:
-            fixed = False
+            self.layout = 'Variable'
             # Read the layout specification header
             record.segments[0] = rdheader(os.path.join(basedir, record.segname[0]))
 
-        # Get the segments which contain samples in the desired range
+        # Get the segments numbers, samples, and 
+        # channels within each segment to read.
+        readsegs, segranges segchannels = requiredsegments(self.seglen, sampfrom, sampto, self.layout)
+
+        # Get the channels to read from each segment
 
 
+        # For variable layout records, update the
+        # required segments based on the channels
 
-        # For variable layout records, get the 
-        # segments with the wanted channels
-
+        segchannels = []
 
 
 
 
         
-        for seg in record.segname:
-            record.segments.append()
+        for segnum in readsegs:
+            # Empty Segment
+            if self.segname[segnum] == '~':
+                self.segments[segnum] = self.seglen[segnum]
+            else:
+                self.segments[segnum] = rdsamp(os.path.join(basedir, segname[segnum]), sampfrom = segranges[segnum][0], sampto = segranges[segnum][0])
+
 
 
         sys.exit('I will get to you soon!')
@@ -541,6 +552,52 @@ def rdheader(recordname):
 
     return record
 
+# Determine the segments, and the samples and channels
+# within each segment that have to be read in a 
+# multi-segment record. Return the segment numbers 
+# and the samples to read within each segment. 
+def requiredsegments(seglen, sampfrom, sampto, layout):
+
+    # Get the starting segment with actual samples
+    if layout == 'Fixed':
+        startseg = 1
+    else:
+        startseg = 0
+
+    # Cumulative sum of segment lengths
+    cumsumlengths = list(np.cumsum(seglen[startseg:]))
+
+    # First segment
+    readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
+    # Final segment
+    if sampto == cumsumlengths[len(cumsumlengths) - 1]:
+        readsegs.append(len(cumsumlengths) - 1)  
+    else:
+        readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
+    # Obtain the sampfrom and sampto for each segment
+    if readsegs[1] == readsegs[0]:  # Only one segment to read
+        readsegs = [readsegs[0]]
+        
+        readsamps = [[sampfrom, sampto]]
+    else:
+        readsegs = list(range(readsegs[0], readsegs[1]+1))  # Expand into list
+        # The sampfrom and sampto for each segment. Most are [0, seglen]
+        readsamps = [[0, seglen[s + startseg]]
+                     for s in readsegs]
+        # Starting sample for first segment
+        readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]]
+        readsamps[len(readsamps) - 1][1] = sampto - ([0] + cumsumlengths)[
+            readsegs[len(readsamps) - 1]]  # End sample for last segment
+    
+    # Get the channel numbers 
+
+    if layout == 'Fixed':
+
+
+
+
+
+    return (readsegs, readsamps, readsigs)
 
 #------------------- /Reading Records -------------------#
 
