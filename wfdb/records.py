@@ -437,10 +437,9 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             # Starting sample for first segment
             readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]]
             # End sample for last segment
-            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[
-                readsegs[-1]]  
+            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]]  
 
-    return (readsegs, readsamps)
+        return (readsegs, readsamps)
 
     # Get the channel numbers to be read from each segment
     def requiredsignals(self, readsegs, channels, dirname):
@@ -599,10 +598,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     # with description fields that reflect the state its contents 
     # when created. 
 
-    # If stackmulti == True, Physical must be true. There is no 
-    # meaningful representation of digital signals... although
-    # the old library insists that there is 
-
     dirname, baserecordname = os.path.split(recordname)
 
     # Read the header fields into the appropriate record object
@@ -647,41 +642,58 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # into a single Record object.
 
         # Segments field is a list of Record objects
-        # Empty segments are represented by integers
-        # specifying their length. Or  []? 
+        # Empty segments store None.
+
+        # If stackmulti == True, Physical must be true. There is no 
+        # meaningful representation of digital signals transferred 
+        # from individual segments. 
+        if stackmulti == True and physical != True:
+            sys.exit('If stackmulti is True, physical must also be true.')
+
         record.segments = [None]*record.nseg
 
         # Fixed layout
         if record.seglen[0] == 0:
-            self.layout = 'Fixed'
+            record.layout = 'Fixed'
         # Variable layout
         else:
-            self.layout = 'Variable'
+            record.layout = 'Variable'
             # Read the layout specification header
             record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]))
 
         # Get the segments numbers, samples, and 
         # channel indices within each segment to read.
-        readsegs, segranges  = self.requiredsegments(sampfrom, sampto, channels)
-        segsigs = self.requiredsignals(readsegs, channels, dirname) 
+        readsegs, segranges  = record.requiredsegments(sampfrom, sampto, channels)
+        segsigs = record.requiredsignals(readsegs, channels, dirname) 
+
+        print('readsegs: ', readsegs)
+        print('segranges: ', readsegs)
+        print('segsigs: ', readsegs)
 
         # Read the desired samples in the relevant segments
-        for i in range(0, readsegs):
+        for i in range(0, len(readsegs)):
             segnum = readsegs[i]
             # Empty segment or segment with no relevant channels
-            if self.segname[segnum] == '~' or segsigs[i] is None:
-                self.segments[segnum] = None 
+            if record.segname[segnum] == '~' or segsigs[i] is None:
+                record.segments[segnum] = None 
             else:
-                self.segments[segnum] = rdsamp(os.path.join(basedir, segname[segnum]), 
+                print('recordname: ', os.path.join(dirname, record.segname[segnum]))
+                print('sampfrom: ', segranges[i][0])
+                print('sampto: ', segranges[i][0])
+                print('channels: ', segsigs[i])
+
+
+
+                record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]), 
                     sampfrom = segranges[i][0], sampto = segranges[i][0], 
                     channels = segsigs[i], physical = physical)
 
         # Arrange the fields of the overall object to reflect user input
-        self.arrangefields(readsegs, segranges, channels)
+        record.arrangefields(readsegs, segranges, channels)
 
         # Convert object into a single segment Record object 
         if stackmulti:
-            record = self.multi_to_single()
+            record = record.multi_to_single()
 
     return record
 
@@ -740,6 +752,20 @@ def wanted_siginds(wanted_signames, record_signames):
         return None
     else:
         return [record_signames.index(s) for s in contained_signals]
+
+
+# A simple version of rdsamp for the average user
+# Return the physical signals and a few essential fields
+def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
+
+    record = rdsamp(recordname, sampfrom, sampto, channels, True, True)
+
+    signals = record.p_signals
+    fields = {}
+    for field in ['fs','units','signame']:
+        fields[field] = getattr(record, field)
+
+    return signals, fields
 
 #------------------- /Reading Records -------------------#
 

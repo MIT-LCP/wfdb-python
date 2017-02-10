@@ -304,7 +304,7 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
         signals[:, out_datchannel[fn]] = rddat(os.path.join(dirname, fn), w_fmt[fn], len(datchannel[fn]), 
             siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
 
-    return signals # Should return other parameters? or is channels already enough?
+    return signals 
 
 
 # Get samples from a WFDB dat file
