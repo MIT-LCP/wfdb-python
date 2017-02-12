@@ -206,23 +206,22 @@ def rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1):
 
         # The first byte pair will either store the actual samples + anntype,
         # or 0 + SKIP.
-        AT = filebytes[bpi, 1] >> 2  # anntype
+        AT = filebytes[int(bpi), 1] >> 2  # anntype
 
         # flags that specify whether to copy the previous channel/num value for
         # the current annotation.
         cpychan, cpynum = 1, 1
-        ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
-
-        AT = filebytes[bpi, 1] >> 2
+        ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,int(bpi),annsamp,anntype,ai)
+        AT = filebytes[int(bpi), 1] >> 2
 
         while (AT > 59):  # Process any other fields belonging to this annotation
 
             subtype,bpi,num,chan,cpychan,cpynum,aux = proc_extra_fields(AT,
-                subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux)
+                subtype,ai,filebytes,int(bpi),num,chan,cpychan,cpynum,aux)
 
             # Only aux and sub are reset between annotations. Chan and num keep
             # previous value if missing.
-            AT = filebytes[bpi, 1] >> 2
+            AT = filebytes[int(bpi), 1] >> 2
 
         if (ai > 0):  # Fill in previous values of chan and num.
             if cpychan:
