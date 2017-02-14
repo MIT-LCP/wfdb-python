@@ -62,9 +62,9 @@ class BaseRecord():
         # Record specification fields
         elif field == 'recordname':       
             # Allow letters, digits, and underscores.
-            acceptedstring = re.match('\w+', self.recordname)
+            acceptedstring = re.match('-\w+', self.recordname)
             if not acceptedstring or acceptedstring.string != self.recordname:
-                sys.exit('recordname must only comprise of letters, digits, and underscores.')
+                sys.exit('recordname must only comprise of letters, digits, dashes, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
                 sys.exit('nseg must be a positive integer')
@@ -525,7 +525,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         endsamps = list(np.cumsum(self.seglen))
         
         if self.layout == 'Fixed':
-            # Figure out the signal names from one of the segments
+            # Figure out the signal names and units from one of the segments
             for seg in self.segments:
                 if seg is not None:
                     fields['signame'] = seg.signame
@@ -546,10 +546,10 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         # For variable layout, have to get channels by name
         else:
             # Get the signal names from the layout segment
-            fields['signame'] = segments[0].signame
-            fields['units'] = segments[0].units
+            fields['signame'] = self.segments[0].signame
+            fields['units'] = self.segments[0].units
 
-            for i in range(1, nseg):
+            for i in range(1, self.nseg):
                 seg = self.segments[i]
 
                 # Empty segment
