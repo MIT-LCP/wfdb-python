@@ -2,4 +2,4 @@
 #from ._plotwfdb import plotwfdb
 #from ._downloadsamp import downloadsamp
 
-from .records import Record, MultiRecord, rdheader, rdsamp
+from .records import Record, MultiRecord, rdheader, rdsamp, srdsamp

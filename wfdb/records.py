@@ -179,6 +179,16 @@ class BaseRecord():
                     
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels):
+
+        # Data Type Check
+        if type(sampfrom) not in _headers.inttypes:
+            sys.exit('sampfrom must be an integer')
+        if type(sampto) not in _headers.inttypes:
+            sys.exit('sampto must be an integer')
+        if type(channels) != list:
+            sys.exit('channels must be a list of integers')
+
+        # Duration Ranges
         if sampfrom<0:
             sys.exit('sampfrom must be a non-negative integer')
         if sampfrom>self.siglen:
@@ -188,6 +198,7 @@ class BaseRecord():
         if sampto>self.siglen:
             sys.exit('sampto must be shorter than the signal length')
 
+        # Channel Ranges
         for c in channels:
             if c<0:
                 sys.exit('Input channels must all be non-negative integers')
