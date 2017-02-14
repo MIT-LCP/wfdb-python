@@ -62,9 +62,9 @@ class BaseRecord():
         # Record specification fields
         elif field == 'recordname':       
             # Allow letters, digits, and underscores.
-            acceptedstring = re.match('\w+', self.recordname)
+            acceptedstring = re.match('-\w+', self.recordname)
             if not acceptedstring or acceptedstring.string != self.recordname:
-                sys.exit('recordname must only comprise of letters, digits, and underscores.')
+                sys.exit('recordname must only comprise of letters, digits, dashes, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
                 sys.exit('nseg must be a positive integer')
@@ -408,15 +408,16 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     # multi-segment record. Called during rdsamp. 
     def requiredsegments(self, sampfrom, sampto, channels):
 
-        # Get the starting segment with actual samples
+        # The starting segment with actual samples
         if self.layout == 'Fixed':
-            startseg = 1
-        else:
             startseg = 0
-
+        else:
+            print('startseg is')
+            startseg = 1
+            print(startseg)
         # Cumulative sum of segment lengths
         cumsumlengths = list(np.cumsum(self.seglen[startseg:]))
-
+        print('cumsumlengths: ', cumsumlengths)
         # First segment
         readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
         # Final segment
@@ -424,11 +425,14 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             readsegs.append(len(cumsumlengths) - 1)
         else:
             readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
+
+        print('readsegs: ', readsegs)
+
         # Obtain the sampfrom and sampto to read for each segment
         if readsegs[1] == readsegs[0]:  
             # Only one segment to read
             readsegs = [readsegs[0]]
-            readsamps = [[sampfrom, sampto]]
+            readsamps = [[sampfrom, sampto]] # This is wrong?
         else:
             # More than one segment to read
             readsegs = list(range(readsegs[0], readsegs[1]+1)) 
@@ -439,23 +443,29 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             # End sample for last segment
             readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]]  
 
+        # Add 1 for variable layout records
+        readsegs = list(np.add(readsegs,startseg))
+
         return (readsegs, readsamps)
 
     # Get the channel numbers to be read from each segment
     def requiredsignals(self, readsegs, channels, dirname):
 
+        print('self.layout: ', self.layout)
         # Fixed layout. All channels are the same.
         if self.layout == 'Fixed':
+            print('in fixed???')
             # Should we bother here with skipping empty segments? 
             # They won't be read anyway. 
             readsigs = [channels]*len(readsegs)
         # Variable layout: figure out channels by matching record names
         else:
+            print('in variable')
             readsigs = []
             # The overall layout signal names
             l_signames = self.segments[0].signame
             # The wanted signals
-            w_signames = [l_signames["signame"][c] for c in channels]
+            w_signames = [l_signames[c] for c in channels]
 
             # For each segment ... 
             for i in range(0, len(readsegs)):
@@ -511,11 +521,11 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
         # Start and end samples in the overall array
         # to place the segment samples into
-        startsamps = [0] + list(np.cumsum(seglen)[0:-1])
-        endsamps = list(np.cumsum(seglen))
+        startsamps = [0] + list(np.cumsum(self.seglen)[0:-1])
+        endsamps = list(np.cumsum(self.seglen))
         
         if self.layout == 'Fixed':
-            # Figure out the signal names from one of the segments
+            # Figure out the signal names and units from one of the segments
             for seg in self.segments:
                 if seg is not None:
                     fields['signame'] = seg.signame
@@ -536,10 +546,10 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         # For variable layout, have to get channels by name
         else:
             # Get the signal names from the layout segment
-            fields['signame'] = segments[0].signame
-            fields['units'] = segments[0].units
+            fields['signame'] = self.segments[0].signame
+            fields['units'] = self.segments[0].units
 
-            for i in range(1, nseg):
+            for i in range(1, self.nseg):
                 seg = self.segments[i]
 
                 # Empty segment
@@ -652,23 +662,23 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
         record.segments = [None]*record.nseg
 
-        # Fixed layout
-        if record.seglen[0] == 0:
-            record.layout = 'Fixed'
         # Variable layout
-        else:
+        if record.seglen[0] == 0:
             record.layout = 'Variable'
             # Read the layout specification header
             record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]))
-
+        # Fixed layout
+        else:
+            record.layout = 'Fixed'
+            
         # Get the segments numbers, samples, and 
         # channel indices within each segment to read.
         readsegs, segranges  = record.requiredsegments(sampfrom, sampto, channels)
         segsigs = record.requiredsignals(readsegs, channels, dirname) 
 
         print('readsegs: ', readsegs)
-        print('segranges: ', readsegs)
-        print('segsigs: ', readsegs)
+        print('segranges: ', segranges)
+        print('segsigs: ', segsigs)
 
         # Read the desired samples in the relevant segments
         for i in range(0, len(readsegs)):
@@ -679,13 +689,13 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             else:
                 print('recordname: ', os.path.join(dirname, record.segname[segnum]))
                 print('sampfrom: ', segranges[i][0])
-                print('sampto: ', segranges[i][0])
+                print('sampto: ', segranges[i][1])
                 print('channels: ', segsigs[i])
 
 
 
                 record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]), 
-                    sampfrom = segranges[i][0], sampto = segranges[i][0], 
+                    sampfrom = segranges[i][0], sampto = segranges[i][1], 
                     channels = segsigs[i], physical = physical)
 
         # Arrange the fields of the overall object to reflect user input
@@ -744,7 +754,7 @@ def rdheader(recordname):
 
 
 # Given some wanted signal names, and the signal names contained
-# in a record, return the indices that intersect. 
+# in a record, return the indices of the record channels that intersect. 
 # Remember that the wanted signal names are already in order specified in user input channels. So it's good!
 def wanted_siginds(wanted_signames, record_signames):
     contained_signals = [s for s in wanted_signames if s in record_signames]

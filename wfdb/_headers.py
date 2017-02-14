@@ -266,7 +266,7 @@ class MultiHeadersMixin(BaseHeadersMixin):
 rxRECORD = re.compile(
     ''.join(
         [
-            "(?P<recordname>[\w]+)/?(?P<nseg>\d*)[ \t]+",
+            "(?P<recordname>[-\w]+)/?(?P<nseg>\d*)[ \t]+",
             "(?P<nsig>\d+)[ \t]*",
             "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<basecounter>\d*\.?\d*)\)?[ \t]*",
             "(?P<siglen>\d*)[ \t]*",
