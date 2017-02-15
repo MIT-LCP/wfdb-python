@@ -255,12 +255,13 @@ class SignalsMixin():
 def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels, dirname):
 
     # Set defaults for empty fields
-    if byteoffset == [None]*nsig:
-        byteoffset = [0]*nsig
-    if sampsperframe == [None]*nsig:
-        sampsperframe = [1]*nsig
-    if skew == [None]*nsig:
-        skew = [0]*nsig
+    for i in range(0, nsig):
+        if byteoffset[i] == None:
+            byteoffset[i] = 0
+        if sampsperframe[i] == None:
+            sampsperframe[i] = 0
+        if skew[i] == None:
+            skew[i] = 0
 
     # Get the set of dat files, and the 
     # channels that belong to each file. 

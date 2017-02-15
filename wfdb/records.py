@@ -337,12 +337,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         self.seglen = seglen
 
     # Write a multi-segment header, along with headers and dat files for all segments
-    def wrsamp():
-        print('to do')
+    def wrsamp(self):
+        # Perform field validity and cohesion checks, and write the header file.
+        self.wrheader()
+        # Perform record validity and cohesion checks, and write the associated segments.
+        for seg in self.segments:
+            seg.wrsamp()
 
-    # Write a multi-segment header
-    def wrhea():
-        print('to do')
 
     # Check the data type of the specified field.
     def checkfieldtype(self, field):
@@ -599,13 +600,6 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         return record        
 
         
-
-# Shortcut functions for wrsamp
-
-#def s_wrsamp()
-
-
-
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
@@ -789,6 +783,20 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
     return signals, fields
 
 #------------------- /Reading Records -------------------#
+
+
+# Simple function for single segment wrsamp for writing physical signals
+def swrsamp(recordname, p_signals, fs, units, signames, fmt = None, comments=[]):
+    
+    # Create the Record object
+    record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)
+    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
+    record.set_d_features(do_adc = 1)
+    # 3. Set default values of any missing field dependencies
+    record.setdefaults()
+    # 4. Write the record files - header and associated dat
+    record.wrsamp()
+
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format. 
 def parsetimestring(timestring):

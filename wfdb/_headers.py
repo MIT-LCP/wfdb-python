@@ -9,7 +9,7 @@ from . import _signals
 # Class of common methods for single and multi-segment headers
 class BaseHeadersMixin():
 
-    # Write a wfdb header file. The signals fields are not used. 
+    # Write a wfdb header file. The signals or segments fields are not used. 
     def wrheader(self):
 
         # Get all the fields used to write the header
@@ -56,6 +56,24 @@ class BaseHeadersMixin():
 # To be inherited by WFDBrecord from records.py.
 class HeadersMixin(BaseHeadersMixin):
 
+    # Get the list of fields used to write the header. (Does NOT include d_signals.)
+    # Returns the default required fields, the user defined fields, and their dependencies.
+    def getwritefields(self):
+
+        # Record specification fields
+        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
+        writefields.remove('nseg')
+
+        # Determine whether there are signals. If so, get their required fields.
+        self.checkfield('nsig')
+        if self.nsig>0:
+            writefields=writefields+self.getwritesubset(OrderedDict(reversed(list(sigfieldspecs.items()))))
+
+        # Comments
+        if self.comments != None:
+            writefields.append('comments')
+        return writefields
+
     # Set a field to its default value if there is a default. Returns 1 if the field is set. 
     # Set overwrite == 1 to enable overwriting of populated fields.
     # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
@@ -87,25 +105,6 @@ class HeadersMixin(BaseHeadersMixin):
 
         return setfield
 
-    # Get the list of fields used to write the header. (Does NOT include d_signals.)
-    # Returns the default required fields, the user defined fields, and their dependencies.
-    def getwritefields(self):
-
-        # Record specification fields
-        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
-        writefields.remove('nseg')
-
-        # Determine whether there are signals. If so, get their required fields.
-        self.checkfield('nsig')
-        if self.nsig>0:
-            writefields=writefields+self.getwritesubset(OrderedDict(reversed(list(sigfieldspecs.items()))))
-
-        # Comments
-        if self.comments != None:
-            writefields.append('comments')
-        return writefields
-
-    
 
     # Check the cohesion of fields used to write the header
     def checkfieldcohesion(self, writefields):
@@ -196,7 +195,6 @@ class MultiHeadersMixin(BaseHeadersMixin):
             writefields.append('comments')
         return writefields
 
-
     # Set a field to its default value if there is a default. Returns 1 if the field is set. 
     # Set overwrite == 1 to enable overwriting of populated fields.
     # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
@@ -205,8 +203,7 @@ class MultiHeadersMixin(BaseHeadersMixin):
         # Check whether the field is empty before trying to set.
         if overwrite == 0:
             if getattr(self, field) != None:
-                return 0
-                
+                return 0       
         # Going to set the field. 
         # Record specification fields
         if field == 'basetime':
@@ -214,7 +211,6 @@ class MultiHeadersMixin(BaseHeadersMixin):
             return 1
         else:
             return 0
-
 
     # Check the cohesion of fields used to write the header
     def checkfieldcohesion(self, writefields):
@@ -454,11 +450,11 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
-                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
-                         ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
-                         ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
+                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, 1, None)),
+                         ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, 0, None)),
+                         ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, 0, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200, None)),
-                         ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, None, None)),
+                         ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, 0, None)),
                          ('units', WFDBheaderspecs([str], '/', 'adcgain', True, 'mV', None)),
                          ('adcres', WFDBheaderspecs(inttypes, ' ', 'adcgain', False, None, 0)),
                          ('adczero', WFDBheaderspecs(inttypes, ' ', 'adcres', False, None, 0)),
