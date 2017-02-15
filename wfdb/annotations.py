@@ -14,18 +14,25 @@ class Annotation():
         self.fs = fs
 
     def wrann(self):
-        # Get all the fields used to write the header
-        writefields = self.getwritefields()
-
-        # Check the validity of individual fields used to write the header 
-        for f in writefields:
-            self.checkfield(f) 
+        # Check the validity of individual fields used to write the annotation file
+        self.checkfields() 
         
         # Check the cohesion of fields used to write the header
         self.checkfieldcohesion(writefields)
         
         # Write the header file using the specified fields
-        self.wrheaderfile(writefields)
+        self.wrannfile()
+
+    def checkfields(self):
+
+        # Check field types
+        if type(self.annsamp):
+            
+
+
+
+    def wrannfile(self):
+        print('on it')
 
 
 
