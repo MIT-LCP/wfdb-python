@@ -15,7 +15,7 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/100 -f 0.002 -t 30 -s 1 |
     # cut -f 2- > target2
     def test_2(self):
-        sig = wfdb.rdsamp('sampledata/100', sampfrom=1,
+        sig = wfdb.srdsamp('sampledata/100', sampfrom=1,
                              sampto=10800, channels=[1], physical=0)
         targetsig = np.genfromtxt('tests/targetoutputdata/target2')
         targetsig = targetsig.reshape(len(targetsig), 1)

@@ -197,6 +197,8 @@ class BaseRecord():
             sys.exit('sampto must be a non-negative integer')
         if sampto>self.siglen:
             sys.exit('sampto must be shorter than the signal length')
+        if sampto<=sampfrom:
+            sys.exit('sampto must be greater than sampfrom')   
 
         # Channel Ranges
         for c in channels:
@@ -663,7 +665,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # meaningful representation of digital signals transferred 
         # from individual segments. 
         if stackmulti == True and physical != True:
-            sys.exit('If stackmulti is True, physical must also be true.')
+            sys.exit('If stackmulti is True, physical must also be True.')
 
         record.segments = [None]*record.nseg
 
