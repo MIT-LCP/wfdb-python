@@ -1,4 +1,5 @@
 import wfdb
+import numpy as np
 
 class test_rdsamp():
 

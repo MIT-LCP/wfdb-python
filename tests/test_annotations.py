@@ -1,5 +1,5 @@
 import numpy as np
-from wfdb import rdann
+import wfdb
 import re
 
 
@@ -10,7 +10,7 @@ class test_rdann():
     def test_1(self):
 
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = rdann(
+        annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(
             'sampledata/100', 'atr')
         # This is not the fault of the script. The annotation file specifies a
         # length 3
@@ -60,7 +60,7 @@ class test_rdann():
     def test_2(self):
 
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = rdann(
+        annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(
             'sampledata/12726', 'anI')
 
         # Target data from WFDB software package

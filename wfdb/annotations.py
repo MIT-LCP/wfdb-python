@@ -29,8 +29,6 @@ class Annotation():
         if type(self.annsamp):
             
 
-
-
     def wrannfile(self):
         print('on it')
 
@@ -80,29 +78,31 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     if sampfrom < 0:
         raise ValueError("sampfrom must be a non-negative integer")
 
-    # Get the info from the header file
-    # fields=readheader(recordname)
     dirname, baserecordname = os.path.split(recordname)
 
-    # Read the file's byte pairs
-    filebytes = loaddata(recordname, annot)
+    # Read the file in byte pairs
+    filebytes = loadbytepairs(recordname, annot)
 
-    # Initialise arrays to the total number of annotations in the file
-    samplelength, annsamp, anntype, subtype, chan, num, aux = init_arrays(filebytes)
+    # The maximum number of annotations potentially contained
+    annotlength = filebytes.shape[0]
 
-    # Initialize variables
-    bpi = 0 # Byte pair index for searching the annotation file
+    # Initialise arrays to the total potential number of annotations in the file
+    annsamp, anntype, subtype, chan, num, aux = init_arrays(annotlength)
+
+    # Indexing Variables
     ts = 0 # Total number of samples from beginning of record. Annotation bytes only store dt.
     ai = 0 # Annotation index, the number of annotations processed.
 
-    # Check the beginning of the annotation file for optional 'time resolution'
-    annfs, bpi = get_sample_freq(filebytes,bpi)
+    # Check the beginning of the file for a potential fs field
+    annfs, bpi = get_fs(filebytes, bpi)
 
-    # Processing annotations. Iterate across length of sequence
-    # Sequence for one ann is: SKIP pair (if any) ->
-    # samp + anntype pair -> other pairs
+    # Process annotations. Iterate across byte pairs. 
+    # Sequence for one ann is: 
+    #   SKIP pair (if any)
+    #   samp + anntype pair
+    #   other pairs (if any)
     # The last byte pair is 0 indicating eof.
-    while bpi < samplelength - 1:
+    while (bpi < annotlength - 1) and ts<sampto:
 
         # The first byte pair will either store the actual samples + anntype,
         # or 0 + SKIP.
@@ -111,7 +111,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
         # flags that specify whether to copy the previous channel/num value for
         # the current annotation.
         cpychan, cpynum = 1, 1
-        ts,annsamp,anntype,bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
+        ts, annsamp, anntype, bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
 
         AT = filebytes[bpi, 1] >> 2
 
@@ -143,33 +143,40 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     # Format the annotation types as symbols or strings
     anntype = format_anntype(anndisp,anntype)
 
-
+    # Store fields in an Annotation object
     annotation = Annotation(annsamp = annsamp, anntype = anntype, subtype = subtype,
         chan = chan, num = num, aux = aux, fs = annfs)
 
-    return (annsamp, anntype, subtype, chan, num, aux, annfs)
+    return annotation
 
-
-def loaddata(recordname, annot):
+# Load the annotation file 1 byte at a time and arrange in pairs
+def loadbytepairs(recordname, annot):
     with open(recordname + '.' + annot, 'rb') as f:
         filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     return filebytes
 
-def get_sample_freq(filebytes,bpi):
-    """Check the beginning of the annotation file to see if it is storing the
-    'time resolution' field.
-    """
-    annfs = [] # Store frequencies if they appear in the annotation file.
+# Initialize arrays for storing content
+def init_arrays(annotlength):
+    annsamp = np.zeros(annotlength)
+    anntype = np.zeros(annotlength)
+    subtype = np.zeros(annotlength)
+    chan = np.zeros(annotlength)
+    num = np.zeros(annotlength)
+    aux = [''] * annotlength
+    return (annotlength, annsamp, anntype, subtype, chan, num, aux)
+
+# Check the beginning of the annotation file for an fs
+def get_fs(filebytes):
+
+    annfs = None # fs potentially stored in the file
+    bpi = 0 # Byte pair index for searching the annotation file
+
     if filebytes.size > 24:
         testbytes = filebytes[:12, :].flatten()
         # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
         # and anntype=AUX. Then follows "## time resolution: "
-        if [
-                testbytes[i] for i in [
-                    0,1] +
-                list(
-                    range(3,24))] == [0,88,252,35,35,32,116,105,109,101,32,114,
-                                      101,115,111,108,117,116,105,111,110,58,32]:  
+        if [testbytes[i] for i in [ 0,1] + list(range(3,24))] == 
+        [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]:  
             # The file's leading bytes match the expected pattern for encoding fs.
             # Length of the auxilliary string that includes the fs written into
             # the file.
@@ -179,7 +186,7 @@ def get_sample_freq(filebytes,bpi):
                                  for char in testbytes[24:auxlen + 4]]))
             # byte pair index to start reading actual annotations.
             bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
-    return annfs,bpi
+    return (annfs, bpi)
 
 def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):    
     if AT == 59:  # Skip.
@@ -271,15 +278,6 @@ def format_anntype(anndisp,anntype):
         anntype = [anncodes[code] for code in anntype]
     return anntype
 
-def init_arrays(filebytes):
-    samplelength = filebytes.shape[0]
-    annsamp = np.zeros(samplelength)
-    anntype = np.zeros(samplelength)
-    subtype = np.zeros(samplelength)
-    chan = np.zeros(samplelength)
-    num = np.zeros(samplelength)
-    aux = [''] * samplelength
-    return samplelength, annsamp, anntype, subtype, chan, num, aux
 
 def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
     annsamp = annsamp[0:ai].astype(int)
