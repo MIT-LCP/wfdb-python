@@ -51,14 +51,16 @@ class Annotation():
                 sys.exit('The fs field must be a non-negative number')
 
         else:
-            # Ensure the field is a list
-            if type(getattr(self, field)) != list:
-                print('The ', field, ' field must be a list')
+            # Ensure the field is a list or 1d numpy array
+            fielditem = getattr(self, field)
+            if (type(fielditem) not in [list, np.ndarray]) or 
+               (type(fielditem) == np.ndarray and fielditem.ndim != 1):
+                print('The ', field, ' field must be a list or a 1d numpy array')
                 sys.exit()
 
-            # Check the field type of the list elements
-            for fd in getattr(self, field):
-                if type(fd) not in annfieldtypes[field]:
+            # Check the data types of the list/array elements
+            for item in fielditem:
+                if type(item) not in annfieldtypes[field]:
                     print('All elements of the ' field, 'field must be one of the following: ', annfieldtypes[field])
                     sys.exit()
 
@@ -98,11 +100,6 @@ class Annotation():
 
     def wrannfile(self):
         print('on it')
-
-
-
-
-
 
 
 

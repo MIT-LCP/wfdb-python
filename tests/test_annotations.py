@@ -9,8 +9,9 @@ class test_rdann():
     def test_1(self):
 
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(
-            'sampledata/100', 'atr')
+        annotation = wfdb.rdann('sampledata/100', 'atr')
+
+        
         # This is not the fault of the script. The annotation file specifies a
         # length 3
         aux[0] = '(N'
@@ -44,13 +45,12 @@ class test_rdann():
         Tchan = Tchan.astype('int')
 
         # Compare
-        comp = [
-            np.array_equal(
-                annsamp, Tannsamp), np.array_equal(
-                anntype, Tanntype), np.array_equal(
-                subtype, Tsubtype), np.array_equal(
-                    chan, Tchan), np.array_equal(
-                        num, Tnum), aux == Taux]
+        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
+                np.array_equal(annotation.anntype, Tanntype), 
+                np.array_equal(annotation.subtype, Tsubtype), 
+                np.array_equal(annotation.chan, Tchan), 
+                np.array_equal(annotation.num, Tnum), 
+                aux == Taux]
 
         assert (comp == [True] * 6)
 
@@ -59,8 +59,7 @@ class test_rdann():
     def test_2(self):
 
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = wfdb.rdann(
-            'sampledata/12726', 'anI')
+        annotation = wfdb.rdann('sampledata/12726', 'anI')
 
         # Target data from WFDB software package
         lines = tuple(open('tests/targetoutputdata/anntarget2', 'r'))
@@ -88,12 +87,11 @@ class test_rdann():
         Tchan = Tchan.astype('int')
 
         # Compare
-        comp = [
-            np.array_equal(
-                annsamp, Tannsamp), np.array_equal(
-                anntype, Tanntype), np.array_equal(
-                subtype, Tsubtype), np.array_equal(
-                    chan, Tchan), np.array_equal(
-                        num, Tnum), aux == Taux]
+        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
+                np.array_equal(annotation.anntype, Tanntype), 
+                np.array_equal(annotation.subtype, Tsubtype), 
+                np.array_equal(annotation.chan, Tchan), 
+                np.array_equal(annotation.num, Tnum), 
+                aux == Taux]
 
         assert (comp == [True] * 6)

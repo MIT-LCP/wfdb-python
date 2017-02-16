@@ -1,7 +1,7 @@
 # For wrheader(), all fields must be already filled in and cohesive with one another other. The signals field will not be used.
 # For wrsamp(), the field to use will be d_signals (which is allowed to be empty for 0 channel records). 
 # set_p_features and set_d_features use characteristics of the p_signals or d_signals field to fill in other header fields. 
-# These are separate from another method 'setdefaults' which the user may call to  
+# These are separate from another method 'setdefaults' which the user may call to set default header fields 
 # The checkfieldcohesion() function will be called in wrheader which checks all the header fields.
 # The checksignalcohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
