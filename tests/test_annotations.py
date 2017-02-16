@@ -1,7 +1,6 @@
 import numpy as np
-import wfdb
 import re
-
+import wfdb
 
 class test_rdann():
 

@@ -1,5 +1,5 @@
 import numpy as np
-import os
+from . import headers
 
 # Class for WFDB annotations
 class Annotation():
@@ -23,11 +23,54 @@ class Annotation():
         # Write the header file using the specified fields
         self.wrannfile()
 
+    # Check all fields of the annotation object
     def checkfields(self):
 
-        # Check field types
-        if type(self.annsamp):
+        # Mandatory write fields
+        for field in ['annsamp', 'anntype']:
+            if getattr(self, field) is None:
+                print('The ', field, ' field is mandatory for writing annotation files')
+                sys.exit()
+
+        # Check all set fields
+        for field in annfields:
+            if field is not None:
+                # Check the type of the field's elements
+                self.checkfield(field)
+
+    # Check a particular annotation field
+    def checkfield(self, field):
+
+        if field == 'fs':
+            # Check the field type
+            if type(self.fs) not in annfieldtypes['fs']:
+                print('The fs field must be one of the following types: ', annfieldtypes['fs'])
+                sys.exit()
+            # Particular condition
+            if self.fs <=0:
+                sys.exit('The fs field must be a non-negative number')
+
+        else:
+            # Ensure the field is an array
             
+            # Check the field type of the list elements
+
+
+
+
+    # Ensure all set annotation fields have the same length
+    def checkfieldcohesion(self):
+
+        # Number of annotation samples
+        nannots = len(getattr(self, annsamp))
+
+        for field in annfields[1:-1]:
+            if getarr(self, field) is not None:
+                if len(getattr(self, field)) != nannots:
+
+
+
+
 
     def wrannfile(self):
         print('on it')
@@ -44,9 +87,7 @@ class Annotation():
 def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
-    Usage: annsamp, anntype, num, subtype, chan, aux, annfs = rdann(recordname, annot, 
-                                                                    sampfrom=0, sampto=[], 
-                                                                    anndisp=1)
+    Usage: annotation = rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
 
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
@@ -54,22 +95,23 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     - annot (required): The annotator extension of the annotation file. ie. for 
       file '100.atr', annot='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
-    - sampto (default=the final annotation sample): The maximum sample number for 
+    - sampto (default=None): The maximum sample number for 
       annotations to be returned.
     - anndisp (default = 1): The annotation display flag that controls the data type 
       of the 'anntype' output parameter. 'anntype' will either be an integer key(0), 
       a shorthand display symbol(1), or a longer annotation code(2).
 
-    Output arguments:
-    - annsamp: The annotation location in samples relative to the beginning of the record.
-    - anntype: The annotation type according the the standard WFDB keys.
-    - subtype: The marked class/category of the annotation.
-    - chan: The signal channel associated with the annotations.
-    - num: The marked annotation number. This is not equal to the index of the current annotation.
-    - aux: The auxiliary information string for the annotation.
-    - annfs: The sampling frequency written in the beginning of the annotation file if present.
+    Output argument:
+    - annotation: The annotation object with the following fields:
+        - annsamp: The annotation location in samples relative to the beginning of the record.
+        - anntype: The annotation type according the the standard WFDB keys.
+        - subtype: The marked class/category of the annotation.
+        - chan: The signal channel associated with the annotations.
+        - num: The labelled annotation number. 
+        - aux: The auxiliary information string for the annotation.
+        - fs: The sampling frequency written into the annotation file if present.
 
-    *NOTE: Every annotation contains the 'annsamp' and 'anntype' field. All 
+    *NOTE: Every annotation sample contains the 'annsamp' and 'anntype' fields. All 
            other fields default to 0 or empty if not present.
     """
 
@@ -77,8 +119,6 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
         raise ValueError("sampto must be greater than sampfrom")
     if sampfrom < 0:
         raise ValueError("sampfrom must be a non-negative integer")
-
-    dirname, baserecordname = os.path.split(recordname)
 
     # Read the file in byte pairs
     filebytes = loadbytepairs(recordname, annot)
@@ -94,7 +134,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     ai = 0 # Annotation index, the number of annotations processed.
 
     # Check the beginning of the file for a potential fs field
-    annfs, bpi = get_fs(filebytes, bpi)
+    fs, bpi = get_fs(filebytes, bpi)
 
     # Process annotations. Iterate across byte pairs. 
     # Sequence for one ann is: 
@@ -102,14 +142,14 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     #   samp + anntype pair
     #   other pairs (if any)
     # The last byte pair is 0 indicating eof.
-    while (bpi < annotlength - 1) and ts<sampto:
+    while (bpi < annotlength - 1):
 
         # The first byte pair will either store the actual samples + anntype,
         # or 0 + SKIP.
         AT = filebytes[bpi, 1] >> 2  # anntype
 
         # flags that specify whether to copy the previous channel/num value for
-        # the current annotation.
+        # the current annotation. Set default. 
         cpychan, cpynum = 1, 1
         ts, annsamp, anntype, bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
 
@@ -133,6 +173,9 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
         # Finished processing current annotation. Move onto next.
         ai = ai + 1
 
+        if sampto and sampto<ts:
+            break;
+
     # Snip the unallocated end of the arrays
     annsamp,anntype,num,subtype,chan,aux = snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai)
 
@@ -145,7 +188,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
 
     # Store fields in an Annotation object
     annotation = Annotation(annsamp = annsamp, anntype = anntype, subtype = subtype,
-        chan = chan, num = num, aux = aux, fs = annfs)
+        chan = chan, num = num, aux = aux, fs = fs)
 
     return annotation
 
@@ -168,7 +211,7 @@ def init_arrays(annotlength):
 # Check the beginning of the annotation file for an fs
 def get_fs(filebytes):
 
-    annfs = None # fs potentially stored in the file
+    fs = None # fs potentially stored in the file
     bpi = 0 # Byte pair index for searching the annotation file
 
     if filebytes.size > 24:
@@ -182,11 +225,11 @@ def get_fs(filebytes):
             # the file.
             auxlen = testbytes[2]
             testbytes = filebytes[:(12 + int(np.ceil(auxlen / 2.))), :].flatten()
-            annfs = int("".join([chr(char)
+            fs = int("".join([chr(char)
                                  for char in testbytes[24:auxlen + 4]]))
             # byte pair index to start reading actual annotations.
             bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
-    return (annfs, bpi)
+    return (fs, bpi)
 
 def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):    
     if AT == 59:  # Skip.
@@ -235,8 +278,19 @@ def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
         bpi = bpi + 1 + int(np.ceil(auxlen / 2.))
     return subtype,bpi,num,chan,cpychan,cpynum,aux
 
+# Remove unallocated part of array
+def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
+    annsamp = annsamp[0:ai].astype(int)
+    anntype = anntype[0:ai].astype(int)
+    num = num[0:ai].astype(int)
+    subtype = subtype[0:ai].astype(int)
+    chan = chan[0:ai].astype(int)
+    aux = aux[0:ai]
+    return annsamp,anntype,num,subtype,chan,aux
+
+# Keep only the specified annotations
 def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux):
-    # Keep the annotations in the specified range
+    
     returnempty = 0
 
     afterfrom = np.where(annsamp >= sampfrom)[0]
@@ -247,6 +301,7 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
 
     if not sampto:
         sampto = annsamp[-1]
+
     beforeto = np.where(annsamp <= sampto)[0]
 
     if len(beforeto) > 0:
@@ -279,14 +334,6 @@ def format_anntype(anndisp,anntype):
     return anntype
 
 
-def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
-    annsamp = annsamp[0:ai].astype(int)
-    anntype = anntype[0:ai].astype(int)
-    num = num[0:ai].astype(int)
-    subtype = subtype[0:ai].astype(int)
-    chan = chan[0:ai].astype(int)
-    aux = aux[0:ai]
-    return annsamp,anntype,num,subtype,chan,aux
 
 
 ## ------------- /Reading Annotations ------------- ##
@@ -396,3 +443,9 @@ anncodes = {
     41: 'RONT'  # R-on-T premature ventricular contraction */
 }
 
+annfields = ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
+
+annfieldtypes = {'annsamp': _headers.inttypes, 'anntypes': [str], 
+              'num':_headers.inttypes, 'subtype': _headers.inttypes, 
+              'chan' = _headers.inttypes, 'aux': [str], 
+              'fs': _headers.floattypes}
