@@ -23,7 +23,7 @@ class Annotation():
         # Write the header file using the specified fields
         self.wrannfile()
 
-    # Check all fields of the annotation object
+    # Check the mandatory and set fields of the annotation object
     def checkfields(self):
 
         # Mandatory write fields
@@ -46,16 +46,43 @@ class Annotation():
             if type(self.fs) not in annfieldtypes['fs']:
                 print('The fs field must be one of the following types: ', annfieldtypes['fs'])
                 sys.exit()
-            # Particular condition
+            # Field specific check
             if self.fs <=0:
                 sys.exit('The fs field must be a non-negative number')
 
         else:
-            # Ensure the field is an array
-            
+            # Ensure the field is a list
+            if type(getattr(self, field)) != list:
+                print('The ', field, ' field must be a list')
+                sys.exit()
+
             # Check the field type of the list elements
+            for fd in getattr(self, field):
+                if type(fd) not in annfieldtypes[field]:
+                    print('All elements of the ' field, 'field must be one of the following: ', annfieldtypes[field])
+                    sys.exit()
 
-
+            # Field specific checks
+            if field == 'annsamp':
+                sampdiffs = np.diff(self.annsamp)
+                if min(self.annsamp) < 0 :
+                    sys.exit('The annsamp field must only contain non-negative integers')
+                if min(sampdiffs) < 0 :
+                    sys.exit('The annsamp field must contain monotonically increasing sample numbers')
+            elif field == 'anntype':
+                print('to find out...')
+            elif field == 'num':
+                if min(self.num) < 0 :
+                    sys.exit('The num field must only contain non-negative integers')
+            elif field == 'subtype':
+                if min(self.subtype) < 0 :
+                    sys.exit('The subtype field must only contain non-negative integers')
+            elif field == 'chan':
+                if min(self.chan) < 0 :
+                    sys.exit('The chan field must only contain non-negative integers')
+            elif field == 'aux':
+                if min(self.aux) < 0 :
+                    sys.exit('The aux field must only contain non-negative integers')
 
 
     # Ensure all set annotation fields have the same length
@@ -67,10 +94,7 @@ class Annotation():
         for field in annfields[1:-1]:
             if getarr(self, field) is not None:
                 if len(getattr(self, field)) != nannots:
-
-
-
-
+                    sys.exit('All set annotation fields (aside from fs) must have the same length')
 
     def wrannfile(self):
         print('on it')
