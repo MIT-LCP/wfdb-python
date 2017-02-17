@@ -1,10 +1,11 @@
 import numpy as np
+import pandas as pd
 from . import headers
 
 # Class for WFDB annotations
 class Annotation():
 
-    def __init__(annsamp, anntype='N', num = None, subtype = None, chan = None, aux = None, fs = None):
+    def __init__(annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
         self.annsamp = annsamp
         self.anntype = anntype
         self.num = num
@@ -13,22 +14,24 @@ class Annotation():
         self.aux = aux
         self.fs = fs
 
+    # Write an annotation file
     def wrann(self):
         # Check the validity of individual fields used to write the annotation file
         self.checkfields() 
-        
-        # Check the cohesion of fields used to write the header
+
+        # Check the cohesion of fields used to write the annotation
         self.checkfieldcohesion(writefields)
         
         # Write the header file using the specified fields
         self.wrannfile()
 
     # Check the mandatory and set fields of the annotation object
+    # Return indices of anntype field which are not encoded, and thus need
+    # to be moved to the aux field.
     def checkfields(self):
-
-        # Mandatory write fields
+        # Enforce mandatory write fields
         for field in ['annsamp', 'anntype']:
-            if getattr(self, field) is None:
+            if not getattr(self, field):
                 print('The ', field, ' field is mandatory for writing annotation files')
                 sys.exit()
 
@@ -51,17 +54,20 @@ class Annotation():
                 sys.exit('The fs field must be a non-negative number')
 
         else:
-            # Ensure the field is a list or 1d numpy array
             fielditem = getattr(self, field)
-            if (type(fielditem) not in [list, np.ndarray]) or 
-               (type(fielditem) == np.ndarray and fielditem.ndim != 1):
+
+            # Ensure the field item is a list or 1d numpy array
+            if type(fielditem) not in [list, np.ndarray]:
+                print('The ', field, ' field must be a list or a 1d numpy array')
+                sys.exit()          
+            if type(fielditem) == np.ndarray and fielditem.ndim != 1:
                 print('The ', field, ' field must be a list or a 1d numpy array')
                 sys.exit()
 
-            # Check the data types of the list/array elements
+            # Check the data types of the elements
             for item in fielditem:
-                if type(item) not in annfieldtypes[field]:
-                    print('All elements of the ' field, 'field must be one of the following: ', annfieldtypes[field])
+                if type(item) not in annfieldtypes[field]+[None]:
+                    print('All elements of the ' field, 'field must be None or one of the following types: ', annfieldtypes[field])
                     sys.exit()
 
             # Field specific checks
@@ -72,7 +78,12 @@ class Annotation():
                 if min(sampdiffs) < 0 :
                     sys.exit('The annsamp field must contain monotonically increasing sample numbers')
             elif field == 'anntype':
-                print('to find out...')
+                # Ensure all fields lie in standard WFDB annotation codes
+                if set(self.anntype) - set(annsyms.values()) != set():
+                    print('The anntype field contains items not encoded in the WFDB annotation library.')
+                    print('To see the valid annotation codes, call: showanncodes()')
+                    print('To transfer non-encoded anntype items into the aux field, call: self.type2aux')
+                    sys.exit()
             elif field == 'num':
                 if min(self.num) < 0 :
                     sys.exit('The num field must only contain non-negative integers')
@@ -89,7 +100,6 @@ class Annotation():
 
     # Ensure all set annotation fields have the same length
     def checkfieldcohesion(self):
-
         # Number of annotation samples
         nannots = len(getattr(self, annsamp))
 
@@ -98,9 +108,38 @@ class Annotation():
                 if len(getattr(self, field)) != nannots:
                     sys.exit('All set annotation fields (aside from fs) must have the same length')
 
+
     def wrannfile(self):
         print('on it')
 
+    # Move non-encoded anntype elements into the aux field 
+    def type2aux(self):
+
+        external_anntypes = set(self.anntype) - set(annsyms.values())
+
+        # Nothing to do
+        if external_anntypes == set():
+            return
+
+        # There is at least one external value.
+
+        # Initialize aux field if necessary 
+        if self.aux == None:
+            self.aux = [None]*len(self.annsamp)
+
+        # Move the anntype fields
+        for ext in external_anntypes:
+            for i in np.where(self.anntype == ext):
+                if self.aux[i] == None:
+                    self.aux[i] = self.anntype[i]
+                    self.anntype[i] = ''
+                else:
+                    self.aux[i] = self.anntype[i]+' '+self.aux[i]
+                    self.anntype[i] = ''
+
+
+def showanncodes():
+    symcodes
 
 
 ## ------------- Reading Annotations ------------- ##
@@ -360,8 +399,8 @@ def format_anntype(anndisp,anntype):
 ## ------------- /Reading Annotations ------------- ##
 
 
-# Annotation print symbols for 'anntype' field as specified in annot.c
-# from wfdb software library 10.5.24
+# Annotation mnemonic symbols for the 'anntype' field as specified in annot.c
+# from wfdb software library 10.5.24. At this point, several values are blank.
 annsyms = {
     0: ' ',  # not-QRS (not a getann/putann codedict) */
     1: 'N',  # normal beat */
@@ -378,9 +417,9 @@ annsyms = {
     12: '/',  # paced beat */
     13: 'Q',  # unclassifiable beat */
     14: '~',  # signal quality change */
-    15: '[15]',
+    #15: '[15]',
     16: '|',  # isolated QRS-like artifact */
-    17: '[17]',
+    #17: '[17]',
     18: 's',  # ST change */
     19: 'T',  # T-wave change */
     20: '*',  # systole */
@@ -407,14 +446,14 @@ annsyms = {
     40: ')',  # waveform end */
     # 40: 'JPT', # J point (end of QRS) */
     41: 'r',  # R-on-T premature ventricular contraction */
-    42: '[42]',
-    43: '[43]',
-    44: '[44]',
-    45: '[45]',
-    46: '[46]',
-    47: '[47]',
-    48: '[48]',
-    49: '[49]',
+    #42: '[42]',
+    #43: '[43]',
+    #44: '[44]',
+    #45: '[45]',
+    #46: '[46]',
+    #47: '[47]',
+    #48: '[48]',
+    #49: '[49]',
 }
 
 # Annotation codes for 'anntype' field as specified in ecgcodes.h from
@@ -463,6 +502,11 @@ anncodes = {
     # 40: 'JPT', # J point (end of QRS) */
     41: 'RONT'  # R-on-T premature ventricular contraction */
 }
+
+# Mapping annotation symbols to the annotation codes
+# For printing/user guidance
+symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code/Meaning': list(anncodes.values())})
+symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
 annfields = ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
 

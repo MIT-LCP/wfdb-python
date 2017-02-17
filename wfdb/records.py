@@ -788,7 +788,7 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 
 
 # Simple function for single segment wrsamp for writing physical signals
-def swrsamp(recordname, p_signals, fs, units, signames, fmt = None, comments=[]):
+def wrsamp(recordname, p_signals, fs, units, signames, fmt = None, comments=[]):
     
     # Create the Record object
     record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)
