@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from . import headers
+from IPython.display import display
+from . import _headers
 
 # Class for WFDB annotations
 class Annotation():
@@ -67,7 +68,7 @@ class Annotation():
             # Check the data types of the elements
             for item in fielditem:
                 if type(item) not in annfieldtypes[field]+[None]:
-                    print('All elements of the ' field, 'field must be None or one of the following types: ', annfieldtypes[field])
+                    print('All elements of the ', field, 'field must be None or one of the following types: ', annfieldtypes[field])
                     sys.exit()
 
             # Field specific checks
@@ -139,7 +140,7 @@ class Annotation():
 
 
 def showanncodes():
-    symcodes
+    display(symcodes)
 
 
 ## ------------- Reading Annotations ------------- ##
@@ -278,8 +279,7 @@ def get_fs(filebytes):
         testbytes = filebytes[:12, :].flatten()
         # First 2 bytes indicate dt=0 and anntype=NOTE. Next 2 indicate auxlen
         # and anntype=AUX. Then follows "## time resolution: "
-        if [testbytes[i] for i in [ 0,1] + list(range(3,24))] == 
-        [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]:  
+        if [testbytes[i] for i in [ 0,1] + list(range(3,24))] == [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]:  
             # The file's leading bytes match the expected pattern for encoding fs.
             # Length of the auxilliary string that includes the fs written into
             # the file.
@@ -512,5 +512,5 @@ annfields = ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
 
 annfieldtypes = {'annsamp': _headers.inttypes, 'anntypes': [str], 
               'num':_headers.inttypes, 'subtype': _headers.inttypes, 
-              'chan' = _headers.inttypes, 'aux': [str], 
+              'chan': _headers.inttypes, 'aux': [str], 
               'fs': _headers.floattypes}
