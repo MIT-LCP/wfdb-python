@@ -6,7 +6,7 @@ from . import _headers
 # Class for WFDB annotations
 class Annotation():
 
-    def __init__(annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
+    def __init__(self, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
         self.annsamp = annsamp
         self.anntype = anntype
         self.num = num
@@ -195,7 +195,7 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     ai = 0 # Annotation index, the number of annotations processed.
 
     # Check the beginning of the file for a potential fs field
-    fs, bpi = get_fs(filebytes, bpi)
+    fs, bpi = get_fs(filebytes)
 
     # Process annotations. Iterate across byte pairs. 
     # Sequence for one ann is: 
@@ -244,12 +244,11 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
-    # Format the annotation types as symbols or strings
+    # Set the annotation type to annotation codes or symbols if specified
     anntype = format_anntype(anndisp,anntype)
 
     # Store fields in an Annotation object
-    annotation = Annotation(annsamp = annsamp, anntype = anntype, subtype = subtype,
-        chan = chan, num = num, aux = aux, fs = fs)
+    annotation = Annotation(annsamp = annsamp, anntype = anntype, subtype = subtype, chan = chan, num = num, aux = aux, fs = fs)
 
     return annotation
 
@@ -267,7 +266,7 @@ def init_arrays(annotlength):
     chan = np.zeros(annotlength)
     num = np.zeros(annotlength)
     aux = [''] * annotlength
-    return (annotlength, annsamp, anntype, subtype, chan, num, aux)
+    return (annsamp, anntype, subtype, chan, num, aux)
 
 # Check the beginning of the annotation file for an fs
 def get_fs(filebytes):
