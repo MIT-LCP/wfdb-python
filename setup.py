@@ -55,7 +55,8 @@ setup(
         'nose>=1.3.7',
         'numpy>=1.11.0',
         'matplotlib>=1.5.1',
-        'requests>=2.10.0'
+        'requests>=2.10.0',
+	'pandas>=0.19.1'
         ],
 
     # List additional groups of dependencies here (e.g. development

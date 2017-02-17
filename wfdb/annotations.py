@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import sys
 from IPython.display import display
 from . import _headers
 
@@ -32,7 +33,7 @@ class Annotation():
     def checkfields(self):
         # Enforce mandatory write fields
         for field in ['annsamp', 'anntype']:
-            if not getattr(self, field):
+            if getattr(self, field) is None:
                 print('The ', field, ' field is mandatory for writing annotation files')
                 sys.exit()
 
@@ -82,8 +83,8 @@ class Annotation():
                 # Ensure all fields lie in standard WFDB annotation codes
                 if set(self.anntype) - set(annsyms.values()) != set():
                     print('The anntype field contains items not encoded in the WFDB annotation library.')
-                    print('To see the valid annotation codes, call: showanncodes()')
-                    print('To transfer non-encoded anntype items into the aux field, call: self.type2aux')
+                    print('To see the valid annotation codes call: showanncodes()')
+                    print('To transfer non-encoded anntype items into the aux field call: self.type2aux')
                     sys.exit()
             elif field == 'num':
                 if min(self.num) < 0 :
@@ -129,8 +130,13 @@ class Annotation():
             self.aux = [None]*len(self.annsamp)
 
         # Move the anntype fields
+        print(external_anntypes)
+
         for ext in external_anntypes:
+            print(ext)
+            print(np.where(self.anntype == ext))
             for i in np.where(self.anntype == ext):
+                print('i: ',i)
                 if self.aux[i] == None:
                     self.aux[i] = self.anntype[i]
                     self.anntype[i] = ''
@@ -509,7 +515,7 @@ symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
 annfields = ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
 
-annfieldtypes = {'annsamp': _headers.inttypes, 'anntypes': [str], 
+annfieldtypes = {'annsamp': _headers.inttypes, 'anntype': [str], 
               'num':_headers.inttypes, 'subtype': _headers.inttypes, 
               'chan': _headers.inttypes, 'aux': [str], 
               'fs': _headers.floattypes}
