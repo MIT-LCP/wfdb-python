@@ -31,7 +31,6 @@ class SignalsMixin():
         self.wrdatfiles()
 
 
-
     # Check the cohesion of the d_signals field with the other fields used to write the record
     def checksignalcohesion(self, writefields):
 

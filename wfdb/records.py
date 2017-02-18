@@ -56,15 +56,14 @@ class BaseRecord():
             if self.p_signals.ndim != 2:
                 sys.exit("signals must be a 2d numpy array")
             
-        # Add this later. 
-        #elif field == 'segment':
+        #elif field == 'segments': # Nothing to check here. 
             
         # Record specification fields
         elif field == 'recordname':       
-            # Allow letters, digits, and underscores.
+            # Allow letters, digits, hyphens, and underscores.
             acceptedstring = re.match('-\w+', self.recordname)
             if not acceptedstring or acceptedstring.string != self.recordname:
-                sys.exit('recordname must only comprise of letters, digits, dashes, and underscores.')
+                sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
                 sys.exit('nseg must be a positive integer')

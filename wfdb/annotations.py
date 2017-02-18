@@ -7,7 +7,10 @@ from . import _headers
 # Class for WFDB annotations
 class Annotation():
 
-    def __init__(self, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
+    def __init__(self, recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
+        self.recordname = recordname
+        self.annotator = annotator
+
         self.annsamp = annsamp
         self.anntype = anntype
         self.num = num
@@ -17,7 +20,7 @@ class Annotation():
         self.fs = fs
 
     # Write an annotation file
-    def wrann(self):
+    def wrann(self, ):
         # Check the validity of individual fields used to write the annotation file
         self.checkfields() 
 
@@ -32,7 +35,7 @@ class Annotation():
     # to be moved to the aux field.
     def checkfields(self):
         # Enforce mandatory write fields
-        for field in ['annsamp', 'anntype']:
+        for field in ['recordname', 'annotator', 'annsamp', 'anntype']:
             if getattr(self, field) is None:
                 print('The ', field, ' field is mandatory for writing annotation files')
                 sys.exit()
@@ -46,39 +49,53 @@ class Annotation():
     # Check a particular annotation field
     def checkfield(self, field):
 
-        if field == 'fs':
+        # Non list/array fields
+        if field in ['recordname', 'annotator', 'fs']:
             # Check the field type
             if type(self.fs) not in annfieldtypes['fs']:
                 print('The fs field must be one of the following types: ', annfieldtypes['fs'])
                 sys.exit()
-            # Field specific check
-            if self.fs <=0:
-                sys.exit('The fs field must be a non-negative number')
+            
+            # Field specific checks
+            if field == 'recordname':
+                # Allow letters, digits, hyphens, and underscores.
+                acceptedstring = re.match('-\w+', self.recordname)
+                if not acceptedstring or acceptedstring.string != self.recordname:
+                    sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
+            elif field == 'annotator':
+                # Allow letters only
+                acceptedstring = re.match('[a-zA-Z]+', self.recordname)
+                if not acceptedstring or acceptedstring.string != self.annotator:
+                    sys.exit('annotator must only comprise of letters')
+            elif field == 'fs':
+                if self.fs <=0:
+                    sys.exit('The fs field must be a non-negative number')
 
         else:
             fielditem = getattr(self, field)
 
-            # Ensure the field item is a list or 1d numpy array
-            if type(fielditem) not in [list, np.ndarray]:
-                print('The ', field, ' field must be a list or a 1d numpy array')
+            # Ensure the field item is a list
+            if type(fielditem) != list
+                print('The ', field, ' field must be a list')
                 sys.exit()          
-            if type(fielditem) == np.ndarray and fielditem.ndim != 1:
-                print('The ', field, ' field must be a list or a 1d numpy array')
-                sys.exit()
 
             # Check the data types of the elements
             for item in fielditem:
                 if type(item) not in annfieldtypes[field]+[None]:
-                    print('All elements of the ', field, 'field must be None or one of the following types: ', annfieldtypes[field])
+                    print("All elements of the ", field, "field must be one of the following types: ", annfieldtypes[field])
+                    print("Empty elements may also be set to 'None'")
                     sys.exit()
 
             # Field specific checks
+            # The C WFDB library stores num/sub/chan as chars. 
+
             if field == 'annsamp':
                 sampdiffs = np.diff(self.annsamp)
                 if min(self.annsamp) < 0 :
                     sys.exit('The annsamp field must only contain non-negative integers')
                 if min(sampdiffs) < 0 :
                     sys.exit('The annsamp field must contain monotonically increasing sample numbers')
+
             elif field == 'anntype':
                 # Ensure all fields lie in standard WFDB annotation codes
                 if set(self.anntype) - set(annsyms.values()) != set():
@@ -87,32 +104,146 @@ class Annotation():
                     print('To transfer non-encoded anntype items into the aux field call: self.type2aux')
                     sys.exit()
             elif field == 'num':
-                if min(self.num) < 0 :
-                    sys.exit('The num field must only contain non-negative integers')
+                # signed character
+                if min(self.num) < 0 or max(self.num) >255:
+                    sys.exit('The num field must only contain non-negative integers up to 255')
             elif field == 'subtype':
-                if min(self.subtype) < 0 :
-                    sys.exit('The subtype field must only contain non-negative integers')
+                # signed character
+                if min(self.subtype) < 0 or max(self.subtype) >127:
+                    sys.exit('The subtype field must only contain non-negative integers up to 127')
             elif field == 'chan':
-                if min(self.chan) < 0 :
-                    sys.exit('The chan field must only contain non-negative integers')
-            elif field == 'aux':
-                if min(self.aux) < 0 :
-                    sys.exit('The aux field must only contain non-negative integers')
-
+                # unsigned character
+                if min(self.chan) < 0 or max(self.chan) >127:
+                    sys.exit('The chan field must only contain non-negative integers up to 127')
+            #elif field == 'aux': # No further conditions for aux field.
+                
 
     # Ensure all set annotation fields have the same length
     def checkfieldcohesion(self):
         # Number of annotation samples
         nannots = len(getattr(self, annsamp))
 
-        for field in annfields[1:-1]:
+        for field in annfields[3:-1]:
             if getarr(self, field) is not None:
                 if len(getattr(self, field)) != nannots:
                     sys.exit('All set annotation fields (aside from fs) must have the same length')
 
 
     def wrannfile(self):
-        print('on it')
+
+
+        # If there is an fs, write it
+        if self.fs is not None:
+            databytes = insert_fs(self.fs)
+        else:
+            databytes = []
+
+        # Write the main content
+        databytes = databytes + self.fieldbytes(extrawritefields)
+
+
+    def insert_fs(fs):
+        databytes = [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
+
+        fschars = str(fs)
+        ndigits = len(fschars)
+
+        for i in range(0, ndigits):
+            databytes.append(ord(fschars[i]))
+
+        # odd
+        if ndigits % 2:
+            databytes = databytes + [0, 0]
+        # even
+        else:
+            databytes = databytes + [0, 0, 0]
+
+        return databytes
+
+    # Convert all used annotation fields into bytes to write
+    def allfieldbytes(self):
+
+        annsampdiff = np.diff()
+
+        # All fields to be written
+        writefields = ['annsamp_anntype']
+
+        for field in annfields[4:-1]:
+            if getattr(self, field) is not None:
+                writefields.append(field)
+
+        fieldbytes = {}
+
+        #
+        for field in writefields:
+
+            if 
+
+            fieldbytes[field] = self.fieldbytes(field)
+
+
+
+
+
+        # Only need to write annsamp and anntype
+        #if extrawritefields == []:
+         #   for i in range(0, len(self.annsamp)):
+
+        # More fields to write
+        #else:
+        #    for i in range(0, len(self.annsamp)):
+
+
+        return databytes
+
+
+    # Convert an annotation field into bytes to write
+    def fieldbytes(self, field):
+
+        databytes = []
+
+
+        'num', 'subtype', 'chan', 'aux'
+
+
+        # annsamp and anntype bytes come together
+        if field == 'annsamp_anntype':
+            # Difference values for annotation samples
+            sampdiff = [self.annsamp(0)]+list(np.diff(self.annsamp))
+            # Numerical values encoding annotation symbols
+            typecode = [revannsyms[i] for i in self.anntype]
+            for i in range(0, len(sampdiff)):
+                sd = sampdiff[i]
+                # Add SKIP element
+                if sd>1023:
+                    # 8 bytes in total:
+                    # - [0, 59>>2] indicates SKIP
+                    # - Next 4 gives sample difference
+                    # - Final 2 give 0 and anntype
+                    indexbytes = [0, 236, (sd&16320)>>16, (sd&16711680)>>24, sd&255, (sd&2040)>>8, 0, 4*typecode[i]]
+                # Just need annsamp and anntype
+                else:
+                    # - First byte stores low 8 bits of annsamp
+                    # - Second byte stores high 2 bits of annsamp
+                    #   and anntype
+                    indexbytes = [sampdiff[i] & 255, sampdiff[i] & 768 + 4*typecode[i]]
+                    
+                databytes.append(indexbytes)
+
+        elif field == 'num':
+            for i in range(0, len(self.num)):
+                # First byte gives 
+                databytes.append([ , + 240])
+
+
+        elif field == 'subtype':
+            print('on it')
+        elif field == 'chan':
+            print('on it')
+        elif field == 'aux':
+            print('on it')
+
+        return databytes
 
     # Move non-encoded anntype elements into the aux field 
     def type2aux(self):
@@ -130,28 +261,25 @@ class Annotation():
             self.aux = [None]*len(self.annsamp)
 
         # Move the anntype fields
-        print(external_anntypes)
-
         for ext in external_anntypes:
-            print(ext)
-            print(np.where(self.anntype == ext))
-            for i in np.where(self.anntype == ext):
-                print('i: ',i)
-                if self.aux[i] == None:
+
+            for i in [i for i,x in enumerate(self.anntype) if x == ext]:
+                if not self.aux[i]:
                     self.aux[i] = self.anntype[i]
-                    self.anntype[i] = ''
+                    self.anntype[i] = '"'
                 else:
                     self.aux[i] = self.anntype[i]+' '+self.aux[i]
-                    self.anntype[i] = ''
+                    self.anntype[i] = '"'
 
 
+
+# Display the annotation symbols and the codes they represent
 def showanncodes():
     display(symcodes)
 
-
 ## ------------- Reading Annotations ------------- ##
 
-def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
+def rdann(recordname, annotator, sampfrom=0, sampto=None):
     """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
 
     Usage: annotation = rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
@@ -159,14 +287,11 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
       file '100.atr', recordname='100'
-    - annot (required): The annotator extension of the annotation file. ie. for 
+    - annotator (required): The annotator extension of the annotation file. ie. for 
       file '100.atr', annot='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
     - sampto (default=None): The maximum sample number for 
       annotations to be returned.
-    - anndisp (default = 1): The annotation display flag that controls the data type 
-      of the 'anntype' output parameter. 'anntype' will either be an integer key(0), 
-      a shorthand display symbol(1), or a longer annotation code(2).
 
     Output argument:
     - annotation: The annotation object with the following fields:
@@ -250,11 +375,12 @@ def rdann(recordname, annot, sampfrom=0, sampto=None, anndisp=1):
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
-    # Set the annotation type to annotation codes or symbols if specified
-    anntype = format_anntype(anndisp,anntype)
+    # Set the annotation type to annotation codes
+    anntype = [annsyms[code] for code in anntype]
 
     # Store fields in an Annotation object
-    annotation = Annotation(annsamp = annsamp, anntype = anntype, subtype = subtype, chan = chan, num = num, aux = aux, fs = fs)
+    annotation = Annotation(recordname, annotator, annsamp, anntype, 
+        subtype, chan, num, aux, fs)
 
     return annotation
 
@@ -290,8 +416,7 @@ def get_fs(filebytes):
             # the file.
             auxlen = testbytes[2]
             testbytes = filebytes[:(12 + int(np.ceil(auxlen / 2.))), :].flatten()
-            fs = int("".join([chr(char)
-                                 for char in testbytes[24:auxlen + 4]]))
+            fs = int("".join([chr(char) for char in testbytes[24:auxlen + 4]]))
             # byte pair index to start reading actual annotations.
             bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
     return (fs, bpi)
@@ -318,7 +443,7 @@ def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):
 
 def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
     if AT == 61:  # SUB
-        # sub is interpreted as signed char. Remember to limit writing
+        # sub is interpreted as signed char.
         # range.
         subtype[ai] = filebytes[bpi, 0].astype('i1')
         bpi = bpi + 1
@@ -391,12 +516,12 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
         aux = aux[ik0:ik1 + 1]
     return annsamp,anntype,num,subtype,chan,aux
 
-def format_anntype(anndisp,anntype):
-    if anndisp == 1:
-        anntype = [annsyms[code] for code in anntype]
-    elif anndisp == 2:
-        anntype = [anncodes[code] for code in anntype]
-    return anntype
+#def format_anntype(anntype):
+
+        
+    #elif anndisp == 2:
+    #    anntype = [anncodes[code] for code in anntype]
+    #return anntype
 
 
 
@@ -460,6 +585,8 @@ annsyms = {
     #48: '[48]',
     #49: '[49]',
 }
+# Reverse ann symbols for mapping symbols back to numbers
+revannsyms = {v: k for k, v in annsyms.items()}
 
 # Annotation codes for 'anntype' field as specified in ecgcodes.h from
 # wfdb software library 10.5.24
@@ -513,9 +640,8 @@ anncodes = {
 symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code/Meaning': list(anncodes.values())})
 symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
-annfields = ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
+annfields = ['recordname', 'annotator', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
 
-annfieldtypes = {'annsamp': _headers.inttypes, 'anntype': [str], 
-              'num':_headers.inttypes, 'subtype': _headers.inttypes, 
-              'chan': _headers.inttypes, 'aux': [str], 
-              'fs': _headers.floattypes}
+annfieldtypes = {'recordname': [str], 'annotator': [str], 'annsamp': _headers.inttypes, 
+                 'anntype': [str], 'num':_headers.inttypes, 'subtype': _headers.inttypes, 
+                 'chan': _headers.inttypes, 'aux': [str], 'fs': _headers.floattypes}
