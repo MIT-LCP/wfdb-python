@@ -75,7 +75,7 @@ class Annotation():
             fielditem = getattr(self, field)
 
             # Ensure the field item is a list
-            if type(fielditem) != list
+            if type(fielditem) != list:
                 print('The ', field, ' field must be a list')
                 sys.exit()          
 
@@ -131,7 +131,6 @@ class Annotation():
 
     def wrannfile(self):
 
-
         # If there is an fs, write it
         if self.fs is not None:
             databytes = insert_fs(self.fs)
@@ -182,9 +181,6 @@ class Annotation():
             fieldbytes[field] = self.fieldbytes(field)
 
 
-
-
-
         # Only need to write annsamp and anntype
         #if extrawritefields == []:
          #   for i in range(0, len(self.annsamp)):
@@ -201,10 +197,6 @@ class Annotation():
     def fieldbytes(self, field):
 
         databytes = []
-
-
-        'num', 'subtype', 'chan', 'aux'
-
 
         # annsamp and anntype bytes come together
         if field == 'annsamp_anntype':
@@ -230,18 +222,45 @@ class Annotation():
                     
                 databytes.append(indexbytes)
 
+        # All other fields are optional
         elif field == 'num':
             for i in range(0, len(self.num)):
-                # First byte gives 
-                databytes.append([ , + 240])
-
-
+                if self.num[i] is None:
+                    databytes.append(None)
+                else:
+                    # First byte stores num
+                    # second byte stores 60*4 indicator
+                    databytes.append([self.num[i], + 240])
         elif field == 'subtype':
-            print('on it')
+            for i in range(0, len(self.subtype)):
+                if self.subtype[i] is None:
+                    databytes.append(None)
+                else:
+                    # First byte stores subtype
+                    # second byte stores 61*4 indicator
+                    databytes.append([self.subtype[i], + 244])
         elif field == 'chan':
-            print('on it')
+            for i in range(0, len(self.chan)):
+                if self.chan[i] is None:
+                    databytes.append(None)
+                else:
+                    # First byte stores num
+                    # second byte stores 62*4 indicator
+                    databytes.append([self.chan[i], + 248])
         elif field == 'aux':
-            print('on it')
+            for i in range(0, len(self.aux)):
+                if self.aux[i] is None:
+                    databytes.append(None)
+                else:
+                    aux = self.aux[i]
+                    # - First byte stores length of aux field
+                    # - Second byte stores 63*4 indicator
+                    # - Then store the aux string characters
+                    auxbytes = [len(aux), + 252] + [ord(i) for i in x]    
+                    # Zero pad odd length aux strings
+                    if len(aux) % 2: 
+                        auxbytes.append([0])
+                    databytes.append(auxbytes)
 
         return databytes
 
