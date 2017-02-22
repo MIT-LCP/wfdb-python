@@ -61,7 +61,7 @@ class BaseRecord():
         # Record specification fields
         elif field == 'recordname':       
             # Allow letters, digits, hyphens, and underscores.
-            acceptedstring = re.match('-\w+', self.recordname)
+            acceptedstring = re.match('[-\w]+', self.recordname)
             if not acceptedstring or acceptedstring.string != self.recordname:
                 sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'nseg':
@@ -150,7 +150,7 @@ class BaseRecord():
             for f in self.segname:
                 if f == '~':
                     continue
-                acceptedstring = re.match('[\w]+',f)
+                acceptedstring = re.match('[-\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
                     sys.exit("Non-null segment names may only contain alphanumerics. Null segment names must be equal to '~'")
         elif field == 'seglen':

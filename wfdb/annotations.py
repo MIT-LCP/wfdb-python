@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import sys
 from IPython.display import display
+import re
 from . import _headers
 
 # Class for WFDB annotations
@@ -20,12 +21,12 @@ class Annotation():
         self.fs = fs
 
     # Write an annotation file
-    def wrann(self, ):
+    def wrann(self):
         # Check the validity of individual fields used to write the annotation file
         self.checkfields() 
 
         # Check the cohesion of fields used to write the annotation
-        self.checkfieldcohesion(writefields)
+        self.checkfieldcohesion()
         
         # Write the header file using the specified fields
         self.wrannfile()
@@ -42,7 +43,7 @@ class Annotation():
 
         # Check all set fields
         for field in annfields:
-            if field is not None:
+            if getattr(self, field) is not None:
                 # Check the type of the field's elements
                 self.checkfield(field)
 
@@ -52,19 +53,19 @@ class Annotation():
         # Non list/array fields
         if field in ['recordname', 'annotator', 'fs']:
             # Check the field type
-            if type(self.fs) not in annfieldtypes['fs']:
-                print('The fs field must be one of the following types: ', annfieldtypes['fs'])
+            if type(getattr(self, field)) not in annfieldtypes[field]:
+                print('The '+field+' field must be one of the following types: ', annfieldtypes[field])
                 sys.exit()
             
             # Field specific checks
             if field == 'recordname':
                 # Allow letters, digits, hyphens, and underscores.
-                acceptedstring = re.match('-\w+', self.recordname)
+                acceptedstring = re.match('[-\w]+', self.recordname)
                 if not acceptedstring or acceptedstring.string != self.recordname:
                     sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
             elif field == 'annotator':
                 # Allow letters only
-                acceptedstring = re.match('[a-zA-Z]+', self.recordname)
+                acceptedstring = re.match('[a-zA-Z]+', self.annotator)
                 if not acceptedstring or acceptedstring.string != self.annotator:
                     sys.exit('annotator must only comprise of letters')
             elif field == 'fs':
@@ -88,14 +89,14 @@ class Annotation():
 
             # Field specific checks
             # The C WFDB library stores num/sub/chan as chars. 
-
             if field == 'annsamp':
-                sampdiffs = np.diff(self.annsamp)
+                sampdiffs = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
                 if min(self.annsamp) < 0 :
                     sys.exit('The annsamp field must only contain non-negative integers')
                 if min(sampdiffs) < 0 :
                     sys.exit('The annsamp field must contain monotonically increasing sample numbers')
-
+                if max(sampdiffs) > 2147483648:
+                    sys.exit('WFDB annotation files cannot store sample differences greater than 2**31')
             elif field == 'anntype':
                 # Ensure all fields lie in standard WFDB annotation codes
                 if set(self.anntype) - set(annsyms.values()) != set():
@@ -118,151 +119,70 @@ class Annotation():
             #elif field == 'aux': # No further conditions for aux field.
                 
 
-    # Ensure all set annotation fields have the same length
+    # Ensure all written annotation fields have the same length
     def checkfieldcohesion(self):
+
         # Number of annotation samples
-        nannots = len(getattr(self, annsamp))
-
-        for field in annfields[3:-1]:
-            if getarr(self, field) is not None:
+        nannots = len(self.annsamp)
+        for field in ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux']:
+            if getattr(self, field) is not None:
                 if len(getattr(self, field)) != nannots:
-                    sys.exit('All set annotation fields (aside from fs) must have the same length')
+                    sys.exit("All written annotation fields: ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux'] must have the same length")
 
-
+    # Write an annotation file
     def wrannfile(self):
 
         # If there is an fs, write it
         if self.fs is not None:
-            databytes = insert_fs(self.fs)
+            fsbytes = fs2bytes(self.fs)
         else:
-            databytes = []
+            fsbytes = None
 
-        # Write the main content
-        databytes = databytes + self.fieldbytes(extrawritefields)
+        # Calculate the main bytes to write
+        databytes = self.fieldbytes()
 
-
-    def insert_fs(fs):
-        databytes = [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
-
-        fschars = str(fs)
-        ndigits = len(fschars)
-
-        for i in range(0, ndigits):
-            databytes.append(ord(fschars[i]))
-
-        # odd
-        if ndigits % 2:
-            databytes = databytes + [0, 0]
-        # even
+        # Combine all bytes to write including file terminator
+        if fsbytes is not None:
+            databytes = np.concatenate((fsbytes, databytes, np.array([0,0]).astype('u1')))
         else:
-            databytes = databytes + [0, 0, 0]
+            databytes = np.concatenate((databytes, np.array([0,0]).astype('u1')))
 
-        return databytes
+        # Write the file
+        with open(self.recordname+'.'+self.annotator, 'wb') as f:
+            databytes.tofile(f)
+    
 
     # Convert all used annotation fields into bytes to write
-    def allfieldbytes(self):
+    def fieldbytes(self):
 
-        annsampdiff = np.diff()
+        # The difference samples to write
+        annsampdiff = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
 
-        # All fields to be written
-        writefields = ['annsamp_anntype']
+        # All fields to be written. samp and type are together
+        extrawritefields = []
 
-        for field in annfields[4:-1]:
+        for field in ['num', 'subtype', 'chan', 'aux']:
             if getattr(self, field) is not None:
-                writefields.append(field)
-
-        fieldbytes = {}
-
-        #
-        for field in writefields:
-
-            if 
-
-            fieldbytes[field] = self.fieldbytes(field)
-
-
-        # Only need to write annsamp and anntype
-        #if extrawritefields == []:
-         #   for i in range(0, len(self.annsamp)):
-
-        # More fields to write
-        #else:
-        #    for i in range(0, len(self.annsamp)):
-
-
-        return databytes
-
-
-    # Convert an annotation field into bytes to write
-    def fieldbytes(self, field):
+                extrawritefields.append(field)
 
         databytes = []
 
-        # annsamp and anntype bytes come together
-        if field == 'annsamp_anntype':
-            # Difference values for annotation samples
-            sampdiff = [self.annsamp(0)]+list(np.diff(self.annsamp))
-            # Numerical values encoding annotation symbols
-            typecode = [revannsyms[i] for i in self.anntype]
-            for i in range(0, len(sampdiff)):
-                sd = sampdiff[i]
-                # Add SKIP element
-                if sd>1023:
-                    # 8 bytes in total:
-                    # - [0, 59>>2] indicates SKIP
-                    # - Next 4 gives sample difference
-                    # - Final 2 give 0 and anntype
-                    indexbytes = [0, 236, (sd&16320)>>16, (sd&16711680)>>24, sd&255, (sd&2040)>>8, 0, 4*typecode[i]]
-                # Just need annsamp and anntype
-                else:
-                    # - First byte stores low 8 bits of annsamp
-                    # - Second byte stores high 2 bits of annsamp
-                    #   and anntype
-                    indexbytes = [sampdiff[i] & 255, sampdiff[i] & 768 + 4*typecode[i]]
-                    
-                databytes.append(indexbytes)
+        # Iterate across all fields one index at a time
+        for i in range(0, len(annsampdiff)):
 
-        # All other fields are optional
-        elif field == 'num':
-            for i in range(0, len(self.num)):
-                if self.num[i] is None:
-                    databytes.append(None)
-                else:
-                    # First byte stores num
-                    # second byte stores 60*4 indicator
-                    databytes.append([self.num[i], + 240])
-        elif field == 'subtype':
-            for i in range(0, len(self.subtype)):
-                if self.subtype[i] is None:
-                    databytes.append(None)
-                else:
-                    # First byte stores subtype
-                    # second byte stores 61*4 indicator
-                    databytes.append([self.subtype[i], + 244])
-        elif field == 'chan':
-            for i in range(0, len(self.chan)):
-                if self.chan[i] is None:
-                    databytes.append(None)
-                else:
-                    # First byte stores num
-                    # second byte stores 62*4 indicator
-                    databytes.append([self.chan[i], + 248])
-        elif field == 'aux':
-            for i in range(0, len(self.aux)):
-                if self.aux[i] is None:
-                    databytes.append(None)
-                else:
-                    aux = self.aux[i]
-                    # - First byte stores length of aux field
-                    # - Second byte stores 63*4 indicator
-                    # - Then store the aux string characters
-                    auxbytes = [len(aux), + 252] + [ord(i) for i in x]    
-                    # Zero pad odd length aux strings
-                    if len(aux) % 2: 
-                        auxbytes.append([0])
-                    databytes.append(auxbytes)
+            # Process the samp (difference) and type items together
+            databytes.append(field2bytes('samptype', [annsampdiff[i], self.anntype[i]]))
+
+            for field in extrawritefields:
+                value = getattr(self, field)[i]
+                if value is not None:
+                    databytes.append(self.field2bytes(field, value))
+
+        # Flatten and convert to correct format
+        databytes = np.array([item for sublist in databytes for item in sublist]).astype('u1')
 
         return databytes
+
 
     # Move non-encoded anntype elements into the aux field 
     def type2aux(self):
@@ -289,6 +209,74 @@ class Annotation():
                 else:
                     self.aux[i] = self.anntype[i]+' '+self.aux[i]
                     self.anntype[i] = '"'
+
+# Calculate the bytes written to the annotation file for the fs field
+def fs2bytes(fs):
+    databytes = [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32, 50]
+
+    fschars = str(fs)
+    ndigits = len(fschars)
+
+    for i in range(0, ndigits):
+        databytes.append(ord(fschars[i]))
+
+    # odd number of digits
+    if ndigits % 2:
+        databytes.append(0)
+
+    # Question: -1 0 garbage here? Seems so..... 
+
+    return np.array(databytes).astype('u1')
+
+# Convert an annotation field into bytes to write
+def field2bytes(field, value):
+
+    databytes = []
+
+    # annsamp and anntype bytes come together
+    if field == 'samptype':
+
+        # Numerical value encoding annotation symbol
+        typecode = revannsyms[value[1]]
+        # sample difference
+        sd = value[0]
+
+        # Add SKIP element if value is too large for single byte
+        if sd>1023:
+            # 8 bytes in total:
+            # - [0, 59>>2] indicates SKIP
+            # - Next 4 gives sample difference
+            # - Final 2 give 0 and anntype
+            databytes = [0, 236, (sd&16711680)>>16, (sd&4278190080)>>24, sd&255, (sd&65280)>>8, 0, 4*typecode]
+        # Just need annsamp and anntype
+        else:
+            # - First byte stores low 8 bits of annsamp
+            # - Second byte stores high 2 bits of annsamp
+            #   and anntype
+            databytes = [sd & 255, ((sd & 768) >> 8) + 4*typecode]
+
+    elif field == 'num':
+        # First byte stores num
+        # second byte stores 60*4 indicator
+        databytes = [value, 240]
+    elif field == 'subtype':
+        # First byte stores subtype
+        # second byte stores 61*4 indicator
+        databytes = [value, 244]
+    elif field == 'chan':
+        # First byte stores num
+        # second byte stores 62*4 indicator
+        databytes = [value, 248]
+    elif field == 'aux':
+        # - First byte stores length of aux field
+        # - Second byte stores 63*4 indicator
+        # - Then store the aux string characters
+        databytes = [len(value), 252] + [ord(i) for i in value]    
+        # Zero pad odd length aux strings
+        if len(value) % 2: 
+            databytes.append(0)
+
+    return databytes
 
 
 
@@ -332,7 +320,7 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
         raise ValueError("sampfrom must be a non-negative integer")
 
     # Read the file in byte pairs
-    filebytes = loadbytepairs(recordname, annot)
+    filebytes = loadbytepairs(recordname, annotator)
 
     # The maximum number of annotations potentially contained
     annotlength = filebytes.shape[0]
@@ -437,7 +425,7 @@ def get_fs(filebytes):
             testbytes = filebytes[:(12 + int(np.ceil(auxlen / 2.))), :].flatten()
             fs = int("".join([chr(char) for char in testbytes[24:auxlen + 4]]))
             # byte pair index to start reading actual annotations.
-            bpi = 0.5 * (auxlen + 12 + (auxlen & 1))
+            bpi = int(0.5 * (auxlen + 12 + (auxlen & 1)))
     return (fs, bpi)
 
 def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):    
@@ -534,15 +522,6 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
         chan = chan[ik0:ik1 + 1]
         aux = aux[ik0:ik1 + 1]
     return annsamp,anntype,num,subtype,chan,aux
-
-#def format_anntype(anntype):
-
-        
-    #elif anndisp == 2:
-    #    anntype = [anncodes[code] for code in anntype]
-    #return anntype
-
-
 
 
 ## ------------- /Reading Annotations ------------- ##
