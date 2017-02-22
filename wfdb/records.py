@@ -11,6 +11,7 @@ import os
 import sys
 from collections import OrderedDict
 from calendar import monthrange
+from IPython.display import display
 from . import _headers
 from . import _signals
 
@@ -285,15 +286,17 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         # List fields and their elements
         if listcheck:
             if type(item)!=list:
-                sys.exit('Field: '+field+' must be a list with length equal to nsig')
+                sys.exit("Field: '"+field+"' must be a list with length equal to nsig")
             for i in item:
                 if type(i) not in allowedtypes:
-                    print('Each element in field: '+field+' must be one of the following types:', allowedtypes)
+                    print("Each element in field: '"+field+"' must be one of the following types:")
+                    display(allowedtypes)
                     sys.exit()
         # Non-list fields  
         else:
             if type(item) not in allowedtypes:
-                print('Field: '+field+' must be one of the following types:', allowedtypes)
+                print("Field: '"+field+"' must be one of the following types:")
+                display(allowedtypes)
                 sys.exit()
 
 
@@ -373,16 +376,18 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         # List fields and their elements
         if listcheck:
             if type(item)!=list:
-                sys.exit('Field: '+field+' must be a list with length equal to nseg')
+                sys.exit("Field: '"+field+"' must be a list with length equal to nseg")
 
             for i in item:
                 if type(i) not in allowedtypes:
-                    print('Each element in field: '+field+' must be one of the following types:', allowedtypes)
+                    print("Each element in field: '"+field+"' must be one of the following types:")
+                    display(allowedtypes)
                     sys.exit()
         # Non-list fields  
         else:
             if type(item) not in allowedtypes:
-                print('Field: '+field+' must be one of the following types:', allowedtypes)
+                print("Field: '"+field+"' must be one of the following types:")
+                display(allowedtypes)
                 sys.exit()
 
     
@@ -391,7 +396,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
         # Check that nseg is equal to the length of the segments field
         if self.nseg != len(self.segments):
-            sys.exit('Length of segments must match the nseg field')
+            sys.exit("Length of segments must match the 'nseg' field")
 
         for i in range(0, nseg):
             s = self.segments[i]
@@ -404,7 +409,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
             # Check that sampling frequencies all match the one in the master header
             if s.fs != self.fs:
-                sys.exit("The fs in each segment must match the overall record's fs")
+                sys.exit("The 'fs' in each segment must match the overall record's 'fs'")
 
             # Check the signal length of the segment against the corresponding seglen field
             if s.siglen != self.seglen[i]:
@@ -467,13 +472,11 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         print('self.layout: ', self.layout)
         # Fixed layout. All channels are the same.
         if self.layout == 'Fixed':
-            print('in fixed???')
             # Should we bother here with skipping empty segments? 
             # They won't be read anyway. 
             readsigs = [channels]*len(readsegs)
         # Variable layout: figure out channels by matching record names
         else:
-            print('in variable')
             readsigs = []
             # The overall layout signal names
             l_signames = self.segments[0].signame
@@ -682,10 +685,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         readsegs, segranges  = record.requiredsegments(sampfrom, sampto, channels)
         segsigs = record.requiredsignals(readsegs, channels, dirname) 
 
-        print('readsegs: ', readsegs)
-        print('segranges: ', segranges)
-        print('segsigs: ', segsigs)
-
         # Read the desired samples in the relevant segments
         for i in range(0, len(readsegs)):
             segnum = readsegs[i]
@@ -693,13 +692,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             if record.segname[segnum] == '~' or segsigs[i] is None:
                 record.segments[segnum] = None 
             else:
-                print('recordname: ', os.path.join(dirname, record.segname[segnum]))
-                print('sampfrom: ', segranges[i][0])
-                print('sampto: ', segranges[i][1])
-                print('channels: ', segsigs[i])
-
-
-
                 record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]), 
                     sampfrom = segranges[i][0], sampto = segranges[i][1], 
                     channels = segsigs[i], physical = physical)
@@ -786,9 +778,15 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 #------------------- /Reading Records -------------------#
 
 
-# Simple function for single segment wrsamp for writing physical signals
-def wrsamp(recordname, p_signals, fs, units, signames, fmt = None, comments=[]):
+# Gateway function for single segment wrsamp
+def wrsamp(recordname, p_signals = None, d_signals = None, fs, units, signames, fmt = None, comments=[]):
     
+    # Check input field combinations
+    if p_signals is not None and d_signals is not None:
+        sys.exit('Must only give one of the inputs: p_signals or d_signals')
+
+    
+
     # Create the Record object
     record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)
     # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.

@@ -14,7 +14,7 @@ class test_rdann():
         
         # This is not the fault of the script. The annotation file specifies a
         # length 3
-        aux[0] = '(N'
+        annotation.aux[0] = '(N'
         # aux field with a null written after '(N' which the script correctly picks up. I am just
         # getting rid of the null in this unit test to compare with the regexp output below which has
         # no null to detect in the output text file of rdann.
@@ -92,6 +92,6 @@ class test_rdann():
                 np.array_equal(annotation.subtype, Tsubtype), 
                 np.array_equal(annotation.chan, Tchan), 
                 np.array_equal(annotation.num, Tnum), 
-                aux == Taux]
+                annotation.aux == Taux]
 
         assert (comp == [True] * 6)

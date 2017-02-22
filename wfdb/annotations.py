@@ -54,7 +54,8 @@ class Annotation():
         if field in ['recordname', 'annotator', 'fs']:
             # Check the field type
             if type(getattr(self, field)) not in annfieldtypes[field]:
-                print('The '+field+' field must be one of the following types: ', annfieldtypes[field])
+                print('The '+field+' field must be one of the following types:')
+                display(annfieldtypes[field])
                 sys.exit()
             
             # Field specific checks
@@ -75,47 +76,57 @@ class Annotation():
         else:
             fielditem = getattr(self, field)
 
-            # Ensure the field item is a list
+            # Ensure the field item is a list.
             if type(fielditem) != list:
                 print('The ', field, ' field must be a list')
                 sys.exit()          
 
             # Check the data types of the elements
-            for item in fielditem:
-                if type(item) not in annfieldtypes[field]+[None]:
-                    print("All elements of the ", field, "field must be one of the following types: ", annfieldtypes[field])
-                    print("Empty elements may also be set to 'None'")
-                    sys.exit()
-
+            # annsamp and anntype may NOT have nones. Others may. 
+            if field in ['annsamp','anntype']:
+                for item in fielditem:
+                    if type(item) not in annfieldtypes[field]:
+                        print("All elements of the '", field, "' field must be one of the following types:")
+                        display(annfieldtypes[field])
+                        print("All elements must be present")
+                        sys.exit()
+            else:
+                for item in fielditem:
+                    if item is not None and type(item) not in annfieldtypes[field]:
+                        print("All elements of the '", field, "' field must be one of the following types:")
+                        display(annfieldtypes[field])
+                        print("Elements may also be set to 'None'")
+                        sys.exit()
+        
             # Field specific checks
             # The C WFDB library stores num/sub/chan as chars. 
             if field == 'annsamp':
                 sampdiffs = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
                 if min(self.annsamp) < 0 :
-                    sys.exit('The annsamp field must only contain non-negative integers')
+                    sys.exit("The 'annsamp' field must only contain non-negative integers")
                 if min(sampdiffs) < 0 :
-                    sys.exit('The annsamp field must contain monotonically increasing sample numbers')
+                    sys.exit("The 'annsamp' field must contain monotonically increasing sample numbers")
                 if max(sampdiffs) > 2147483648:
                     sys.exit('WFDB annotation files cannot store sample differences greater than 2**31')
             elif field == 'anntype':
                 # Ensure all fields lie in standard WFDB annotation codes
                 if set(self.anntype) - set(annsyms.values()) != set():
-                    print('The anntype field contains items not encoded in the WFDB annotation library.')
+                    print("The 'anntype' field contains items not encoded in the WFDB annotation library.")
                     print('To see the valid annotation codes call: showanncodes()')
                     print('To transfer non-encoded anntype items into the aux field call: self.type2aux')
                     sys.exit()
             elif field == 'num':
                 # signed character
                 if min(self.num) < 0 or max(self.num) >255:
-                    sys.exit('The num field must only contain non-negative integers up to 255')
+                    sys.exit("The 'num' field must only contain non-negative integers up to 255")
             elif field == 'subtype':
                 # signed character
                 if min(self.subtype) < 0 or max(self.subtype) >127:
-                    sys.exit('The subtype field must only contain non-negative integers up to 127')
+                    sys.exit("The 'subtype' field must only contain non-negative integers up to 127")
             elif field == 'chan':
                 # unsigned character
                 if min(self.chan) < 0 or max(self.chan) >127:
-                    sys.exit('The chan field must only contain non-negative integers up to 127')
+                    sys.exit("The 'chan' field must only contain non-negative integers up to 127")
             #elif field == 'aux': # No further conditions for aux field.
                 
 
@@ -176,7 +187,7 @@ class Annotation():
             for field in extrawritefields:
                 value = getattr(self, field)[i]
                 if value is not None:
-                    databytes.append(self.field2bytes(field, value))
+                    databytes.append(field2bytes(field, value))
 
         # Flatten and convert to correct format
         databytes = np.array([item for sublist in databytes for item in sublist]).astype('u1')
@@ -186,6 +197,13 @@ class Annotation():
 
     # Move non-encoded anntype elements into the aux field 
     def type2aux(self):
+
+        # Ensure that anntype is a list of strings
+        if type(self.anntype)!= list:
+            sys.exit('anntype must be a list')
+        for at in self.anntype:
+            if type(at) != str:
+                sys.exit('anntype elements must all be strings')
 
         external_anntypes = set(self.anntype) - set(annsyms.values())
 
@@ -212,7 +230,7 @@ class Annotation():
 
 # Calculate the bytes written to the annotation file for the fs field
 def fs2bytes(fs):
-    databytes = [0,88,252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32, 50]
+    databytes = [0,88,23, 252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
 
     fschars = str(fs)
     ndigits = len(fschars)
@@ -224,7 +242,8 @@ def fs2bytes(fs):
     if ndigits % 2:
         databytes.append(0)
 
-    # Question: -1 0 garbage here? Seems so..... 
+    # Add the extra -1 0 filler
+    databytes = databytes+[0, 236, 255, 255, 255, 255, 1, 0] 
 
     return np.array(databytes).astype('u1')
 
