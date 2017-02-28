@@ -607,7 +607,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, stackmulti = True):  
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, stackmulti = True, returnobj = True):  
 
     # If the user specifies a sample or signal range, some fields 
     # of the output object will be updated from the fields directly
@@ -762,7 +762,7 @@ def wanted_siginds(wanted_signames, record_signames):
         return [record_signames.index(s) for s in contained_signals]
 
 
-# A simple version of rdsamp for the average user
+# A simple version of rdsamp for ease of use
 # Return the physical signals and a few essential fields
 def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 
@@ -770,7 +770,7 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 
     signals = record.p_signals
     fields = {}
-    for field in ['fs','units','signame']:
+    for field in ['fs','units','signame', 'comments']:
         fields[field] = getattr(record, field)
 
     return signals, fields
@@ -778,22 +778,27 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 #------------------- /Reading Records -------------------#
 
 
-# Gateway function for single segment wrsamp
-def wrsamp(recordname, p_signals = None, d_signals = None, fs, units, signames, fmt = None, comments=[]):
+# Simple function for single segment wrsamp
+def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,  fmt = None, comments= None):
     
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
         sys.exit('Must only give one of the inputs: p_signals or d_signals')
 
-    
-
     # Create the Record object
     record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)
-    # 2. Compute optimal fields to store the digital signal, carry out adc, and set the fields.
-    record.set_d_features(do_adc = 1)
-    # 3. Set default values of any missing field dependencies
+    
+    # Depending on whether d_signals or p_signals was used, set other required features.
+    if p_signals is not none:
+        # Compute optimal fields to store the digital signal, carry out adc, and set the fields.
+        record.set_d_features(do_adc = 1)
+    else:
+        # No need to do adc. Just use d_signals to set the fields
+        record.set_d_features()
+
+    # Set default values of any missing field dependencies
     record.setdefaults()
-    # 4. Write the record files - header and associated dat
+    # Write the record files - header and associated dat
     record.wrsamp()
 
 

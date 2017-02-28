@@ -298,6 +298,12 @@ def field2bytes(field, value):
     return databytes
 
 
+# Function for writing annotations
+def wrann(recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
+        # Create Annotation object
+        annotation = Annotation(recordname, annotator, annsamp, anntype, num, subtype, chan, aux, fs)
+        # Perform field checks and write the annotation file
+        annotation.wrann()
 
 # Display the annotation symbols and the codes they represent
 def showanncodes():
