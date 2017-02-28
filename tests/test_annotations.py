@@ -50,7 +50,7 @@ class test_rdann():
                 np.array_equal(annotation.subtype, Tsubtype), 
                 np.array_equal(annotation.chan, Tchan), 
                 np.array_equal(annotation.num, Tnum), 
-                aux == Taux]
+                annotation.aux == Taux]
 
         assert (comp == [True] * 6)
 

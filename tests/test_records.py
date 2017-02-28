@@ -16,8 +16,9 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/100 -f 0.002 -t 30 -s 1 |
     # cut -f 2- > target2
     def test_2(self):
-        sig = wfdb.srdsamp('sampledata/100', sampfrom=1,
-                             sampto=10800, channels=[1], physical=0)
+        record = wfdb.rdsamp('sampledata/100', sampfrom=1,
+                             sampto=10800, channels=[1], physical=False)
+        sig = record.signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target2')
         targetsig = targetsig.reshape(len(targetsig), 1)
         assert np.array_equal(sig, targetsig)
@@ -26,7 +27,8 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/test01_00s | cut -f 2- >
     # target3
     def test_3(self):
-        sig, fields = wfdb.srdsamp('sampledata/test01_00s', physical=0)
+        record = wfdb.rdsamp('sampledata/test01_00s', physical=False)
+        sig = record.signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target3')
         assert np.array_equal(sig, targetsig)
 
@@ -44,8 +46,9 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/a103l -f 80 -s 0 1 | cut
     # -f 2- > target5
     def test_5(self):
-        sig, fields = wfdb.srdsamp('sampledata/a103l',
-                             sampfrom=20000, physical=0, channels=[0, 1])
+        record = wfdb.rdsamp('sampledata/a103l',
+                             sampfrom=20000, channels=[0, 1], physical=False)
+        sig = record.signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target5')
         assert np.array_equal(sig, targetsig)
 
@@ -64,7 +67,8 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/s0010_re | cut -f 2- >
     # target7
     def test_7(self):
-        sig, fields = wfdb.srdsamp('sampledata/s0010_re', physical=0)
+        record= wfdb.rdsamp('sampledata/s0010_re', physical=False)
+        sig = record.signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target7')
         assert np.array_equal(sig, targetsig)
 
@@ -82,7 +86,8 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/03700181 | cut -f 2- >
     # target9
     def test_9(self):
-        sig, fields = wfdb.srdsamp('sampledata/03700181', physical=0)
+        record = wfdb.rdsamp('sampledata/03700181', physical=False)
+        sig = record.signals
         # The WFDB library rdsamp does not return the final N samples for all
         # channels due to the skew.
         sig = sig[:-4, :]
@@ -125,7 +130,8 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/3000003_0003 -f 0 -t 8.21 | cut -f 2- | wrsamp -o 310derive -O 310
     # rdsamp -r 310derive -f 0.007 | cut -f 2- > target13
     def test_13(self):
-        sig, fields = wfdb.srdsamp('sampledata/310derive', sampfrom=2, physical=0)
+        record = wfdb.rdsamp('sampledata/310derive', sampfrom=2, physical=False)
+        sig = record.signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target13')
         assert np.array_equal(sig, targetsig)
 
