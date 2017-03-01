@@ -207,8 +207,19 @@ class BaseRecord():
             if c>self.nsig-1:
                 sys.exit('Input channels must all be lower than the total number of channels')
 
+"""
+The class representing WFDB headers, and single segment WFDB records. 
 
-# Class for single segment WFDB records.
+Record objects can be created as with any other class, or by reading a WFDB header
+with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
+or 'srdsamp'. 
+
+The attributes of the Record object give information about the record as specified
+by <insert>
+
+In addition, the d_signals and p_signals attributes represent the digital and physical
+signals of WFDB records with at least one channel. 
+"""
 class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     
     # Constructor
@@ -608,7 +619,11 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, stackmulti = True, returnobj = True):  
+    """
+    
+    """
 
+    
     # If the user specifies a sample or signal range, some fields 
     # of the output object will be updated from the fields directly
     # read from the header, which represent the entire record.
