@@ -644,6 +644,8 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         if physical == 1:
             # Perform dac to get physical signal
             record.p_signals = record.dac()
+            # Clear memory
+            record.d_signals = None
 
     # A multi segment record
 
