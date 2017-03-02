@@ -207,26 +207,27 @@ class BaseRecord():
             if c>self.nsig-1:
                 sys.exit('Input channels must all be lower than the total number of channels')
 
-"""
-The class representing WFDB headers, and single segment WFDB records. 
 
-Record objects can be created as with any other class, or by reading a WFDB header
-with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
-or 'srdsamp'. 
-
-The attributes of the Record object give information about the record as specified
-by <insert>
-
-In addition, the d_signals and p_signals attributes represent the digital and physical
-signals of WFDB records with at least one channel. 
-"""
 class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
-    
+    """
+    The class representing WFDB headers, and single segment WFDB records. 
+
+    Record objects can be created as with any other class, or by reading a WFDB header
+    with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
+    or 'srdsamp'. 
+
+    The attributes of the Record object give information about the record as specified
+    by https://www.physionet.org/physiotools/wag/header-5.htm
+
+    In addition, the d_signals and p_signals attributes represent the digital and physical
+    signals of WFDB records with at least one channel. 
+    """
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
                  recordname=None, nsig=None, 
                  fs=None, counterfreq=None, basecounter=None, 
-                 siglen=None, basetime=None, basedate=None, 
+                 siglen=N
+                 one, basetime=None, basedate=None, 
                  filename=None, fmt=None, sampsperframe=None, 
                  skew=None, byteoffset=None, adcgain=None, 
                  baseline=None, units=None, adcres=None, 
@@ -334,7 +335,20 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
 # Class for multi segment WFDB records.
 class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
-    
+    """
+    The class representing multi-segment WFDB records. 
+
+    MultiRecord objects can be created as with any other class, or by reading a multi-segment
+    WFDB record using 'rdsamp' with 'm2s' (multi to single) set to False.
+
+    The attributes of the MultiRecord object give information about the record as specified
+    by https://www.physionet.org/physiotools/wag/header-5.htm
+
+    In addition, the 
+
+    Noteably, the 'multi_to_single' instance method can be called on MultiRecord objects
+    to return a single segment representation of the record as a Record object.  
+    """
     # Constructor
     def __init__(self, segments = None, layout = None,
                  recordname=None, nsig=None, fs=None, 
@@ -618,19 +632,42 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, stackmulti = True, returnobj = True):  
-    """
-    
-    """
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, m2s = True):  
+    """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
 
-    
-    # If the user specifies a sample or signal range, some fields 
-    # of the output object will be updated from the fields directly
-    # read from the header, which represent the entire record.
+    Usage:
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, m2s=True)
 
-    # The goal of this function is to create an object, or objects, 
-    # with description fields that reflect the state its contents 
-    # when created. 
+    Input arguments:
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). 
+      If the argument contains any path delimiter characters, the argument will be interpreted as 
+      PATH/baserecord and the data files will be searched for in the local path.
+    - sampfrom (default=0): The starting sample number to read for each channel.
+    - sampto (default=None): The sample number at which to stop reading for each channel.
+    - channels (default=all): Indices specifying the channel to be returned.
+    - physical (default=True): Flag that specifies whether to return signals in physical (true) or 
+      digital (False) units.
+    - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to 
+      directly return a wfdb MultiRecord object (false), or to convert it into and return a wfdb 
+      Record object (True).
+
+    Output argument:
+    - record: The wfdb Record or MultiRecord object representing the contents of the record read.
+      Notable atributes of the object include 
+
+    Note: If a signal range or channel selection is specified when calling this function, the
+          the resulting attributes of the returned object will be set to reflect the section
+          of the record that is actually read, rather than necessarily what is in the header file.
+          For example, if channels = [0, 1, 2] is specified when reading a 12 channel record, the 
+          'nsig' attribute will be 3, not 12. 
+
+    Note: The 'srdsamp' function exists as a simple alternative to 'rdsamp' for the most common
+          purpose of extracting the physical signals and a few important descriptor fields. 
+          'srdsamp' returns two arguments: the physical signals array, and a dictionary of a 
+          few select fields, a subset of the original wfdb Record attributes. 
+
+    Example Usage: record1 = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
+    """
 
     dirname, baserecordname = os.path.split(recordname)
 
@@ -680,11 +717,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # Segments field is a list of Record objects
         # Empty segments store None.
 
-        # If stackmulti == True, Physical must be true. There is no 
+        # If m2s == True, Physical must be true. There is no 
         # meaningful representation of digital signals transferred 
         # from individual segments. 
-        if stackmulti == True and physical != True:
-            sys.exit('If stackmulti is True, physical must also be True.')
+        if m2s == True and physical != True:
+            sys.exit('If m2s is True, physical must also be True.')
 
         record.segments = [None]*record.nseg
 
@@ -717,7 +754,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         record.arrangefields(readsegs, segranges, channels)
 
         # Convert object into a single segment Record object 
-        if stackmulti:
+        if m2s:
             record = record.multi_to_single()
 
     return record
