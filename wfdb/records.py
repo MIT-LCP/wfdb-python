@@ -339,15 +339,18 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     The class representing multi-segment WFDB records. 
 
     MultiRecord objects can be created as with any other class, or by reading a multi-segment
-    WFDB record using 'rdsamp' with 'm2s' (multi to single) set to False.
+    WFDB record using 'rdsamp' with the 'm2s' (multi to single) input parameter set to False.
 
     The attributes of the MultiRecord object give information about the record as specified
     by https://www.physionet.org/physiotools/wag/header-5.htm
 
-    In addition, the 
+    In addition, the 'segments' parameter is a list of Record objects representing each
+    individual segment of the entire multi-segment record.
 
     Noteably, the 'multi_to_single' instance method can be called on MultiRecord objects
-    to return a single segment representation of the record as a Record object.  
+    to return a single segment representation of the record as a Record object. The resulting
+    Record object will have its 'p_signals' field set.
+
     """
     # Constructor
     def __init__(self, segments = None, layout = None,
