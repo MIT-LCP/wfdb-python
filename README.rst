@@ -25,7 +25,57 @@ functions.
 Reading Signals
 ~~~~~~~~~~~~~~~
 
-**rdsamp** - Read a WFDB file and return the signal as a numpy array and
+**rdsamp** - Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object.
+
+::
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, m2s=True)
+
+Example Usage:
+
+::
+
+    import wfdb
+    record = wfdb.rdsamp('100', sampto=2000)
+
+Input Arguments:
+
+-  ``recordname`` (mandatory) - The name of the WFDB record to be read
+   (without any file extensions).
+-  ``sampfrom`` (default=0) - The starting sample number to read for
+   each channel.
+-  ``sampto`` (default=length of entire signal)- The final sample number
+   to read for each channel.
+-  ``channels`` (default=all channels) - Indices specifying the channels
+   to be returned.
+-  ``physical`` (default=True) - Flag that specifies whether to return
+   signals in physical (True) or digital (False) units.
+-  ``m2s`` (default=True) - Flag used only for multi-segment
+   records. Specifies whether to convert the returned wfdb.MultiRecord object
+   into a wfdb.Record object (True) or not (False).
+
+Output Arguments:
+
+-  ``record`` - 
+
+-  ``fields`` - A dictionary of metadata about the record extracted or
+   deduced from the header/signal file. If the input record is a
+   multi-segment record, the output argument will be a list of
+   dictionaries:
+
+   -  The first list element will be a dictionary of metadata about the
+      master header.
+   -  If the record is in variable layout format, the next list element
+      will be a dictionary of metadata about the layout specification
+      header.
+   -  The last list element will be a list of dictionaries of metadata
+      for each segment. For empty segments, the dictionary will be
+      replaced by a single string: ‘Empty Segment’
+
+
+Writing Signals
+~~~~~~~~~~~~~~~
+
+**wrsamp** - Read a WFDB file and return the signal as a numpy array and
 the metadata as a dictionary.
 
 ::

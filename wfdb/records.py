@@ -19,7 +19,6 @@ from . import _signals
 # The base WFDB class to extend to create Record and MultiRecord. Contains shared helper functions and fields.             
 class BaseRecord():
     # Constructor
-    
     def __init__(self, recordname=None, nsig=None, 
                  fs=None, counterfreq=None, basecounter = None, 
                  siglen = None, basetime = None, basedate = None, 
@@ -219,8 +218,8 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     The attributes of the Record object give information about the record as specified
     by https://www.physionet.org/physiotools/wag/header-5.htm
 
-    In addition, the d_signals and p_signals attributes represent the digital and physical
-    signals of WFDB records with at least one channel. 
+    In addition, the d_signals and p_signals attributes store the digital and physical
+    signals of WFDB records with at least one channel.
     """
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
@@ -341,16 +340,18 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     MultiRecord objects can be created as with any other class, or by reading a multi-segment
     WFDB record using 'rdsamp' with the 'm2s' (multi to single) input parameter set to False.
 
-    The attributes of the MultiRecord object give information about the record as specified
+    The attributes of the MultiRecord object give information about the entire record as specified
     by https://www.physionet.org/physiotools/wag/header-5.htm
 
     In addition, the 'segments' parameter is a list of Record objects representing each
-    individual segment of the entire multi-segment record.
+    individual segment, or 'None' representing empty segments, of the entire multi-segment record.
 
-    Noteably, the 'multi_to_single' instance method can be called on MultiRecord objects
-    to return a single segment representation of the record as a Record object. The resulting
-    Record object will have its 'p_signals' field set.
-
+    Noteably, this class has no attribute representing the signals as a whole. The 'multi_to_single' 
+    instance method can be called on MultiRecord objects to return a single segment representation 
+    of the record as a Record object. The resulting Record object will have its 'p_signals' field set.
+    
+    eg. record1 = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s = False)
+        record1 = record1.multi_to_single()
     """
     # Constructor
     def __init__(self, segments = None, layout = None,
@@ -669,7 +670,9 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
           'srdsamp' returns two arguments: the physical signals array, and a dictionary of a 
           few select fields, a subset of the original wfdb Record attributes. 
 
-    Example Usage: record1 = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
+    Example Usage: 
+    import wfdb
+    record1 = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
     """
 
     dirname, baserecordname = os.path.split(recordname)
@@ -822,7 +825,42 @@ def wanted_siginds(wanted_signames, record_signames):
 # A simple version of rdsamp for ease of use
 # Return the physical signals and a few essential fields
 def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
+    """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
 
+    Usage:
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, m2s=True)
+
+    Input arguments:
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). 
+      If the argument contains any path delimiter characters, the argument will be interpreted as 
+      PATH/baserecord and the data files will be searched for in the local path.
+    - sampfrom (default=0): The starting sample number to read for each channel.
+    - sampto (default=None): The sample number at which to stop reading for each channel.
+    - channels (default=all): Indices specifying the channel to be returned.
+
+    Output arguments:
+    - signals: A 2d numpy array storing the physical signals from the record. 
+    - fields: A dictionary specifying several key attributes of the read record:
+        - fs: The sampling frequency of the record
+        - units: The units for each channel
+        - signame: The signal name for each channel
+        - comments: Any comments written in the header
+
+    Note: If a signal range or channel selection is specified when calling this function, the
+          the resulting attributes of the returned object will be set to reflect the section
+          of the record that is actually read, rather than necessarily what is in the header file.
+          For example, if channels = [0, 1, 2] is specified when reading a 12 channel record, the 
+          'nsig' attribute will be 3, not 12. 
+
+    Note: The 'rdsamp' function exists as a simple alternative to 'rdsamp' for the most common
+          purpose of extracting the physical signals and a few important descriptor fields. 
+          'srdsamp' returns two arguments: the physical signals array, and a dictionary of a 
+          few select fields, a subset of the original wfdb Record attributes. 
+
+    Example Usage: 
+    import wfdb
+    sig, fields = wfdb.srdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
+    """
     record = rdsamp(recordname, sampfrom, sampto, channels, True, True)
 
     signals = record.p_signals
@@ -835,12 +873,18 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
 #------------------- /Reading Records -------------------#
 
 
-# Simple function for single segment wrsamp
-def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,  fmt = None, comments= None):
+# Function for writing single segment records
+def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,  
+    fmt = None, gain = None, baseline = None, comments= None):
+    """
     
+    """
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
         sys.exit('Must only give one of the inputs: p_signals or d_signals')
+    if d_signals is not none:
+        if fmt is None or gain is None or baseline is None:
+            sys.exit("When using d_signals, must also specify 'fmt', 'gain', and 'baseline' fields.")
 
     # Create the Record object
     record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)

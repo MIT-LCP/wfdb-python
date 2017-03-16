@@ -7,7 +7,26 @@ from . import _headers
 
 # Class for WFDB annotations
 class Annotation():
+    """
+    The class representing WFDB annotations. 
 
+    Annotation objects can be created as with any other class, or by reading a WFDB annotation
+    file with 'rdann'. 
+
+    The attributes of the Annotation object give information about the annotation as specified
+    by https://www.physionet.org/physiotools/wag/ <INSERT>:
+    - annsamp: The annotation location in samples relative to the beginning of the record.
+    - anntype: The annotation type according the the standard WFDB codes.
+    - subtype: The marked class/category of the annotation.
+    - chan: The signal channel associated with the annotations.
+    - num: The labelled annotation number. 
+    - aux: The auxiliary information string for the annotation.
+    - fs: The sampling frequency of the record.
+
+    Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
+    annotations that are not one of the codes go in the 'aux' field rather than the 'anntype'
+    field.
+    """
     def __init__(self, recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
         self.recordname = recordname
         self.annotator = annotator
@@ -22,6 +41,11 @@ class Annotation():
 
     # Write an annotation file
     def wrann(self):
+        """
+        Instance method to write a WFDB annotation file from an Annotation object.
+
+        Example usage: 
+        """
         # Check the validity of individual fields used to write the annotation file
         self.checkfields() 
 
@@ -307,36 +331,41 @@ def wrann(recordname, annotator, annsamp, anntype, num = None, subtype = None, c
 
 # Display the annotation symbols and the codes they represent
 def showanncodes():
+    """
+    Display the annotation symbols and the codes they represent
+    
+    Usage: showanncodes()
+    """
     display(symcodes)
 
 ## ------------- Reading Annotations ------------- ##
 
 def rdann(recordname, annotator, sampfrom=0, sampto=None):
-    """ Read a WFDB annotation file recordname.annot and return the fields as lists or arrays
+    """ Read a WFDB annotation file recordname.annotator and return the fields as lists or arrays
 
-    Usage: annotation = rdann(recordname, annot, sampfrom=0, sampto=[], anndisp=1)
+    Usage: 
+    annotation = rdann(recordname, annot, sampfrom=0, sampto=None)
 
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
       file '100.atr', recordname='100'
     - annotator (required): The annotator extension of the annotation file. ie. for 
-      file '100.atr', annot='atr'
+      file '100.atr', annotator='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
-    - sampto (default=None): The maximum sample number for 
-      annotations to be returned.
+    - sampto (default=None): The maximum sample number for annotations to be returned.
 
     Output argument:
-    - annotation: The annotation object with the following fields:
-        - annsamp: The annotation location in samples relative to the beginning of the record.
-        - anntype: The annotation type according the the standard WFDB keys.
-        - subtype: The marked class/category of the annotation.
-        - chan: The signal channel associated with the annotations.
-        - num: The labelled annotation number. 
-        - aux: The auxiliary information string for the annotation.
-        - fs: The sampling frequency written into the annotation file if present.
+    - annotation: The annotation object. Call help(wfdb.Annotation) for the attribute
+      descriptions.
 
-    *NOTE: Every annotation sample contains the 'annsamp' and 'anntype' fields. All 
-           other fields default to 0 or empty if not present.
+    Note: For every annotation sample, the annotation file explictly stores the 'annsamp' 
+    and 'anntype' fields but not necessarily the others. When reading annotation files
+    using this function, fields which are not stored in the file will either take their
+    default values of 0 or None, or will be carried over from their previous values if any.
+
+    Example usage:
+    import wfdb
+    ann = wfdb.rdann('100', 'atr', sampto = 300000)
     """
 
     if sampto and sampto <= sampfrom:
