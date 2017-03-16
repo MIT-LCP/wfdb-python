@@ -432,12 +432,15 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
     # Snip the unallocated end of the arrays
     annsamp,anntype,num,subtype,chan,aux = snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai)
 
+    # Process the fields if there are custom annotation types
+    allannsyms,annsamp,anntype,num,subtype,chan,aux = proccustomtypes(annsamp,anntype,num,subtype,chan,aux)
+
     # Apply annotation range (from X to Y)
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
-    # Set the annotation type to annotation codes
-    anntype = [annsyms[code] for code in anntype]
+    # Set the annotation type to the annotation codes
+    anntype = [allannsyms[code] for code in anntype]
 
     # Store fields in an Annotation object
     annotation = Annotation(recordname, annotator, annsamp, anntype, 
@@ -539,7 +542,7 @@ def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
     aux = aux[0:ai]
     return annsamp,anntype,num,subtype,chan,aux
 
-# Keep only the specified annotations
+# Keep annotations within a sample range
 def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux):
     
     returnempty = 0
@@ -578,6 +581,43 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
     return annsamp,anntype,num,subtype,chan,aux
 
 
+# Process the fields if there are custom annotation types
+def proccustomtypes(annsamp,anntype,num,subtype,chan,aux):
+    # Custom anncodes appear as regular annotations in the form: 
+    # sample = 0, anntype = 22 (note annotation '"'), aux = "NUMBER[ \t]CUSTOMANNCODE[ \t]Calibration"
+    s0 = np.where(annsamp == 0)[0]
+    t22 = np.where(anntype == 22)[0]
+    s0t22 = list(set(s0).intersection(t22))
+
+    allannsyms = annsyms.copy()
+    if s0t22 != []:
+        # The custom anncode indices
+        custominds = []
+        # Check aux for custom codes
+        for i in s0t22:
+            acceptedstring = re.match('(\d+)[ \t](\w+)[ \t]Calibration', aux[i])
+            # Found custom annotation code. 
+            if acceptedstring is not None and acceptedstring.string==aux[i]:
+                # Keep track of index
+                custominds.append(i)
+                # Add code to annsym dictionary
+                codenum, codesym = acceptedstring.group(1, 2)
+                allannsyms[int(codenum)] = codesym
+
+        # Remove the attributes with the custom anncode indices
+        if custominds != []:
+            keepinds = [i for i in range(len(annsamp)) if i not in custominds]
+
+            annsamp = annsamp[keepinds]
+            anntype = anntype[keepinds]
+            num = num[keepinds]
+            subtype = subtype[keepinds]
+            chan = chan[keepinds]
+            aux = [aux[i] for i in keepinds]
+
+    return (allannsyms,annsamp,anntype,num,subtype,chan,aux)
+    
+
 ## ------------- /Reading Annotations ------------- ##
 
 
@@ -599,9 +639,9 @@ annsyms = {
     12: '/',  # paced beat */
     13: 'Q',  # unclassifiable beat */
     14: '~',  # signal quality change */
-    #15: '[15]',
+    15: '[15]',
     16: '|',  # isolated QRS-like artifact */
-    #17: '[17]',
+    17: '[17]',
     18: 's',  # ST change */
     19: 'T',  # T-wave change */
     20: '*',  # systole */
@@ -624,18 +664,16 @@ annsyms = {
     37: 'x',  # non-conducted P-wave (blocked APB) */
     38: 'f',  # fusion of paced and normal beat */
     39: '(',  # waveform onset */
-    # 39: 'PQ', # PQ junction (beginning of QRS) */
     40: ')',  # waveform end */
-    # 40: 'JPT', # J point (end of QRS) */
     41: 'r',  # R-on-T premature ventricular contraction */
-    #42: '[42]',
-    #43: '[43]',
-    #44: '[44]',
-    #45: '[45]',
-    #46: '[46]',
-    #47: '[47]',
-    #48: '[48]',
-    #49: '[49]',
+    42: '[42]',
+    43: '[43]',
+    44: '[44]',
+    45: '[45]',
+    46: '[46]',
+    47: '[47]',
+    48: '[48]',
+    49: '[49]',
 }
 # Reverse ann symbols for mapping symbols back to numbers
 revannsyms = {v: k for k, v in annsyms.items()}
@@ -658,7 +696,9 @@ anncodes = {
     12: 'PACE',  # paced beat */
     13: 'UNKNOWN',  # unclassifiable beat */
     14: 'NOISE',  # signal quality change */
+    15: '',
     16: 'ARFCT',  # isolated QRS-like artifact */
+    17: '',
     18: 'STCH',  # ST change */
     19: 'TCH',  # T-wave change */
     20: 'SYSTOLE',  # systole */
@@ -681,10 +721,16 @@ anncodes = {
     37: 'NAPC',  # non-conducted P-wave (blocked APB) */
     38: 'PFUS',  # fusion of paced and normal beat */
     39: 'WFON',  # waveform onset */
-    # 39: 'PQ', # PQ junction (beginning of QRS) */
     40: 'WFOFF',  # waveform end */
-    # 40: 'JPT', # J point (end of QRS) */
-    41: 'RONT'  # R-on-T premature ventricular contraction */
+    41: 'RONT',  # R-on-T premature ventricular contraction */
+    42: '',
+    43: '', 
+    44: '', 
+    45: '', 
+    46: '',
+    47: '',
+    48: '', 
+    49: ''
 }
 
 # Mapping annotation symbols to the annotation codes

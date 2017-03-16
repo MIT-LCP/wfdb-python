@@ -1,7 +1,10 @@
 import numpy as np
+from . import records
 from . import _headers
+from . import annotations
 import matplotlib.pyplot as plt
 
+# Plot a WFDB record's signals
 def plotrec(record=None, signals = None, fields = None, title = None, timeunits='samples', returnfig = False): 
     
     # Figure out which arguments to use to plot
@@ -19,7 +22,7 @@ def plotrec(record=None, signals = None, fields = None, title = None, timeunits=
     for ch in range(nsig):
         # Plot signal channel
         plt.subplot(100*nsig+11+ch)
-        plt.plot(t, sig[:,ch]) 
+        plt.plot(t, signals[:,ch]) 
         
         if (title is not None) and (ch==0):
             plt.title(title)
@@ -30,7 +33,7 @@ def plotrec(record=None, signals = None, fields = None, title = None, timeunits=
         else:
             plt.xlabel('time/'+timeunits[:-1])
             
-        if fields["signame"][ch] is not none:
+        if fields["signame"][ch] is not None:
             chanlabel=fields["signame"][ch]
         else:
             chanlabel='channel'
@@ -57,7 +60,7 @@ def getplotitems(record, signals, fields):
         # Use the record object
         if signals is None:
             # If it is a MultiRecord, convert it into single
-            if type(record) == MultiRecord:
+            if type(record) == records.MultiRecord:
                 record = record.multi_to_single()
             
             # Need to ensure p_signals is present
@@ -83,23 +86,23 @@ def checkplotitems(signals, fields, title, timeunits):
     siglen, nsig = signals.shape
     
     # fs and timeunits
-    allowedtimes = ['samples, seconds, minutes, hours']
+    allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
     if timeunits not in allowedtimes:
         print("The 'timeunits' field must be one of the following: ", allowedtimes)
         sys.exit()
     # Get x axis values. fs must be valid when plotting time
     if timeunits == 'samples':
-        t = np.linspace(siglen)
+        t = np.linspace(0, siglen-1, siglen)
     else:
         if type(fields['fs']) not in _headers.floattypes:
             sys.exit("The 'fs' field must be a number")
         
         if timeunits == 'seconds':
-            t = np.linspace(siglen)/fs
+            t = np.linspace(0, siglen-1, siglen)/fs
         elif timeunits == 'minutes':
-            t = np.linspace(siglen)/fs/60
+            t = np.linspace(0, siglen-1, siglen)/fs/60
         else:
-            t = np.linspace(siglen)/fs/3600
+            t = np.linspace(0, siglen-1, siglen)/fs/3600
     
     # units
     if fields['units'] is None:
@@ -124,10 +127,66 @@ def checkplotitems(signals, fields, title, timeunits):
     return fields, t
 
 
+# Plot the sample locations of a WFDB annotation
+def plotann(annotation, title = None, timeunits = 'samples', returnfig = False): 
+    
+    # Check the validity of items used to make the plot
+    # Get the x axis annotation values to plot
+    plotvals = checkannplotitems(annotation, title, timeunits)
+    
+    # Create the plot  
+    fig=plt.figure()
+    
+    plt.plot(plotvals, np.zeros(len(plotvals)), 'r+')
+    
+    if title is not None:
+        plt.title(title)
+        
+    # Axis Labels
+    if timeunits == 'samples':
+        plt.xlabel('index/sample')
+    else:
+        plt.xlabel('time/'+timeunits[:-1])
 
+    plt.show(fig)
+    
+    # Return the figure if requested
+    if returnfig:
+        return fig
 
+# Check the validity of items used to make the annotation plot
+def checkannplotitems(annotation, title, timeunits):
+    
+    # signals
+    if type(annotation)!= annotations.Annotation:
+        sys.exit("The 'annotation' field must be a 'wfdb.Annotation' object")
 
+    # fs and timeunits
+    allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
+    if timeunits not in allowedtimes:
+        print("The 'timeunits' field must be one of the following: ", allowedtimes)
+        sys.exit()
 
+    # fs must be valid when plotting time
+    if timeunits != 'samples':
+        if type(annotation.fs) not in _headers.floattypes:
+            sys.exit("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
+
+    # Get x axis values to plot
+    if timeunits == 'samples':
+        plotvals = annotation.annsamp
+    elif timeunits == 'seconds':
+        plotvals = annotation.annsamp
+    elif timeunits == 'minutes':
+        plotvals = annotation.annsamp
+    else:
+        t = np.linspace(0, siglen-1, siglen)/fs/3600
+
+    # title
+    if title is not None and type(title) != str:
+        sys.exit("The 'title' field must be a string")
+    
+    return plotvals
 
 
 
@@ -190,6 +249,3 @@ def plotreco(sig, fields, annsamp=None, annch=[0], title=None, plottime=1):
         plt.ylabel(chanlabel+"/"+unitlabel)
         
     plt.show(f1)
-
-def plotann():
-    print('on it')

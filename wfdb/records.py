@@ -150,7 +150,7 @@ class BaseRecord():
             for f in self.segname:
                 if f == '~':
                     continue
-                acceptedstring = re.match('[-\w]+',f)
+                acceptedstring = re.match('[-\w]+',f).string
                 if not acceptedstring or acceptedstring.string != f:
                     sys.exit("Non-null segment names may only contain alphanumerics. Null segment names must be equal to '~'")
         elif field == 'seglen':
@@ -225,8 +225,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     def __init__(self, p_signals=None, d_signals=None,
                  recordname=None, nsig=None, 
                  fs=None, counterfreq=None, basecounter=None, 
-                 siglen=N
-                 one, basetime=None, basedate=None, 
+                 siglen=None, basetime=None, basedate=None, 
                  filename=None, fmt=None, sampsperframe=None, 
                  skew=None, byteoffset=None, adcgain=None, 
                  baseline=None, units=None, adcres=None, 

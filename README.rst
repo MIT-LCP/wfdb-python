@@ -80,7 +80,7 @@ the metadata as a dictionary.
 
 ::
 
-    sig, fields = rdsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, 
+    wrsamp(recordname, sampfrom=0, sampto=[], channels=[], physical=1, 
         stacksegments=1, pbdl=0, dldir=os.cwd())
 
 Example Usage:
@@ -88,7 +88,7 @@ Example Usage:
 ::
 
     import wfdb
-    sig, fields = wfdb.rdsamp('mitdb/100', sampto=2000, pbdl=1)
+    sig, fields = wfdb.wrsamp('mitdb/100', sampto=2000, pbdl=1)
 
 Input Arguments:
 
