@@ -18,7 +18,7 @@ class test_rdsamp():
     def test_2(self):
         record = wfdb.rdsamp('sampledata/100', sampfrom=1,
                              sampto=10800, channels=[1], physical=False)
-        sig = record.signals
+        sig = record.d_signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target2')
         targetsig = targetsig.reshape(len(targetsig), 1)
         assert np.array_equal(sig, targetsig)
@@ -28,7 +28,7 @@ class test_rdsamp():
     # target3
     def test_3(self):
         record = wfdb.rdsamp('sampledata/test01_00s', physical=False)
-        sig = record.signals
+        sig = record.d_signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target3')
         assert np.array_equal(sig, targetsig)
 
@@ -48,7 +48,7 @@ class test_rdsamp():
     def test_5(self):
         record = wfdb.rdsamp('sampledata/a103l',
                              sampfrom=20000, channels=[0, 1], physical=False)
-        sig = record.signals
+        sig = record.d_signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target5')
         assert np.array_equal(sig, targetsig)
 
@@ -68,7 +68,7 @@ class test_rdsamp():
     # target7
     def test_7(self):
         record= wfdb.rdsamp('sampledata/s0010_re', physical=False)
-        sig = record.signals
+        sig = record.d_signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target7')
         assert np.array_equal(sig, targetsig)
 
@@ -87,7 +87,7 @@ class test_rdsamp():
     # target9
     def test_9(self):
         record = wfdb.rdsamp('sampledata/03700181', physical=False)
-        sig = record.signals
+        sig = record.d_signals
         # The WFDB library rdsamp does not return the final N samples for all
         # channels due to the skew.
         sig = sig[:-4, :]

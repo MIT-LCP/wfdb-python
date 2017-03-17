@@ -27,15 +27,15 @@ class Annotation():
     annotations that are not one of the codes go in the 'aux' field rather than the 'anntype'
     field.
     """
-    def __init__(self, recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
+    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, chan = None, num = None, aux = None, fs = None):
         self.recordname = recordname
         self.annotator = annotator
 
         self.annsamp = annsamp
         self.anntype = anntype
-        self.num = num
         self.subtype = subtype
         self.chan = chan
+        self.num = num
         self.aux = aux
         self.fs = fs
 
@@ -408,7 +408,8 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
 
         AT = filebytes[bpi, 1] >> 2
 
-        while (AT > 59):  # Process any other fields belonging to this annotation
+        # Process any other fields belonging to this annotation
+        while (AT > 59):  
 
             subtype,bpi,num,chan,cpychan,cpynum,aux = proc_extra_fields(AT,
                 subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux)
@@ -435,7 +436,7 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
     # Process the fields if there are custom annotation types
     allannsyms,annsamp,anntype,num,subtype,chan,aux = proccustomtypes(annsamp,anntype,num,subtype,chan,aux)
 
-    # Apply annotation range (from X to Y)
+    # Apply annotation range
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 

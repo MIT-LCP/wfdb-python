@@ -150,7 +150,7 @@ class BaseRecord():
             for f in self.segname:
                 if f == '~':
                     continue
-                acceptedstring = re.match('[-\w]+',f).string
+                acceptedstring = re.match('[-\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
                     sys.exit("Non-null segment names may only contain alphanumerics. Null segment names must be equal to '~'")
         elif field == 'seglen':

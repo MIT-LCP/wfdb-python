@@ -1,8 +1,10 @@
 import numpy as np
+import sys
+import matplotlib.pyplot as plt
 from . import records
 from . import _headers
 from . import annotations
-import matplotlib.pyplot as plt
+
 
 # Plot a WFDB record's signals
 def plotrec(record=None, signals = None, fields = None, title = None, timeunits='samples', returnfig = False): 
@@ -176,11 +178,11 @@ def checkannplotitems(annotation, title, timeunits):
     if timeunits == 'samples':
         plotvals = annotation.annsamp
     elif timeunits == 'seconds':
-        plotvals = annotation.annsamp
+        plotvals = annotation.annsamp/annotation.fs
     elif timeunits == 'minutes':
-        plotvals = annotation.annsamp
-    else:
-        t = np.linspace(0, siglen-1, siglen)/fs/3600
+        plotvals = annotation.annsamp/(annotation.fs*60)
+    elif timeunits == 'hours':
+        plotvals = annotation.annsamp/(annotation.fs*3600)
 
     # title
     if title is not None and type(title) != str:
