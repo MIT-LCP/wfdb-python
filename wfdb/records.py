@@ -458,12 +458,9 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         if self.layout == 'Fixed':
             startseg = 0
         else:
-            print('startseg is')
             startseg = 1
-            print(startseg)
         # Cumulative sum of segment lengths
         cumsumlengths = list(np.cumsum(self.seglen[startseg:]))
-        print('cumsumlengths: ', cumsumlengths)
         # First segment
         readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
         # Final segment
@@ -472,13 +469,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         else:
             readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
 
-        print('readsegs: ', readsegs)
-
         # Obtain the sampfrom and sampto to read for each segment
         if readsegs[1] == readsegs[0]:  
             # Only one segment to read
             readsegs = [readsegs[0]]
-            readsamps = [[sampfrom, sampto]] # This is wrong?
+            # The segment's first sample number relative to the entire record
+            segstart = sum(self.seglen[0:readsegs[0]-1])
+            readsamps = [[sampfrom-segstart, sampto-segstart]]
         else:
             # More than one segment to read
             readsegs = list(range(readsegs[0], readsegs[1]+1)) 
@@ -497,7 +494,6 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     # Get the channel numbers to be read from each segment
     def requiredsignals(self, readsegs, channels, dirname):
 
-        print('self.layout: ', self.layout)
         # Fixed layout. All channels are the same.
         if self.layout == 'Fixed':
             # Should we bother here with skipping empty segments? 
@@ -525,7 +521,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
     def arrangefields(self, readsegs, segranges, channels):
-        
+
         # Update seglen values for relevant segments
         for i in range(0, len(readsegs)):
             self.seglen[readsegs[i]] = segranges[i][1] - segranges[i][0]
@@ -541,10 +537,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             self.segname = self.segname[readsegs[0]:readsegs[-1]+1]
             self.seglen = self.seglen[readsegs[0]:readsegs[-1]+1]
         else:
-            # Keep the layout specifier
+            # Keep the layout specifier segment
             self.segments = [self.segments[0]] + self.segments[readsegs[0]:readsegs[-1]+1]
             self.segname = [self.segname[0]] + self.segname[readsegs[0]:readsegs[-1]+1]
             self.seglen = [self.seglen[0]] + self.seglen[readsegs[0]:readsegs[-1]+1]
+
+        # Update number of segments
+        self.nseg = len(self.segments)
 
     # Convert a MultiRecord object to a Record object
     def multi_to_single(self):
@@ -635,7 +634,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, m2s = True):  
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None, m2s = True):  
     """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
 
     Usage:
@@ -650,6 +649,8 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     - channels (default=all): Indices specifying the channel to be returned.
     - physical (default=True): Flag that specifies whether to return signals in physical (true) or 
       digital (False) units.
+    - pbdir (default=None): The PhysioBank database directory from which to find the required files.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb = 'mitdb'.
     - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to 
       directly return a wfdb MultiRecord object (false), or to convert it into and return a wfdb 
       Record object (True).
@@ -679,7 +680,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     # Read the header fields into the appropriate record object
     record = rdheader(recordname)
 
-    # Set defaults for sampto and channels
+    # Set defaults for sampto and channels input variables
     if sampto is None:
         sampto = record.siglen
     if channels is None:
@@ -766,10 +767,10 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
 
 # Read a WFDB header. Return a Record object or MultiRecord object
-def rdheader(recordname):  
+def rdheader(recordname, pbdir = None):  
 
     # Read the header file. Separate comment and non-comment lines
-    headerlines, commentlines = _headers.getheaderlines(recordname)
+    headerlines, commentlines = _headers.getheaderlines(recordname, pbdir)
 
     # Get fields from record line
     d_rec = _headers.read_rec_line(headerlines[0])

@@ -3,7 +3,68 @@ import re
 import os
 import sys
 import requests
-from ._rdheader import rdheader
+from . import records
+        
+
+# Read a header file from physiobank
+def streamheader(recordname, pbdir):
+
+    # Full url of header location
+    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, recordname+'.hea')
+    r = requests.get(url)
+    
+    # Raise HTTPError if invalid url
+    r.raise_for_status()
+        
+    # Get each line as a string
+    filelines = r.content.decode('ascii').splitlines()
+    
+    # Separate content into header and comment lines
+    headerlines = []
+    commentlines = []
+    
+    for line in filelines:
+        line = line.strip()
+        # Comment line
+        if line.startswith('#'):  
+            commentlines.append(line)
+        # Non-empty non-comment line = header line.
+        elif line:  
+            # Look for a comment in the line
+            ci = line.find('#')
+            if ci > 0:
+                headerlines.append(line[:ci])
+                # comment on same line as header line
+                commentlines.append(line[ci:])
+            else:
+                headerlines.append(line)
+    
+    return (headerlines, commentlines) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def downloadsamp(pbrecname, targetdir):
     """Check a specified local directory for all necessary files required to read a Physiobank

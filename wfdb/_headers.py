@@ -2,9 +2,11 @@ import numpy as np
 import re
 import os
 import sys
+import requests
 from collections import OrderedDict
 from calendar import monthrange
 from . import _signals
+from . import downloads
 
 # Class of common methods for single and multi-segment headers
 class BaseHeadersMixin():
@@ -284,26 +286,33 @@ rxSEGMENT = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
 
 
 # Read header file to get comment and non-comment lines
-def getheaderlines(recordname):
-    with open(recordname + ".hea", 'r') as fp:
-        # Record line followed by signal/segment lines if any
-        headerlines = []  
-        # Comment lines
-        commentlines = []  
-        for line in fp:
-            line = line.strip()
-            # Comment line
-            if line.startswith('#'):  
-                commentlines.append(line)
-            # Non-empty non-comment line = header line.
-            elif line:  
-                ci = line.find('#')
-                if ci > 0:
-                    headerlines.append(line[:ci])  # header line
-                    # comment on same line as header line
-                    commentlines.append(line[ci:])
-                else:
-                    headerlines.append(line)
+def getheaderlines(recordname, pbdir):
+    # Reading local file
+    if pbdir is None:
+        with open(recordname + ".hea", 'r') as fp:
+            # Record line followed by signal/segment lines if any
+            headerlines = []  
+            # Comment lines
+            commentlines = []  
+            for line in fp:
+                line = line.strip()
+                # Comment line
+                if line.startswith('#'):  
+                    commentlines.append(line)
+                # Non-empty non-comment line = header line.
+                elif line:  
+                    # Look for a comment in the line
+                    ci = line.find('#')
+                    if ci > 0:
+                        headerlines.append(line[:ci])
+                        # comment on same line as header line
+                        commentlines.append(line[ci:])
+                    else:
+                        headerlines.append(line)
+    # Reading online header file
+    else:
+        headerlines, commentlines = downloads.streamheader(recordname, pbdir)
+
     return headerlines, commentlines
 
 
