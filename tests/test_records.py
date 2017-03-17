@@ -131,7 +131,7 @@ class test_rdsamp():
     # rdsamp -r 310derive -f 0.007 | cut -f 2- > target13
     def test_13(self):
         record = wfdb.rdsamp('sampledata/310derive', sampfrom=2, physical=False)
-        sig = record.signals
+        sig = record.d_signals
         targetsig = np.genfromtxt('tests/targetoutputdata/target13')
         assert np.array_equal(sig, targetsig)
 
