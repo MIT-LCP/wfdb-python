@@ -692,9 +692,9 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     # A single segment record
     if type(record) == Record:
         # Read signals from the associated dat files that contain wanted channels
-        record.d_signals = _signals.rdsegment(record.filename, record.nsig, record.fmt, record.siglen, 
+        record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen, 
             record.byteoffset, record.sampsperframe, record.skew,
-            sampfrom, sampto, channels, dirname)
+            sampfrom, sampto, channels)
 
         # Arrange/edit the object fields to reflect user channel and/or signal range input
         record.arrangefields(channels)
@@ -735,7 +735,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         if record.seglen[0] == 0:
             record.layout = 'Variable'
             # Read the layout specification header
-            record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]))
+            record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]), pbdir=pbdir)
         # Fixed layout
         else:
             record.layout = 'Fixed'
@@ -754,7 +754,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             else:
                 record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]), 
                     sampfrom = segranges[i][0], sampto = segranges[i][1], 
-                    channels = segsigs[i], physical = physical)
+                    channels = segsigs[i], physical = physical, pbdir=pbdir)
 
         # Arrange the fields of the overall object to reflect user input
         record.arrangefields(readsegs, segranges, channels)
@@ -824,7 +824,7 @@ def wanted_siginds(wanted_signames, record_signames):
 
 # A simple version of rdsamp for ease of use
 # Return the physical signals and a few essential fields
-def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
+def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
     """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
 
     Usage:
@@ -861,7 +861,7 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None):
     import wfdb
     sig, fields = wfdb.srdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
     """
-    record = rdsamp(recordname, sampfrom, sampto, channels, True, True)
+    record = rdsamp(recordname, sampfrom, sampto, channels, True, pbdir, True)
 
     signals = record.p_signals
     fields = {}

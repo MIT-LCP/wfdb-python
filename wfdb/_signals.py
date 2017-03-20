@@ -1,11 +1,10 @@
 import numpy as np
-import re
 import os
 import sys
+from . import downloads
 
 # All defined WFDB dat formats
 datformats = ["80","212","16","24","32"]
-
 
 # Class with signal methods
 # To be inherited by WFDBrecord from records.py.
@@ -64,8 +63,6 @@ class SignalsMixin():
                 if self.initvalue != realinitvalue:
                     print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
                     sys.exit()
-
-
 
     # Use properties of the p_signals field to set other fields: nsig, siglen
     # If do_dac == 1, the d_signals field will be used to perform digital to analogue conversion
@@ -251,7 +248,7 @@ class SignalsMixin():
 # Read the samples from a single segment record's associated dat file(s)
 # 'channels', 'sampfrom', and 'sampto' are user desired input fields.
 # All other input arguments are specifications of the segment
-def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels, dirname):
+def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels):
 
     # Set defaults for empty fields
     for i in range(0, nsig):
@@ -301,7 +298,7 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
 
     # Read each wanted dat file and store signals
     for fn in w_filename:
-        signals[:, out_datchannel[fn]] = rddat(os.path.join(dirname, fn), w_fmt[fn], len(datchannel[fn]), 
+        signals[:, out_datchannel[fn]] = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
             siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
 
     return signals 
@@ -311,7 +308,7 @@ def rdsegment(filename, nsig, fmt, siglen, byteoffset, sampsperframe, skew, samp
 # 'sampfrom', and 'sampto' are user desired input fields.
 # All other fields specify the file parameters
 # Returns all channels
-def rddat(filename, fmt, nsig,
+def rddat(filename, dirname, pbdir, fmt, nsig,
         siglen, byteoffset, sampsperframe, 
         skew, sampfrom, sampto):
 
@@ -319,8 +316,7 @@ def rddat(filename, fmt, nsig,
 
     # Figure out the starting byte to read the dat file from. Special formats
     # store samples in specific byte blocks.
-    startbyte = int(sampfrom * tsampsperframe *
-                    bytespersample[fmt]) + int(byteoffset)
+    startbyte = int(sampfrom*tsampsperframe*bytespersample[fmt]) + int(byteoffset)
     floorsamp = 0
     # Point the the file pointer to the start of a block of 3 or 4 and keep
     # track of how many samples to discard after reading.
@@ -336,28 +332,28 @@ def rddat(filename, fmt, nsig,
         # samples.
         startbyte = startbyte - floorsamp
 
-    fp = open(filename, 'rb')
 
-    fp.seek(startbyte)  # Point to the starting sample
-    # Read the dat file into np array and reshape.
-    sig, nbytesread = processwfdbbytes(
-        fp, fmt, sampto - sampfrom, nsig, sampsperframe, floorsamp)
+    print('filename: ', filename)
+    print('dirname: ', dirname)
+    print('pbdir: ', pbdir)
+
+    # Read the dat file into a np array and reshape.
+    sig, nbytesread = processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, sampto - sampfrom, nsig, sampsperframe, floorsamp)
 
     # Shift the samples in the channels with skew if any
     sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
         nbytesread, byteoffset, sampsperframe, tsampsperframe)
-
-    fp.close()
-
+    
     return sig
 
 # Read digital samples from a wfdb signal file
 # Returns the signal and the number of bytes read.
-def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
+def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sampsperframe, floorsamp):
     # siglen refers to the length of the signal to be read. Different from siglen input argument for readdat.
     # floorsamp is the extra sample index used to read special formats.
 
-    tsampsperframe = sum(sampsperframe)  # Total number of samples per frame.
+    # Total number of samples per frame.
+    tsampsperframe = sum(sampsperframe)
     # Total number of signal samples to be collected (including discarded ones)
     nsamp = siglen * tsampsperframe + floorsamp
 
@@ -365,14 +361,8 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
     # Note that for these formats with multi samples/frame, have to convert
     # bytes to samples before returning average frame values.
     if fmt == '212':
-        # The number of bytes needed to be loaded given the number of samples
-        # needed
-        nbytesload = int(np.ceil((nsamp) * 1.5))
-        sigbytes = np.fromfile(
-            fp,
-            dtype=np.dtype(
-                datatypes[fmt]),
-            count=nbytesload).astype('uint')  # Loaded as unsigned 1 byte blocks
+        # Read the bytes from the file as unsigned integer blocks
+        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
@@ -420,19 +410,12 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
                         sig[:, ch] += sigall[sum(([0] + sampsperframe)
                                                  [:ch + 1]) + frame::tsampsperframe]
             sig = (sig / sampsperframe).astype('int')
+    # Three 10 bit samples packed into 4 bytes with 2 bits discarded
+    elif fmt == '310':  
 
-    elif fmt == '310':  # Three 10 bit samples packed into 4 bytes with 2 bits discarded
+        # Read the bytes from the file as unsigned integer blocks
+        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
-        # The number of bytes needed to be loaded given the number of samples
-        # needed
-        nbytesload = int(((nsamp) + 2) / 3.) * 4
-        if (nsamp - 1) % 3 == 0:
-            nbytesload -= 2
-        sigbytes = np.fromfile(
-            fp,
-            dtype=np.dtype(
-                datatypes[fmt]),
-            count=nbytesload).astype('uint')  # Loaded as unsigned 1 byte blocks
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
             # 1d array of actual samples. Fill the individual triplets.
@@ -493,13 +476,10 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
             sig = (sig / sampsperframe).astype('int')
 
     elif fmt == '311':  # Three 10 bit samples packed into 4 bytes with 2 bits discarded
-        nbytesload = int((nsamp - 1) / 3.) + nsamp + 1
-        sigbytes = np.fromfile(
-            fp,
-            dtype=np.dtype(
-                datatypes[fmt]),
-            count=nbytesload).astype('uint')  # Loaded as unsigned 1 byte blocks
-
+        
+        # Read the bytes from the file as unsigned integer blocks
+        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+        
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
             # 1d array of actual samples. Fill the individual triplets.
@@ -568,35 +548,79 @@ def processwfdbbytes(fp, fmt, siglen, nsig, sampsperframe, floorsamp=0):
 
     else:  # Simple format signals that can be loaded as they are stored.
 
-        if tsampsperframe == nsig:  # No extra samples/frame
-            sig = np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=nsamp)
-            sig = sig.reshape(siglen, nsig).astype('int')
-        else:  # At least one channel has multiple samples per frame. Extra samples are averaged.
-            sigall = np.fromfile(fp,
-                                 dtype=np.dtype(datatypes[fmt]),
-                                 count=nsamp)  # All samples loaded
+        # Read the dat file in the specified format
+        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+
+        # No extra samples/frame. Just reshape results.
+        if tsampsperframe == nsig:  
+            sig = sigbytes.reshape(siglen, nsig).astype('int')
+        # At least one channel has multiple samples per frame. Extra samples are averaged.
+        else:  
             # Keep the first sample in each frame for each channel
             sig = np.empty([siglen, nsig])
             for ch in range(0, nsig):
                 if sampsperframe[ch] == 1:
-                    sig[:, ch] = sigall[
-                        sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
+                    sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
                 else:
                     for frame in range(0, sampsperframe[ch]):
-                        sig[:, ch] += sigall[sum(([0] + sampsperframe)
+                        sig[:, ch] += sigbytes[sum(([0] + sampsperframe)
                                                  [:ch + 1]) + frame::tsampsperframe]
             sig = (sig / sampsperframe).astype('int')
-        # Correct byte offset format data
+
+        # Adjust for byte offset formats
         if fmt == '80':
             sig = sig - 128
         elif fmt == '160':
             sig = sig - 32768
+
         nbytesload = nsamp * bytespersample[fmt]
 
     return sig, nbytesload
 
+# Read bytes from a dat file, either local or remote
+def getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte):
 
-def skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
+    # nsamp is the number of samples to read
+    # count is the number of elements to read using np.fromfile
+    # bytecount is the number of bytes to read
+    if fmt == '212':
+        bytecount = int(np.ceil((nsamp) * 1.5))
+        count = bytecount
+    elif fmt == '310':
+        bytecount = int(((nsamp) + 2) / 3.) * 4
+        if (nsamp - 1) % 3 == 0:
+            bytecount -= 2
+        count = bytecount
+    elif fmt == '311':
+        bytecount = int((nsamp - 1) / 3.) + nsamp + 1
+        count = bytecount
+    else:
+        count = nsamp
+        bytecount = nsamp*bytespersample[fmt] 
+
+    # Local dat file
+    if pbdir is None:
+        fp = open(os.path.join(dirname, filename), 'rb')
+        fp.seek(startbyte)  # Point to the starting sample
+
+        # Read file using correct dtype
+        sigbytes = np.fromfile(fp, dtype=np.dtype(datatypes[fmt]), count=count)
+
+        # For special formats that were read as unsigned 1 byte blocks to be further processed,
+        # convert dtype from uint8 to uint64
+        if fmt == ['212', '310', '311']:
+            sigbytes = sigbytes.astype('uint')
+
+        fp.close()
+
+    # Stream dat file from physiobank
+    else:
+        sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes)
+
+    return sigbytes
+
+
+def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
     nbytesread, byteoffset, sampsperframe, tsampsperframe):
     if max(skew) > 0:
         # Array of samples to fill in the final samples of the skewed channels.
@@ -627,8 +651,7 @@ def skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte,
             # The length of extra signals to be loaded
             extraloadlen = min(siglen - (sampto - sampfrom), max(skew))
             nsampextra = extraloadlen * tsampsperframe
-            extraloadedsig = processwfdbbytes(
-                fp,
+            extraloadedsig = processwfdbbytes(filename, dirname, pbdir,
                 fmt,
                 extraloadlen,
                 nsig,

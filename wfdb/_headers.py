@@ -2,7 +2,6 @@ import numpy as np
 import re
 import os
 import sys
-import requests
 from collections import OrderedDict
 from calendar import monthrange
 from . import _signals
@@ -287,7 +286,7 @@ rxSEGMENT = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
 
 # Read header file to get comment and non-comment lines
 def getheaderlines(recordname, pbdir):
-    # Reading local file
+    # Read local file
     if pbdir is None:
         with open(recordname + ".hea", 'r') as fp:
             # Record line followed by signal/segment lines if any
@@ -309,7 +308,7 @@ def getheaderlines(recordname, pbdir):
                         commentlines.append(line[ci:])
                     else:
                         headerlines.append(line)
-    # Reading online header file
+    # Read online header file
     else:
         headerlines, commentlines = downloads.streamheader(recordname, pbdir)
 

@@ -5,7 +5,6 @@ import sys
 import requests
 from . import records
         
-
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
 
@@ -41,22 +40,33 @@ def streamheader(recordname, pbdir):
     
     return (headerlines, commentlines) 
 
+# Read certain bytes from a dat file from physiobank
+def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
+    
+    # Full url of dat file
+    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, filename)
 
+    # Specify the byte range
+    endbyte = startbyte + bytecount 
+    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte), 'Accept-Encoding': '*/*'} 
+    
+    # Get the content
+    r = requests.get(url, headers=headers, stream=True)
+    
+    # Raise HTTPError if invalid url
+    r.raise_for_status()
+    
+    sigbytes = r.content
 
+    # Convert to numpy array
+    sigbytes = np.fromstring(r.content, dtype = np.dtype(datatypes[fmt]))
 
+    # For special formats that were read as unsigned 1 byte blocks to be further processed,
+    # convert dtype from uint8 to uint64
+    if fmt == ['212', '310', '311']:
+        sigbytes = sigbytes.astype('uint')
 
-
-
-
-
-
-
-
-
-
-
-
-
+    return sigbytes
 
 
 
