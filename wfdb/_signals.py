@@ -332,37 +332,32 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         # samples.
         startbyte = startbyte - floorsamp
 
-
-    print('filename: ', filename)
-    print('dirname: ', dirname)
-    print('pbdir: ', pbdir)
-
-    # Read the dat file into a np array and reshape.
-    sig, nbytesread = processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, sampto - sampfrom, nsig, sampsperframe, floorsamp)
+    # Read the dat file into the correctly shaped np array
+    sig, bytesloaded = processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, sampto - sampfrom, nsig, sampsperframe, floorsamp)
 
     # Shift the samples in the channels with skew if any
-    sig=skewsignal(sig, skew, fp, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
-        nbytesread, byteoffset, sampsperframe, tsampsperframe)
+    sig=skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
+        bytesloaded, byteoffset, sampsperframe)
     
     return sig
 
 # Read digital samples from a wfdb signal file
 # Returns the signal and the number of bytes read.
-def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sampsperframe, floorsamp):
-    # siglen refers to the length of the signal to be read. Different from siglen input argument for readdat.
+def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sampsperframe, floorsamp=0):
+    # readlen refers to the length of the signal to be read in samples. 
     # floorsamp is the extra sample index used to read special formats.
 
     # Total number of samples per frame.
     tsampsperframe = sum(sampsperframe)
     # Total number of signal samples to be collected (including discarded ones)
-    nsamp = siglen * tsampsperframe + floorsamp
+    nsamp = readlen * tsampsperframe + floorsamp
 
     # Reading the dat file into np array and reshaping. Formats 212, 310, and 311 need special processing.
     # Note that for these formats with multi samples/frame, have to convert
     # bytes to samples before returning average frame values.
     if fmt == '212':
         # Read the bytes from the file as unsigned integer blocks
-        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+        sigbytes, bytesloaded = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
@@ -377,7 +372,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             if floorsamp:  # Remove extra sample read
                 sig = sig[floorsamp:]
             # Reshape into final array of samples
-            sig = sig.reshape(siglen, nsig)
+            sig = sig.reshape(readlen, nsig)
             sig = sig.astype(int)
             # Loaded values as unsigned. Convert to 2's complement form: values
             # > 2^11-1 are negative.
@@ -400,7 +395,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             # > 2^11-1 are negative.
             sigall[sigall > 2047] -= 4096
             # Give the average sample in each frame for each channel
-            sig = np.zeros([siglen, nsig])
+            sig = np.zeros([readlen, nsig])
             for ch in range(0, nsig):
                 if sampsperframe[ch] == 1:
                     sig[:, ch] = sigall[
@@ -414,7 +409,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
     elif fmt == '310':  
 
         # Read the bytes from the file as unsigned integer blocks
-        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+        sigbytes, bytesloaded = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
@@ -436,7 +431,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             if floorsamp:  # Remove extra sample read
                 sig = sig[floorsamp:]
             # Reshape into final array of samples
-            sig = sig.reshape(siglen, nsig)
+            sig = sig.reshape(readlen, nsig)
             # Convert to int64 to be able to hold -ve values
             sig = sig.astype('int')
             # Loaded values as unsigned. Convert to 2's complement form: values
@@ -464,7 +459,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             sigall[sigall > 511] -= 1024
 
             # Give the average sample in each frame for each channel
-            sig = np.zeros([siglen, nsig])
+            sig = np.zeros([readlen, nsig])
             for ch in range(0, nsig):
                 if sampsperframe[ch] == 1:
                     sig[:, ch] = sigall[
@@ -478,7 +473,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
     elif fmt == '311':  # Three 10 bit samples packed into 4 bytes with 2 bits discarded
         
         # Read the bytes from the file as unsigned integer blocks
-        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+        sigbytes, bytesloaded = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
         
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
@@ -499,7 +494,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             if floorsamp:  # Remove extra sample read
                 sig = sig[floorsamp:]
             # Reshape into final array of samples
-            sig = sig.reshape(siglen, nsig)
+            sig = sig.reshape(readlen, nsig)
             # Convert to int64 to be able to hold -ve values
             sig = sig.astype('int')
             # Loaded values as unsigned. Convert to 2's complement form: values
@@ -535,7 +530,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
             # > 2^9-1 are negative.
             sigall[sigall > 511] -= 1024
             # Give the average sample in each frame for each channel
-            sig = np.zeros([siglen, nsig])
+            sig = np.zeros([readlen, nsig])
             for ch in range(0, nsig):
                 if sampsperframe[ch] == 1:
                     sig[:, ch] = sigall[
@@ -549,15 +544,15 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
     else:  # Simple format signals that can be loaded as they are stored.
 
         # Read the dat file in the specified format
-        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
+        sigbytes, bytesloaded = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
         # No extra samples/frame. Just reshape results.
         if tsampsperframe == nsig:  
-            sig = sigbytes.reshape(siglen, nsig).astype('int')
+            sig = sigbytes.reshape(readlen, nsig).astype('int')
         # At least one channel has multiple samples per frame. Extra samples are averaged.
         else:  
             # Keep the first sample in each frame for each channel
-            sig = np.empty([siglen, nsig])
+            sig = np.empty([readlen, nsig])
             for ch in range(0, nsig):
                 if sampsperframe[ch] == 1:
                     sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
@@ -573,14 +568,12 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, siglen, nsig, sam
         elif fmt == '160':
             sig = sig - 32768
 
-        nbytesload = nsamp * bytespersample[fmt]
-
-    return sig, nbytesload
+    return sig, bytesloaded
 
 # Read bytes from a dat file, either local or remote
 def getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte):
 
-    # nsamp is the number of samples to read
+    # nsamp is the total number of samples to read
     # count is the number of elements to read using np.fromfile
     # bytecount is the number of bytes to read
     if fmt == '212':
@@ -617,11 +610,15 @@ def getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte):
     else:
         sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes)
 
-    return sigbytes
+    return sigbytes, bytecount
 
 
 def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
-    nbytesread, byteoffset, sampsperframe, tsampsperframe):
+    bytesloaded, byteoffset, sampsperframe):
+
+    # Total number of samples per frame.
+    tsampsperframe = sum(sampsperframe)
+
     if max(skew) > 0:
         # Array of samples to fill in the final samples of the skewed channels.
         extrasig = np.empty([max(skew), nsig])
@@ -629,7 +626,7 @@ def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom,
 
         # Load the extra samples if the end of the file hasn't been reached.
         if siglen - (sampto - sampfrom):
-            startbyte = startbyte + nbytesread
+            startbyte = startbyte + bytesloaded
             # Point the the file pointer to the start of a block of 3 or 4 and
             # keep track of how many samples to discard after reading. For
             # regular formats the file pointer is already at the correct
@@ -646,17 +643,15 @@ def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom,
                 # Now the byte pointed to is the first of a byte quartet
                 # storing 3 samples.
                 startbyte = startbyte - floorsamp
-            startbyte = startbyte
-            fp.seek(startbyte)
+
             # The length of extra signals to be loaded
             extraloadlen = min(siglen - (sampto - sampfrom), max(skew))
-            nsampextra = extraloadlen * tsampsperframe
+
+            # processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sampsperframe, floorsamp):
+            # Array of extra loaded samples
             extraloadedsig = processwfdbbytes(filename, dirname, pbdir,
-                fmt,
-                extraloadlen,
-                nsig,
-                sampsperframe,
-                floorsamp)[0]  # Array of extra loaded samples
+                fmt, startbyte, extraloadlen, nsig, sampsperframe, floorsamp)[0]  
+
             # Fill in the extra loaded samples
             extrasig[:extraloadedsig.shape[0], :] = extraloadedsig
 
@@ -666,7 +661,6 @@ def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom,
                 sig[:-skew[ch], ch] = sig[skew[ch]:, ch]
                 sig[-skew[ch]:, ch] = extrasig[:skew[ch], ch]
     return sig
-
 
 
 
