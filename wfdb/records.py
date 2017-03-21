@@ -256,8 +256,34 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         self.checksum=checksum
         self.blocksize=blocksize
         self.signame=signame
-        
-        
+    
+    # Equal comparison operator for objects of this type
+    def __eq__(self, other):
+        att1 = self.__dict__
+        att2 = other.__dict__
+
+        if set(att1.keys()) != set(att2.keys()):
+
+            print(att1.keys())
+            print(att2.keys())
+            return False, 1
+
+        for k in att1.keys():
+            v1 = att1[k]
+            v2 = att2[k]
+
+            if type(v1) != type(v2):
+                return False, 2
+
+            if type(v1) == np.ndarray:
+                if not np.array_equal(v1, v2):
+                    return False, 3
+            else:
+                if v1 != v2:
+                    return False, 4
+
+        return True
+
     # Write a wfdb header file and associated dat files if any.  
     def wrsamp(self):
 
@@ -492,7 +518,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         return (readsegs, readsamps)
 
     # Get the channel numbers to be read from each segment
-    def requiredsignals(self, readsegs, channels, dirname):
+    def requiredsignals(self, readsegs, channels, dirname, pbdir):
 
         # Fixed layout. All channels are the same.
         if self.layout == 'Fixed':
@@ -514,7 +540,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                     readsigs.append(None)
                 else:
                     # Get the signal names of the current segment
-                    s_signames = rdheader(os.path.join(dirname, self.segname[readsegs[i]])).signame
+                    s_signames = rdheader(os.path.join(dirname, self.segname[readsegs[i]]), pbdir = pbdir).signame
                     readsigs.append(wanted_siginds(w_signames, s_signames))
 
         return readsigs
@@ -678,7 +704,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     dirname, baserecordname = os.path.split(recordname)
 
     # Read the header fields into the appropriate record object
-    record = rdheader(recordname)
+    record = rdheader(recordname, pbdir = pbdir)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -740,10 +766,10 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         else:
             record.layout = 'Fixed'
             
-        # Get the segments numbers, samples, and 
-        # channel indices within each segment to read.
+        # The segment numbers and samples within each segment to read.
         readsegs, segranges  = record.requiredsegments(sampfrom, sampto, channels)
-        segsigs = record.requiredsignals(readsegs, channels, dirname) 
+        # The signals within each segment to read
+        segsigs = record.requiredsignals(readsegs, channels, dirname, pbdir) 
 
         # Read the desired samples in the relevant segments
         for i in range(0, len(readsegs)):

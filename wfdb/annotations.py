@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
 import sys
-from IPython.display import display
 import re
+import os
+from IPython.display import display
 from . import _headers
+from . import downloads
 
 # Class for WFDB annotations
 class Annotation():
@@ -38,6 +40,31 @@ class Annotation():
         self.num = num
         self.aux = aux
         self.fs = fs
+
+    # Equal comparison operator for objects of this type
+    def __eq__(self, other):
+        att1 = self.__dict__
+        att2 = other.__dict__
+
+        if set(att1.keys()) != set(att2.keys()):
+            return False, 1
+
+        for k in att1.keys():
+            v1 = att1[k]
+            v2 = att2[k]
+
+            if type(v1) != type(v2):
+                return False, 2
+
+            if type(v1) == np.ndarray:
+                if not np.array_equal(v1, v2):
+                    return False, 3
+            else:
+                if v1 != v2:
+                    print(k)
+                    return False, 4
+
+        return True
 
     # Write an annotation file
     def wrann(self):
@@ -340,7 +367,7 @@ def showanncodes():
 
 ## ------------- Reading Annotations ------------- ##
 
-def rdann(recordname, annotator, sampfrom=0, sampto=None):
+def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     """ Read a WFDB annotation file recordname.annotator and return the fields as lists or arrays
 
     Usage: 
@@ -374,7 +401,7 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
         raise ValueError("sampfrom must be a non-negative integer")
 
     # Read the file in byte pairs
-    filebytes = loadbytepairs(recordname, annotator)
+    filebytes = loadbytepairs(recordname, annotator, pbdir)
 
     # The maximum number of annotations potentially contained
     annotlength = filebytes.shape[0]
@@ -444,15 +471,21 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None):
     anntype = [allannsyms[code] for code in anntype]
 
     # Store fields in an Annotation object
-    annotation = Annotation(recordname, annotator, annsamp, anntype, 
+    annotation = Annotation(os.path.split(recordname)[1], annotator, annsamp, anntype, 
         subtype, chan, num, aux, fs)
 
     return annotation
 
 # Load the annotation file 1 byte at a time and arrange in pairs
-def loadbytepairs(recordname, annot):
-    with open(recordname + '.' + annot, 'rb') as f:
-        filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
+def loadbytepairs(recordname, annot, pbdir):
+    # local file
+    if pbdir is None:
+        with open(recordname + '.' + annot, 'rb') as f:
+            filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
+    # physiobank file
+    else:
+        filebytes = downloads.streamannotation(recordname+'.'+annot, pbdir).reshape([-1, 2])
+
     return filebytes
 
 # Initialize arrays for storing content

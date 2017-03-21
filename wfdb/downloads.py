@@ -3,7 +3,8 @@ import re
 import os
 import sys
 import requests
-from . import records
+import multiprocessing
+from .records import Record, BaseRecord, rdheader
         
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
@@ -14,7 +15,7 @@ def streamheader(recordname, pbdir):
     
     # Raise HTTPError if invalid url
     r.raise_for_status()
-        
+    
     # Get each line as a string
     filelines = r.content.decode('ascii').splitlines()
     
@@ -25,7 +26,7 @@ def streamheader(recordname, pbdir):
     for line in filelines:
         line = line.strip()
         # Comment line
-        if line.startswith('#'):  
+        if line.startswith('#'):
             commentlines.append(line)
         # Non-empty non-comment line = header line.
         elif line:  
@@ -47,7 +48,7 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, filename)
 
     # Specify the byte range
-    endbyte = startbyte + bytecount 
+    endbyte = startbyte + bytecount-1 
     headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte), 'Accept-Encoding': '*/*'} 
     
     # Get the content
@@ -59,7 +60,7 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     sigbytes = r.content
 
     # Convert to numpy array
-    sigbytes = np.fromstring(r.content, dtype = np.dtype(datatypes[fmt]))
+    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt]))
 
     # For special formats that were read as unsigned 1 byte blocks to be further processed,
     # convert dtype from uint8 to uint64
@@ -67,6 +68,78 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
         sigbytes = sigbytes.astype('uint')
 
     return sigbytes
+
+# Read an entire annotation file from physiobank
+def streamannotation(filename, pbdir):
+
+    # Full url of annotation file
+    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, filename)
+
+    # Get the content
+    r = requests.get(url)
+    # Raise HTTPError if invalid url
+    r.raise_for_status()
+    
+    annbytes = r.content
+
+    # Convert to numpy array
+    annbytes = np.fromstring(annbytes, dtype = np.dtype('<u1'))
+
+    return annbytes
+
+
+# Download all the WFDB files from a physiobank database
+# http://freecode.com/projects/pysync/
+# http://stackoverflow.com/questions/20441270/fastest-way-to-download-thousand-files-using-python
+def dldatabase(pbdb, dldir): 
+
+    # Full url physiobank database
+    dburl = 'http://physionet.org/physiobank/database/'+pbdb
+
+    # Check if the database is valid
+    r = requests.get(dburl)
+    r.raise_for_status()
+
+    # Check for a RECORDS file
+    recordsurl = 'http://physionet.org/physiobank/database/'+os.path.join(pbdb, 'RECORDS')
+
+    # Check if the file is present
+    r = requests.get(dburl)
+    if r.status_code == 404:
+        sys.exit('This database has no WFDB files to download')
+
+    # Get each line as a string
+    records = r.content.decode('ascii').splitlines()
+
+    # Make the local download dir if it doesn't exist
+    if not os.path.isdir(dldir):  
+        os.makedirs(dldir)
+        print("Created local directory: ", dldir)
+
+    # All files to download (relative to the database's home directory)
+    allfiles = []
+    
+    for rec in records:
+        # Check out whether each record is in MIT or EDF format
+        if rec.endswith('.edf'):
+            allfiles.append(rec)
+        else:
+            # If MIT format, have to figure out all associated files
+            mitrecords.append(rec+'.hea')
+            
+            dirname, baserecname = os.path.split(rec)
+
+            record = records.rdheader(baserecname, pbdir = 'dirname')
+
+
+
+
+    allfiles = [os.path.join('http://physionet.org/physiobank/database/', pbdb, file) for file in allfiles]
+
+
+
+
+    return
 
 
 
