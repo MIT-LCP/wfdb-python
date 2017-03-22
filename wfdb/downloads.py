@@ -4,13 +4,13 @@ import os
 import sys
 import requests
 import multiprocessing
-from .records import Record, BaseRecord, rdheader
+from . import records
         
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
 
     # Full url of header location
-    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, recordname+'.hea')
+    url = os.path.join(dbindexurl, pbdir, recordname+'.hea')
     r = requests.get(url)
     
     # Raise HTTPError if invalid url
@@ -45,7 +45,7 @@ def streamheader(recordname, pbdir):
 def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     
     # Full url of dat file
-    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, filename)
+    url = os.path.join(dbindexurl, pbdir, filename)
 
     # Specify the byte range
     endbyte = startbyte + bytecount-1 
@@ -73,7 +73,7 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
 def streamannotation(filename, pbdir):
 
     # Full url of annotation file
-    url = 'http://physionet.org/physiobank/database/'+os.path.join(pbdir, filename)
+    url = os.path.join(dbindexurl, pbdir, filename)
 
     # Get the content
     r = requests.get(url)
@@ -89,180 +89,147 @@ def streamannotation(filename, pbdir):
 
 
 # Download all the WFDB files from a physiobank database
-# http://freecode.com/projects/pysync/
-# http://stackoverflow.com/questions/20441270/fastest-way-to-download-thousand-files-using-python
-def dldatabase(pbdb, dldir): 
+def dldatabase(pbdb, dlbasedir, keepsubdirs = True, overwrite = False): 
 
     # Full url physiobank database
-    dburl = 'http://physionet.org/physiobank/database/'+pbdb
+    dburl = os.path.join(dbindexurl, pbdb)
 
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
 
     # Check for a RECORDS file
-    recordsurl = 'http://physionet.org/physiobank/database/'+os.path.join(pbdb, 'RECORDS')
-
-    # Check if the file is present
-    r = requests.get(dburl)
+    recordsurl = os.path.join(dburl, 'RECORDS')
+    r = requests.get(recordsurl)
     if r.status_code == 404:
-        sys.exit('This database has no WFDB files to download')
+        sys.exit('The database '+dburl+' has no WFDB files to download')
 
     # Get each line as a string
-    records = r.content.decode('ascii').splitlines()
-
-    # Make the local download dir if it doesn't exist
-    if not os.path.isdir(dldir):  
-        os.makedirs(dldir)
-        print("Created local directory: ", dldir)
+    recordlist = r.content.decode('ascii').splitlines()
 
     # All files to download (relative to the database's home directory)
     allfiles = []
-    
-    for rec in records:
+
+    for rec in recordlist:
         # Check out whether each record is in MIT or EDF format
         if rec.endswith('.edf'):
             allfiles.append(rec)
         else:
             # If MIT format, have to figure out all associated files
-            mitrecords.append(rec+'.hea')
+            allfiles.append(rec+'.hea')
             
             dirname, baserecname = os.path.split(rec)
 
-            record = records.rdheader(baserecname, pbdir = 'dirname')
+            record = records.rdheader(baserecname, pbdir = os.path.join(pbdb, dirname))
 
+            # Single segment record
+            if type(record) == records.Record:
+                # Add all dat files of the segment
+                for file in record.filename:
+                    allfiles.append(os.path.join(dirname, file))
 
+            # Multi segment record
+            else:
+                for seg in record.segname:
+                    # Skip empty segments
+                    if seg == '~':
+                        continue
+                    # Add the header
+                    allfiles.append(os.path.join(dirname, seg+'.hea'))
+                    # Layout specifier has no dat files
+                    if seg.endswith('_layout'):
+                        continue
+                    # Add all dat files of the segment
+                    recseg = records.rdheader(seg, pbdir = os.path.join(pbdb, dirname))
+                    for file in recseg.filename:
+                        allfiles.append(os.path.join(dirname, file))
 
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in allfiles]
 
-    allfiles = [os.path.join('http://physionet.org/physiobank/database/', pbdb, file) for file in allfiles]
+    # Make the local download dir if it doesn't exist
+    if not os.path.isdir(dlbasedir):
+        os.makedirs(dlbasedir)
+        print("Created local base download directory: ", dlbasedir)
 
+    print('Download files...')
 
+    # Create multiple processes to download files. 
+    # Limit to 2 connections to avoid overloading the server
+    pool = multiprocessing.Pool(processes=2)
+    pool.map(dlpbfile, dlinputs)
 
+    print('Finished downloading files')
 
     return
 
 
+# Download selected WFDB files from a physiobank database
+# def dldatabaserecords(pbdb, dlbasedir, keepsubirs = True, overwrite = False): 
 
 
 
+# Download a file from physiobank
+def dlpbfile(inputs):
 
+    basefile, subdir, pbdb, dlbasedir, keepsubdirs, overwrite = inputs
 
-
-
-def downloadsamp(pbrecname, targetdir):
-    """Check a specified local directory for all necessary files required to read a Physiobank
-       record, and download any missing files into the same directory. Returns a list of files
-       downloaded, or exits with error if an invalid Physiobank record is specified.
-
-    Usage: dledfiles = dlrecordfiles(pbrecname, targetdir)
-
-    Input arguments:
-    - pbrecname (required): The name of the MIT format Physiobank record to be read, prepended
-      with the Physiobank subdirectory the file is contained in (without any file extensions).
-      eg. pbrecname=prcp/12726 to download files http://physionet.org/physiobank/database/prcp/12726.hea
-      and 12727.dat
-    - targetdir (required): The local directory to check for files required to read the record,
-      in which missing files are also downloaded.
-
-    Output arguments:
-    - dledfiles:  The list of files downloaded from PhysioBank.
-
-    """
-
-    physioneturl = "http://physionet.org/physiobank/database/"
-    pbdir, baserecname = os.path.split(pbrecname)
-    displaydlmsg=1
-    dledfiles = [] 
+    # Full url of file
+    url = os.path.join(dbindexurl, pbdb, subdir, basefile)
     
-    if not os.path.isdir(targetdir):  # Make the target dir if it doesn't exist
-        os.makedirs(targetdir)
-        print("Created local directory: ", targetdir)
+    # Get the request header
+    rh = requests.head(url, headers={'Accept-Encoding': 'identity'})
+    # Raise HTTPError if invalid url
+    rh.raise_for_status()
+
+    # Supposed size of the file
+    onlinefilesize = int(rh.headers['content-length'])
     
-    # For any missing file, check if the input physiobank record name is
-    # valid, ie whether the file exists on physionet. Download if valid, exit
-    # if invalid.
-    dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+baserecname+".hea", os.path.join(targetdir, 
-        baserecname+".hea"), dledfiles, displaydlmsg, targetdir)
-        
-    fields = rdheader(os.path.join(targetdir, baserecname))
-
-    # Need to check validity of link if ANY file is missing.
-    if fields["nseg"] == 1:  # Single segment. Check for all the required dat files
-        for f in set(fields["filename"]):
-            # Missing dat file
-            dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, os.path.join(targetdir, f), 
-                dledfiles, displaydlmsg, targetdir)
-    else:  # Multi segment. Check for all segment headers and their dat files
-        for segment in fields["filename"]:
-            if segment != '~':
-                # Check the segment header
-                dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+segment+".hea", 
-                    os.path.join(targetdir, segment+".hea"), dledfiles, displaydlmsg, targetdir)    
-                segfields = rdheader(os.path.join(targetdir, segment))
-                for f in set(segfields["filename"]):
-                    if f != '~':
-                        # Check the segment's dat file
-                        dledfiles, displaydlmsg = dlifmissing(physioneturl+pbdir+"/"+f, 
-                            os.path.join(targetdir, f), dledfiles, displaydlmsg, targetdir)
-                            
-    if dledfiles:
-        print('Downloaded all missing files for record.')
-    return dledfiles  # downloaded files
-
-
-# Download a file if it is missing. Also error check 0 byte files.  
-def dlifmissing(url, filename, dledfiles, displaydlmsg, targetdir):
-    fileexists = os.path.isfile(filename)  
-    if fileexists:
-        # Likely interrupted download
-        if os.path.getsize(filename)==0:
-            try:
-                input = raw_input
-            except NameError:
-                pass
-            userresponse=input("Warning: File "+filename+" is 0 bytes.\n"
-                "Likely interrupted download. Remove file and redownload? [y/n]: ")
-            # override input for python 2 compatibility
-            while userresponse not in ['y','n']:
-                userresponse=input("Remove file and redownload? [y/n]: ")
-            if userresponse=='y':
-                os.remove(filename)
-                dledfiles.append(dlorexit(url, filename, displaydlmsg, targetdir))
-                displaydlmsg=0
-            else:
-                print("Skipping download.")
-        # File is already present.
-        else:
-            print("File "+filename+" is already present.")
+    # Figure out where the file should be locally
+    if keepsubdirs:
+        dldir = os.path.join(dlbasedir, subdir)
+        # Make the local download subdirectory if it doesn't exist
+        if not os.path.isdir(dldir):  
+            os.makedirs(dldir)
+            print("Created local download subdirectory: ", dldir)
     else:
-        dledfiles.append(dlorexit(url, filename, displaydlmsg, targetdir))
-        displaydlmsg=0
+        dldir = dlbasedir
     
-    # If a file gets downloaded, displaydlmsg is set to 0. No need to print the message more than once. 
-    return dledfiles, displaydlmsg
-                 
+    localfile = os.path.join(dldir, basefile)
     
-# Download the file from the specified 'url' as the 'filename', or exit with warning.
-def dlorexit(url, filename, displaydlmsg=0, targetdir=[]):
-    if displaydlmsg: # We want this message to be called once for all files downloaded.
-        print('Downloading missing file(s) into directory: {}'.format(targetdir))
-    try:
-        r = requests.get(url)
-        with open(filename, "wb") as writefile:
-            writefile.write(r.content)
-        return filename
-    except requests.HTTPError:
-        sys.exit("Attempted to download invalid target file: " + url)
+    # The file exists. Process accordingly.
+    if os.path.isfile(localfile):
+        # Redownload regardless
+        if overwrite:
+            dlfullfile(url, localfile)
+        else:
+            localfilesize = os.path.getsize(localfile)
+            # Local file is smaller than it should be. Append it.
+            if localfilesize < onlinefilesize:
+                print('Detected partially downloaded file: '+localfile+' Appending file...')
+                headers = {"Range": "bytes="+str(localfilesize)+"-", 'Accept-Encoding': '*/*'} 
+                r = requests.get(url, headers=headers, stream=True)
+                with open(localfile, "wb") as writefile:
+                    writefile.write(r.content)
+                print('Done appending.')
+            # Local file is larger than it should be. Redownload. 
+            elif localfilesize > onlinefilesize:
+                dlfullfile(url, localfile)
+            # If they're the same size, do nothing. 
+        
+    # The file doesn't exist. Download it. 
+    else:
+        dlfullfile(url, localfile)
+        
+    return
+
+# Download a file. No checks. 
+def dlfullfile(url, localfile):
+    r = requests.get(url)
+    with open(localfile, "wb") as writefile:
+        writefile.write(r.content)
+    
+    return
 
 
-# Download files required to read a wfdb annotation.
-def dlannfiles():
-    return dledfiles
 
-
-# Download all the records in a physiobank database.
-def dlPBdatabase(database, targetdir):
-    return dledfiles
-
-
-
+dbindexurl = 'http://physionet.org/physiobank/database/'
