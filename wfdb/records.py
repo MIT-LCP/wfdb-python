@@ -12,8 +12,11 @@ import sys
 from collections import OrderedDict
 from calendar import monthrange
 from IPython.display import display
+import requests
+import multiprocessing
 from . import _headers
 from . import _signals
+from . import downloads
 
 
 # The base WFDB class to extend to create Record and MultiRecord. Contains shared helper functions and fields.             
@@ -263,9 +266,6 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         att2 = other.__dict__
 
         if set(att1.keys()) != set(att2.keys()):
-
-            print(att1.keys())
-            print(att2.keys())
             return False, 1
 
         for k in att1.keys():
@@ -1033,3 +1033,111 @@ def orderednoconseclist(fulllist):
         if i!= noconseclist[-1]:
             noconseclist.append(i)
     return noconseclist
+
+
+
+
+# *This downloading files gateway function relies on the Record/MultiRecord objects.
+# It is placed here rather than in downloads.py in order to avoid circular imports
+
+
+# Download WFDB files from a physiobank database
+def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False): 
+    """
+    records can be list or 'all'
+    annotators can be None, list, or 'all'
+    """
+
+    # Full url physiobank database
+    dburl = os.path.join(downloads.dbindexurl, pbdb)
+    # Check if the database is valid
+    r = requests.get(dburl)
+    r.raise_for_status()
+
+
+    # Get the list of records
+    recordlist = downloads.getrecordlist(dburl, records)
+    # Get the annotator extensions
+    annotators = downloads.getannotators(dburl, annotators)
+
+    # All files to download (relative to the database's home directory)
+    allfiles = []
+
+    for rec in recordlist:
+        # Check out whether each record is in MIT or EDF format
+        if rec.endswith('.edf'):
+            allfiles.append(rec)
+            
+        else:
+            # If MIT format, have to figure out all associated files
+            allfiles.append(rec+'.hea')
+            dirname, baserecname = os.path.split(rec)
+            record = rdheader(baserecname, pbdir = os.path.join(pbdb, dirname))
+
+            # Single segment record
+            if type(record) == Record:
+                # Add all dat files of the segment
+                for file in record.filename:
+                    allfiles.append(os.path.join(dirname, file))
+
+            # Multi segment record
+            else:
+                for seg in record.segname:
+                    # Skip empty segments
+                    if seg == '~':
+                        continue
+                    # Add the header
+                    allfiles.append(os.path.join(dirname, seg+'.hea'))
+                    # Layout specifier has no dat files
+                    if seg.endswith('_layout'):
+                        continue
+                    # Add all dat files of the segment
+                    recseg = rdheader(seg, pbdir = os.path.join(pbdb, dirname))
+                    for file in recseg.filename:
+                        allfiles.append(os.path.join(dirname, file))
+        # check whether the record has any requested annotation files
+        if annotators is not None:
+            for a in annotators:
+                annfile = rec+'.'+a
+                url = os.path.join(downloads.dbindexurl, pbdb, annfile)
+                rh = requests.head(url)
+
+                if rh.status_code != 404:
+                    allfiles.append(annfile)
+
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in allfiles]
+
+    # Make any required local directories
+    downloads.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+
+    print('Downloading files...')
+    # Create multiple processes to download files. 
+    # Limit to 2 connections to avoid overloading the server
+    pool = multiprocessing.Pool(processes=2)
+    pool.map(downloads.dlpbfile, dlinputs)
+    print('Finished downloading files')
+
+    return
+
+# Download specific files from a physiobank database
+def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+    # Full url physiobank database
+    dburl = os.path.join(downloads.dbindexurl, pbdb)
+    # Check if the database is valid
+    r = requests.get(dburl)
+    r.raise_for_status()
+
+    # Construct the urls to download
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in files]
+
+    # Make any required local directories
+    downloads.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+
+    print('Downloading files...')
+    # Create multiple processes to download files. 
+    # Limit to 2 connections to avoid overloading the server
+    pool = multiprocessing.Pool(processes=2)
+    pool.map(downloads.dlpbfile, dlinputs)
+    print('Finished downloading files')
+
+    return

@@ -3,8 +3,7 @@ import re
 import os
 import sys
 import requests
-import multiprocessing
-from . import records
+from IPython.display import display
         
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
@@ -88,87 +87,109 @@ def streamannotation(filename, pbdir):
     return annbytes
 
 
-# Download all the WFDB files from a physiobank database
-def dldatabase(pbdb, dlbasedir, keepsubdirs = True, overwrite = False): 
+# Return a list of all the physiobank databases available
+def getdblist():
+    """
+    Usage:
+    dblist = getdblist()
+    """
+    url = os.path.join(dbindexurl, 'DBS')
+    r = requests.get(url)
 
+    dblist = r.content.decode('ascii').splitlines()
+    dblist = [re.sub('\t{2,}', '\t', line).split('\t') for line in dblist]
+
+    return dblist
+
+
+
+# Download specific files from a physiobank database
+def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
     # Full url physiobank database
     dburl = os.path.join(dbindexurl, pbdb)
-
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
 
-    # Check for a RECORDS file
-    recordsurl = os.path.join(dburl, 'RECORDS')
-    r = requests.get(recordsurl)
-    if r.status_code == 404:
-        sys.exit('The database '+dburl+' has no WFDB files to download')
+    # Construct the urls to download
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in files]
 
-    # Get each line as a string
-    recordlist = r.content.decode('ascii').splitlines()
+    # Make any required local directories
+    makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
 
-    # All files to download (relative to the database's home directory)
-    allfiles = []
-
-    for rec in recordlist:
-        # Check out whether each record is in MIT or EDF format
-        if rec.endswith('.edf'):
-            allfiles.append(rec)
-        else:
-            # If MIT format, have to figure out all associated files
-            allfiles.append(rec+'.hea')
-            
-            dirname, baserecname = os.path.split(rec)
-
-            record = records.rdheader(baserecname, pbdir = os.path.join(pbdb, dirname))
-
-            # Single segment record
-            if type(record) == records.Record:
-                # Add all dat files of the segment
-                for file in record.filename:
-                    allfiles.append(os.path.join(dirname, file))
-
-            # Multi segment record
-            else:
-                for seg in record.segname:
-                    # Skip empty segments
-                    if seg == '~':
-                        continue
-                    # Add the header
-                    allfiles.append(os.path.join(dirname, seg+'.hea'))
-                    # Layout specifier has no dat files
-                    if seg.endswith('_layout'):
-                        continue
-                    # Add all dat files of the segment
-                    recseg = records.rdheader(seg, pbdir = os.path.join(pbdb, dirname))
-                    for file in recseg.filename:
-                        allfiles.append(os.path.join(dirname, file))
-
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in allfiles]
-
-    # Make the local download dir if it doesn't exist
-    if not os.path.isdir(dlbasedir):
-        os.makedirs(dlbasedir)
-        print("Created local base download directory: ", dlbasedir)
-
-    print('Download files...')
-
+    print('Downloading files...')
     # Create multiple processes to download files. 
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
     pool.map(dlpbfile, dlinputs)
-
     print('Finished downloading files')
 
     return
 
 
-# Download selected WFDB files from a physiobank database
-# def dldatabaserecords(pbdb, dlbasedir, keepsubirs = True, overwrite = False): 
+# ---- Helper functions for downloading physiobank files ------- #
 
+def getrecordlist(dburl, records):
+    # Check for a RECORDS file
+    if records == 'all':
+        r = requests.get(os.path.join(dburl, 'RECORDS'))
+        if r.status_code == 404:
+            sys.exit('The database '+dburl+' has no WFDB files to download')
+
+        # Get each line as a string
+        recordlist = r.content.decode('ascii').splitlines()
+    # Otherwise the records are input manually
+    else:
+        recordlist = records
+
+    return recordlist
+
+def getannotators(dburl, annotators):
+    
+    if annotators is not None:
+        # Check for an ANNOTATORS file
+        r = requests.get(os.path.join(dburl, 'ANNOTATORS'))
+        if r.status_code == 404:
+            sys.exit('The database '+dburl+' has no annotation files to download')
+        # Make sure the input annotators are present in the database
+        annlist = r.content.decode('ascii').splitlines()
+        annlist = [a.split('\t')[0] for a in annlist]
+
+        # Get the annotation file types required
+        if annotators == 'all':
+            # all possible ones
+            annotators = annlist
+        else:
+            # In case they didn't input a list
+            if type(annotators) == str:
+                annotators = [annotators]
+            # user input ones. Check validity. 
+            for a in annotators:
+                if a not in annlist:
+                    sys.exit('The database contains no annotators with extension: ', a)
+
+    return annotators
+
+# Make any required local directories
+def makelocaldirs(dlbasedir, dlinputs, keepsubdirs):
+
+    # Make the local download dir if it doesn't exist
+    if not os.path.isdir(dlbasedir):
+        os.makedirs(dlbasedir)
+        print("Created local base download directory: ", dlbasedir)
+    # Create all required local subdirectories
+    # This must be out of dlpbfile to
+    # avoid clash in multiprocessing
+    if keepsubdirs:
+        dldirs = set([os.path.join(dlbasedir, d[1]) for d in dlinputs])
+        for d in dldirs:
+            if not os.path.isdir(d):
+                os.makedirs(d)
+    return
 
 
 # Download a file from physiobank
+# The input args are to be unpacked for the use of multiprocessing
 def dlpbfile(inputs):
 
     basefile, subdir, pbdb, dlbasedir, keepsubdirs, overwrite = inputs
@@ -187,20 +208,17 @@ def dlpbfile(inputs):
     # Figure out where the file should be locally
     if keepsubdirs:
         dldir = os.path.join(dlbasedir, subdir)
-        # Make the local download subdirectory if it doesn't exist
-        if not os.path.isdir(dldir):  
-            os.makedirs(dldir)
-            print("Created local download subdirectory: ", dldir)
     else:
         dldir = dlbasedir
     
     localfile = os.path.join(dldir, basefile)
     
-    # The file exists. Process accordingly.
+    # The file exists locally. 
     if os.path.isfile(localfile):
         # Redownload regardless
         if overwrite:
             dlfullfile(url, localfile)
+        # Process accordingly.
         else:
             localfilesize = os.path.getsize(localfile)
             # Local file is smaller than it should be. Append it.
@@ -208,7 +226,9 @@ def dlpbfile(inputs):
                 print('Detected partially downloaded file: '+localfile+' Appending file...')
                 headers = {"Range": "bytes="+str(localfilesize)+"-", 'Accept-Encoding': '*/*'} 
                 r = requests.get(url, headers=headers, stream=True)
-                with open(localfile, "wb") as writefile:
+                print('headers: ', headers)
+                print('r content length: ', len(r.content))
+                with open(localfile, "ba") as writefile:
                     writefile.write(r.content)
                 print('Done appending.')
             # Local file is larger than it should be. Redownload. 
@@ -229,6 +249,7 @@ def dlfullfile(url, localfile):
         writefile.write(r.content)
     
     return
+
 
 
 
