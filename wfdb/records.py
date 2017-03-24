@@ -20,7 +20,7 @@ from . import downloads
 
 
 # The base WFDB class to extend to create Record and MultiRecord. Contains shared helper functions and fields.             
-class BaseRecord():
+class BaseRecord(object):
     # Constructor
     def __init__(self, recordname=None, nsig=None, 
                  fs=None, counterfreq=None, basecounter = None, 

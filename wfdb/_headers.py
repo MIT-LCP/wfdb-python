@@ -8,7 +8,7 @@ from . import _signals
 from . import downloads
 
 # Class of common methods for single and multi-segment headers
-class BaseHeadersMixin():
+class BaseHeadersMixin(object):
 
     # Write a wfdb header file. The signals or segments fields are not used. 
     def wrheader(self):

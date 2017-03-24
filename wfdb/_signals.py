@@ -8,7 +8,7 @@ datformats = ["80","212","16","24","32"]
 
 # Class with signal methods
 # To be inherited by WFDBrecord from records.py.
-class SignalsMixin():
+class SignalsMixin(object):
 
     def wrdats(self):
     
@@ -819,6 +819,13 @@ def wrdatfile(filename, fmt, d_signals):
         bwrite = d_signals.astype('uint8')
 
     elif fmt == '212':
+
+        #  Each sample is represented by a 12-bit two’s complement amplitude. 
+        # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first). 
+        # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample) 
+        # and the next byte (which contains the remaining 8 bits of the second sample). 
+        # The process is repeated for each successive pair of samples. 
+
         # convert to 12 bit two's complement 
         d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
         # Split samples into separate bytes using binary masks
