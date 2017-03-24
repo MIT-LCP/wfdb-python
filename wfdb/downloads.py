@@ -63,7 +63,7 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
 
     # For special formats that were read as unsigned 1 byte blocks to be further processed,
     # convert dtype from uint8 to uint64
-    if fmt == ['212', '310', '311']:
+    if fmt in ['212', '310', '311']:
         sigbytes = sigbytes.astype('uint')
 
     return sigbytes
@@ -101,30 +101,6 @@ def getdblist():
 
     return dblist
 
-
-
-# Download specific files from a physiobank database
-def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
-    # Full url physiobank database
-    dburl = os.path.join(dbindexurl, pbdb)
-    # Check if the database is valid
-    r = requests.get(dburl)
-    r.raise_for_status()
-
-    # Construct the urls to download
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in files]
-
-    # Make any required local directories
-    makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
-
-    print('Downloading files...')
-    # Create multiple processes to download files. 
-    # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.Pool(processes=2)
-    pool.map(dlpbfile, dlinputs)
-    print('Finished downloading files')
-
-    return
 
 
 # ---- Helper functions for downloading physiobank files ------- #

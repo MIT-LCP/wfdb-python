@@ -414,6 +414,7 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sa
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
             # 1d array of actual samples. Fill the individual triplets.
+
             sig = np.zeros(nsamp)
 
             sig[0::3] = (sigbytes[0::4] >> 1)[0:len(sig[0::3])] + 128 * \
@@ -601,7 +602,7 @@ def getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte):
 
         # For special formats that were read as unsigned 1 byte blocks to be further processed,
         # convert dtype from uint8 to uint64
-        if fmt == ['212', '310', '311']:
+        if fmt in ['212', '310', '311']:
             sigbytes = sigbytes.astype('uint')
 
         fp.close()
