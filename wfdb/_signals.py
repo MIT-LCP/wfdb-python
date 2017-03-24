@@ -222,7 +222,8 @@ class SignalsMixin(object):
 
     # Calculate the checksum(s) of the d_signals field
     def calc_checksum(self):
-        return list(np.sum(self.d_signals, 0) % 65536)
+        cs = list(np.sum(self.d_signals, 0) % 65536)
+        return [int(c) for c in cs]
 
     # Write each of the specified dat files
     def wrdatfiles(self):
@@ -250,12 +251,17 @@ class SignalsMixin(object):
 # All other input arguments are specifications of the segment
 def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels):
 
+    # Avoid changing outer variables
+    byteoffset = byteoffset.copy()
+    sampsperframe = sampsperframe.copy()
+    skew = skew.copy()
+
     # Set defaults for empty fields
     for i in range(0, nsig):
         if byteoffset[i] == None:
             byteoffset[i] = 0
         if sampsperframe[i] == None:
-            sampsperframe[i] = 0
+            sampsperframe[i] = 1
         if skew[i] == None:
             skew[i] = 0
 
@@ -648,7 +654,6 @@ def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom,
             # The length of extra signals to be loaded
             extraloadlen = min(siglen - (sampto - sampfrom), max(skew))
 
-            # processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sampsperframe, floorsamp):
             # Array of extra loaded samples
             extraloadedsig = processwfdbbytes(filename, dirname, pbdir,
                 fmt, startbyte, extraloadlen, nsig, sampsperframe, floorsamp)[0]  
@@ -820,23 +825,36 @@ def wrdatfile(filename, fmt, d_signals):
 
     elif fmt == '212':
 
-        #  Each sample is represented by a 12-bit two’s complement amplitude. 
+        # Each sample is represented by a 12 bit two's complement amplitude. 
         # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first). 
         # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample) 
         # and the next byte (which contains the remaining 8 bits of the second sample). 
         # The process is repeated for each successive pair of samples. 
 
         # convert to 12 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
-        # Split samples into separate bytes using binary masks
-        b1 = d_signals & [255]*nsig
-        b2 = ( d_signals & [65280]*nsig ) >> 8
-        # Interweave the bytes so that the same samples' bytes are consecutive 
-        b1 = b1.reshape((-1, 1))
-        b2 = b2.reshape((-1, 1))
-        bwrite = np.concatenate((b1, b2), axis=1)
-        bwrite = bwrite.reshape((1,-1))[0]
-        # Convert to unsigned 8 bit dtype to write
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 1624
+        
+        # Concatenate into 1D
+        d_signals = d_signals.reshape((-1, 1))
+
+        nsamp = len(d_signals)
+
+        # Odd numbered number of samples. Fill in extra blank. 
+        if len(nsamp) % 2:
+            d_signals = np.concatenate([d_signals, np.array([0]).reshape((1,1))])
+            nsamp +=1
+
+        bwrite = np.zeros([int(1.5*nsamp)])
+
+        # Fill in the byte triplets
+
+        # Triplet 1 from lowest 8 bits of sample 1
+        bwrite[0::3] = d_signals[0::2] & 255 
+        # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
+        bwrite[1::3] = ((d_signals[0::2] & 3840) >> 8) + ((d_signals[0::2] & 3840) >> 4)
+        # Triplet 3 from lowest 8 bits of sample 2
+        bwrite[2::3] = d_signals[2::2] & 255
+
         bwrite = bwrite.astype('uint8')
     
     elif fmt == '16':

@@ -144,3 +144,7 @@ class test_rdsamp():
         targetsig = np.genfromtxt('tests/targetoutputdata/target14')
         targetsig = targetsig.reshape([977, 1])
         assert np.array_equal(sig, targetsig)
+
+
+    def test_write1():
+

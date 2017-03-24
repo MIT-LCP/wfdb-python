@@ -108,16 +108,20 @@ class BaseRecord(object):
             for f in self.sampsperframe:
                 if f < 1:
                     sys.exit('sampsperframe values must be positive integers')
-                sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
+                if f > 1:
+                    sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
         elif field == 'skew':
             for f in self.skew:
-                if f < 1:
+                if f < 0:
                     sys.exit('skew values must be non-negative integers')
-                sys.exit('Sorry, I have not implemented skew into wrsamp yet')
+                if f > 0:
+                    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'byteoffset':
             for f in self.byteoffset:
                 if f < 0:
                     sys.exit('byteoffset values must be non-negative integers')
+                if f > 0:
+                    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'adcgain':
             for f in self.adcgain:
                 if f <= 0:
@@ -337,24 +341,28 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
-    def arrangefields(self, channels):
+    def arrangefields(self, channels, usersiglen):
         
         # Rearrange signal specification fields
         for field in _headers.sigfieldspecs:
             item = getattr(self, field)
-            if item is not self.nsig*[None]:
+            if item != self.nsig*[None]:
                 setattr(self, field, [item[c] for c in channels]) 
 
+        # Checksum and initvalue to be updated if present
+        # unless the whole signal length was input
+        if self.siglen != self.d_signals.shape[0]:
+            if self.checksum is not None:
+                self.checksum = self.calc_checksum()
+            if self.initvalue is not None:
+                self.initvalue = list(self.d_signals[0, :])
+
         # Update record specification parameters
-        # Important that these get updated after ^^
+        # Important that these get updated after^^
         self.nsig = len(channels)
         self.siglen = self.d_signals.shape[0]
 
-        # Checksum and initvalue to be updated if present
-        if self.checksum is not None:
-            self.checksum = self.calc_checksum()
-        if self.initvalue is not None:
-            self.initvalue = list(self.d_signals[0, :])
+
 
 
 # Class for multi segment WFDB records.
@@ -714,17 +722,20 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
     # Ensure that input fields are valid for the record
     record.checkreadinputs(sampfrom, sampto, channels)
-
+    print('1')
+    print(record.sampsperframe)
     # A single segment record
     if type(record) == Record:
         # Read signals from the associated dat files that contain wanted channels
         record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen, 
             record.byteoffset, record.sampsperframe, record.skew,
             sampfrom, sampto, channels)
-
+        print('2')
+        print(record.sampsperframe)
         # Arrange/edit the object fields to reflect user channel and/or signal range input
-        record.arrangefields(channels)
-
+        record.arrangefields(channels, sampto - sampfrom)
+        print('3')
+        print(record.sampsperframe)
         if physical == 1:
             # Perform dac to get physical signal
             record.p_signals = record.dac()
@@ -807,11 +818,15 @@ def rdheader(recordname, pbdir = None):
     if d_rec['nseg'] is None:
         # Create a single-segment WFDB record object
         record = Record()
-        # Read the fields from the signal lines
-        d_sig = _headers.read_sig_lines(headerlines[1:])
-        # Set the object's signal line fields
-        for field in _headers.sigfieldspecs:
-            setattr(record, field, d_sig[field])   
+
+        # There is at least one channel
+        if len(headerlines)>1:
+            # Read the fields from the signal lines
+            d_sig = _headers.read_sig_lines(headerlines[1:])
+            # Set the object's signal line fields
+            for field in _headers.sigfieldspecs:
+                setattr(record, field, d_sig[field])   
+        
         # Set the object's record line fields
         for field in _headers.recfieldspecs:
             if field == 'nseg':

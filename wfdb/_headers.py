@@ -27,14 +27,15 @@ class BaseHeadersMixin(object):
         self.wrheaderfile(writefields)
 
     # Set defaults for fields needed to write the header if they have defaults.
-    # Returns a list of fields set by this function.
-    # Set overwrite == 1 to enable overwriting of populated fields.
-    def setdefaults(self, overwrite = 0):
-        setfields = [] # The fields set
+    # This is NOT called by rdheader. It is only called by wrsamp for convenience.
+    # It is also not called by wrhea (this may be changed in the future) since 
+    # it is supposed to be an explicit function. 
+
+    # Not responsible for initializing the 
+    # attribute. That is done by the constructor. 
+    def setdefaults(self):
         for field in self.getwritefields():
-            if self.setdefault(field) == 1:
-                setfields.append(field)
-        return setfields
+            self.setdefault(field)
 
     # Helper function for getwritefields
     def getwritesubset(self, fieldspecs):
@@ -75,36 +76,47 @@ class HeadersMixin(BaseHeadersMixin):
             writefields.append('comments')
         return writefields
 
-    # Set a field to its default value if there is a default. Returns 1 if the field is set. 
-    # Set overwrite == 1 to enable overwriting of populated fields.
-    # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
-    def setdefault(self, field, overwrite = 0):
+    # Set the object's attribute to its default value if it is missing 
+    # and there is a default. Not responsible for initializing the 
+    # attribute. That is done by the constructor. 
+    def setdefault(self, field):
         
-        # Check whether the field is empty before trying to set.
-        if overwrite == 0:
-            if getattr(self, field) != None:
-                return 0
         
-        setfield = 0
 
         # Record specification fields
         if field in recfieldspecs:
+            # Return if nothing to set. Only set a field if it is empty
+            if sigfieldspecs[field].write_def is None or getattr(self, field) is not None:
+                return
             setattr(self, field, recfieldspecs[field].write_def)
-            setfield = 1
         # Signal specification fields
         elif field in sigfieldspecs:
-            if sigfieldspecs[field].write_def is not None:
-                setattr(self, field, self.nsig*[sigfieldspecs[field].write_def])
-                setfield = 1
-            # Set more specific defaults if possible
+            
+            
             if field == 'filename':
                 self.filename = self.nsig*[self.recordname+'.dat']
-                setfield = 1
-            elif field == 'adcres' and self.fmt is not None:
-                self.adcres=_signals.wfdbfmtres(self.fmt)
-                setfield = 1
+            
 
-        return setfield
+            # Return if nothing to set. Only set a field if it is empty
+            if sigfieldspecs[field].write_def is None or getattr(self, field) is not None:
+                return
+
+            # Check/set one channel at a time
+            item = getattr(self, field)
+
+            for ch in range(0, self.nsig):
+
+                # Only set if it is empty
+                if item[ch] is not None:
+                    continue
+                
+                item[ch] = sigfieldspecs[field].write_def
+                # Set more specific defaults if possible
+                if field == 'adcres' and self.fmt is not None:
+                    self.adcres=_signals.wfdbfmtres(self.fmt)
+                
+
+            setattr(self, field, item)
 
 
     # Check the cohesion of fields used to write the header
@@ -196,22 +208,17 @@ class MultiHeadersMixin(BaseHeadersMixin):
             writefields.append('comments')
         return writefields
 
-    # Set a field to its default value if there is a default. Returns 1 if the field is set. 
-    # Set overwrite == 1 to enable overwriting of populated fields.
-    # In the future, this function and getdefault (to be written) may share a new dictionary/object field.  
-    def setdefault(self, field, overwrite = 0):
+    # Set a field to its default value if there is a default.
+    def setdefault(self, field):
         
         # Check whether the field is empty before trying to set.
-        if overwrite == 0:
-            if getattr(self, field) != None:
-                return 0       
-        # Going to set the field. 
+        if getattr(self, field) != None:
+            return
+
         # Record specification fields
         if field == 'basetime':
             self.basetime = '00:00:00'
-            return 1
-        else:
-            return 0
+            
 
     # Check the cohesion of fields used to write the header
     def checkfieldcohesion(self, writefields):
@@ -367,6 +374,8 @@ def read_sig_lines(siglines):
 
         for field in sigfieldspecs:
             # Replace empty strings with their read defaults (which are mostly None)
+            # Note: Never set a field to None. [None]* nsig is accurate, indicating 
+            # that different channels can be present or missing. 
             if d_sig[field][i] == '':
                 d_sig[field][i] = sigfieldspecs[field].read_def
                 # Special case: missing baseline defaults to ADCzero if present
@@ -378,6 +387,7 @@ def read_sig_lines(siglines):
                     d_sig[field][i] = int(d_sig[field][i])
                 elif sigfieldspecs[field].allowedtypes is floattypes:
                     d_sig[field][i] = float(d_sig[field][i])
+                
 
     return d_sig
 
@@ -458,9 +468,9 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
-                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, 1, None)),
-                         ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, 0, None)),
-                         ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, 0, None)),
+                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
+                         ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
+                         ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200, None)),
                          ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, 0, None)),
                          ('units', WFDBheaderspecs([str], '/', 'adcgain', True, 'mV', None)),
