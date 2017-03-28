@@ -150,7 +150,8 @@ class BaseRecord(object):
             for f in self.signame:
                 if re.search('\s', f):
                     sys.exit('signame strings may not contain whitespaces.')
-            
+            if len(set(self.signame)) != len(self.signame):
+                sys.exit('signame strings must be unique.')
         # Segment specification fields
         elif field == 'segname':
             # Segment names must be alphanumerics or just a single '~'
@@ -159,7 +160,7 @@ class BaseRecord(object):
                     continue
                 acceptedstring = re.match('[-\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
-                    sys.exit("Non-null segment names may only contain alphanumerics. Null segment names must be equal to '~'")
+                    sys.exit("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be equal to '~'")
         elif field == 'seglen':
             # For records with more than 1 segment, the first segment may be 
             # the layout specification segment with a length of 0
@@ -722,20 +723,14 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
     # Ensure that input fields are valid for the record
     record.checkreadinputs(sampfrom, sampto, channels)
-    print('1')
-    print(record.sampsperframe)
     # A single segment record
     if type(record) == Record:
         # Read signals from the associated dat files that contain wanted channels
         record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen, 
             record.byteoffset, record.sampsperframe, record.skew,
             sampfrom, sampto, channels)
-        print('2')
-        print(record.sampsperframe)
         # Arrange/edit the object fields to reflect user channel and/or signal range input
         record.arrangefields(channels, sampto - sampfrom)
-        print('3')
-        print(record.sampsperframe)
         if physical == 1:
             # Perform dac to get physical signal
             record.p_signals = record.dac()
