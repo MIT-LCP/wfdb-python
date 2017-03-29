@@ -38,13 +38,13 @@ class BaseRecord(object):
 
 
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
-    def checkfield(self, field): 
+    def checkfield(self, field, ch=None): 
         # Check that the field is present
         if getattr(self, field) is None:
             sys.exit("Missing field required: "+field)
            
         # Check the type of the field (and of its elements if it is to be a list) 
-        self.checkfieldtype(field)
+        self.checkfieldtype(field, ch)
         
         # Individual specific field checks:
         if field == 'd_signals':
@@ -93,65 +93,66 @@ class BaseRecord(object):
         # Signal specification fields. Lists of elements. 
         elif field == 'filename':
             # Check for filename characters
-            for f in self.filename:
-                acceptedstring = re.match('[\w]+\.?[\w]+',f)
-                if not acceptedstring or acceptedstring.string != f:
-                    sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
+            f = self.filename[ch]
+            acceptedstring = re.match('[\w]+\.?[\w]+',f)
+            if not acceptedstring or acceptedstring.string != f:
+                sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
             # Check that dat files are grouped together 
             if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
                 sys.exit('filename error: all entries for signals that share a given file must be consecutive')
         elif field == 'fmt':
-            for f in self.fmt:
-                if f not in _signals.datformats:
-                    sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
+            f = self.fmt[ch]
+            if f not in _signals.datformats:
+                sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
         elif field == 'sampsperframe':
-            for f in self.sampsperframe:
-                if f < 1:
-                    sys.exit('sampsperframe values must be positive integers')
-                if f > 1:
-                    sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
+            f = self.sampsperframe[ch]
+            if f < 1:
+                sys.exit('sampsperframe values must be positive integers')
+            if f > 1:
+                sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
         elif field == 'skew':
-            for f in self.skew:
-                if f < 0:
-                    sys.exit('skew values must be non-negative integers')
-                if f > 0:
-                    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
+            f = self.skew[ch]
+            if f < 0:
+                sys.exit('skew values must be non-negative integers')
+            if f > 0:
+                sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'byteoffset':
-            for f in self.byteoffset:
-                if f < 0:
-                    sys.exit('byteoffset values must be non-negative integers')
-                if f > 0:
-                    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
+            f = self.byteoffset[ch]
+            if f < 0:
+                sys.exit('byteoffset values must be non-negative integers')
+            if f > 0:
+                sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'adcgain':
-            for f in self.adcgain:
-                if f <= 0:
-                    sys.exit('adcgain values must be positive numbers')
+            f = self.adcgain[ch]
+            if f <= 0:
+                sys.exit('adcgain values must be positive numbers')
         elif field == 'baseline':
             # Currently original WFDB library only has 4 bytes for baseline. 
-            for f in self.baseline:
-                if f < -2147483648 or f> 2147483648:
-                    sys.exit('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
+            f = self.baseline[ch]
+            if f < -2147483648 or f> 2147483648:
+                sys.exit('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
         elif field == 'units':
-            for f in self.units:
-                if re.search('\s', f):
-                    sys.exit('units strings may not contain whitespaces.')
+            f = self.units[ch]
+            if re.search('\s', f):
+                sys.exit('units strings may not contain whitespaces.')
         elif field == 'adcres':
-            for f in self.adcres:
-                if f < 0:
-                    sys.exit('adcres values must be non-negative integers')
+            f = self.adcres[ch]
+            if f < 0:
+                sys.exit('adcres values must be non-negative integers')
         # elif field == 'adczero': nothing to check here
         # elif field == 'initvalue': nothing to check here
         # elif field == 'checksum': nothing to check here
-        elif field == 'blocksize': 
-            for f in self.blocksize:
-                if f < 0:
-                    sys.exit('blocksize values must be non-negative integers')
+        elif field == 'blocksize':
+            f = self.blocksize[ch]
+            if f < 0:
+                sys.exit('blocksize values must be non-negative integers')
         elif field == 'signame':
-            for f in self.signame:
-                if re.search('\s', f):
-                    sys.exit('signame strings may not contain whitespaces.')
+            f = self.signame[ch]
+            if re.search('\s', f):
+                sys.exit('signame strings may not contain whitespaces.')
             if len(set(self.signame)) != len(self.signame):
                 sys.exit('signame strings must be unique.')
+
         # Segment specification fields
         elif field == 'segname':
             # Segment names must be alphanumerics or just a single '~'
@@ -160,7 +161,7 @@ class BaseRecord(object):
                     continue
                 acceptedstring = re.match('[-\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
-                    sys.exit("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be equal to '~'")
+                    sys.exit("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
         elif field == 'seglen':
             # For records with more than 1 segment, the first segment may be 
             # the layout specification segment with a length of 0
@@ -183,7 +184,46 @@ class BaseRecord(object):
                     print("Note: comment strings do not need to begin with '#'. This library adds them automatically.")
                 if re.search('[\t\n\r\f\v]', f):
                     sys.exit('comments may not contain tabs or newlines (they may contain spaces and underscores).')
-                    
+           
+
+    # Check the data type of the specified field.
+    # ch is used for signal spec fields
+    # Some fields are lists. This must be checked, along with their elements.
+    def checkfieldtype(self, field, ch=None):
+
+        # Record specification field. Nonlist.  
+        if field in _headers.recfieldspecs:
+            checkitemtype(getattr(self, field), field, _headers.recfieldspecs[field].allowedtypes)
+        # Signal specification field. List. Elements can be None but not the ones being checked from here. 
+        elif field in _headers.sigfieldspecs:
+            self.checkfieldlist(field)
+            checkitemtype(getattr(self, field)[ch], field, _headers.sigfieldspecs[field].allowedtypes, True, False)
+        # Segment specification field. List. elements cannot be None
+        elif field in _headers.segfieldspecs: 
+            self.checkfieldlist(field)
+            for i in getattr(self, field):
+                checkitemtype(i, field, [str], True, False)
+        # Comments field. List. Elements cannot be None
+        elif field == 'comments': 
+            self.checkfieldlist(field)
+            for i in getattr(self, field):
+                checkitemtype(i, field, [str], True, False)
+        # Signals field.
+        elif field in ['p_signals','d_signals']:
+            checkitemtype(getattr(self, field), field, [np.ndarray])
+        # Segments field. List. Elements can be None.
+        elif field == 'segments': 
+            self.checkfieldlist(field)
+            for i in getattr(self, field):
+                checkitemtype(i, field, [Record], True, True)
+
+    # Raise an error if the field item is not a list
+    # Helper to checkfieldtype
+    def checkfieldlist(self, field):
+        if type(getattr(self, field))!=list:
+            sys.exit("Field: '"+field+"' must be a list")
+
+
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels):
 
@@ -213,6 +253,29 @@ class BaseRecord(object):
                 sys.exit('Input channels must all be non-negative integers')
             if c>self.nsig-1:
                 sys.exit('Input channels must all be lower than the total number of channels')
+
+# Check the item type. Vary the print message and whether the item can be None.
+# Helper to checkfieldtype
+# The logic is actually kloogy. This might come back to bite me.
+def checkitemtype(item, field, allowedtypes, listsubset = False, allownone = False):
+    if listsubset:
+        # The element is allowed to be None
+        if allownone:
+            allowedtypes.append(type(None))
+            if type(item) not in allowedtypes:
+                print("Each element in field: '"+field+"' must be either None, or one of the following types:")
+                display(allowedtypes)
+                sys.exit()
+        else:
+            if type(item) not in allowedtypes:
+                print("Each present element in field: '"+field+"' must be one of the following types:")
+                display(allowedtypes)
+                sys.exit()
+    else:
+        if type(item) not in allowedtypes:
+            print("Field: '"+field+"' must be one of the following types:")
+            display(allowedtypes)
+            sys.exit()
 
 
 class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
@@ -298,48 +361,6 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         if self.nsig>0:
             # Perform signal validity and cohesion checks, and write the associated dat files.
             self.wrdats()
-    
-
-    # Check the data type of the specified field.
-    def checkfieldtype(self, field):
-        
-        # signal and comment specification fields are lists. Check their elements.  
-
-        # Record specification field  
-        if field in _headers.recfieldspecs:
-            listcheck = 0
-            allowedtypes = _headers.recfieldspecs[field].allowedtypes
-        # Signal specification field
-        elif field in _headers.sigfieldspecs:
-            listcheck = 1
-            allowedtypes = _headers.sigfieldspecs[field].allowedtypes
-        # Comments field
-        elif field == 'comments':
-            listcheck = 1
-            allowedtypes = [str]
-        # Signals field
-        elif field in ['p_signals','d_signals']:
-            listcheck = 0
-            allowedtypes = [np.ndarray]
-
-        item = getattr(self, field)
-
-        # List fields and their elements
-        if listcheck:
-            if type(item)!=list:
-                sys.exit("Field: '"+field+"' must be a list with length equal to nsig")
-            for i in item:
-                if type(i) not in allowedtypes:
-                    print("Each element in field: '"+field+"' must be one of the following types:")
-                    display(allowedtypes)
-                    sys.exit()
-        # Non-list fields  
-        else:
-            if type(item) not in allowedtypes:
-                print("Field: '"+field+"' must be one of the following types:")
-                display(allowedtypes)
-                sys.exit()
-
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
     def arrangefields(self, channels, usersiglen):
@@ -357,6 +378,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
                 self.checksum = self.calc_checksum()
             if self.initvalue is not None:
                 self.initvalue = list(self.d_signals[0, :])
+                self.initvalue = [int(i) for i in self.initvalue]
 
         # Update record specification parameters
         # Important that these get updated after^^
@@ -410,48 +432,6 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         # Perform record validity and cohesion checks, and write the associated segments.
         for seg in self.segments:
             seg.wrsamp()
-
-
-    # Check the data type of the specified field.
-    def checkfieldtype(self, field):
-        
-        # segment and comment specification, and segment fields are lists. Check their elements.    
-        
-        # Record specification field  
-        if field in _headers.recfieldspecs:
-            listcheck = 0
-            allowedtypes = _headers.recfieldspecs[field].allowedtypes
-        # Segment specification field
-        elif field in _headers.segfieldspecs:
-            listcheck = 1
-            allowedtypes = _headers.segfieldspecs[field].allowedtypes
-        # Comments field
-        elif field == 'comments':
-            listcheck = 1
-            allowedtypes = [str]
-        # Segment field
-        elif field == 'segment':
-            listcheck = 1
-            allowedtypes = [Record]
-        
-        item = getattr(self, field)
-
-        # List fields and their elements
-        if listcheck:
-            if type(item)!=list:
-                sys.exit("Field: '"+field+"' must be a list with length equal to nseg")
-
-            for i in item:
-                if type(i) not in allowedtypes:
-                    print("Each element in field: '"+field+"' must be one of the following types:")
-                    display(allowedtypes)
-                    sys.exit()
-        # Non-list fields  
-        else:
-            if type(item) not in allowedtypes:
-                print("Field: '"+field+"' must be one of the following types:")
-                display(allowedtypes)
-                sys.exit()
 
     
     # Check the cohesion of the segments field with other fields used to write the record

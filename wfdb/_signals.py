@@ -300,7 +300,7 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperf
         out_datchannel[fn] = [channels.index(c) for c in w_channel[fn]]
         
     # Allocate signal array
-    signals = np.empty([sampto-sampfrom, len(channels)])
+    signals = np.empty([sampto-sampfrom, len(channels)], dtype = 'int64')
 
     # Read each wanted dat file and store signals
     for fn in w_filename:
@@ -365,6 +365,14 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sa
         # Read the bytes from the file as unsigned integer blocks
         sigbytes, bytesloaded = getdatbytes(filename, dirname, pbdir, fmt, nsamp, startbyte)
 
+        print('startbyte: ', startbyte)
+        print('nsamp: ', nsamp)
+        print('sigbytes: ')
+        print(sigbytes)
+        print(len(sigbytes))
+        print(bytesloaded)
+
+
         if tsampsperframe == nsig:  # No extra samples/frame
             # Turn the bytes into actual samples.
             sig = np.zeros(nsamp)  # 1d array of actual samples
@@ -373,8 +381,8 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sa
                 np.bitwise_and(sigbytes[1::3], 0x0f)  # Even numbered samples
             if len(sig > 1):
                 # Odd numbered samples
-                sig[1::2] = sigbytes[2::3] + 256 * \
-                    np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
+                print(len(sig[1::2]))
+                sig[1::2] = sigbytes[2::3] + 256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
             if floorsamp:  # Remove extra sample read
                 sig = sig[floorsamp:]
             # Reshape into final array of samples
@@ -835,27 +843,27 @@ def wrdatfile(filename, fmt, d_signals):
         d_signals[d_signals<0] = d_signals[d_signals<0] + 1624
         
         # Concatenate into 1D
-        d_signals = d_signals.reshape((-1, 1))
+        d_signals = d_signals.reshape(-1)
 
         nsamp = len(d_signals)
-
         # Odd numbered number of samples. Fill in extra blank. 
-        if len(nsamp) % 2:
-            d_signals = np.concatenate([d_signals, np.array([0]).reshape((1,1))])
+        if nsamp % 2:
+            d_signals = np.concatenate([d_signals, np.array([0])])
             nsamp +=1
 
-        bwrite = np.zeros([int(1.5*nsamp)])
+        # The individual bytes to write
+        bwrite = np.zeros([int(1.5*nsamp)], dtype = 'uint8')
 
         # Fill in the byte triplets
 
         # Triplet 1 from lowest 8 bits of sample 1
         bwrite[0::3] = d_signals[0::2] & 255 
         # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
-        bwrite[1::3] = ((d_signals[0::2] & 3840) >> 8) + ((d_signals[0::2] & 3840) >> 4)
+        bwrite[1::3] = ((d_signals[0::2] & 3840) >> 8) + ((d_signals[1::2] & 3840) >> 4)
         # Triplet 3 from lowest 8 bits of sample 2
-        bwrite[2::3] = d_signals[2::2] & 255
+        bwrite[2::3] = d_signals[1::2] & 255
 
-        bwrite = bwrite.astype('uint8')
+        #bwrite = bwrite.astype('uint8')
     
     elif fmt == '16':
         # convert to 16 bit two's complement 

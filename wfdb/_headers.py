@@ -10,21 +10,6 @@ from . import downloads
 # Class of common methods for single and multi-segment headers
 class BaseHeadersMixin(object):
 
-    # Write a wfdb header file. The signals or segments fields are not used. 
-    def wrheader(self):
-
-        # Get all the fields used to write the header
-        writefields = self.getwritefields()
-
-        # Check the validity of individual fields used to write the header 
-        for f in writefields:
-            self.checkfield(f) 
-        
-        # Check the cohesion of fields used to write the header
-        self.checkfieldcohesion(writefields)
-        
-        # Write the header file using the specified fields
-        self.wrheaderfile(writefields)
 
     # Set defaults for fields needed to write the header if they have defaults.
     # This is NOT called by rdheader. It is only called by wrsamp for convenience.
@@ -38,51 +23,113 @@ class BaseHeadersMixin(object):
             self.setdefault(field)
 
     # Helper function for getwritefields
-    def getwritesubset(self, fieldspecs):
-        writefields=[]
-        for f in fieldspecs:
-            if f in writefields:
-                continue
-            # If the field is required by default or has been defined by the user
-            if fieldspecs[f].write_req or getattr(self, f)!=None:
-                rf=f
-                # Add the field and its recursive dependencies
-                while rf!=None:
-                    writefields.append(rf)
-                    rf=fieldspecs[rf].dependency
+    # specfields is the set of specification fields
+    def getwritesubset(self, specfields):
+        
+        # record specification fields
+        if specfields == 'record':
+            writefields=[]
+            fieldspecs = OrderedDict(reversed(list(recfieldspecs.items())))
+            # Remove this requirement for single segs
+            if not hasattr(self, 'nseg'): 
+                del(fieldspecs['nseg'])
 
+            for f in fieldspecs:
+                if f in writefields:
+                    continue
+                # If the field is required by default or has been defined by the user
+                if fieldspecs[f].write_req or getattr(self, f) is not None:
+                    rf=f
+                    # Add the field and its recursive dependencies
+                    while rf is not None:
+                        writefields.append(rf)
+                        rf=fieldspecs[rf].dependency
+            # Add comments if any
+            if getattr(self, 'comments') is not None:
+                writefields.append('comments')
+            
+        # signal spec field. Need to return a potentially different list for each channel. 
+        elif specfields == 'signal':
+            writefields=[]
+            fieldspecs = OrderedDict(reversed(list(sigfieldspecs.items())))
+
+            for ch in range(self.nsig):
+                # The fields needed for this channel
+                writefieldsch = []
+                for f in fieldspecs:
+                    if f in writefieldsch:
+                        continue
+
+                    fielditem = getattr(self, f)
+
+                    # If the field is required by default or has been defined by the user
+                    if fieldspecs[f].write_req or (fielditem is not None and fielditem[ch] is not None):
+                        rf=f
+                        # Add the field and its recursive dependencies
+                        while rf is not None:
+                            writefieldsch.append(rf)
+                            rf=fieldspecs[rf].dependency
+
+                writefields.append(writefieldsch)
+        
         return writefields
-
-
+        
+        
 # Class with single-segment header methods
 # To be inherited by WFDBrecord from records.py.
 class HeadersMixin(BaseHeadersMixin):
 
+    # Write a wfdb header file. The signals or segments fields are not used. 
+    def wrheader(self):
+
+        # Get all the fields used to write the header
+        recwritefields, sigwritefields = self.getwritefields()
+
+        # Check the validity of individual fields used to write the header 
+
+        # Record specification fields (and comments)
+        for f in recwritefields:
+            self.checkfield(f)
+
+        # Signal specification fields. Check by channel. 
+        for ch in range(self.nsig):
+            for f in sigwritefields[ch]:
+                self.checkfield(f, ch)
+
+        # Check the cohesion of fields used to write the header
+        self.checkfieldcohesion(recwritefields, sigwritefields)
+        
+        # Write the header file using the specified fields
+        self.wrheaderfile(recwritefields, sigwritefields)
+    
+
     # Get the list of fields used to write the header. (Does NOT include d_signals.)
+    # Separate items by record and signal specification field.
     # Returns the default required fields, the user defined fields, and their dependencies.
+    # recwritefields includes 'comment' if present.
     def getwritefields(self):
 
         # Record specification fields
-        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
-        writefields.remove('nseg')
+        recwritefields=self.getwritesubset('record')
+
+        # Add comments if any
+        if self.comments != None:
+            recwritefields.append('comments')
 
         # Determine whether there are signals. If so, get their required fields.
         self.checkfield('nsig')
         if self.nsig>0:
-            writefields=writefields+self.getwritesubset(OrderedDict(reversed(list(sigfieldspecs.items()))))
-
-        # Comments
-        if self.comments != None:
-            writefields.append('comments')
-        return writefields
+            sigwritefields=self.getwritesubset('signal')
+        else:
+            sigwritefields = None
+        
+        return recwritefields, sigwritefields
 
     # Set the object's attribute to its default value if it is missing 
     # and there is a default. Not responsible for initializing the 
     # attribute. That is done by the constructor. 
     def setdefault(self, field):
         
-        
-
         # Record specification fields
         if field in recfieldspecs:
             # Return if nothing to set. Only set a field if it is empty
@@ -91,7 +138,6 @@ class HeadersMixin(BaseHeadersMixin):
             setattr(self, field, recfieldspecs[field].write_def)
         # Signal specification fields
         elif field in sigfieldspecs:
-            
             
             if field == 'filename':
                 self.filename = self.nsig*[self.recordname+'.dat']
@@ -115,43 +161,50 @@ class HeadersMixin(BaseHeadersMixin):
                 if field == 'adcres' and self.fmt is not None:
                     self.adcres=_signals.wfdbfmtres(self.fmt)
                 
-
             setattr(self, field, item)
 
-
     # Check the cohesion of fields used to write the header
-    def checkfieldcohesion(self, writefields):
+    def checkfieldcohesion(self, recwritefields, sigwritefields):
 
         # If there are no signal specification fields, there is nothing to check. 
         if self.nsig>0:
+            # Get the set of signal spec fields used in any of the channels
+            allsigwritefields = []
+            for s in sigwritefields:
+                allsigwritefields += s
+
+            allsigwritefields = list(set(allsigwritefields))
+
             # The length of all signal specification fields must match nsig
-            for f in writefields:
-                if f in sigfieldspecs:
-                    if len(getattr(self, f)) != self.nsig:
-                        sys.exit('The length of field: '+f+' does not match field nsig.')
+            # even if some of its elements are None. 
+            for f in allsigwritefields:
+                if len(getattr(self, f)) != self.nsig:
+                    sys.exit('The length of field: '+f+' does not match field nsig.')
 
             # Each filename must correspond to only one fmt, and only one byte offset (if defined). 
             datfmts = {}
-            datoffsets = {}
-            for ch in range(0, self.nsig):
+            for ch in range(self.nsig):
                 if self.filename[ch] not in datfmts:
                     datfmts[self.filename[ch]] = self.fmt[ch]
                 else:
                     if datfmts[self.filename[ch]] != self.fmt[ch]:
                         sys.exit('Each filename (dat file) specified must have the same fmt')
-                
-                if self.byteoffset != None:
-                    if self.byteoffset[ch] not in datoffsets:
-                        print('self.byteoffset[ch]:', self.byteoffset[ch])
-                        print('datoffsets: ', datoffsets)
-                        datoffsets[self.byteoffset[ch]] = self.byteoffset[ch]
+            
+            datoffsets = {}
+            if self.byteoffset is not None:
+                # At least one byte offset value exists
+                for ch in range(self.nsig):
+                    if self.byteoffset[ch] is None:
+                        continue
+                    if self.filename[ch] not in datoffsets:
+                        datoffsets[self.filename[ch]] = self.byteoffset[ch]
                     else:
                         if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
                             sys.exit('Each filename (dat file) specified must have the same byte offset')
 
 
     # Write a header file using the specified fields
-    def wrheaderfile(self, writefields):
+    def wrheaderfile(self, recwritefields, sigwritefields):
 
         headerlines=[]
 
@@ -160,28 +213,27 @@ class HeadersMixin(BaseHeadersMixin):
         # Traverse the ordered dictionary
         for field in recfieldspecs:
             # If the field is being used, add it with its delimiter
-            if field in writefields:
+            if field in recwritefields:
                 recordline = recordline + recfieldspecs[field].delimiter + str(getattr(self, field))
         headerlines.append(recordline)
 
-        # Create signal specification lines (if any)
+        # Create signal specification lines (if any) one channel at a time
         if self.nsig>0:
             signallines = self.nsig*['']
-            # Traverse the ordered dictionary
-            for field in sigfieldspecs:
-                # If the field is being used, add each of its elements with the delimiter to the appropriate line 
-                if field in writefields:
-                    for ch in range(0, self.nsig):
+            for ch in range(self.nsig):
+                # Traverse the ordered dictionary
+                for field in sigfieldspecs:
+                    # If the field is being used, add each of its elements with the delimiter to the appropriate line 
+                    if field in sigwritefields[ch]:
                         signallines[ch]=signallines[ch] + sigfieldspecs[field].delimiter + str(getattr(self, field)[ch])
-                # The 'baseline' field needs to be closed with ')'
-                if field== 'baseline':
-                    for ch in range(0, self.nsig):
+                    # The 'baseline' field needs to be closed with ')'
+                    if field== 'baseline':
                         signallines[ch]=signallines[ch] +')'
 
             headerlines = headerlines + signallines
 
         # Create comment lines (if any)
-        if 'comments' in writefields:
+        if 'comments' in recwritefields:
             commentlines = ['# '+comment for comment in self.comments]
             headerlines = headerlines + commentlines
 
@@ -193,12 +245,29 @@ class HeadersMixin(BaseHeadersMixin):
 # To be inherited by WFDBmultirecord from records.py.
 class MultiHeadersMixin(BaseHeadersMixin):
     
+    # Write a wfdb header file. The signals or segments fields are not used. 
+    def wrheader(self):
+
+        # Get all the fields used to write the header
+        writefields = self.getwritefields()
+
+        # Check the validity of individual fields used to write the header 
+        for f in writefields:
+            self.checkfield(f)
+        
+        # Check the cohesion of fields used to write the header
+        self.checkfieldcohesion()
+        
+        # Write the header file using the specified fields
+        self.wrheaderfile(writefields)
+
+
     # Get the list of fields used to write the multi-segment header. 
     # Returns the default required fields, the user defined fields, and their dependencies.
     def getwritefields(self):
 
         # Record specification fields
-        writefields=self.getwritesubset(OrderedDict(reversed(list(recfieldspecs.items()))))
+        writefields=self.getwritesubset('record')
 
         # Segment specification fields are all mandatory
         writefields = writefields + ['segname', 'seglen']
@@ -221,7 +290,7 @@ class MultiHeadersMixin(BaseHeadersMixin):
             
 
     # Check the cohesion of fields used to write the header
-    def checkfieldcohesion(self, writefields):
+    def checkfieldcohesion(self):
 
         # The length of segname and seglen must match nseg
         for f in ['segname', 'seglen']:
