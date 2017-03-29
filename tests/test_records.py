@@ -18,8 +18,6 @@ class test_rdsamp():
         del(fields['comments'][0])
 
         # Test file writing
-
-
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
 
