@@ -252,9 +252,9 @@ class SignalsMixin(object):
 def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels):
 
     # Avoid changing outer variables
-    byteoffset = byteoffset.copy()
-    sampsperframe = sampsperframe.copy()
-    skew = skew.copy()
+    byteoffset = byteoffset[:]
+    sampsperframe = sampsperframe[:]
+    skew = skew[:]
 
     # Set defaults for empty fields
     for i in range(0, nsig):
