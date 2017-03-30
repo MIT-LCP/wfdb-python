@@ -37,12 +37,12 @@ class test_rdsamp():
         del(record.comments[0])
 
         # Test file writing
-        #record.wrsamp()
-        #recordwrite = wfdb.rdsamp('100')
+        record.wrsamp()
+        recordwrite = wfdb.rdsamp('100')
 
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)
-        #assert record.__eq__(recordwrite)
+        assert record.__eq__(recordwrite)
 
     # Test 3 - Format 16/Entire signal/Digital
     # Target file created with: rdsamp -r sampledata/test01_00s | cut -f 2- >
@@ -55,8 +55,15 @@ class test_rdsamp():
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('test01_00s', physical=False, pbdir = 'macecgdb')
 
+        # Test file writing
+        record2 = wfdb.rdsamp('sampledata/test01_00s', physical=False)
+        record2.signame = ['ECG1', 'ECG2', 'ECG3', 'ECG4']
+        record2.wrsamp()
+        recordwrite = wfdb.rdsamp('test01_00s', physical=False)
+
         assert np.array_equal(sig, targetsig)
-        assert record.__eq__(record)
+        assert record.__eq__(pbrecord)
+        assert record2.__eq__(recordwrite)
 
     # Test 4 - Format 16 with byte offset/Selected Duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sampledata/a103l -f 50 -t 160 -s 2 0
@@ -85,8 +92,14 @@ class test_rdsamp():
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('a103l', pbdir = 'challenge/2015/training',
                              sampfrom=20000, channels=[0, 1], physical=False)
+
+        # Test file writing
+        record.wrsamp()
+        recordwrite = wfdb.rdsamp('a103l')
+
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)
+        assert record.__eq__(recordwrite)
 
     # Test 6 - Format 80/Selected Duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sampledata/3000003_0003 -f 1 -t 8 -s

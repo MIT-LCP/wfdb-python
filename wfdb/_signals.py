@@ -14,7 +14,6 @@ class SignalsMixin(object):
     
         if not self.nsig:
             return
-
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
@@ -22,10 +21,8 @@ class SignalsMixin(object):
 
         # Check the validity of the d_signals field
         self.checkfield('d_signals')
-
         # Check the cohesion of the d_signals field against the other fields used to write the header
         self.checksignalcohesion(writefields)
-        
         # Write each of the specified dat files
         self.wrdatfiles()
 
@@ -232,15 +229,18 @@ class SignalsMixin(object):
         # the channels to be written to each file. 
         filenames, datchannels = orderedsetlist(self.filename)
 
-        # Get the fmt corresponding to each dat file
+        # Get the fmt and byte offset corresponding to each dat file
         datfmts={}
+        datoffsets={}
         for fn in filenames:
             datfmts[fn] = self.fmt[datchannels[fn][0]]
+            datoffsets[fn] = self.byteoffset[datchannels[fn][0]]
 
         # Write the dat files 
+        # Create a copy to prevent overwrite
+        dsig = self.d_signals.copy()
         for fn in filenames:
-            wrdatfile(fn, datfmts[fn], 
-                self.d_signals[:, datchannels[fn][0]:datchannels[fn][-1]+1])
+            wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
 
@@ -383,7 +383,6 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sa
                 np.bitwise_and(sigbytes[1::3], 0x0f)  # Even numbered samples
             if len(sig > 1):
                 # Odd numbered samples
-                print(len(sig[1::2]))
                 sig[1::2] = sigbytes[2::3] + 256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
             if floorsamp:  # Remove extra sample read
                 sig = sig[floorsamp:]
@@ -831,17 +830,17 @@ def wfdbfmtres(fmt):
         sys.exit('Invalid WFDB format.')
 
 # Write a dat file.
-def wrdatfile(filename, fmt, d_signals):
-    f=open(filename,'wb')
-    
-    # All bytes are written one at a time
-    # to avoid endianness issues.
-
+# All bytes are written one at a time
+# to avoid endianness issues.
+def wrdatfile(filename, fmt, d_signals, byteoffset):
+    f=open(filename,'wb')  
     nsig = d_signals.shape[1]
 
     if fmt == '80':
         # convert to 8 bit offset binary form
         d_signals = d_signals + 128
+        # Concatenate into 1D
+        d_signals = d_signals.reshape(-1)
         # Convert to unsigned 8 bit dtype to write
         bwrite = d_signals.astype('uint8')
 
@@ -897,7 +896,6 @@ def wrdatfile(filename, fmt, d_signals):
         bwrite = bwrite.reshape((1,-1))[0]
         # Convert to unsigned 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
-
     elif fmt == '24':
         # convert to 24 bit two's complement 
         d_signals[d_signals<0] = d_signals[d_signals<0] + 16777216
@@ -933,11 +931,16 @@ def wrdatfile(filename, fmt, d_signals):
         bwrite = bwrite.astype('uint8')
     else:
         sys.exit('This library currently only supports the following formats: 80, 16, 24, 32')
+        
+    # Byte offset in the file
+    if byteoffset is not None and byteoffset>0:
+        print('Writing file '+filename+' with '+str(byteoffset)+' empty leading bytes')
+        bwrite = np.append(np.zeros(byteoffset, dtype = 'uint8'), bwrite)
+
     # Write the file
     bwrite.tofile(f)
 
     f.close()
-
 
 # Returns the unique elements in a list in the order that they appear. 
 # Also returns the indices of the original list that correspond to each output element. 

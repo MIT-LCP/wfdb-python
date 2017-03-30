@@ -114,14 +114,15 @@ class BaseRecord(object):
             f = self.skew[ch]
             if f < 0:
                 sys.exit('skew values must be non-negative integers')
-            if f > 0:
-                sys.exit('Sorry, I have not implemented skew into wrsamp yet')
+            # Writing a signal with skew shouldn't require anything different
+            #if f > 0:
+            #    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'byteoffset':
             f = self.byteoffset[ch]
             if f < 0:
                 sys.exit('byteoffset values must be non-negative integers')
-            if f > 0:
-                sys.exit('Sorry, I have not implemented skew into wrsamp yet')
+            #if f > 0:
+            #    sys.exit('Sorry, I have not implemented byte offset into wrsamp yet')
         elif field == 'adcgain':
             f = self.adcgain[ch]
             if f <= 0:
@@ -357,7 +358,6 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
         # Perform field validity and cohesion checks, and write the header file.
         self.wrheader()
-
         if self.nsig>0:
             # Perform signal validity and cohesion checks, and write the associated dat files.
             self.wrdats()
@@ -368,8 +368,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         # Rearrange signal specification fields
         for field in _headers.sigfieldspecs:
             item = getattr(self, field)
-            if item != self.nsig*[None]:
-                setattr(self, field, [item[c] for c in channels]) 
+            setattr(self, field, [item[c] for c in channels]) 
 
         # Checksum and initvalue to be updated if present
         # unless the whole signal length was input
@@ -716,7 +715,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             record.p_signals = record.dac()
             # Clear memory
             record.d_signals = None
-
     # A multi segment record
 
     # We can make another rdsamp function (called rdsamp_segment) to call
@@ -822,7 +820,7 @@ def rdheader(recordname, pbdir = None):
     # Set the comments field
     record.comments = []
     for line in commentlines:
-        record.comments.append(line.strip('\s#'))
+        record.comments.append(line.strip(' \t#'))
 
     return record
 
