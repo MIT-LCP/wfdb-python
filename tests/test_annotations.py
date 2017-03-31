@@ -8,7 +8,7 @@ class test_rdann():
     # Target file created with: rdann -r sampledata/100 -a atr > anntarget1
     def test_1(self):
 
-        # Read data from WFDB python package
+        # Read data using WFDB python package
         annotation = wfdb.rdann('sampledata/100', 'atr')
 
         
@@ -52,7 +52,16 @@ class test_rdann():
                 np.array_equal(annotation.num, Tnum), 
                 annotation.aux == Taux]
 
+        # Test file streaming
+        pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb')
+
+        # Test file writing
+        annotation.wrsamp()
+        annotationwrite = wfdb.rdann('100', 'atr')
+
         assert (comp == [True] * 6)
+        assert annotation.__eq__(pbannotation)
+        assert annotation.__eq__(annotationwrite)
 
     # Test 2 - Annotation file 12726.anI with many aux strings.
     # Target file created with: rdann -r sampledata/100 -a atr > anntarget2
@@ -93,5 +102,13 @@ class test_rdann():
                 np.array_equal(annotation.chan, Tchan), 
                 np.array_equal(annotation.num, Tnum), 
                 annotation.aux == Taux]
+        # Test file streaming
+        pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp')
+
+        # Test file writing
+        annotation.wrsamp()
+        annotationwrite = wfdb.rdann('12726', 'anI')
 
         assert (comp == [True] * 6)
+        assert annotation.__eq__(pbannotation)
+        assert annotation.__eq__(annotationwrite)

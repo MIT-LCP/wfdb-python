@@ -88,7 +88,7 @@ class BaseRecord(object):
         elif field == 'basetime':
             _ = parsetimestring(self.basetime)
         elif field == 'basedate':
-            _ = parsetimestring(self.basedate)
+            _ = parsedatestring(self.basedate)
         
         # Signal specification fields. Lists of elements. 
         elif field == 'filename':
@@ -114,15 +114,10 @@ class BaseRecord(object):
             f = self.skew[ch]
             if f < 0:
                 sys.exit('skew values must be non-negative integers')
-            # Writing a signal with skew shouldn't require anything different
-            #if f > 0:
-            #    sys.exit('Sorry, I have not implemented skew into wrsamp yet')
         elif field == 'byteoffset':
             f = self.byteoffset[ch]
             if f < 0:
                 sys.exit('byteoffset values must be non-negative integers')
-            #if f > 0:
-            #    sys.exit('Sorry, I have not implemented byte offset into wrsamp yet')
         elif field == 'adcgain':
             f = self.adcgain[ch]
             if f <= 0:
@@ -1027,7 +1022,7 @@ def orderednoconseclist(fulllist):
 
 # *This downloading files gateway function relies on the Record/MultiRecord objects.
 # It is placed here rather than in downloads.py in order to avoid circular imports
-
+# These download function only targets databases with WFDB records (EDF and MIT format). If the database doesn't have a 'RECORDS" file, 
 
 # Download WFDB files from a physiobank database
 def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False): 

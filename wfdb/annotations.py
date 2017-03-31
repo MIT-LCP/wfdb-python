@@ -86,7 +86,7 @@ class Annotation():
     # Return indices of anntype field which are not encoded, and thus need
     # to be moved to the aux field.
     def checkfields(self):
-        # Enforce mandatory write fields
+        # Enforce the presence of mandatory write fields
         for field in ['recordname', 'annotator', 'annsamp', 'anntype']:
             if getattr(self, field) is None:
                 print('The ', field, ' field is mandatory for writing annotation files')
@@ -127,9 +127,9 @@ class Annotation():
         else:
             fielditem = getattr(self, field)
 
-            # Ensure the field item is a list.
-            if type(fielditem) != list:
-                print('The ', field, ' field must be a list')
+            # Ensure the field item is a list or array.
+            if type(fielditem) not in [list, np.ndarray]:
+                print('The ', field, ' field must be a list or numpy array')
                 sys.exit()          
 
             # Check the data types of the elements
@@ -164,20 +164,20 @@ class Annotation():
                 if set(self.anntype) - set(annsyms.values()) != set():
                     print("The 'anntype' field contains items not encoded in the WFDB annotation library.")
                     print('To see the valid annotation codes call: showanncodes()')
-                    print('To transfer non-encoded anntype items into the aux field call: self.type2aux')
+                    print('To transfer non-encoded anntype items into the aux field call: self.type2aux()')
                     sys.exit()
-            elif field == 'num':
-                # signed character
-                if min(self.num) < 0 or max(self.num) >255:
-                    sys.exit("The 'num' field must only contain non-negative integers up to 255")
             elif field == 'subtype':
                 # signed character
                 if min(self.subtype) < 0 or max(self.subtype) >127:
                     sys.exit("The 'subtype' field must only contain non-negative integers up to 127")
             elif field == 'chan':
                 # unsigned character
-                if min(self.chan) < 0 or max(self.chan) >127:
-                    sys.exit("The 'chan' field must only contain non-negative integers up to 127")
+                if min(self.chan) < 0 or max(self.chan) >255:
+                    sys.exit("The 'chan' field must only contain non-negative integers up to 255")
+            elif field == 'num':
+                # signed character
+                if min(self.num) < 0 or max(self.num) >127:
+                    sys.exit("The 'num' field must only contain non-negative integers up to 127")
             #elif field == 'aux': # No further conditions for aux field.
                 
 
@@ -769,7 +769,7 @@ anncodes = {
 
 # Mapping annotation symbols to the annotation codes
 # For printing/user guidance
-symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code/Meaning': list(anncodes.values())})
+symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code Meaning': list(anncodes.values())})
 symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
 annfields = ['recordname', 'annotator', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']

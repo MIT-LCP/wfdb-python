@@ -129,8 +129,13 @@ class test_rdsamp():
         # Compare data streaming from physiobank
         pbrecord= wfdb.rdsamp('s0010_re', physical=False, pbdir = 'ptbdb/patient001')
 
+        # Test file writing
+        record.wrsamp()
+        recordwrite = wfdb.rdsamp('s0010_re', physical=False)
+
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)
+        assert record.__eq__(recordwrite)
 
     # Test 8 - Multi-dat/Selected Duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sampledata/s0010_re -f 5 -t 38 -P -s
@@ -164,8 +169,13 @@ class test_rdsamp():
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('03700181', physical=False, pbdir = 'mimicdb/037')
 
+        # Test file writing. Multiple Samples per frame. To do...
+        #record.wrsamp()
+        #recordwrite = wfdb.rdsamp('03700181', physical=False)
+
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)
+        #assert record.__eq__(recordwrite)
 
     # Test 10 - Format 12 multi-samples per frame and skew/Selected Duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sampledata/03700181 -f 8 -t 128 -s 0
