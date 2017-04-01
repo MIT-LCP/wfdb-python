@@ -156,7 +156,7 @@ Example Usage:
     import wfdb
     sig, fields = wfdb.rdsamp('100')
     annsamp=wfdb.rdann('100', 'atr')[0]
-    wfdb.plotwfdb(sig, fields, annsamp, 'mitdb record 100'): 
+    wfdb.plotwfdb(sig, fields, annsamp, title='mitdb record 100'): 
      
 
 Input Arguments:
