@@ -12,22 +12,22 @@ class Annotation():
     """
     The class representing WFDB annotations. 
 
-    Annotation objects can be created as with any other class, or by reading a WFDB annotation
+    Annotation objects can be created using the constructor, or by reading a WFDB annotation
     file with 'rdann'. 
 
     The attributes of the Annotation object give information about the annotation as specified
-    by https://www.physionet.org/physiotools/wag/ <INSERT>:
+    by https://www.physionet.org/physiotools/wag/annot-5.htm:
     - annsamp: The annotation location in samples relative to the beginning of the record.
     - anntype: The annotation type according the the standard WFDB codes.
     - subtype: The marked class/category of the annotation.
     - chan: The signal channel associated with the annotations.
     - num: The labelled annotation number. 
     - aux: The auxiliary information string for the annotation.
-    - fs: The sampling frequency of the record.
+    - fs: The sampling frequency of the record if contained in the annotation file.
 
     Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
-    annotations that are not one of the codes go in the 'aux' field rather than the 'anntype'
-    field.
+    annotations that are not one of these codes should go in the 'aux' field rather than the 
+    'anntype' field.
     """
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, chan = None, num = None, aux = None, fs = None):
         self.recordname = recordname
@@ -350,28 +350,59 @@ def field2bytes(field, value):
 
 
 # Function for writing annotations
-def wrann(recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None):
-        # Create Annotation object
-        annotation = Annotation(recordname, annotator, annsamp, anntype, num, subtype, chan, aux, fs)
-        # Perform field checks and write the annotation file
-        annotation.wrann()
+def wrann(recordname, annotator, annsamp, anntype, subtype = None, chan = None, num = None, aux = None, fs = None):
+    """Write a WFDB annotation file.
+
+    Usage:
+    wrann(recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None)
+
+    Input arguments:
+    - recordname (required): The string name of the WFDB record to be written (without any file extensions). 
+    - annsamp (required): The annotation location in samples relative to the beginning of the record.
+    - anntype (required): The annotation type according the the standard WFDB codes.
+    - subtype (default=None): The marked class/category of the annotation.
+    - chan (default=None): The signal channel associated with the annotations.
+    - num (default=None): The labelled annotation number. 
+    - aux (default=None): The auxiliary information string for the annotation.
+    - fs (default=None): The numerical sampling frequency of the record to be written to the file.
+
+    Note: This gateway function was written to enable a simple way to write WFDB annotation files without
+          needing to explicity create an Annotation object beforehand. 
+          
+          You may also create an Annotation object, manually set its attributes, and call its wrann() instance method. 
+
+    Example Usage: 
+    import wfdb
+    # Read an annotation as an Annotation object
+    annotation = wfdb.rdann('b001', 'atr', pbdir='cebsdb')
+    # Call the gateway wrann function, manually inserting fields as function input parameters
+    wfdb.wrann('b001', 'cpy', annotation.annsamp, annotation.anntype)
+    """    
+
+    # Create Annotation object
+    annotation = Annotation(recordname, annotator, annsamp, anntype, num, subtype, chan, aux, fs)
+    # Perform field checks and write the annotation file
+    annotation.wrann()
 
 # Display the annotation symbols and the codes they represent
 def showanncodes():
     """
-    Display the annotation symbols and the codes they represent
+    Display the annotation symbols and the codes they represent according to the 
+    standard WFDB library 10.5.24
     
-    Usage: showanncodes()
+    Usage: 
+    showanncodes()
     """
     display(symcodes)
 
 ## ------------- Reading Annotations ------------- ##
 
 def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
-    """ Read a WFDB annotation file recordname.annotator and return the fields as lists or arrays
+    """ Read a WFDB annotation file recordname.annotator and return an
+    Annotation object.
 
     Usage: 
-    annotation = rdann(recordname, annot, sampfrom=0, sampto=None)
+    annotation = rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None)
 
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
@@ -380,9 +411,12 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
       file '100.atr', annotator='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
     - sampto (default=None): The maximum sample number for annotations to be returned.
+    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
+       directory from which to find the required annotation file.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 
     Output argument:
-    - annotation: The annotation object. Call help(wfdb.Annotation) for the attribute
+    - annotation: The Annotation object. Call help(wfdb.Annotation) for the attribute
       descriptions.
 
     Note: For every annotation sample, the annotation file explictly stores the 'annsamp' 

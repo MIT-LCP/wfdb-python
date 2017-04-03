@@ -126,7 +126,10 @@ def getannotators(dburl, annotators):
         # Check for an ANNOTATORS file
         r = requests.get(os.path.join(dburl, 'ANNOTATORS'))
         if r.status_code == 404:
-            sys.exit('The database '+dburl+' has no annotation files to download')
+            if annotators == 'all':
+                return
+            else:
+                sys.exit('The database '+dburl+' has no annotation files to download')
         # Make sure the input annotators are present in the database
         annlist = r.content.decode('ascii').splitlines()
         annlist = [a.split('\t')[0] for a in annlist]

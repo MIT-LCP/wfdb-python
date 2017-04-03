@@ -8,7 +8,24 @@ from . import annotations
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
 def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig = False): 
+    """ Subplot and label each channel of a WFDB Record.
+    Optionally, subplot annotation locations over selected channels.
     
+    Usage: plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig=False)
+    
+    Input arguments:
+    - record (required): A wfdb Record object. The p_signals attribute will be plotted.
+    - title (optional): A string containing the title of the graph.
+    - annotation (optional): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
+    - annch (default=[0]): A list of channels on which to plot the annotation samples.
+    - timeunits (default='samples'): String specifying the x axis unit. 
+      Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+    - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
+    
+    Output argument:
+    - figure: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.
+    """
+
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)
     t, tann = checkplotitems(record, title, annotation, annch, timeunits)
@@ -131,7 +148,23 @@ def checkplotitems(record, title, annotation, annch, timeunits):
 
 # Plot the sample locations of a WFDB annotation on a new figure
 def plotann(annotation, title = None, timeunits = 'samples', returnfig = False): 
+    """ Plot sample locations of an Annotation object.
     
+    Usage: plotann(annotation, title = None, timeunits = 'samples', returnfig = False)
+    
+    Input arguments:
+    - annotation (required): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
+    - title (optional): A string containing the title of the graph.
+    - timeunits (default='samples'): String specifying the x axis unit. 
+      Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+    - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
+    
+    Output argument:
+    - figure: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.
+
+    Note: The plotrec function is useful for plotting annotations on top of signal waveforms.
+    """
+
     # Check the validity of items used to make the plot
     # Get the x axis annotation values to plot
     plotvals = checkannplotitems(annotation, title, timeunits)

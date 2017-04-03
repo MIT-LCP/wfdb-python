@@ -668,10 +668,11 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None, m2s = True):  
-    """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
+    """Read a WFDB record and return the signal and record descriptors as attributes in a 
+    Record or MultiRecord object.
 
     Usage:
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, m2s=True)
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None, m2s=True)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions). 
@@ -681,7 +682,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     - sampto (default=None): The sample number at which to stop reading for each channel.
     - channels (default=all): Indices specifying the channel to be returned.
     - physical (default=True): Flag that specifies whether to return signals in physical units in 
-      the p_signals field (true), or digital units in the d_signals field (false).
+      the p_signals field (True), or digital units in the d_signals field (False).
     - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
        directory from which to find the required record files.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
@@ -691,7 +692,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
     Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
-      Notable atributes of the object include 
 
     Note: If a signal range or channel selection is specified when calling this function, the
           the resulting attributes of the returned object will be set to reflect the section
@@ -798,6 +798,26 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
 # Read a WFDB header. Return a Record object or MultiRecord object
 def rdheader(recordname, pbdir = None):  
+    """Read a WFDB header file and return the record descriptors as attributes in a Record object
+
+    Usage:
+    record = rdheader(recordname, pbdir = None)
+
+    Input arguments:
+    - recordname (required): The name of the WFDB record to be read (without any file extensions). 
+      If the argument contains any path delimiter characters, the argument will be interpreted as 
+      PATH/baserecord and the header file will be searched for in the local path.
+    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
+       directory from which to find the required record files.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
+
+    Output argument:
+    - record: The wfdb Record or MultiRecord object representing the contents of the header read.
+
+    Example Usage: 
+    import wfdb
+    ecgrecord = wfdb.rdheader('sampledata/test01_00s', sampfrom=800, channels = [1,3])
+    """
 
     # Read the header file. Separate comment and non-comment lines
     headerlines, commentlines = _headers.getheaderlines(recordname, pbdir)
@@ -952,6 +972,7 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
     # Write a local WFDB record (manually inserting fields)
     wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'], signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
     """
+    
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
         sys.exit('Must only give one of the inputs: p_signals or d_signals')
@@ -1087,15 +1108,43 @@ def orderednoconseclist(fulllist):
 
 
 
-# *This downloading files gateway function relies on the Record/MultiRecord objects.
-# It is placed here rather than in downloads.py in order to avoid circular imports
-# These download function only targets databases with WFDB records (EDF and MIT format). If the database doesn't have a 'RECORDS" file, 
+# *These downloading files gateway function rely on the Record/MultiRecord objects.
+# They are placed here rather than in downloads.py in order to avoid circular imports
+
 
 # Download WFDB files from a physiobank database
+# This function only targets databases with WFDB records (EDF and MIT format). 
+# If the database doesn't have a 'RECORDS" file, it will fail.
 def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False): 
-    """
-    records can be list or 'all'
-    annotators can be None, list, or 'all'
+    """Download WFDB record (and optionally annotation) files from a Physiobank database. The database
+    must contain a 'RECORDS' file in its base directory which lists its WFDB records.
+
+    Usage:
+    dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
+
+    Input arguments:
+    - pbdb (required): The Physiobank database directory to download.
+      eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
+    - dlbasedir (required): The full local directory path in which to download the files.
+    - records (default='all'): Specifier of the WFDB records to download. Is either a list of strings
+      which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
+      eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
+    - annotators (default='all'): Specifier of the WFDB annotation file types to download along with
+      the record files. Is either None to skip downloading any annotations, 'all' to download all
+      annotation types as specified by the ANNOTATORS file, or a list of strings which each specify an 
+      annotation extension.
+      eg. annotators = ['anI'] for database https://physionet.org/physiobank/database/prcp/
+    - keepsubdirs (default=True): Whether to keep the relative subdirectories of downloaded files
+      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
+    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
+      existing files with the same name and relative subdirectory will be checked. If the local file is
+      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
+      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be 
+      partially downloaded and the remaining bytes will be downloaded and appended.
+
+    Example Usage: 
+    import wfdb
+    wfdb.dldatabase('ahadb', os.getcwd())
     """
 
     # Full url physiobank database
@@ -1171,6 +1220,33 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
 
 # Download specific files from a physiobank database
 def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+    """Download specified files from a Physiobank database. 
+
+    Usage:
+    dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+
+    Input arguments:
+    - pbdb (required): The Physiobank database directory to download.
+      eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
+    - dlbasedir (required): The full local directory path in which to download the files.
+    - records (default='all'): Specifier of the WFDB records to download. Is either a list of strings
+      which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
+      eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
+    - files (required): A list of strings specifying the file names to download relative to the database 
+      base directory
+    - keepsubdirs (default=True): Whether to keep the relative subdirectories of downloaded files
+      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
+    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
+      existing files with the same name and relative subdirectory will be checked. If the local file is
+      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
+      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be 
+      partially downloaded and the remaining bytes will be downloaded and appended.
+
+    Example Usage: 
+    import wfdb
+    wfdb.dldatabasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
+    """
+
     # Full url physiobank database
     dburl = os.path.join(downloads.dbindexurl, pbdb)
     # Check if the database is valid
