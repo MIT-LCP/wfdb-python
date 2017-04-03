@@ -56,7 +56,7 @@ class test_rdann():
         pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb')
 
         # Test file writing
-        annotation.wrsamp()
+        annotation.wrann()
         annotationwrite = wfdb.rdann('100', 'atr')
 
         assert (comp == [True] * 6)
@@ -106,7 +106,7 @@ class test_rdann():
         pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp')
 
         # Test file writing
-        annotation.wrsamp()
+        annotation.wrann()
         annotationwrite = wfdb.rdann('12726', 'anI')
 
         assert (comp == [True] * 6)

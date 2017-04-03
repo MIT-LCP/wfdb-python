@@ -61,19 +61,24 @@ class SignalsMixin(object):
                     print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
                     sys.exit()
 
-    # Use properties of the p_signals field to set other fields: nsig, siglen
-    # If do_dac == 1, the d_signals field will be used to perform digital to analogue conversion
-    # to set the p_signals field, before p_signals is used. 
-    # Regarding dac conversion:
-    #     1. fmt, gain, and baseline must all be set in order to perform dac.
-    #        Unlike with adc, there is no way to infer these fields.
-    #     2. Using the fmt, gain and baseline fields, dac is performed, and p_signals is set.  
-    def set_p_features(self, do_dac = 0):
+    
+    def set_p_features(self, do_dac = False):
+        """
+        Use properties of the p_signals field to set other fields: nsig, siglen
+        If do_dac == True, the d_signals field will be used to perform digital to analogue conversion
+        to set the p_signals field, before p_signals is used. 
+        Regarding dac conversion:
+          - fmt, gain, and baseline must all be set in order to perform dac.
+            Unlike with adc, there is no way to infer these fields.
+          - Using the fmt, gain and baseline fields, dac is performed, and p_signals is set.  
+        """
         if do_dac == 1:
             self.checkfield('d_signals')
             self.checkfield('fmt')
-            self.checkfield('adcgain')
-            self.checkfield('baseline')
+            for ch in range(len(self.adcgain)):
+                    self.checkfield('adcgain', ch)
+            for ch in range(len(self.baseline)):
+                    self.checkfield('baseline', ch)
 
             # All required fields are present and valid. Perform DAC
             self.p_signals = self.dac()
@@ -84,37 +89,56 @@ class SignalsMixin(object):
         self.nsig = self.p_signals.shape[1]
 
 
-    # Use properties of the d_signals field to set other fields: nsig, siglen, fmt*, initvalue*, checksum* 
-    # If do_adc == 1, the p_signals field will first be used to perform analogue to digital conversion
-    # to set the d_signals field, before d_signals is used.
-    # Regarding adc conversion:
-    #     1. If fmt is unset, the most appropriate fmt for the signals will 
-    #        be calculated and the field will be set. If singlefmt ==1, only one 
-    #        fmt will be returned for all channels. If fmt is already set, it will be kept.
-    #     2. If either gain or baseline are missing, optimal gains and baselines 
-    #        will be calculated and the fields will be set. If they are already set, they will be kept.
-    #     3. Using the fmt, gain and baseline fields, adc is performed, and d_signals is set.   
-    def set_d_features(self, do_adc = 0, singlefmt = 1):
+    def set_d_features(self, do_adc = False, singlefmt = 1):
+        """
+        Use properties of the d_signals field to set other fields: nsig, siglen, initvalue, checksum, *(fmt, adcgain, baseline) 
+        If do_adc == True, the p_signals field will first be used to perform analogue to digital conversion to set the d_signals 
+        field, before d_signals is used. 
 
+        Regarding adc conversion:
+          - If fmt is unset:
+            - Neither adcgain nor baseline may be set. If the digital values used to store the signal are known, then the file
+              format should also be known. 
+            - The most appropriate fmt for the signals will be calculated and the 'fmt' attribute will be set. Given that neither
+              gain nor baseline are allowed to be set, optimal values for those fields will then be calculated and set as well.
+
+          - If fmt is set:
+            - If both adcgain and baseline are unset, optimal values for those fields will be calculated the fields will be set. 
+            - If both adcgain and baseline are set, the function will continue.
+            - If only one of adcgain and baseline are set, this function will throw an error. It makes no sense to know only
+              one of those fields.
+
+          ADC will occur after valid values for fmt, adcgain, and baseline are present, using all three fields.  
+        """
         # adc is performed.
-        if do_adc == 1:
+        if do_adc == True:
             self.checkfield('p_signals')
 
-            # If there is no fmt, choose appropriate fmts. 
+            # If there is no fmt set
             if self.fmt is None:
+                # Make sure that neither adcgain nor baseline are set
+                if self.adcgain is not None or self.baseline is not None:
+                    sys.exit('If fmt is not set, gain and baseline may not be set either.')
+                # Choose appropriate fmts based on estimated signal resolutions. 
                 res = estres(self.p_signals)
                 self.fmt = wfdbfmt(res, singlefmt)
-            self.checkfield('fmt')
-
-            # If either gain or baseline are missing, compute and set optimal values
-            if self.adcgain is None or self.baseline is None:
-                #print('Calculating optimal gain and baseline values to convert physical signal')
-                self.adcgain, self.baseline = self.calculate_adcparams()
-            self.checkfield('adcgain')
-            self.checkfield('baseline')
+            # If there is a fmt set
+            else:
+                for ch in range(len(self.fmt)):
+                    self.checkfield('fmt', ch)
+                # Neither field set
+                if self.adcgain is None and self.baseline is None:
+                    # Calculate and set optimal gain and baseline values to convert physical signals
+                    self.adcgain, self.baseline = self.calculate_adcparams()
+                # Exactly one field set
+                elif (self.adcgain is None) ^ (self.baseline is None):
+                    sys.exit('If fmt is set, gain and baseline should both be set or not set.')
+            for ch in range(len(self.adcgain)):
+                    self.checkfield('adcgain', ch)
+            for ch in range(len(self.baseline)):
+                    self.checkfield('baseline', ch)
 
             # All required fields are present and valid. Perform ADC
-            #print('Performing ADC')
             self.d_signals = self.adc()
 
         # Use d_signals to set fields

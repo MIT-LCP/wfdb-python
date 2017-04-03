@@ -24,6 +24,9 @@ class BaseHeadersMixin(object):
 
     # Helper function for getwritefields
     # specfields is the set of specification fields
+    # For record specs, it returns a list of all fields needed.
+    # For signal specs, it returns a dictionary of all fields needed,
+    # with keys = field and value = list of 1 or 0 indicating channel for the field
     def getwritesubset(self, specfields):
         
         # record specification fields
@@ -50,7 +53,10 @@ class BaseHeadersMixin(object):
             
         # signal spec field. Need to return a potentially different list for each channel. 
         elif specfields == 'signal':
+            # List of lists for each channel
             writefields=[]
+            
+            allwritefields=[]
             fieldspecs = OrderedDict(reversed(list(sigfieldspecs.items())))
 
             for ch in range(self.nsig):
@@ -71,6 +77,21 @@ class BaseHeadersMixin(object):
                             rf=fieldspecs[rf].dependency
 
                 writefields.append(writefieldsch)
+
+            # Convert the list of lists to a single dictionary.
+            # keys = field and value = list of 1 or 0 indicating channel for the field
+            dictwritefields = {}
+
+            # For fields present in any channel:     
+            for f in set([i for wsub in writefields for i in wsub]):
+                dictwritefields[f] = [0]*self.nsig
+
+                for ch in range(self.nsig):
+                    if f in writefields[ch]:
+                        dictwritefields[f][ch] = 1
+
+            writefields = dictwritefields
+
         
         return writefields
         
@@ -91,13 +112,12 @@ class HeadersMixin(BaseHeadersMixin):
         for f in recwritefields:
             self.checkfield(f)
 
-        # Signal specification fields. Check by channel. 
-        for ch in range(self.nsig):
-            for f in sigwritefields[ch]:
-                self.checkfield(f, ch)
+        # Signal specification fields.
+        for f in sigwritefields:
+            self.checkfield(f, sigwritefields[f])
 
         # Check the cohesion of fields used to write the header
-        self.checkfieldcohesion(recwritefields, sigwritefields)
+        self.checkfieldcohesion(recwritefields, list(sigwritefields))
         
         # Write the header file using the specified fields
         self.wrheaderfile(recwritefields, sigwritefields)
@@ -168,20 +188,14 @@ class HeadersMixin(BaseHeadersMixin):
 
         # If there are no signal specification fields, there is nothing to check. 
         if self.nsig>0:
-            # Get the set of signal spec fields used in any of the channels
-            allsigwritefields = []
-            for s in sigwritefields:
-                allsigwritefields += s
-
-            allsigwritefields = list(set(allsigwritefields))
 
             # The length of all signal specification fields must match nsig
             # even if some of its elements are None. 
-            for f in allsigwritefields:
+            for f in sigwritefields:
                 if len(getattr(self, f)) != self.nsig:
-                    sys.exit('The length of field: '+f+' does not match field nsig.')
+                    sys.exit('The length of field: '+f+' must match field nsig.')
 
-            # Each filename must correspond to only one fmt, and only one byte offset (if defined). 
+            # Each filename must correspond to only one fmt, (and only one byte offset if defined). 
             datfmts = {}
             for ch in range(self.nsig):
                 if self.filename[ch] not in datfmts:

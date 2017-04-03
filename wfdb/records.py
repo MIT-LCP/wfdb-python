@@ -38,13 +38,15 @@ class BaseRecord(object):
 
 
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
-    def checkfield(self, field, ch=None): 
+    # ch is only used for signal specification fields, specifying the channels to check. Other channels 
+    # can be None. 
+    def checkfield(self, field, channels=None): 
         # Check that the field is present
         if getattr(self, field) is None:
             sys.exit("Missing field required: "+field)
            
-        # Check the type of the field (and of its elements if it is to be a list) 
-        self.checkfieldtype(field, ch)
+        # Check the type of the field (and of its elements if it should be a list) 
+        self.checkfieldtype(field, channels)
         
         # Individual specific field checks:
         if field == 'd_signals':
@@ -54,7 +56,7 @@ class BaseRecord(object):
             # Check dtype
             if self.d_signals.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
                 sys.exit('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
-        elif field =='p_signals':        
+        elif field =='p_signals':
             # Check shape
             if self.p_signals.ndim != 2:
                 sys.exit("signals must be a 2d numpy array")
@@ -90,64 +92,63 @@ class BaseRecord(object):
         elif field == 'basedate':
             _ = parsedatestring(self.basedate)
         
-        # Signal specification fields. Lists of elements. 
-        elif field == 'filename':
-            # Check for filename characters
-            f = self.filename[ch]
-            acceptedstring = re.match('[\w]+\.?[\w]+',f)
-            if not acceptedstring or acceptedstring.string != f:
-                sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
-            # Check that dat files are grouped together 
-            if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
-                sys.exit('filename error: all entries for signals that share a given file must be consecutive')
-        elif field == 'fmt':
-            f = self.fmt[ch]
-            if f not in _signals.datformats:
-                sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
-        elif field == 'sampsperframe':
-            f = self.sampsperframe[ch]
-            if f < 1:
-                sys.exit('sampsperframe values must be positive integers')
-            if f > 1:
-                sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
-        elif field == 'skew':
-            f = self.skew[ch]
-            if f < 0:
-                sys.exit('skew values must be non-negative integers')
-        elif field == 'byteoffset':
-            f = self.byteoffset[ch]
-            if f < 0:
-                sys.exit('byteoffset values must be non-negative integers')
-        elif field == 'adcgain':
-            f = self.adcgain[ch]
-            if f <= 0:
-                sys.exit('adcgain values must be positive numbers')
-        elif field == 'baseline':
-            # Currently original WFDB library only has 4 bytes for baseline. 
-            f = self.baseline[ch]
-            if f < -2147483648 or f> 2147483648:
-                sys.exit('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
-        elif field == 'units':
-            f = self.units[ch]
-            if re.search('\s', f):
-                sys.exit('units strings may not contain whitespaces.')
-        elif field == 'adcres':
-            f = self.adcres[ch]
-            if f < 0:
-                sys.exit('adcres values must be non-negative integers')
-        # elif field == 'adczero': nothing to check here
-        # elif field == 'initvalue': nothing to check here
-        # elif field == 'checksum': nothing to check here
-        elif field == 'blocksize':
-            f = self.blocksize[ch]
-            if f < 0:
-                sys.exit('blocksize values must be non-negative integers')
-        elif field == 'signame':
-            f = self.signame[ch]
-            if re.search('\s', f):
-                sys.exit('signame strings may not contain whitespaces.')
-            if len(set(self.signame)) != len(self.signame):
-                sys.exit('signame strings must be unique.')
+        # Signal specification fields. Lists of elements to check.
+        elif field in _headers.sigfieldspecs:
+
+            for ch in range(0, len(channels)):
+                f = getattr(self, field)[ch]
+                
+                # The channel element is allowed to be None
+                if not channels[ch]:
+                    if f is None:
+                        continue
+
+                if field == 'filename':
+                    # Check for filename characters
+                    acceptedstring = re.match('[\w]+\.?[\w]+',f)
+                    if not acceptedstring or acceptedstring.string != f:
+                        sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
+                    # Check that dat files are grouped together 
+                    if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
+                        sys.exit('filename error: all entries for signals that share a given file must be consecutive')
+                elif field == 'fmt':
+                    if f not in _signals.datformats:
+                        sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
+                elif field == 'sampsperframe':
+                    if f < 1:
+                        sys.exit('sampsperframe values must be positive integers')
+                    if f > 1:
+                        sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
+                elif field == 'skew':
+                    if f < 0:
+                        sys.exit('skew values must be non-negative integers')
+                elif field == 'byteoffset':
+                    if f < 0:
+                        sys.exit('byteoffset values must be non-negative integers')
+                elif field == 'adcgain':
+                    if f <= 0:
+                        sys.exit('adcgain values must be positive numbers')
+                elif field == 'baseline':
+                    # Currently original WFDB library only has 4 bytes for baseline. 
+                    if f < -2147483648 or f> 2147483648:
+                        sys.exit('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
+                elif field == 'units':
+                    if re.search('\s', f):
+                        sys.exit('units strings may not contain whitespaces.')
+                elif field == 'adcres':
+                    if f < 0:
+                        sys.exit('adcres values must be non-negative integers')
+                # elif field == 'adczero': nothing to check here
+                # elif field == 'initvalue': nothing to check here
+                # elif field == 'checksum': nothing to check here
+                elif field == 'blocksize':
+                    if f < 0:
+                        sys.exit('blocksize values must be non-negative integers')
+                elif field == 'signame':
+                    if re.search('\s', f):
+                        sys.exit('signame strings may not contain whitespaces.')
+                    if len(set(self.signame)) != len(self.signame):
+                        sys.exit('signame strings must be unique.')
 
         # Segment specification fields
         elif field == 'segname':
@@ -187,38 +188,31 @@ class BaseRecord(object):
     # Some fields are lists. This must be checked, along with their elements.
     def checkfieldtype(self, field, ch=None):
 
-        # Record specification field. Nonlist.  
+        item = getattr(self, field)
+
+        # Record specification field. Nonlist.   
         if field in _headers.recfieldspecs:
-            checkitemtype(getattr(self, field), field, _headers.recfieldspecs[field].allowedtypes)
-        # Signal specification field. List. Elements can be None but not the ones being checked from here. 
+            checkitemtype(item, field, _headers.recfieldspecs[field].allowedtypes)
+
+        # Signal specification field. List.  
         elif field in _headers.sigfieldspecs:
-            self.checkfieldlist(field)
-            checkitemtype(getattr(self, field)[ch], field, _headers.sigfieldspecs[field].allowedtypes, True, False)
-        # Segment specification field. List. elements cannot be None
+            checkitemtype(item, field, _headers.sigfieldspecs[field].allowedtypes, ch)
+        
+        # Segment specification field. List. All elements cannot be None
         elif field in _headers.segfieldspecs: 
-            self.checkfieldlist(field)
-            for i in getattr(self, field):
-                checkitemtype(i, field, [str], True, False)
+            checkitemtype(item, field, _headers.segfieldspecs[field].allowedtypes, 'all')
+        
         # Comments field. List. Elements cannot be None
         elif field == 'comments': 
-            self.checkfieldlist(field)
-            for i in getattr(self, field):
-                checkitemtype(i, field, [str], True, False)
+            checkitemtype(item, field, [str], 'all')
+        
         # Signals field.
         elif field in ['p_signals','d_signals']:
-            checkitemtype(getattr(self, field), field, [np.ndarray])
-        # Segments field. List. Elements can be None.
-        elif field == 'segments': 
-            self.checkfieldlist(field)
-            for i in getattr(self, field):
-                checkitemtype(i, field, [Record], True, True)
+            checkitemtype(item, field, [np.ndarray])
 
-    # Raise an error if the field item is not a list
-    # Helper to checkfieldtype
-    def checkfieldlist(self, field):
-        if type(getattr(self, field))!=list:
-            sys.exit("Field: '"+field+"' must be a list")
-
+        # Segments field. List. Elements may be None.
+        elif field == 'segments':
+            checkitemtype(item, field, [Record], 'none')
 
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels):
@@ -241,7 +235,7 @@ class BaseRecord(object):
         if sampto>self.siglen:
             sys.exit('sampto must be shorter than the signal length')
         if sampto<=sampfrom:
-            sys.exit('sampto must be greater than sampfrom')   
+            sys.exit('sampto must be greater than sampfrom')
 
         # Channel Ranges
         for c in channels:
@@ -250,23 +244,44 @@ class BaseRecord(object):
             if c>self.nsig-1:
                 sys.exit('Input channels must all be lower than the total number of channels')
 
-# Check the item type. Vary the print message and whether the item can be None.
+
+# Check the item type. Vary the print message regarding whether the item can be None.
 # Helper to checkfieldtype
-# The logic is actually kloogy. This might come back to bite me.
-def checkitemtype(item, field, allowedtypes, listsubset = False, allownone = False):
-    if listsubset:
-        # The element is allowed to be None
-        if allownone:
-            allowedtypes.append(type(None))
-            if type(item) not in allowedtypes:
-                print("Each element in field: '"+field+"' must be either None, or one of the following types:")
-                display(allowedtypes)
-                sys.exit()
-        else:
-            if type(item) not in allowedtypes:
-                print("Each present element in field: '"+field+"' must be one of the following types:")
-                display(allowedtypes)
-                sys.exit()
+# channels is a list of binary indicating whether the field's channel must be present (1) or may be None (0)
+# and is not just for signal specification fields
+def checkitemtype(item, field, allowedtypes, channels=None):
+    # Checking the list
+    if channels is not None:
+
+        # First make sure the item is a list
+        if type(item) != list:
+            sys.exit("Field: '"+field+"' must be a list")
+
+        # Expand to make sure all channels must have present field
+        if channels = 'all':
+            channels = [1]*len(item)
+
+        # Expand to allow any channel to be None
+        if channels = 'none':
+            channels = [0]*len(item)
+
+        for ch in range(0, len(channels)):
+            
+            mustexist=channels[ch]
+            # The field must exist for the channel
+            if mustexist:
+                if type(item) not in allowedtypes:
+                    print("Channel "+ch+" of field: '"+field+"' must be one of the following types:")
+                    display(allowedtypes)
+                    sys.exit()
+            # The field may be None for the channel
+            else:
+                if type(item) not in allowedtypes:
+                    print("Channel "+ch+" of field: '"+field+"' must be a 'None', or one of the following types:")
+                    display(allowedtypes)
+                    sys.exit()
+
+    # Single scalar to check
     else:
         if type(item) not in allowedtypes:
             print("Field: '"+field+"' must be one of the following types:")
@@ -274,11 +289,12 @@ def checkitemtype(item, field, allowedtypes, listsubset = False, allownone = Fal
             sys.exit()
 
 
+
 class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     """
-    The class representing WFDB headers, and single segment WFDB records. 
+    The class representing WFDB headers, and single segment WFDB records.
 
-    Record objects can be created as with any other class, or by reading a WFDB header
+    Record objects can be created using the constructor, by reading a WFDB header
     with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
     or 'srdsamp'. 
 
@@ -387,7 +403,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     """
     The class representing multi-segment WFDB records. 
 
-    MultiRecord objects can be created as with any other class, or by reading a multi-segment
+    MultiRecord objects can be created using the constructor, or by reading a multi-segment
     WFDB record using 'rdsamp' with the 'm2s' (multi to single) input parameter set to False.
 
     The attributes of the MultiRecord object give information about the entire record as specified
@@ -403,6 +419,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     eg. record1 = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s = False)
         record1 = record1.multi_to_single()
     """
+
     # Constructor
     def __init__(self, segments = None, layout = None,
                  recordname=None, nsig=None, fs=None, 
@@ -656,10 +673,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     - sampfrom (default=0): The starting sample number to read for each channel.
     - sampto (default=None): The sample number at which to stop reading for each channel.
     - channels (default=all): Indices specifying the channel to be returned.
-    - physical (default=True): Flag that specifies whether to return signals in physical (true) or 
-      digital (False) units.
-    - pbdir (default=None): The PhysioBank database directory from which to find the required files.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb = 'mitdb'.
+    - physical (default=True): Flag that specifies whether to return signals in physical units in 
+      the p_signals field (true), or digital units in the d_signals field (false).
+    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
+       directory from which to find the required record files.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
     - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to 
       directly return a wfdb MultiRecord object (false), or to convert it into and return a wfdb 
       Record object (True).
@@ -681,7 +699,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
     Example Usage: 
     import wfdb
-    record1 = wfdb.rdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
+    ecgrecord = wfdb.rdsamp('sampledata/test01_00s', sampfrom=800, channels = [1,3])
     """
 
     dirname, baserecordname = os.path.split(recordname)
@@ -834,10 +852,10 @@ def wanted_siginds(wanted_signames, record_signames):
 # A simple version of rdsamp for ease of use
 # Return the physical signals and a few essential fields
 def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
-    """Read a WFDB record and return the signal and record descriptors as attributes in a wfdb.Record object
+    """Read a WFDB record and return the physical signal and a few important descriptor fields
 
     Usage:
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, m2s=True)
+    signals, fields = srdsamp(recordname, sampfrom=0, sampto=None, channels=None, pbdir=None)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions). 
@@ -861,15 +879,16 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
           For example, if channels = [0, 1, 2] is specified when reading a 12 channel record, the 
           'nsig' attribute will be 3, not 12. 
 
-    Note: The 'rdsamp' function exists as a simple alternative to 'rdsamp' for the most common
-          purpose of extracting the physical signals and a few important descriptor fields. 
-          'srdsamp' returns two arguments: the physical signals array, and a dictionary of a 
-          few select fields, a subset of the original wfdb Record attributes. 
+    Note: The 'rdsamp' function is the base function upon which this one is built. It returns
+          all attributes present, along with the signals, as attributes in a wfdb.Record object. 
+          The function, along with the returned data type, have more options than 'srdsamp' for 
+          users who wish to more directly manipulate WFDB files.
 
     Example Usage: 
     import wfdb
-    sig, fields = wfdb.srdsamp('macecgdb/test01_00s', sampfrom=800, channels = [1,3])
+    sig, fields = wfdb.srdsamp('sampledata/test01_00s', sampfrom=800, channels = [1,3])
     """
+
     record = rdsamp(recordname, sampfrom, sampto, channels, True, pbdir, True)
 
     signals = record.p_signals
@@ -885,25 +904,66 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
 # Function for writing single segment records
 def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,  
     fmt = None, gain = None, baseline = None, comments= None):
-    """
-    
+    """Write a single segment WFDB record, creating a WFDB header file and any associated dat files.
+
+    Usage:
+    wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None,  
+           fmt = None, gain = None, baseline = None, comments = None)
+
+    Input arguments:
+    - recordname (required): The string name of the WFDB record to be written (without any file extensions). 
+    - fs (required): The numerical sampling frequency of the record.
+    - units (required): A list of strings giving the units of each signal channel.
+    - signames (required): A list of strings giving the signal name of each signal channel.
+    - p_signals (default=None): An MxN 2d numpy array, where M is the signal length. Gives the physical signal
+      values intended to be written. Either p_signals or d_signals must be set, but not both. If p_signals 
+      is set, this method will use it to perform analogue-digital conversion, writing the resultant digital
+      values to the dat file(s). If fmt is set, gain and baseline must be set or unset together. If fmt is
+      unset, gain and baseline must both be unset. 
+    - d_signals (default=None): An MxN 2d numpy array, where M is the signal length. Gives the digital signal
+      values intended to be directly written to the dat file(s). The dtype must be an integer type. Either 
+      p_signals or d_signals must be set, but not both. In addition, if d_signals is set, fmt, gain and baseline 
+      must also all be set.
+    - fmt (default=None): A list of strings giving the WFDB format of each file used to store each channel. 
+      Accepted formats are: "80","212","16","24", and "32". There are other WFDB formats but this library
+      will not write (though it will read) those file types.
+    - gain (default=None): A list of integers specifying the DAC/ADC gain.
+    - baseline (default=None): A list of integers specifying the digital baseline.
+    - comments (default-None): A list of string comments to be written to the header file.
+
+    Note: This gateway function was written to enable a simple way to write WFDB record files using
+          the most frequently used parameters. Therefore not all WFDB fields can be set via this function. 
+          
+          For more control over attributes, create a wfdb.Record object, manually set its attributes, and 
+          call its wrsamp() instance method. If you choose this more advanced method, see also the setdefaults(),
+          set_d_features, and set_p_features instance methods to help populate attributes. 
+
+    Example Usage (with the most common scenario of input parameters): 
+    import wfdb
+    # Read part of a record from Physiobank
+    sig, fields = wfdb.srdsamp('a103l', sampfrom = 50000, channels = [0,1], pbdir = 'challenge/2015/training')
+    # Write a local WFDB record (manually inserting fields)
+    wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'], signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
     """
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
         sys.exit('Must only give one of the inputs: p_signals or d_signals')
-    if d_signals is not none:
+    if d_signals is not None:
         if fmt is None or gain is None or baseline is None:
             sys.exit("When using d_signals, must also specify 'fmt', 'gain', and 'baseline' fields.")
-
-    # Create the Record object
-    record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, signame = signames, comments = comments)
     
     # Depending on whether d_signals or p_signals was used, set other required features.
-    if p_signals is not none:
+    if p_signals is not None:
+        # Create the Record object
+        record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units, 
+                    signame = signames, adcgain = gain, baseline = baseline, comments = comments)
         # Compute optimal fields to store the digital signal, carry out adc, and set the fields.
         record.set_d_features(do_adc = 1)
     else:
-        # No need to do adc. Just use d_signals to set the fields
+        # Create the Record object
+        record = Record(recordname = recordname, d_signals = d_signals, fs = fs, fmt = fmt, units = units, 
+                    signame = signames, adcgain = gain, baseline = baseline, comments = comments)
+        # Use d_signals to set the fields directly
         record.set_d_features()
 
     # Set default values of any missing field dependencies
