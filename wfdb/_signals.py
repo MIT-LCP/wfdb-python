@@ -74,11 +74,9 @@ class SignalsMixin(object):
         """
         if do_dac == 1:
             self.checkfield('d_signals')
-            self.checkfield('fmt')
-            for ch in range(len(self.adcgain)):
-                    self.checkfield('adcgain', ch)
-            for ch in range(len(self.baseline)):
-                    self.checkfield('baseline', ch)
+            self.checkfield('fmt', 'all')
+            self.checkfield('adcgain', 'all')
+            self.checkfield('baseline', 'all')
 
             # All required fields are present and valid. Perform DAC
             self.p_signals = self.dac()
@@ -124,8 +122,8 @@ class SignalsMixin(object):
                 self.fmt = wfdbfmt(res, singlefmt)
             # If there is a fmt set
             else:
-                for ch in range(len(self.fmt)):
-                    self.checkfield('fmt', ch)
+                
+                self.checkfield('fmt', 'all')
                 # Neither field set
                 if self.adcgain is None and self.baseline is None:
                     # Calculate and set optimal gain and baseline values to convert physical signals
@@ -133,10 +131,9 @@ class SignalsMixin(object):
                 # Exactly one field set
                 elif (self.adcgain is None) ^ (self.baseline is None):
                     sys.exit('If fmt is set, gain and baseline should both be set or not set.')
-            for ch in range(len(self.adcgain)):
-                    self.checkfield('adcgain', ch)
-            for ch in range(len(self.baseline)):
-                    self.checkfield('baseline', ch)
+            
+            self.checkfield('adcgain', 'all')
+            self.checkfield('baseline', 'all')
 
             # All required fields are present and valid. Perform ADC
             self.d_signals = self.adc()
@@ -258,7 +255,12 @@ class SignalsMixin(object):
         datoffsets={}
         for fn in filenames:
             datfmts[fn] = self.fmt[datchannels[fn][0]]
-            datoffsets[fn] = self.byteoffset[datchannels[fn][0]]
+
+            # byteoffset may not be present
+            if self.byteoffset is None:
+                datoffsets[fn] = 0
+            else:
+                datoffsets[fn] = self.byteoffset[datchannels[fn][0]]
 
         # Write the dat files 
         # Create a copy to prevent overwrite

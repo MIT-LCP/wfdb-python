@@ -11,17 +11,6 @@ from . import downloads
 class BaseHeadersMixin(object):
 
 
-    # Set defaults for fields needed to write the header if they have defaults.
-    # This is NOT called by rdheader. It is only called by wrsamp for convenience.
-    # It is also not called by wrhea (this may be changed in the future) since 
-    # it is supposed to be an explicit function. 
-
-    # Not responsible for initializing the 
-    # attribute. That is done by the constructor. 
-    def setdefaults(self):
-        for field in self.getwritefields():
-            self.setdefault(field)
-
     # Helper function for getwritefields
     # specfields is the set of specification fields
     # For record specs, it returns a list of all fields needed.
@@ -99,6 +88,21 @@ class BaseHeadersMixin(object):
 # Class with single-segment header methods
 # To be inherited by WFDBrecord from records.py.
 class HeadersMixin(BaseHeadersMixin):
+    
+    # Set defaults for fields needed to write the header if they have defaults.
+    # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
+    # It is also not called by wrhea (this may be changed in the future) since 
+    # it is supposed to be an explicit function. 
+
+    # Not responsible for initializing the 
+    # attribute. That is done by the constructor. 
+    def setdefaults(self):
+
+        rfields, sfields = self.getwritefields()
+        for f in rfields:
+            self.setdefault(f)
+        for f in sfields:
+            self.setdefault(f)
 
     # Write a wfdb header file. The signals or segments fields are not used. 
     def wrheader(self):
@@ -152,36 +156,32 @@ class HeadersMixin(BaseHeadersMixin):
         
         # Record specification fields
         if field in recfieldspecs:
-            # Return if nothing to set. Only set a field if it is empty
-            if sigfieldspecs[field].write_def is None or getattr(self, field) is not None:
+            # Return if no default to set, or if the field is already present.
+            if recfieldspecs[field].write_def is None or getattr(self, field) is not None:
                 return
             setattr(self, field, recfieldspecs[field].write_def)
+        
         # Signal specification fields
+        # Setting entire list default, not filling in blanks in lists.
         elif field in sigfieldspecs:
             
-            if field == 'filename':
+            # Specific dynamic case
+            if field == 'filename' and self.filename is None:
                 self.filename = self.nsig*[self.recordname+'.dat']
-            
-
-            # Return if nothing to set. Only set a field if it is empty
-            if sigfieldspecs[field].write_def is None or getattr(self, field) is not None:
                 return
-
-            # Check/set one channel at a time
+            
             item = getattr(self, field)
 
-            for ch in range(0, self.nsig):
+            # Return if no default to set, or if the field is already present.
+            if sigfieldspecs[field].write_def is None or item is not None:
+                return
 
-                # Only set if it is empty
-                if item[ch] is not None:
-                    continue
+            # Set more specific defaults if possible
+            if field == 'adcres' and self.fmt is not None:
+                self.adcres=_signals.wfdbfmtres(self.fmt)
+                return
                 
-                item[ch] = sigfieldspecs[field].write_def
-                # Set more specific defaults if possible
-                if field == 'adcres' and self.fmt is not None:
-                    self.adcres=_signals.wfdbfmtres(self.fmt)
-                
-            setattr(self, field, item)
+            setattr(self, field, [sigfieldspecs[field].write_def]*self.nsig)
 
     # Check the cohesion of fields used to write the header
     def checkfieldcohesion(self, recwritefields, sigwritefields):
@@ -238,7 +238,7 @@ class HeadersMixin(BaseHeadersMixin):
                 # Traverse the ordered dictionary
                 for field in sigfieldspecs:
                     # If the field is being used, add each of its elements with the delimiter to the appropriate line 
-                    if field in sigwritefields[ch]:
+                    if field in sigwritefields and sigwritefields[field][ch]:
                         signallines[ch]=signallines[ch] + sigfieldspecs[field].delimiter + str(getattr(self, field)[ch])
                     # The 'baseline' field needs to be closed with ')'
                     if field== 'baseline':
@@ -259,6 +259,17 @@ class HeadersMixin(BaseHeadersMixin):
 # To be inherited by WFDBmultirecord from records.py.
 class MultiHeadersMixin(BaseHeadersMixin):
     
+    # Set defaults for fields needed to write the header if they have defaults.
+    # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
+    # It is also not called by wrhea (this may be changed in the future) since 
+    # it is supposed to be an explicit function. 
+
+    # Not responsible for initializing the 
+    # attribute. That is done by the constructor. 
+    def setdefaults(self):
+        for field in self.getwritefields():
+            self.setdefault(field)
+
     # Write a wfdb header file. The signals or segments fields are not used. 
     def wrheader(self):
 
@@ -294,13 +305,13 @@ class MultiHeadersMixin(BaseHeadersMixin):
     # Set a field to its default value if there is a default.
     def setdefault(self, field):
         
-        # Check whether the field is empty before trying to set.
-        if getattr(self, field) != None:
-            return
-
         # Record specification fields
-        if field == 'basetime':
-            self.basetime = '00:00:00'
+        if field in recfieldspecs:
+            # Return if no default to set, or if the field is already present.
+            if recfieldspecs[field].write_def is None or getattr(self, field) is not None:
+                return
+            setattr(self, field, recfieldspecs[field].write_def)
+
             
 
     # Check the cohesion of fields used to write the header

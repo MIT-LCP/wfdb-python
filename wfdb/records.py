@@ -40,6 +40,7 @@ class BaseRecord(object):
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields. 
     # ch is only used for signal specification fields, specifying the channels to check. Other channels 
     # can be None. 
+    # Be aware that this function is not just called from wrheader. 
     def checkfield(self, field, channels=None): 
         # Check that the field is present
         if getattr(self, field) is None:
@@ -47,7 +48,11 @@ class BaseRecord(object):
            
         # Check the type of the field (and of its elements if it should be a list) 
         self.checkfieldtype(field, channels)
-        
+
+        # Expand to make sure all channels must have present field
+        if channels == 'all':
+            channels = [1]*len(getattr(self, field))
+
         # Individual specific field checks:
         if field == 'd_signals':
             # Check shape
@@ -250,6 +255,7 @@ class BaseRecord(object):
 # channels is a list of binary indicating whether the field's channel must be present (1) or may be None (0)
 # and is not just for signal specification fields
 def checkitemtype(item, field, allowedtypes, channels=None):
+
     # Checking the list
     if channels is not None:
 
@@ -258,11 +264,11 @@ def checkitemtype(item, field, allowedtypes, channels=None):
             sys.exit("Field: '"+field+"' must be a list")
 
         # Expand to make sure all channels must have present field
-        if channels = 'all':
+        if channels == 'all':
             channels = [1]*len(item)
 
         # Expand to allow any channel to be None
-        if channels = 'none':
+        if channels == 'none':
             channels = [0]*len(item)
 
         for ch in range(0, len(channels)):
@@ -270,14 +276,15 @@ def checkitemtype(item, field, allowedtypes, channels=None):
             mustexist=channels[ch]
             # The field must exist for the channel
             if mustexist:
-                if type(item) not in allowedtypes:
-                    print("Channel "+ch+" of field: '"+field+"' must be one of the following types:")
+                if type(item[ch]) not in allowedtypes:
+                    print(allowedtypes)
+                    print("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:")
                     display(allowedtypes)
                     sys.exit()
             # The field may be None for the channel
             else:
-                if type(item) not in allowedtypes:
-                    print("Channel "+ch+" of field: '"+field+"' must be a 'None', or one of the following types:")
+                if type(item[ch]) not in allowedtypes:
+                    print("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:")
                     display(allowedtypes)
                     sys.exit()
 
