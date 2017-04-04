@@ -406,6 +406,7 @@ Example Usage:
     wfdb.dldatabase('ahadb', os.getcwd())
      
 Input arguments:
+
 - ``pbdb`` (required): The Physiobank database directory to download. eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
 - ``dlbasedir`` (required): The full local directory path in which to download the files.
 - ``records`` (default='all'): Specifier of the WFDB records to download. Is either a list of strings which each specify a record, or 'all' to download all records listed in the database's RECORDS file. eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
@@ -428,6 +429,7 @@ Example Usage:
     wfdb.dldatabasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
      
 Input arguments:
+
 - ``pbdb`` (required): The Physiobank database directory to download. eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
 - ``dlbasedir`` (required): The full local directory path in which to download the files.
 - ``files`` (required): A list of strings specifying the file names to download relative to the database base directory
