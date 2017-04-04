@@ -87,9 +87,10 @@ def streamannotation(filename, pbdir):
     return annbytes
 
 
-# Return a list of all the physiobank databases available
+
 def getdblist():
-    """
+    """Return a list of all the physiobank databases available.
+    
     Usage:
     dblist = getdblist()
     """

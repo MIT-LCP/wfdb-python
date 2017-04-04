@@ -310,6 +310,22 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
     In addition, the d_signals and p_signals attributes store the digital and physical
     signals of WFDB records with at least one channel.
+    
+    Contructor function:
+    def __init__(self, p_signals=None, d_signals=None,
+                 recordname=None, nsig=None, 
+                 fs=None, counterfreq=None, basecounter=None, 
+                 siglen=None, basetime=None, basedate=None, 
+                 filename=None, fmt=None, sampsperframe=None, 
+                 skew=None, byteoffset=None, adcgain=None, 
+                 baseline=None, units=None, adcres=None, 
+                 adczero=None, initvalue=None, checksum=None, 
+                 blocksize=None, signame=None, comments=None)
+
+    Example Usage: 
+    import wfdb
+    record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
+
     """
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
@@ -423,8 +439,20 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     instance method can be called on MultiRecord objects to return a single segment representation 
     of the record as a Record object. The resulting Record object will have its 'p_signals' field set.
     
-    eg. record1 = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s = False)
-        record1 = record1.multi_to_single()
+    Contructor function:
+    def __init__(self, segments = None, layout = None,
+                 recordname=None, nsig=None, fs=None, 
+                 counterfreq=None, basecounter=None, 
+                 siglen=None, basetime=None, basedate=None, 
+                 segname = None, seglen = None, comments=None)
+
+    Example Usage: 
+    import wfdb
+    recordM = wfdb.MultiRecord(recordname='rm', fs=50, nsig=8, siglen=9999, 
+                               segname=['rm_1', '~', rm_2'], seglen=[800, 200, 900])
+
+    recordL = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s = False)
+    recordL = recordL.multi_to_single()
     """
 
     # Constructor
@@ -972,7 +1000,7 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
     # Write a local WFDB record (manually inserting fields)
     wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'], signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
     """
-    
+
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
         sys.exit('Must only give one of the inputs: p_signals or d_signals')
@@ -1229,9 +1257,6 @@ def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = Fals
     - pbdb (required): The Physiobank database directory to download.
       eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
     - dlbasedir (required): The full local directory path in which to download the files.
-    - records (default='all'): Specifier of the WFDB records to download. Is either a list of strings
-      which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
-      eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
     - files (required): A list of strings specifying the file names to download relative to the database 
       base directory
     - keepsubdirs (default=True): Whether to keep the relative subdirectories of downloaded files

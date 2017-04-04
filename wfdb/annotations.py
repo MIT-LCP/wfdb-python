@@ -25,11 +25,21 @@ class Annotation():
     - aux: The auxiliary information string for the annotation.
     - fs: The sampling frequency of the record if contained in the annotation file.
 
+    Constructor function:
+    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
+                 chan = None, num = None, aux = None, fs = None)
+
     Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
     annotations that are not one of these codes should go in the 'aux' field rather than the 
     'anntype' field.
+
+    Example usage:
+    import wfdb
+    ann1 = wfdb.Annotation(recordname='ann1', annotator='atr', annsamp=[10,20,400],
+                           anntype = ['N','N','['], aux=[None, None, 'Serious Vfib'])
     """
-    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, chan = None, num = None, aux = None, fs = None):
+    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
+                 chan = None, num = None, aux = None, fs = None):
         self.recordname = recordname
         self.annotator = annotator
 
@@ -358,18 +368,24 @@ def wrann(recordname, annotator, annsamp, anntype, subtype = None, chan = None, 
 
     Input arguments:
     - recordname (required): The string name of the WFDB record to be written (without any file extensions). 
-    - annsamp (required): The annotation location in samples relative to the beginning of the record.
-    - anntype (required): The annotation type according the the standard WFDB codes.
-    - subtype (default=None): The marked class/category of the annotation.
-    - chan (default=None): The signal channel associated with the annotations.
-    - num (default=None): The labelled annotation number. 
-    - aux (default=None): The auxiliary information string for the annotation.
+    - annotator (required): The string annotation file extension.
+    - annsamp (required): The annotation location in samples relative to the beginning of the record. List or numpy array.
+    - anntype (required): The annotation type according the the standard WFDB codes. List or numpy array.
+    - subtype (default=None): The marked class/category of the annotation. List or numpy array.
+    - chan (default=None): The signal channel associated with the annotations. List or numpy array.
+    - num (default=None): The labelled annotation number. List or numpy array.
+    - aux (default=None): The auxiliary information string for the annotation. List or numpy array.
     - fs (default=None): The numerical sampling frequency of the record to be written to the file.
 
     Note: This gateway function was written to enable a simple way to write WFDB annotation files without
           needing to explicity create an Annotation object beforehand. 
           
           You may also create an Annotation object, manually set its attributes, and call its wrann() instance method. 
+          
+    Note: Each annotation stored in a WFDB annotation file contains an annsamp and an anntype field. All other fields
+          may or may not be present. Therefore in order to save space, when writing additional features such
+          as 'aux' that are not present for every annotation, it is recommended to make the field a list, with empty 
+          indices set to None so that they are not written to the file.
 
     Example Usage: 
     import wfdb
@@ -426,7 +442,7 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
 
     Example usage:
     import wfdb
-    ann = wfdb.rdann('100', 'atr', sampto = 300000)
+    ann = wfdb.rdann('sampledata/100', 'atr', sampto = 300000)
     """
 
     if sampto and sampto <= sampfrom:
