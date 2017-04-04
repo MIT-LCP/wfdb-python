@@ -1,7 +1,6 @@
 import numpy as np
-from wfdb import rdann
 import re
-
+import wfdb
 
 class test_rdann():
 
@@ -9,12 +8,13 @@ class test_rdann():
     # Target file created with: rdann -r sampledata/100 -a atr > anntarget1
     def test_1(self):
 
-        # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = rdann(
-            'sampledata/100', 'atr')
+        # Read data using WFDB python package
+        annotation = wfdb.rdann('sampledata/100', 'atr')
+
+        
         # This is not the fault of the script. The annotation file specifies a
         # length 3
-        aux[0] = '(N'
+        annotation.aux[0] = '(N'
         # aux field with a null written after '(N' which the script correctly picks up. I am just
         # getting rid of the null in this unit test to compare with the regexp output below which has
         # no null to detect in the output text file of rdann.
@@ -45,23 +45,30 @@ class test_rdann():
         Tchan = Tchan.astype('int')
 
         # Compare
-        comp = [
-            np.array_equal(
-                annsamp, Tannsamp), np.array_equal(
-                anntype, Tanntype), np.array_equal(
-                subtype, Tsubtype), np.array_equal(
-                    chan, Tchan), np.array_equal(
-                        num, Tnum), aux == Taux]
+        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
+                np.array_equal(annotation.anntype, Tanntype), 
+                np.array_equal(annotation.subtype, Tsubtype), 
+                np.array_equal(annotation.chan, Tchan), 
+                np.array_equal(annotation.num, Tnum), 
+                annotation.aux == Taux]
+
+        # Test file streaming
+        pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb')
+
+        # Test file writing
+        annotation.wrann()
+        annotationwrite = wfdb.rdann('100', 'atr')
 
         assert (comp == [True] * 6)
+        assert annotation.__eq__(pbannotation)
+        assert annotation.__eq__(annotationwrite)
 
     # Test 2 - Annotation file 12726.anI with many aux strings.
     # Target file created with: rdann -r sampledata/100 -a atr > anntarget2
     def test_2(self):
 
         # Read data from WFDB python package
-        annsamp, anntype, subtype, chan, num, aux, annfs = rdann(
-            'sampledata/12726', 'anI')
+        annotation = wfdb.rdann('sampledata/12726', 'anI')
 
         # Target data from WFDB software package
         lines = tuple(open('tests/targetoutputdata/anntarget2', 'r'))
@@ -89,12 +96,19 @@ class test_rdann():
         Tchan = Tchan.astype('int')
 
         # Compare
-        comp = [
-            np.array_equal(
-                annsamp, Tannsamp), np.array_equal(
-                anntype, Tanntype), np.array_equal(
-                subtype, Tsubtype), np.array_equal(
-                    chan, Tchan), np.array_equal(
-                        num, Tnum), aux == Taux]
+        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
+                np.array_equal(annotation.anntype, Tanntype), 
+                np.array_equal(annotation.subtype, Tsubtype), 
+                np.array_equal(annotation.chan, Tchan), 
+                np.array_equal(annotation.num, Tnum), 
+                annotation.aux == Taux]
+        # Test file streaming
+        pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp')
+
+        # Test file writing
+        annotation.wrann()
+        annotationwrite = wfdb.rdann('12726', 'anI')
 
         assert (comp == [True] * 6)
+        assert annotation.__eq__(pbannotation)
+        assert annotation.__eq__(annotationwrite)
