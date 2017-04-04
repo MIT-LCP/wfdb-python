@@ -120,7 +120,7 @@ Constructor function:
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
                  chan = None, num = None, aux = None, fs = None)
 
-Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label annotations that are not one of these codes should go in the 'aux' field rather than the 'anntype' field.
+Call `showanncodes()` to see the list of standard annotation codes. Any text used to label annotations that are not one of these codes should go in the 'aux' field rather than the 'anntype' field.
 
 Example usage:
 ::
@@ -193,7 +193,7 @@ Output arguments:
 Writing Signals
 ~~~~~~~~~~~~~~~
 
-The Record class has a **wrsamp** instance method for writing wfdb record files. Create a valid Record object and call ``record.wrsamp()``. If you choose this more advanced method, see also the setdefaults(), set_d_features, and set_p_features instance methods to help populate attributes. In addition, there is also the following simpler module level **wrsamp** function.
+The Record class has a **wrsamp** instance method for writing wfdb record files. Create a valid Record object and call ``record.wrsamp()``. If you choose this more advanced method, see also the `setdefaults`, `set_d_features`, and `set_p_features` instance methods to help populate attributes. In addition, there is also the following simpler module level **wrsamp** function.
 
 
 **wrsamp** - Write a single segment WFDB record, creating a WFDB header file and any associated dat files.
@@ -336,7 +336,7 @@ Input Arguments:
 
 - ``record`` (required): A wfdb Record object. The p_signals attribute will be plotted.
 - ``title`` (default=None): A string containing the title of the graph.
-- ``annotation (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
+- ``annotation`` (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
 - ``annch`` (default=[0]): A list of channels on which to plot the annotation samples.
 - ``timeunits`` (default='samples'): String specifying the x axis unit. Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
 - ``returnfig`` (default=False): Specifies whether the figure is to be returned as an output argument
@@ -366,7 +366,7 @@ Input Arguments:
 
 - ``annotation`` (required): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
 - ``title`` (default=None): A string containing the title of the graph.
-- ``annotation (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
+- ``annotation`` (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
 - ``timeunits`` (default='samples'): String specifying the x axis unit. Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
 - ``returnfig`` (default=False): Specifies whether the figure is to be returned as an output argument
 
@@ -376,7 +376,7 @@ Output argument:
 Downloading Physiobank Content
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Download files from various Physiobank databases. The Physiobank index page lists all available databases is located at http://physionet.org/physiobank/database
+Download files from various Physiobank databases. The Physiobank index page located at http://physionet.org/physiobank/database lists all available databases.
 
 
 **getdblist** - Return a list of all the physiobank databases available.
@@ -408,9 +408,7 @@ Example Usage:
 Input arguments:
 - ``pbdb`` (required): The Physiobank database directory to download. eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
 - ``dlbasedir`` (required): The full local directory path in which to download the files.
-- ``records`` (default='all'): Specifier of the WFDB records to download. Is either a list of strings
-  which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
-  eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
+- ``records`` (default='all'): Specifier of the WFDB records to download. Is either a list of strings which each specify a record, or 'all' to download all records listed in the database's RECORDS file. eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
 - ``annotators`` (default='all'): Specifier of the WFDB annotation file types to download along with the record files. Is either None to skip downloading any annotations, 'all' to download all annotation types as specified by the ANNOTATORS file, or a list of strings which each specify an annotation extension. eg. annotators = ['anI'] for database https://physionet.org/physiobank/database/prcp/
 - ``keepsubdirs`` (default=True): Whether to keep the relative subdirectories of downloaded files as they are organized in Physiobank (True), or to download all files into the same base directory (False).
 - ``overwrite`` (default=False): If set to True, all files will be redownloaded regardless. If set to False, existing files with the same name and relative subdirectory will be checked. If the local file is the same size as the online file, the download is skipped. If the local file is larger, it will be deleted and the file will be redownloaded. If the local file is smaller, the file will be assumed to be partially downloaded and the remaining bytes will be downloaded and appended.

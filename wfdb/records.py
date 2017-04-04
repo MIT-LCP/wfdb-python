@@ -990,7 +990,7 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
           the most frequently used parameters. Therefore not all WFDB fields can be set via this function. 
           
           For more control over attributes, create a wfdb.Record object, manually set its attributes, and 
-          call its wrsamp() instance method. If you choose this more advanced method, see also the setdefaults(),
+          call its wrsamp() instance method. If you choose this more advanced method, see also the setdefaults,
           set_d_features, and set_p_features instance methods to help populate attributes. 
 
     Example Usage (with the most common scenario of input parameters): 
