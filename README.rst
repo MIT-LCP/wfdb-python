@@ -33,7 +33,7 @@ Objects
 As of version 1.0.0, wfdb records are stored in **Record** or **MultiRecord** objects, and annotations are stored in **Annotation** objects. To see all attributes of an object, call `object.__dict__`
 
 
-**record** - The class representing WFDB headers, and single segment WFDB records.
+**Record** - The class representing WFDB headers, and single segment WFDB records.
 
 Record objects can be created using the constructor, by reading a WFDB header
 with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
@@ -48,20 +48,21 @@ signals of WFDB records with at least one channel.
 Contructor function:
 ::
 
- def __init__(self, p_signals=None, d_signals=None,
-             recordname=None, nsig=None, 
-             fs=None, counterfreq=None, basecounter=None, 
-             siglen=None, basetime=None, basedate=None, 
-             filename=None, fmt=None, sampsperframe=None, 
-             skew=None, byteoffset=None, adcgain=None, 
-             baseline=None, units=None, adcres=None, 
-             adczero=None, initvalue=None, checksum=None, 
-             blocksize=None, signame=None, comments=None)
+    def __init__(self, p_signals=None, d_signals=None,
+                 recordname=None, nsig=None, 
+                 fs=None, counterfreq=None, basecounter=None, 
+                 siglen=None, basetime=None, basedate=None, 
+                 filename=None, fmt=None, sampsperframe=None, 
+                 skew=None, byteoffset=None, adcgain=None, 
+                 baseline=None, units=None, adcres=None, 
+                 adczero=None, initvalue=None, checksum=None, 
+                 blocksize=None, signame=None, comments=None)
 
 Example Usage: 
 ::
- import wfdb
- record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
+
+    import wfdb
+    record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
 
 
 **MultiRecord** - The class representing multi-segment WFDB records. 
@@ -81,6 +82,7 @@ of the record as a Record object. The resulting Record object will have its 'p_s
 
 Contructor function:
 :: 
+
     def __init__(self, segments = None, layout = None,
                  recordname=None, nsig=None, fs=None, 
                  counterfreq=None, basecounter=None, 
@@ -89,6 +91,7 @@ Contructor function:
     
 Example Usage: 
 ::
+
     import wfdb
     recordM = wfdb.MultiRecord(recordname='rm', fs=50, nsig=8, siglen=9999, segname=['rm_1', '~', rm_2'], seglen=[800, 200, 900])
 
@@ -103,23 +106,25 @@ file with 'rdann'.
 
 The attributes of the Annotation object give information about the annotation as specified
 by https://www.physionet.org/physiotools/wag/annot-5.htm:
-- annsamp: The annotation location in samples relative to the beginning of the record.
-- anntype: The annotation type according the the standard WFDB codes.
-- subtype: The marked class/category of the annotation.
-- chan: The signal channel associated with the annotations.
-- num: The labelled annotation number. 
-- aux: The auxiliary information string for the annotation.
-- fs: The sampling frequency of the record if contained in the annotation file.
+- ``annsamp``: The annotation location in samples relative to the beginning of the record.
+- ``anntype``: The annotation type according the the standard WFDB codes.
+- ``subtype``: The marked class/category of the annotation.
+- ``chan``: The signal channel associated with the annotations.
+- ``num``: The labelled annotation number. 
+- ``aux``: The auxiliary information string for the annotation.
+- ``fs``: The sampling frequency of the record if contained in the annotation file.
 
-    Constructor function:
+Constructor function:
+::
+
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
                  chan = None, num = None, aux = None, fs = None)
 
-    Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
-    annotations that are not one of these codes should go in the 'aux' field rather than the 
-    'anntype' field.
+Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label annotations that are not one of these codes should go in the 'aux' field rather than the 'anntype' field.
 
-    Example usage:
+Example usage:
+::
+
     import wfdb
     ann1 = wfdb.Annotation(recordname='ann1', annotator='atr', annsamp=[10,20,400],
                            anntype = ['N','N','['], aux=[None, None, 'Serious Vfib'])
@@ -131,11 +136,13 @@ Reading Signals
 **rdsamp** - Read a WFDB record and return the signal and record descriptors as attributes in a Record or MultiRecord object.
 
 ::
+
     record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None, m2s=True)
 
 Example Usage:
 
 ::
+
     import wfdb
     ecgrecord = wfdb.rdsamp('sampledata/test01_00s', sampfrom=800, channels = [1,3])
 
@@ -156,11 +163,13 @@ Output Arguments:
 **srdsamp** - A simplified wrapper function around rdsamp. Read a WFDB record and return the physical signal and a few important descriptor fields.
 
 ::
+
     signals, fields = srdsamp(recordname, sampfrom=0, sampto=None, channels=None, pbdir=None)
 
 Example Usage:
 
 ::
+
     import wfdb
     sig, fields = wfdb.srdsamp('sampledata/test01_00s', sampfrom=800, channels = [1,3])
 
@@ -190,6 +199,7 @@ The Record class has a **wrsamp** instance method for writing wfdb record files.
 **wrsamp** - Write a single segment WFDB record, creating a WFDB header file and any associated dat files.
 
 ::
+
     wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None, fmt = None, gain = None, baseline = None, comments = None)
 
 Example Usage:
@@ -229,10 +239,12 @@ Reading Annotations
 **rdann** - Read a WFDB annotation file ``recordname.annot`` and return an Annotation object.
 
 ::
+
     annotation = rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None)
 
 Example Usage:
 ::
+
     import wfdb
     ann = wfdb.rdann('sampledata/100', 'atr', sampto = 300000)
 
@@ -261,6 +273,7 @@ Output arguments:
 **showanncodes** -  Display the annotation symbols and the codes they represent according to the standard WFDB library 10.5.24
 
 ::
+
     showanncodes()
 
 Writing Annotations
@@ -273,11 +286,13 @@ The Annotation class has a **wrann** instance method for writing wfdb annotation
 **wrann** - Write a WFDB annotation file.
 
 ::
+
     wrann(recordname, annotator, annsamp, anntype, num = None, subtype = None, chan = None, aux = None, fs = None)
 
 Example Usage:
 
 ::
+
     import wfdb
     annotation = wfdb.rdann('b001', 'atr', pbdir='cebsdb')
     wfdb.wrann('b001', 'cpy', annotation.annsamp, annotation.anntype)
@@ -303,11 +318,13 @@ Plotting Data
 **plotrec** - Subplot and label each channel of a WFDB Record. Optionally, subplot annotation locations over selected channels.
 
 ::
+
     plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig=False)
 
 Example Usage:
 
 ::
+
     import wfdb
     record = wfdb.rdsamp('sampledata/100', sampto = 15000)
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
@@ -331,11 +348,13 @@ Output argument:
 **plotann** - Plot sample locations of an Annotation object.
 
 ::
+
     plotann(annotation, title = None, timeunits = 'samples', returnfig = False)
 
 Example Usage:
 
 ::
+
     import wfdb
     record = wfdb.rdsamp('sampledata/100', sampto = 15000)
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
@@ -363,22 +382,26 @@ Download files from various Physiobank databases. The Physiobank index page list
 **getdblist** - Return a list of all the physiobank databases available.
     
 ::
+
     dblist = wfdb.getdblist()
     
 Example Usage:
 
 ::
+
     import wfdb
     dblist = wfdb.getdblist()
 
 **dldatabase** - Download WFDB record (and optionally annotation) files from a Physiobank database. The database must contain a 'RECORDS' file in its base directory which lists its WFDB records.
 
 ::
+
     dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
 
 Example Usage:
 
 ::
+
     import wfdb
     wfdb.dldatabase('ahadb', os.getcwd())
      
@@ -396,11 +419,13 @@ Input arguments:
 **dldatabasefiles** - Download specified files from a Physiobank database. 
 
 ::
+
     dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False)
     
 Example Usage:
 
 ::
+
     import wfdb
     wfdb.dldatabasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
      
