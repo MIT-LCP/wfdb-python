@@ -221,7 +221,6 @@ class BaseRecord(object):
 
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels):
-
         # Data Type Check
         if type(sampfrom) not in _headers.inttypes:
             sys.exit('sampfrom must be an integer')
@@ -520,35 +519,49 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             startseg = 0
         else:
             startseg = 1
-        # Cumulative sum of segment lengths
+
+        # Cumulative sum of segment lengths (ignoring layout segment)
         cumsumlengths = list(np.cumsum(self.seglen[startseg:]))
-        # First segment
+        # Get first segment
         readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
-        # Final segment
+        # Get final segment
         if sampto == cumsumlengths[len(cumsumlengths) - 1]:
             readsegs.append(len(cumsumlengths) - 1)
         else:
-            readsegs.append([sampto < cs for cs in cumsumlengths].index(True))
-
-        # Obtain the sampfrom and sampto to read for each segment
-        if readsegs[1] == readsegs[0]:  
-            # Only one segment to read
-            readsegs = [readsegs[0]]
-            # The segment's first sample number relative to the entire record
-            segstart = sum(self.seglen[0:readsegs[0]-1])
-            readsamps = [[sampfrom-segstart, sampto-segstart]]
-        else:
-            # More than one segment to read
-            readsegs = list(range(readsegs[0], readsegs[1]+1)) 
-            readsamps = [[0, self.seglen[s + startseg]]
-                         for s in readsegs]
-            # Starting sample for first segment
-            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]]
-            # End sample for last segment
-            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]]  
+            readsegs.append([sampto <= cs for cs in cumsumlengths].index(True))
 
         # Add 1 for variable layout records
         readsegs = list(np.add(readsegs,startseg))
+
+        # Obtain the sampfrom and sampto to read for each segment
+        if readsegs[1] == readsegs[0]:  
+            #print('a')
+            # Only one segment to read
+            readsegs = [readsegs[0]]
+            # The segment's first sample number relative to the entire record
+            segstartsamp = sum(self.seglen[0:readsegs[0]])
+            readsamps = [[sampfrom-segstartsamp, sampto-segstartsamp]]
+
+        else:
+            #print('b')
+            # More than one segment to read
+            readsegs = list(range(readsegs[0], readsegs[1]+1)) 
+            readsamps = [[0, self.seglen[s]] for s in readsegs]
+
+
+            #print('readsegs: ', readsegs)
+            #print('cumsumlengths: ', cumsumlengths)
+            #print('startseg: ', startseg)
+
+            # Starting sample for first segment.
+            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]-startseg]
+
+            # End sample for last segment
+            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]-startseg] 
+        
+        #print('\n\nEnd of requiredsegments.')
+        #print('readsegs: ', readsegs)
+        #print('readsamps: ', readsamps)
 
         return (readsegs, readsamps)
 
@@ -636,17 +649,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                     fields['units'] = seg.units
                     break 
 
-            for i in range(0, nseg):
+            for i in range(0, self.nseg):
                 seg = self.segments[i]
 
-                # Empty segment
-                if seg is None:
-                    p_signals[startsamps[i]:endsamps[i],:] = np.nan
-                # Non-empty segment
-                else:
-                    if not hasattr(seg, 'p_signals'):
-                        seg.p_signals = seg.dac()
-                    p_signals[startsamps[i]:endsamps[i],:] = seg.p_signals                 
+                # Fixed layout signals cannot have empty segments
+                if not hasattr(seg, 'p_signals'):
+                    seg.p_signals = seg.dac()
+                p_signals[startsamps[i]:endsamps[i],:] = seg.p_signals                 
         # For variable layout, have to get channels by name
         else:
             # Get the signal names from the layout segment

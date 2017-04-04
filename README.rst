@@ -3,7 +3,7 @@ wfdb-python
 
 |Build Status|
 
-.. figure:: https://raw.githubusercontent.com/MIT-LCP/wfdb-python/master/demoimg1.png
+.. figure:: https://raw.githubusercontent.com/MIT-LCP/wfdb-python/master/demoimg.png
    :alt: wfdb signals
 
 Introduction

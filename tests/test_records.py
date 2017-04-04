@@ -193,7 +193,6 @@ class test_rdsamp():
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
 
-    #### Temporarily removing multi-segment tests due to differences in function workings
 
     # Test 11 - Multi-segment variable layout/Entire signal/Physical
     # Target file created with: rdsamp -r sampledata/matched/s25047/s25047-2704-05-04-10-44 -P | cut -f 2- > target11
@@ -204,12 +203,13 @@ class test_rdsamp():
         #assert np.array_equal(sig, targetsig)
 
     # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical
-    # Target file created with: rdsamp -r sampledata/matched/s00001/s00001-2896-10-10-00-31 -f 70 -t 4000 -s 3 0 -P | cut -f 2- > target12
-    # def test_12(self):
-        #sig, fields=rdsamp('sampledata/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000, channels=[3, 0])
-        #sig=np.round(sig, decimals=8)
-        # targetsig=np.genfromtxt('tests/targetoutputdata/target12')
-        #assert np.array_equal(sig, targetsig)
+    # Target file created with: rdsamp -r sampledata/matched/s00001/s00001-2896-10-10-00-31 -f s -t 4000 -s 3 0 -P | cut -f 2- > target12
+    #def test_12(self):
+    #    record=rdsamp('sampledata/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000)
+    #    siground=np.round(record.p_signals, decimals=8)
+    #    targetsig=np.genfromtxt('tests/targetoutputdata/target12')
+    #    
+    #    assert np.array_equal(sig, targetsig)
 
     #################
 
@@ -232,4 +232,38 @@ class test_rdsamp():
         targetsig = targetsig.reshape([977, 1])
         assert np.array_equal(sig, targetsig)
 
+    # Test 15 - Multi-segment variable layout/Selected duration. All samples contained in one segment.
+    # Target file created with: rdsamp -r sampledata/multisegment/s00001/s00001-2896-10-10-00-31 -f s14428365 -t s14428375 -P | cut -f 2- > target15
+    def test_15(self):
+        record=wfdb.rdsamp('sampledata/multisegment/s00001/s00001-2896-10-10-00-31', sampfrom=14428365, sampto=14428375)
+        siground=np.round(record.p_signals, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target15')
+        
+        np.testing.assert_equal(siground, targetsig)
 
+    # Test 16 - Multi-segment variable layout/Selected duration. Samples read from >1 segment
+    # Target file created with: rdsamp -r sampledata/multisegment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > target16
+    def test_16(self):
+        record=wfdb.rdsamp('sampledata/multisegment/s00001/s00001-2896-10-10-00-31', sampfrom=14428364, sampto=14428375)
+        siground=np.round(record.p_signals, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target16')
+        
+        np.testing.assert_equal(siground, targetsig)
+
+    # Test 17 - Multi-segment fixed layout entire signal.
+    # Target file created with: rdsamp -r sampledata/multisegment/fixed1/v102s -P | cut -f 2- > target17
+    def test_17(self):
+        record=wfdb.rdsamp('sampledata/multisegment/fixed1/v102s')
+        siground=np.round(record.p_signals, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target17')
+        
+        np.testing.assert_equal(siground, targetsig)
+
+    # Test 18 - Multi-segment fixed layout/selected duration. All samples contained in one segment
+    # Target file created with: rdsamp -r sampledata/multisegment/fixed1/v102s -t s75000 -P | cut -f 2- > target18
+    def test_18(self):
+        record=wfdb.rdsamp('sampledata/multisegment/fixed1/v102s', sampto = 75000)
+        siground=np.round(record.p_signals, decimals=8)
+        targetsig=np.genfromtxt('tests/targetoutputdata/target18')
+        
+        np.testing.assert_equal(siground, targetsig)
