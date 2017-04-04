@@ -18,7 +18,7 @@ Installation
 The distribution is hosted on pypi and directly installable via pip without needing clone or download this repository. Note that the pypi package does not contain the demo scripts or the example data. To install the package from pypi, run from your terminal:
 ``pip install wfdb``
 
-Download or clone this repository for the latest development version, the demo scripts, and the example data. To install the downloaded package, change directory into the base directory of the repository and run:
+Download or clone this repository https://github.com/MIT-LCP/wfdb-python for the latest development version, the demo scripts, and the example data. To install the downloaded package, change directory into the base directory of the repository and run:
 ``pip install .``
 
 
