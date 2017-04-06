@@ -481,7 +481,9 @@ def read_sig_lines(siglines):
                     d_sig[field][i] = int(d_sig[field][i])
                 elif sigfieldspecs[field].allowedtypes is floattypes:
                     d_sig[field][i] = float(d_sig[field][i])
-                
+                    # Special case: gain of 0 means 200
+                    if field == 'adcgain' and d_sig['adcgain'][i] == 0:
+                        d_sig['adcgain'][i] = 200
 
     return d_sig
 
