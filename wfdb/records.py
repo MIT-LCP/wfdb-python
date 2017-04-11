@@ -8,6 +8,7 @@
 import numpy as np
 import re
 import os
+import posixpath
 import sys
 from collections import OrderedDict
 from calendar import monthrange
@@ -1185,7 +1186,7 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
     """
 
     # Full url physiobank database
-    dburl = os.path.join(downloads.dbindexurl, pbdb)
+    dburl = posixpath.join(downloads.dbindexurl, pbdb)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
@@ -1208,13 +1209,13 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
             dirname, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pbdir = os.path.join(pbdb, dirname))
+            record = rdheader(baserecname, pbdir = posixpath.join(pbdb, dirname))
 
             # Single segment record
             if type(record) == Record:
                 # Add all dat files of the segment
                 for file in record.filename:
-                    allfiles.append(os.path.join(dirname, file))
+                    allfiles.append(posixpath.join(dirname, file))
 
             # Multi segment record
             else:
@@ -1223,19 +1224,19 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
                     if seg == '~':
                         continue
                     # Add the header
-                    allfiles.append(os.path.join(dirname, seg+'.hea'))
+                    allfiles.append(posixpath.join(dirname, seg+'.hea'))
                     # Layout specifier has no dat files
                     if seg.endswith('_layout'):
                         continue
                     # Add all dat files of the segment
-                    recseg = rdheader(seg, pbdir = os.path.join(pbdb, dirname))
+                    recseg = rdheader(seg, pbdir = posixpath.join(pbdb, dirname))
                     for file in recseg.filename:
-                        allfiles.append(os.path.join(dirname, file))
+                        allfiles.append(posixpath.join(dirname, file))
         # check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = os.path.join(downloads.dbindexurl, pbdb, annfile)
+                url = posixpath.join(downloads.dbindexurl, pbdb, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
@@ -1282,7 +1283,7 @@ def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = Fals
     """
 
     # Full url physiobank database
-    dburl = os.path.join(downloads.dbindexurl, pbdb)
+    dburl = posixpath.join(downloads.dbindexurl, pbdb)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()

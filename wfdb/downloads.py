@@ -1,6 +1,7 @@
 import numpy as np
 import re
 import os
+import posixpath
 import sys
 import requests
 from IPython.display import display
@@ -9,7 +10,7 @@ from IPython.display import display
 def streamheader(recordname, pbdir):
 
     # Full url of header location
-    url = os.path.join(dbindexurl, pbdir, recordname+'.hea')
+    url = posixpath.join(dbindexurl, pbdir, recordname+'.hea')
     r = requests.get(url)
 
     # Raise HTTPError if invalid url
@@ -44,7 +45,7 @@ def streamheader(recordname, pbdir):
 def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
 
     # Full url of dat file
-    url = os.path.join(dbindexurl, pbdir, filename)
+    url = posixpath.join(dbindexurl, pbdir, filename)
 
     # Specify the byte range
     endbyte = startbyte + bytecount-1
@@ -72,7 +73,7 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
 def streamannotation(filename, pbdir):
 
     # Full url of annotation file
-    url = os.path.join(dbindexurl, pbdir, filename)
+    url = posixpath.join(dbindexurl, pbdir, filename)
 
     # Get the content
     r = requests.get(url)
@@ -94,7 +95,7 @@ def getdblist():
     Usage:
     dblist = getdblist()
     """
-    url = os.path.join(dbindexurl, 'DBS')
+    url = posixpath.join(dbindexurl, 'DBS')
     r = requests.get(url)
 
     dblist = r.content.decode('ascii').splitlines()
@@ -109,7 +110,7 @@ def getdblist():
 def getrecordlist(dburl, records):
     # Check for a RECORDS file
     if records == 'all':
-        r = requests.get(os.path.join(dburl, 'RECORDS'))
+        r = requests.get(posixpath.join(dburl, 'RECORDS'))
         if r.status_code == 404:
             sys.exit('The database '+dburl+' has no WFDB files to download')
 
@@ -125,7 +126,7 @@ def getannotators(dburl, annotators):
 
     if annotators is not None:
         # Check for an ANNOTATORS file
-        r = requests.get(os.path.join(dburl, 'ANNOTATORS'))
+        r = requests.get(posixpath.join(dburl, 'ANNOTATORS'))
         if r.status_code == 404:
             if annotators == 'all':
                 return
@@ -175,7 +176,7 @@ def dlpbfile(inputs):
     basefile, subdir, pbdb, dlbasedir, keepsubdirs, overwrite = inputs
 
     # Full url of file
-    url = os.path.join(dbindexurl, pbdb, subdir, basefile)
+    url = posixpath.join(dbindexurl, pbdb, subdir, basefile)
 
     # Get the request header
     rh = requests.head(url, headers={'Accept-Encoding': 'identity'})
