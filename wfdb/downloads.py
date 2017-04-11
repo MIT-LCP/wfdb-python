@@ -4,31 +4,31 @@ import os
 import sys
 import requests
 from IPython.display import display
-        
+
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
 
     # Full url of header location
     url = os.path.join(dbindexurl, pbdir, recordname+'.hea')
     r = requests.get(url)
-    
+
     # Raise HTTPError if invalid url
     r.raise_for_status()
-    
+
     # Get each line as a string
     filelines = r.content.decode('ascii').splitlines()
-    
+
     # Separate content into header and comment lines
     headerlines = []
     commentlines = []
-    
+
     for line in filelines:
         line = line.strip()
         # Comment line
         if line.startswith('#'):
             commentlines.append(line)
         # Non-empty non-comment line = header line.
-        elif line:  
+        elif line:
             # Look for a comment in the line
             ci = line.find('#')
             if ci > 0:
@@ -37,25 +37,25 @@ def streamheader(recordname, pbdir):
                 commentlines.append(line[ci:])
             else:
                 headerlines.append(line)
-    
-    return (headerlines, commentlines) 
+
+    return (headerlines, commentlines)
 
 # Read certain bytes from a dat file from physiobank
 def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
-    
+
     # Full url of dat file
     url = os.path.join(dbindexurl, pbdir, filename)
 
     # Specify the byte range
-    endbyte = startbyte + bytecount-1 
-    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte), 'Accept-Encoding': '*/*'} 
-    
+    endbyte = startbyte + bytecount-1
+    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte), 'Accept-Encoding': '*/*'}
+
     # Get the content
     r = requests.get(url, headers=headers, stream=True)
-    
+
     # Raise HTTPError if invalid url
     r.raise_for_status()
-    
+
     sigbytes = r.content
 
     # Convert to numpy array
@@ -78,7 +78,7 @@ def streamannotation(filename, pbdir):
     r = requests.get(url)
     # Raise HTTPError if invalid url
     r.raise_for_status()
-    
+
     annbytes = r.content
 
     # Convert to numpy array
@@ -90,7 +90,7 @@ def streamannotation(filename, pbdir):
 
 def getdblist():
     """Return a list of all the physiobank databases available.
-    
+
     Usage:
     dblist = getdblist()
     """
@@ -122,7 +122,7 @@ def getrecordlist(dburl, records):
     return recordlist
 
 def getannotators(dburl, annotators):
-    
+
     if annotators is not None:
         # Check for an ANNOTATORS file
         r = requests.get(os.path.join(dburl, 'ANNOTATORS'))
@@ -143,7 +143,7 @@ def getannotators(dburl, annotators):
             # In case they didn't input a list
             if type(annotators) == str:
                 annotators = [annotators]
-            # user input ones. Check validity. 
+            # user input ones. Check validity.
             for a in annotators:
                 if a not in annlist:
                     sys.exit('The database contains no annotators with extension: ', a)
@@ -176,7 +176,7 @@ def dlpbfile(inputs):
 
     # Full url of file
     url = os.path.join(dbindexurl, pbdb, subdir, basefile)
-    
+
     # Get the request header
     rh = requests.head(url, headers={'Accept-Encoding': 'identity'})
     # Raise HTTPError if invalid url
@@ -184,16 +184,16 @@ def dlpbfile(inputs):
 
     # Supposed size of the file
     onlinefilesize = int(rh.headers['content-length'])
-    
+
     # Figure out where the file should be locally
     if keepsubdirs:
         dldir = os.path.join(dlbasedir, subdir)
     else:
         dldir = dlbasedir
-    
+
     localfile = os.path.join(dldir, basefile)
-    
-    # The file exists locally. 
+
+    # The file exists locally.
     if os.path.isfile(localfile):
         # Redownload regardless
         if overwrite:
@@ -204,30 +204,30 @@ def dlpbfile(inputs):
             # Local file is smaller than it should be. Append it.
             if localfilesize < onlinefilesize:
                 print('Detected partially downloaded file: '+localfile+' Appending file...')
-                headers = {"Range": "bytes="+str(localfilesize)+"-", 'Accept-Encoding': '*/*'} 
+                headers = {"Range": "bytes="+str(localfilesize)+"-", 'Accept-Encoding': '*/*'}
                 r = requests.get(url, headers=headers, stream=True)
                 print('headers: ', headers)
                 print('r content length: ', len(r.content))
                 with open(localfile, "ba") as writefile:
                     writefile.write(r.content)
                 print('Done appending.')
-            # Local file is larger than it should be. Redownload. 
+            # Local file is larger than it should be. Redownload.
             elif localfilesize > onlinefilesize:
                 dlfullfile(url, localfile)
-            # If they're the same size, do nothing. 
-        
-    # The file doesn't exist. Download it. 
+            # If they're the same size, do nothing.
+
+    # The file doesn't exist. Download it.
     else:
         dlfullfile(url, localfile)
-        
+
     return
 
-# Download a file. No checks. 
+# Download a file. No checks.
 def dlfullfile(url, localfile):
     r = requests.get(url)
     with open(localfile, "wb") as writefile:
         writefile.write(r.content)
-    
+
     return
 
 
