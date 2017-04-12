@@ -223,9 +223,9 @@ class BaseRecord(object):
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels):
         # Data Type Check
-        if type(sampfrom) not in _headers.inttypes:
+        if not hasattr(sampfrom, '__index__'):
             sys.exit('sampfrom must be an integer')
-        if type(sampto) not in _headers.inttypes:
+        if not hasattr(sampto, '__index__'):
             sys.exit('sampto must be an integer')
         if type(channels) != list:
             sys.exit('channels must be a list of integers')
