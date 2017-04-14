@@ -3,7 +3,6 @@ import re
 import os
 import sys
 import requests
-from IPython.display import display
         
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):

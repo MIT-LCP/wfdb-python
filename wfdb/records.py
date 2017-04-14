@@ -11,7 +11,6 @@ import os
 import sys
 from collections import OrderedDict
 from calendar import monthrange
-from IPython.display import display
 import requests
 import multiprocessing
 from . import _headers
@@ -278,20 +277,20 @@ def checkitemtype(item, field, allowedtypes, channels=None):
                 if type(item[ch]) not in allowedtypes:
                     print(allowedtypes)
                     print("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:")
-                    display(allowedtypes)
+                    print(allowedtypes)
                     sys.exit()
             # The field may be None for the channel
             else:
                 if type(item[ch]) not in allowedtypes:
                     print("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:")
-                    display(allowedtypes)
+                    print(allowedtypes)
                     sys.exit()
 
     # Single scalar to check
     else:
         if type(item) not in allowedtypes:
             print("Field: '"+field+"' must be one of the following types:")
-            display(allowedtypes)
+            print(allowedtypes)
             sys.exit()
 
 

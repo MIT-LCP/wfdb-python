@@ -3,7 +3,6 @@ import pandas as pd
 import sys
 import re
 import os
-from IPython.display import display
 from . import _headers
 from . import downloads
 
@@ -116,7 +115,7 @@ class Annotation():
             # Check the field type
             if type(getattr(self, field)) not in annfieldtypes[field]:
                 print('The '+field+' field must be one of the following types:')
-                display(annfieldtypes[field])
+                print(annfieldtypes[field])
                 sys.exit()
             
             # Field specific checks
@@ -148,14 +147,14 @@ class Annotation():
                 for item in fielditem:
                     if type(item) not in annfieldtypes[field]:
                         print("All elements of the '", field, "' field must be one of the following types:")
-                        display(annfieldtypes[field])
+                        print(annfieldtypes[field])
                         print("All elements must be present")
                         sys.exit()
             else:
                 for item in fielditem:
                     if item is not None and type(item) not in annfieldtypes[field]:
                         print("All elements of the '", field, "' field must be one of the following types:")
-                        display(annfieldtypes[field])
+                        print(annfieldtypes[field])
                         print("Elements may also be set to 'None'")
                         sys.exit()
         
@@ -409,7 +408,7 @@ def showanncodes():
     Usage: 
     showanncodes()
     """
-    display(symcodes)
+    print(symcodes)
 
 ## ------------- Reading Annotations ------------- ##
 
