@@ -1,7 +1,6 @@
 import numpy as np
 import re
 import os
-import sys
 from collections import OrderedDict
 from calendar import monthrange
 from . import _signals
@@ -193,7 +192,7 @@ class HeadersMixin(BaseHeadersMixin):
             # even if some of its elements are None. 
             for f in sigwritefields:
                 if len(getattr(self, f)) != self.nsig:
-                    sys.exit('The length of field: '+f+' must match field nsig.')
+                    raise ValueError('The length of field: '+f+' must match field nsig.')
 
             # Each filename must correspond to only one fmt, (and only one byte offset if defined). 
             datfmts = {}
@@ -202,7 +201,7 @@ class HeadersMixin(BaseHeadersMixin):
                     datfmts[self.filename[ch]] = self.fmt[ch]
                 else:
                     if datfmts[self.filename[ch]] != self.fmt[ch]:
-                        sys.exit('Each filename (dat file) specified must have the same fmt')
+                        raise ValueError('Each filename (dat file) specified must have the same fmt')
             
             datoffsets = {}
             if self.byteoffset is not None:
@@ -214,7 +213,7 @@ class HeadersMixin(BaseHeadersMixin):
                         datoffsets[self.filename[ch]] = self.byteoffset[ch]
                     else:
                         if datoffsets[self.filename[ch]] != self.byteoffset[ch]:
-                            sys.exit('Each filename (dat file) specified must have the same byte offset')
+                            raise ValueError('Each filename (dat file) specified must have the same byte offset')
 
 
     # Write a header file using the specified fields
@@ -320,11 +319,11 @@ class MultiHeadersMixin(BaseHeadersMixin):
         # The length of segname and seglen must match nseg
         for f in ['segname', 'seglen']:
             if len(getattr(self, f)) != self.nseg:
-                sys.exit('The length of field: '+f+' does not match field nseg.')
+                raise ValueError('The length of field: '+f+' does not match field nseg.')
 
         # Check the sum of the 'seglen' fields against 'siglen'
         if np.sum(self.seglen) != self.siglen:
-            sys.exit("The sum of the 'seglen' fields do not match the 'siglen' field")
+            raise ValueError("The sum of the 'seglen' fields do not match the 'siglen' field")
 
 
     # Write a header file using the specified fields

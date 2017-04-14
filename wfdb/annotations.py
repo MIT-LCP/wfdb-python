@@ -1,9 +1,7 @@
 import numpy as np
 import pandas as pd
-import sys
 import re
 import os
-from IPython.display import display
 from . import _headers
 from . import downloads
 
@@ -100,7 +98,7 @@ class Annotation():
         for field in ['recordname', 'annotator', 'annsamp', 'anntype']:
             if getattr(self, field) is None:
                 print('The ', field, ' field is mandatory for writing annotation files')
-                sys.exit()
+                raise Exception('Missing required annotation field')
 
         # Check all set fields
         for field in annfields:
@@ -115,32 +113,30 @@ class Annotation():
         if field in ['recordname', 'annotator', 'fs']:
             # Check the field type
             if type(getattr(self, field)) not in annfieldtypes[field]:
-                print('The '+field+' field must be one of the following types:')
-                display(annfieldtypes[field])
-                sys.exit()
+                print(annfieldtypes[field])
+                raise TypeError('The '+field+' field must be one of the above types.')
             
             # Field specific checks
             if field == 'recordname':
                 # Allow letters, digits, hyphens, and underscores.
                 acceptedstring = re.match('[-\w]+', self.recordname)
                 if not acceptedstring or acceptedstring.string != self.recordname:
-                    sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
+                    raise ValueError('recordname must only comprise of letters, digits, hyphens, and underscores.')
             elif field == 'annotator':
                 # Allow letters only
                 acceptedstring = re.match('[a-zA-Z]+', self.annotator)
                 if not acceptedstring or acceptedstring.string != self.annotator:
-                    sys.exit('annotator must only comprise of letters')
+                    raise ValueError('annotator must only comprise of letters')
             elif field == 'fs':
                 if self.fs <=0:
-                    sys.exit('The fs field must be a non-negative number')
+                    raise ValueError('The fs field must be a non-negative number')
 
         else:
             fielditem = getattr(self, field)
 
             # Ensure the field item is a list or array.
             if type(fielditem) not in [list, np.ndarray]:
-                print('The ', field, ' field must be a list or numpy array')
-                sys.exit()          
+                raise TypeError('The '+field+' field must be a list or numpy array')        
 
             # Check the data types of the elements
             # annsamp and anntype may NOT have nones. Others may. 
@@ -148,46 +144,46 @@ class Annotation():
                 for item in fielditem:
                     if type(item) not in annfieldtypes[field]:
                         print("All elements of the '", field, "' field must be one of the following types:")
-                        display(annfieldtypes[field])
+                        print(annfieldtypes[field])
                         print("All elements must be present")
-                        sys.exit()
+                        raise Exception()
             else:
                 for item in fielditem:
                     if item is not None and type(item) not in annfieldtypes[field]:
                         print("All elements of the '", field, "' field must be one of the following types:")
-                        display(annfieldtypes[field])
+                        print(annfieldtypes[field])
                         print("Elements may also be set to 'None'")
-                        sys.exit()
+                        raise Exception()
         
             # Field specific checks
             # The C WFDB library stores num/sub/chan as chars. 
             if field == 'annsamp':
                 sampdiffs = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
                 if min(self.annsamp) < 0 :
-                    sys.exit("The 'annsamp' field must only contain non-negative integers")
+                    raise ValueError("The 'annsamp' field must only contain non-negative integers")
                 if min(sampdiffs) < 0 :
-                    sys.exit("The 'annsamp' field must contain monotonically increasing sample numbers")
+                    raise ValueError("The 'annsamp' field must contain monotonically increasing sample numbers")
                 if max(sampdiffs) > 2147483648:
-                    sys.exit('WFDB annotation files cannot store sample differences greater than 2**31')
+                    raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
             elif field == 'anntype':
                 # Ensure all fields lie in standard WFDB annotation codes
                 if set(self.anntype) - set(annsyms.values()) != set():
                     print("The 'anntype' field contains items not encoded in the WFDB annotation library.")
                     print('To see the valid annotation codes call: showanncodes()')
                     print('To transfer non-encoded anntype items into the aux field call: self.type2aux()')
-                    sys.exit()
+                    raise Exception()
             elif field == 'subtype':
                 # signed character
                 if min(self.subtype) < 0 or max(self.subtype) >127:
-                    sys.exit("The 'subtype' field must only contain non-negative integers up to 127")
+                    raise ValueError("The 'subtype' field must only contain non-negative integers up to 127")
             elif field == 'chan':
                 # unsigned character
                 if min(self.chan) < 0 or max(self.chan) >255:
-                    sys.exit("The 'chan' field must only contain non-negative integers up to 255")
+                    raise ValueErrort("The 'chan' field must only contain non-negative integers up to 255")
             elif field == 'num':
                 # signed character
                 if min(self.num) < 0 or max(self.num) >127:
-                    sys.exit("The 'num' field must only contain non-negative integers up to 127")
+                    raise ValueError("The 'num' field must only contain non-negative integers up to 127")
             #elif field == 'aux': # No further conditions for aux field.
                 
 
@@ -199,7 +195,7 @@ class Annotation():
         for field in ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux']:
             if getattr(self, field) is not None:
                 if len(getattr(self, field)) != nannots:
-                    sys.exit("All written annotation fields: ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux'] must have the same length")
+                    raise ValueError("All written annotation fields: ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux'] must have the same length")
 
     # Write an annotation file
     def wrannfile(self):
@@ -261,10 +257,10 @@ class Annotation():
 
         # Ensure that anntype is a list of strings
         if type(self.anntype)!= list:
-            sys.exit('anntype must be a list')
+            raise TypeError('anntype must be a list')
         for at in self.anntype:
             if type(at) != str:
-                sys.exit('anntype elements must all be strings')
+                raise TypeError('anntype elements must all be strings')
 
         external_anntypes = set(self.anntype) - set(annsyms.values())
 
@@ -409,7 +405,7 @@ def showanncodes():
     Usage: 
     showanncodes()
     """
-    display(symcodes)
+    print(symcodes)
 
 ## ------------- Reading Annotations ------------- ##
 

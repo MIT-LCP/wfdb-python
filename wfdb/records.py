@@ -9,10 +9,8 @@ import numpy as np
 import re
 import os
 import posixpath
-import sys
 from collections import OrderedDict
 from calendar import monthrange
-from IPython.display import display
 import requests
 import multiprocessing
 from . import _headers
@@ -45,9 +43,9 @@ class BaseRecord(object):
     def checkfield(self, field, channels=None):
         # Check that the field is present
         if getattr(self, field) is None:
-            sys.exit("Missing field required: "+field)
-
-        # Check the type of the field (and of its elements if it should be a list)
+            raise Exception("Missing field required: "+field)
+           
+        # Check the type of the field (and of its elements if it should be a list) 
         self.checkfieldtype(field, channels)
 
         # Expand to make sure all channels must have present field
@@ -58,41 +56,40 @@ class BaseRecord(object):
         if field == 'd_signals':
             # Check shape
             if self.d_signals.ndim != 2:
-                sys.exit("signals must be a 2d numpy array")
+                raise TypeError("signals must be a 2d numpy array")
             # Check dtype
             if self.d_signals.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                sys.exit('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')
+                raise TypeError('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
         elif field =='p_signals':
             # Check shape
             if self.p_signals.ndim != 2:
-                sys.exit("signals must be a 2d numpy array")
-
-        #elif field == 'segments': # Nothing to check here.
-
+                raise TypeError("signals must be a 2d numpy array")
+            
+        #elif field == 'segments': # Nothing to check here. 
         # Record specification fields
         elif field == 'recordname':
             # Allow letters, digits, hyphens, and underscores.
             acceptedstring = re.match('[-\w]+', self.recordname)
             if not acceptedstring or acceptedstring.string != self.recordname:
-                sys.exit('recordname must only comprise of letters, digits, hyphens, and underscores.')
+                raise ValueError('recordname must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'nseg':
             if self.nseg <=0:
-                sys.exit('nseg must be a positive integer')
+                raise ValueError('nseg must be a positive integer')
         elif field == 'nsig':
             if self.nsig <=0:
-                sys.exit('nsig must be a positive integer')
+                raise ValueError('nsig must be a positive integer')
         elif field == 'fs':
             if self.fs<=0:
-                sys.exit('fs must be a positive number')
+                raise ValueError('fs must be a positive number')
         elif field == 'counterfreq':
             if self.counterfreq <=0:
-                sys.exit('counterfreq must be a positive number')
+                raise ValueError('counterfreq must be a positive number')
         elif field == 'basecounter':
             if self.basecounter <=0:
-                sys.exit('basecounter must be a positive number')
+                raise ValueError('basecounter must be a positive number') 
         elif field == 'siglen':
             if self.siglen <0:
-                sys.exit('siglen must be a non-negative integer')
+                raise ValueError('siglen must be a non-negative integer')
         elif field == 'basetime':
             _ = parsetimestring(self.basetime)
         elif field == 'basedate':
@@ -113,48 +110,48 @@ class BaseRecord(object):
                     # Check for filename characters
                     acceptedstring = re.match('[\w]+\.?[\w]+',f)
                     if not acceptedstring or acceptedstring.string != f:
-                        sys.exit('File names should only contain alphanumerics and an extension. eg. record_100.dat')
-                    # Check that dat files are grouped together
+                        raise ValueError('File names should only contain alphanumerics and an extension. eg. record_100.dat')
+                    # Check that dat files are grouped together 
                     if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
-                        sys.exit('filename error: all entries for signals that share a given file must be consecutive')
+                        raise ValueError('filename error: all entries for signals that share a given file must be consecutive')
                 elif field == 'fmt':
                     if f not in _signals.datformats:
-                        sys.exit('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))
+                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
                 elif field == 'sampsperframe':
                     if f < 1:
-                        sys.exit('sampsperframe values must be positive integers')
+                        raise ValueError('sampsperframe values must be positive integers')
                     if f > 1:
-                        sys.exit('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
+                        raise Exception('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
                 elif field == 'skew':
                     if f < 0:
-                        sys.exit('skew values must be non-negative integers')
+                        raise ValueError('skew values must be non-negative integers')
                 elif field == 'byteoffset':
                     if f < 0:
-                        sys.exit('byteoffset values must be non-negative integers')
+                        raise ValueError('byteoffset values must be non-negative integers')
                 elif field == 'adcgain':
                     if f <= 0:
-                        sys.exit('adcgain values must be positive numbers')
+                        raise ValueError('adcgain values must be positive numbers')
                 elif field == 'baseline':
                     # Currently original WFDB library only has 4 bytes for baseline.
                     if f < -2147483648 or f> 2147483648:
-                        sys.exit('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
+                        raise ValueError('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
                 elif field == 'units':
                     if re.search('\s', f):
-                        sys.exit('units strings may not contain whitespaces.')
+                        raise ValueError('units strings may not contain whitespaces.')
                 elif field == 'adcres':
                     if f < 0:
-                        sys.exit('adcres values must be non-negative integers')
+                        raise ValueError('adcres values must be non-negative integers')
                 # elif field == 'adczero': nothing to check here
                 # elif field == 'initvalue': nothing to check here
                 # elif field == 'checksum': nothing to check here
                 elif field == 'blocksize':
                     if f < 0:
-                        sys.exit('blocksize values must be non-negative integers')
+                        raise ValueError('blocksize values must be non-negative integers')
                 elif field == 'signame':
                     if re.search('\s', f):
-                        sys.exit('signame strings may not contain whitespaces.')
+                        raise ValueError('signame strings may not contain whitespaces.')
                     if len(set(self.signame)) != len(self.signame):
-                        sys.exit('signame strings must be unique.')
+                        raise ValueError('signame strings must be unique.')
 
         # Segment specification fields
         elif field == 'segname':
@@ -164,20 +161,19 @@ class BaseRecord(object):
                     continue
                 acceptedstring = re.match('[-\w]+',f)
                 if not acceptedstring or acceptedstring.string != f:
-                    sys.exit("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
+                    raise ValueError("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
         elif field == 'seglen':
             # For records with more than 1 segment, the first segment may be
             # the layout specification segment with a length of 0
             if len(self.seglen)>1:
                 if self.seglen[0] < 0:
-                    sys.exit('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
+                    raise ValueError('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
                 sl = self.seglen[1:]
             else:
                 sl = self.seglen
             for f in sl:
                 if f < 1:
-                    sys.exit('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
-
+                    raise ValueError('seglen values must be positive integers. Only seglen[0] may be 0 to indicate a layout segment')
         # Comment field
         elif field == 'comments':
             for f in self.comments:
@@ -186,9 +182,7 @@ class BaseRecord(object):
                 if f[0] == '#':
                     print("Note: comment strings do not need to begin with '#'. This library adds them automatically.")
                 if re.search('[\t\n\r\f\v]', f):
-                    sys.exit('comments may not contain tabs or newlines (they may contain spaces and underscores).')
-
-
+                    raise ValueError('comments may not contain tabs or newlines (they may contain spaces and underscores).')
     # Check the data type of the specified field.
     # ch is used for signal spec fields
     # Some fields are lists. This must be checked, along with their elements.
@@ -224,30 +218,31 @@ class BaseRecord(object):
     def checkreadinputs(self, sampfrom, sampto, channels):
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
-            sys.exit('sampfrom must be an integer')
+            raise TypeError('sampfrom must be an integer')
         if not hasattr(sampto, '__index__'):
-            sys.exit('sampto must be an integer')
+            raise TypeError('sampto must be an integer')
+
         if type(channels) != list:
-            sys.exit('channels must be a list of integers')
+            raise TypeError('channels must be a list of integers')
 
         # Duration Ranges
         if sampfrom<0:
-            sys.exit('sampfrom must be a non-negative integer')
+            raise ValueError('sampfrom must be a non-negative integer')
         if sampfrom>self.siglen:
-            sys.exit('sampfrom must be shorter than the signal length')
+            raise ValueError('sampfrom must be shorter than the signal length')
         if sampto<0:
-            sys.exit('sampto must be a non-negative integer')
+            raise ValueError('sampto must be a non-negative integer')
         if sampto>self.siglen:
-            sys.exit('sampto must be shorter than the signal length')
+            raise ValueError('sampto must be shorter than the signal length')
         if sampto<=sampfrom:
-            sys.exit('sampto must be greater than sampfrom')
+            raise ValueError('sampto must be greater than sampfrom')
 
         # Channel Ranges
         for c in channels:
             if c<0:
-                sys.exit('Input channels must all be non-negative integers')
+                raise ValueError('Input channels must all be non-negative integers')
             if c>self.nsig-1:
-                sys.exit('Input channels must all be lower than the total number of channels')
+                raise ValueError('Input channels must all be lower than the total number of channels')
 
 
 # Check the item type. Vary the print message regarding whether the item can be None.
@@ -261,7 +256,7 @@ def checkitemtype(item, field, allowedtypes, channels=None):
 
         # First make sure the item is a list
         if type(item) != list:
-            sys.exit("Field: '"+field+"' must be a list")
+            raise TypeError("Field: '"+field+"' must be a list")
 
         # Expand to make sure all channels must have present field
         if channels == 'all':
@@ -278,22 +273,18 @@ def checkitemtype(item, field, allowedtypes, channels=None):
             if mustexist:
                 if type(item[ch]) not in allowedtypes:
                     print(allowedtypes)
-                    print("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:")
-                    display(allowedtypes)
-                    sys.exit()
+                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be one of the above types")
             # The field may be None for the channel
             else:
-                if type(item[ch]) not in allowedtypes:
-                    print("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:")
-                    display(allowedtypes)
-                    sys.exit()
+                if type(item[ch]) not in allowedtypes and item[ch] is not None:
+                    print(allowedtypes)
+                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the above types")
 
     # Single scalar to check
     else:
         if type(item) not in allowedtypes:
-            print("Field: '"+field+"' must be one of the following types:")
-            display(allowedtypes)
-            sys.exit()
+            print(allowedtypes)
+            raise TypeError("Field: '"+field+"' must be one of the above types")
 
 
 
@@ -485,7 +476,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
         # Check that nseg is equal to the length of the segments field
         if self.nseg != len(self.segments):
-            sys.exit("Length of segments must match the 'nseg' field")
+            raise ValueError("Length of segments must match the 'nseg' field")
 
         for i in range(0, nseg):
             s = self.segments[i]
@@ -494,15 +485,15 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             if i==0 and self.seglen[0] == 0:
                 for filename in s.filename:
                     if filename != '~':
-                        sys.exit("Layout specification records must have all filenames named '~'")
+                        raise ValueError("Layout specification records must have all filenames named '~'")
 
             # Check that sampling frequencies all match the one in the master header
             if s.fs != self.fs:
-                sys.exit("The 'fs' in each segment must match the overall record's 'fs'")
+                raise ValueError("The 'fs' in each segment must match the overall record's 'fs'")
 
             # Check the signal length of the segment against the corresponding seglen field
             if s.siglen != self.seglen[i]:
-                sys.exit('The signal length of segment '+str(i)+' does not match the corresponding segment length')
+                raise ValueError('The signal length of segment '+str(i)+' does not match the corresponding segment length')
 
             totalsiglen = totalsiglen + getattr(s, 'siglen')
 
@@ -795,7 +786,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # meaningful representation of digital signals transferred
         # from individual segments.
         if m2s == True and physical != True:
-            sys.exit('If m2s is True, physical must also be True.')
+            raise Exception('If m2s is True, physical must also be True.')
 
         record.segments = [None]*record.nseg
 
@@ -1013,11 +1004,10 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
 
     # Check input field combinations
     if p_signals is not None and d_signals is not None:
-        sys.exit('Must only give one of the inputs: p_signals or d_signals')
+        raise Exception('Must only give one of the inputs: p_signals or d_signals')
     if d_signals is not None:
         if fmt is None or gain is None or baseline is None:
-            sys.exit("When using d_signals, must also specify 'fmt', 'gain', and 'baseline' fields.")
-
+            raise Exception("When using d_signals, must also specify 'fmt', 'gain', and 'baseline' fields.")
     # Depending on whether d_signals or p_signals was used, set other required features.
     if p_signals is not None:
         # Create the Record object
@@ -1043,29 +1033,29 @@ def parsetimestring(timestring):
     times = re.findall("(?P<hours>\d{1,2}):(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}[.\d+]*)", timestring)
 
     if not times:
-        sys.exit("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
+        raise ValueError("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
     else:
         hours, minutes, seconds = times[0]
 
     if not hours or not minutes or not seconds:
-        sys.exit("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
-
+        raise ValueError("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
+        
     hours = int(hours)
     minutes = int(minutes)
     seconds = float(seconds)
 
     if int(hours) >23:
-        sys.exit('hours must be < 24')
+        raise ValueError('hours must be < 24')
     elif hours<0:
-        sys.exit('hours must be positive')
+        raise ValueError('hours must be positive')
     if minutes>59:
-        sys.exit('minutes must be < 60')
+        raise ValueError('minutes must be < 60') 
     elif minutes<0:
-        sys.exit('minutes must be positive')
+        raise ValueError('minutes must be positive')  
     if seconds>59:
-        sys.exit('seconds must be < 60')
+        raise ValueError('seconds must be < 60')
     elif seconds<0:
-        sys.exit('seconds must be positive')
+        raise ValueError('seconds must be positive')
 
     return (hours, minutes, seconds)
 
@@ -1074,7 +1064,7 @@ def parsedatestring(datestring):
     dates = re.findall(r"(?P<day>\d{2})/(?P<month>\d{2})/(?P<year>\d{4})", datestring)
 
     if not dates:
-        sys.exit("Invalid date string. Acceptable format is: 'DD/MM/YYYY'")
+        raise ValueError("Invalid date string. Acceptable format is: 'DD/MM/YYYY'")
     else:
         day, month, year = dates[0]
 
@@ -1083,38 +1073,13 @@ def parsedatestring(datestring):
     year = int(year)
 
     if year<1:
-        sys.exit('year must be positive')
+        raise ValueError('year must be positive')
     if month<1 or month>12:
-        sys.exit('month must be between 1 and 12')
+        raise ValueError('month must be between 1 and 12')
     if day not in range(monthrange(year, month)[0], monthrange(year, month)[1]):
-        sys.exit('day does not exist for specified year and month')
-
+        raise ValueError('day does not exist for specified year and month')
+    
     return (day, month, year)
-
-
-# Display a message to the user, asking whether they would like to continue.
-def request_approval(message):
-
-    pyversion = sys.version_info[0]
-    if pyversion not in [2, 3]:
-        # Exit before printing the message if python is unsupported
-        sys.exit('This package is only supported for python 2 and 3')
-
-    print(message)
-    answer=[]
-    if sys.version_info[0] == 2:
-        while answer not in ['y', 'n']:
-            answer = raw_input('[y/n]: ')
-
-    else:
-        while answer not in ['y', 'n']:
-            answer = input('[y/n]: ')
-
-
-    if answer == 'y':
-        return
-    else:
-        sys.exit('Exiting')
 
 # Returns the unique elements in a list in the order that they appear.
 # Also returns the indices of the original list that correspond to each output element.
