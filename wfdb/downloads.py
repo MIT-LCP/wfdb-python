@@ -1,7 +1,6 @@
 import numpy as np
 import re
 import os
-import sys
 import requests
         
 # Read a header file from physiobank
@@ -110,7 +109,7 @@ def getrecordlist(dburl, records):
     if records == 'all':
         r = requests.get(os.path.join(dburl, 'RECORDS'))
         if r.status_code == 404:
-            sys.exit('The database '+dburl+' has no WFDB files to download')
+            raise ValueError('The database '+dburl+' has no WFDB files to download')
 
         # Get each line as a string
         recordlist = r.content.decode('ascii').splitlines()
@@ -129,7 +128,7 @@ def getannotators(dburl, annotators):
             if annotators == 'all':
                 return
             else:
-                sys.exit('The database '+dburl+' has no annotation files to download')
+                raise ValueError('The database '+dburl+' has no annotation files to download')
         # Make sure the input annotators are present in the database
         annlist = r.content.decode('ascii').splitlines()
         annlist = [a.split('\t')[0] for a in annlist]
@@ -145,7 +144,7 @@ def getannotators(dburl, annotators):
             # user input ones. Check validity. 
             for a in annotators:
                 if a not in annlist:
-                    sys.exit('The database contains no annotators with extension: ', a)
+                    raise ValueError('The database contains no annotators with extension: '+a)
 
     return annotators
 

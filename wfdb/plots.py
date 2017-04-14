@@ -1,5 +1,4 @@
 import numpy as np
-import sys
 import matplotlib.pyplot as plt
 from . import records
 from . import _headers
@@ -83,23 +82,22 @@ def checkplotitems(record, title, annotation, annch, timeunits):
     
     # signals
     if type(record) != records.Record:
-        sys.exit("The 'record' argument must be a valid wfdb.Record object")
+        raise TypeError("The 'record' argument must be a valid wfdb.Record object")
     if type(record.p_signals) != np.ndarray or record.p_signals.ndim != 2:
-        sys.exit("The plotted signal 'record.p_signals' must be a 2d numpy array")
+        raise TypeError("The plotted signal 'record.p_signals' must be a 2d numpy array")
     
     siglen, nsig = record.p_signals.shape
 
     # fs and timeunits
     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
     if timeunits not in allowedtimes:
-        print("The 'timeunits' field must be one of the following: ", allowedtimes)
-        sys.exit()
+        raise ValueError("The 'timeunits' field must be one of the following: ", allowedtimes)
     # Get x axis values. fs must be valid when plotting time
     if timeunits == 'samples':
         t = np.linspace(0, siglen-1, siglen)
     else:
         if type(record.fs) not in _headers.floattypes:
-            sys.exit("The 'fs' field must be a number")
+            raise TypeError("The 'fs' field must be a number")
         
         if timeunits == 'seconds':
             t = np.linspace(0, siglen-1, siglen)/record.fs
@@ -113,7 +111,7 @@ def checkplotitems(record, title, annotation, annch, timeunits):
         record.units = ['NU']*nsig
     else:
         if type(record.units) != list or len(record.units)!= nsig:
-            sys.exit("The 'units' parameter must be a list of strings with length equal to the number of signal channels")
+            raise ValueError("The 'units' parameter must be a list of strings with length equal to the number of signal channels")
         for ch in range(nsig):
             if record.units[ch] is None:
                 record.units[ch] = 'NU'
@@ -123,20 +121,20 @@ def checkplotitems(record, title, annotation, annch, timeunits):
         record.signame = ['ch'+str(ch) for ch in range(1, nsig+1)] 
     else:
         if type(record.signame) != list or len(record.signame)!= nsig:
-            sys.exit("The 'signame' parameter must be a list of strings with length equal to the number of signal channels")
+            raise ValueError("The 'signame' parameter must be a list of strings, with length equal to the number of signal channels")
                 
     # title
     if title is not None and type(title) != str:
-        sys.exit("The 'title' field must be a string")
+        raise TypeError("The 'title' field must be a string")
     
     # Annotations if any
     if annotation is not None:
         if type(annotation) != annotations.Annotation:
-            sys.exit("The 'annotation' argument must be a valid wfdb.Annotation object")
+            raise TypeError("The 'annotation' argument must be a valid wfdb.Annotation object")
         if type(annch)!= list:
-            sys.exit("The 'annch' argument must be a list of integers")
+            raise TypeError("The 'annch' argument must be a list of integers")
         if min(annch)<0 or max(annch)>nsig:
-            sys.exit("The elements of 'annch' must be between 0 and the number of record channels")
+            raise ValueError("The elements of 'annch' must be between 0 and the number of record channels")
 
         # The annotation locations to plot   
         if timeunits == 'samples':
@@ -208,18 +206,17 @@ def checkannplotitems(annotation, title, timeunits):
     
     # signals
     if type(annotation)!= annotations.Annotation:
-        sys.exit("The 'annotation' field must be a 'wfdb.Annotation' object")
+        raise TypeError("The 'annotation' field must be a 'wfdb.Annotation' object")
 
     # fs and timeunits
     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
     if timeunits not in allowedtimes:
-        print("The 'timeunits' field must be one of the following: ", allowedtimes)
-        sys.exit()
+        raise ValueError("The 'timeunits' field must be one of the following: ", allowedtimes)
 
     # fs must be valid when plotting time
     if timeunits != 'samples':
         if type(annotation.fs) not in _headers.floattypes:
-            sys.exit("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
+            raise Exception("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
 
     # Get x axis values to plot
     if timeunits == 'samples':
@@ -233,6 +230,6 @@ def checkannplotitems(annotation, title, timeunits):
 
     # title
     if title is not None and type(title) != str:
-        sys.exit("The 'title' field must be a string")
+        raise TypeError("The 'title' field must be a string")
     
     return plotvals

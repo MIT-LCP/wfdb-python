@@ -1,6 +1,5 @@
 import numpy as np
 import os
-import sys
 from . import downloads
 
 # All defined WFDB dat formats
@@ -32,11 +31,10 @@ class SignalsMixin(object):
 
         # Match the actual signal shape against stated length and number of channels
         if (self.siglen, self.nsig) != self.d_signals.shape:
-            print('siglen and nsig do not match shape of d_signals')
             print('siglen: ', self.siglen)
             print('nsig: ', self.nsig)
             print('d_signals.shape: ', self.d_signals.shape)
-            sys.exit()
+            raise ValueError('siglen and nsig do not match shape of d_signals')
 
         # For each channel (if any), make sure the digital format has no values out of bounds
         for ch in range(0, self.nsig):
@@ -46,20 +44,20 @@ class SignalsMixin(object):
             chmin = min(self.d_signals[:,ch])
             chmax = max(self.d_signals[:,ch])
             if (chmin < dmin) or (chmax > dmax):
-                sys.exit("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
+                raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
                     
         # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
         if self.nsig>0:
             if 'checksum' in writefields:
                 realchecksum = self.calc_checksum()
                 if self.checksum != realchecksum:
-                    print("checksum field does not match actual checksum of d_signals: ", realchecksum)
-                    sys.exit()
+                    print("The actual checksum of d_signals is: ", realchecksum)
+                    raise ValueError("checksum field does not match actual checksum of d_signals")
             if 'initvalue' in writefields:
                 realinitvalue = list(self.d_signals[0,:])
                 if self.initvalue != realinitvalue:
-                    print("initvalue field does not match actual initvalue of d_signals: ", realinitvalue)
-                    sys.exit()
+                    print("The actual initvalue of d_signals is: ", realinitvalue)
+                    raise ValueError("initvalue field does not match actual initvalue of d_signals")
 
     
     def set_p_features(self, do_dac = False):
@@ -116,7 +114,7 @@ class SignalsMixin(object):
             if self.fmt is None:
                 # Make sure that neither adcgain nor baseline are set
                 if self.adcgain is not None or self.baseline is not None:
-                    sys.exit('If fmt is not set, gain and baseline may not be set either.')
+                    raise Exception('If fmt is not set, gain and baseline may not be set either.')
                 # Choose appropriate fmts based on estimated signal resolutions. 
                 res = estres(self.p_signals)
                 self.fmt = wfdbfmt(res, singlefmt)
@@ -130,7 +128,7 @@ class SignalsMixin(object):
                     self.adcgain, self.baseline = self.calculate_adcparams()
                 # Exactly one field set
                 elif (self.adcgain is None) ^ (self.baseline is None):
-                    sys.exit('If fmt is set, gain and baseline should both be set or not set.')
+                    raise Exception('If fmt is set, gain and baseline should both be set or not set.')
             
             self.checkfield('adcgain', 'all')
             self.checkfield('baseline', 'all')
@@ -230,7 +228,7 @@ class SignalsMixin(object):
             
             # WFDB library limits...     
             if abs(gain)>214748364 or abs(baseline)>2147483648:
-                sys.exit('Chen, please fix this')
+                raise Exception('cx1111, please fix this!')
                     
             gains.append(gain)
             baselines.append(baseline)     
@@ -853,7 +851,7 @@ def wfdbfmtres(fmt):
     elif fmt == '32':
         return 32
     else:
-        sys.exit('Invalid WFDB format.')
+        raise ValueError('Invalid WFDB format.')
 
 # Write a dat file.
 # All bytes are written one at a time
@@ -956,7 +954,7 @@ def wrdatfile(filename, fmt, d_signals, byteoffset):
         # Convert to unsigned 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
     else:
-        sys.exit('This library currently only supports the following formats: 80, 16, 24, 32')
+        raise ValueError('This library currently only supports writing the following formats: 80, 16, 24, 32')
         
     # Byte offset in the file
     if byteoffset is not None and byteoffset>0:
