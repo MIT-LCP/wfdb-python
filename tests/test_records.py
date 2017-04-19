@@ -17,7 +17,6 @@ class test_rdsamp():
         # This comment line was manually added and is not present in the original physiobank record
         del(fields['comments'][0])
 
-        # Test file writing
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
 
@@ -38,7 +37,7 @@ class test_rdsamp():
 
         # Test file writing
         record.wrsamp()
-        recordwrite = wfdb.rdsamp('100')
+        recordwrite = wfdb.rdsamp('100', physical=False)
 
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)
@@ -95,7 +94,7 @@ class test_rdsamp():
 
         # Test file writing
         record.wrsamp()
-        recordwrite = wfdb.rdsamp('a103l')
+        recordwrite = wfdb.rdsamp('a103l', physical=False)
 
         assert np.array_equal(sig, targetsig)
         assert record.__eq__(pbrecord)

@@ -55,22 +55,22 @@ class Annotation():
         att2 = other.__dict__
 
         if set(att1.keys()) != set(att2.keys()):
-            return False, 1
+            return False
 
         for k in att1.keys():
             v1 = att1[k]
             v2 = att2[k]
 
             if type(v1) != type(v2):
-                return False, 2
+                return False
 
             if type(v1) == np.ndarray:
                 if not np.array_equal(v1, v2):
-                    return False, 3
+                    return False
             else:
                 if v1 != v2:
                     print(k)
-                    return False, 4
+                    return False
 
         return True
 
