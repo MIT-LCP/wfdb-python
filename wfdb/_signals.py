@@ -878,7 +878,7 @@ def wrdatfile(filename, fmt, d_signals, byteoffset):
         # The process is repeated for each successive pair of samples. 
 
         # convert to 12 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 1624
+        d_signals[d_signals<0] = d_signals[d_signals<0] + 4096
         
         # Concatenate into 1D
         d_signals = d_signals.reshape(-1)
