@@ -527,7 +527,6 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
         # Obtain the sampfrom and sampto to read for each segment
         if readsegs[1] == readsegs[0]:
-            #print('a')
             # Only one segment to read
             readsegs = [readsegs[0]]
             # The segment's first sample number relative to the entire record
@@ -535,7 +534,6 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             readsamps = [[sampfrom-segstartsamp, sampto-segstartsamp]]
 
         else:
-            #print('b')
             # More than one segment to read
             readsegs = list(range(readsegs[0], readsegs[1]+1))
             readsamps = [[0, self.seglen[s]] for s in readsegs]

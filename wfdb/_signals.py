@@ -168,13 +168,14 @@ class SignalsMixin(object):
     def dac(self):
         
         # The digital nan values for each channel
-        dnans = digi_nan(self.fmt) 
+        dnans = digi_nan(self.fmt)
         
         # Get nan indices, indicated by minimum value. 
         nanlocs = self.d_signals == dnans
         
-        p_signal = (self.d_signals - self.baseline)/self.adcgain
-            
+        # adcgain values must be float for python 2 to ensure dtype = float64
+        p_signal = (self.d_signals - self.baseline)/[float(g) for g in self.adcgain]
+
         p_signal[nanlocs] = np.nan
                 
         return p_signal

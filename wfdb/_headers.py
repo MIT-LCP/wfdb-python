@@ -441,7 +441,6 @@ def read_rec_line(recline):
 
 # Extract fields from signal line strings into a dictionary
 def read_sig_lines(siglines):
-
     # Dictionary for signal fields
     d_sig = {}
 
@@ -471,6 +470,7 @@ def read_sig_lines(siglines):
             # that different channels can be present or missing. 
             if d_sig[field][i] == '':
                 d_sig[field][i] = sigfieldspecs[field].read_def
+
                 # Special case: missing baseline defaults to ADCzero if present
                 if field == 'baseline' and d_sig['adczero'][i] != '':
                     d_sig['baseline'][i] = int(d_sig['adczero'][i])
@@ -482,7 +482,7 @@ def read_sig_lines(siglines):
                     d_sig[field][i] = float(d_sig[field][i])
                     # Special case: gain of 0 means 200
                     if field == 'adcgain' and d_sig['adcgain'][i] == 0:
-                        d_sig['adcgain'][i] = 200
+                        d_sig['adcgain'][i] = 200.
 
     return d_sig
 
@@ -566,7 +566,7 @@ sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True,
                          ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
-                         ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200, None)),
+                         ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200., None)),
                          ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, 0, None)),
                          ('units', WFDBheaderspecs([str], '/', 'adcgain', True, 'mV', None)),
                          ('adcres', WFDBheaderspecs(inttypes, ' ', 'adcgain', False, None, 0)),
