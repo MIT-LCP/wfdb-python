@@ -54,7 +54,8 @@ class test_rdann():
 
         # Test file streaming
         pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb')
-
+        pbannotation.aux[0] = '(N'
+        
         # Test file writing
         annotation.wrann()
         annotationwrite = wfdb.rdann('100', 'atr')
