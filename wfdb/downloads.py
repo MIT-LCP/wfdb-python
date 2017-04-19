@@ -22,7 +22,7 @@ def streamheader(recordname, pbdir):
     commentlines = []
 
     for line in filelines:
-        line = line.strip()
+        line = str(line.strip())
         # Comment line
         if line.startswith('#'):
             commentlines.append(line)
