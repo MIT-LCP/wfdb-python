@@ -1075,7 +1075,7 @@ def parsedatestring(datestring):
         raise ValueError('year must be positive')
     if month<1 or month>12:
         raise ValueError('month must be between 1 and 12')
-    if day not in range(monthrange(year, month)[0], monthrange(year, month)[1]):
+    if day not in range(1, monthrange(year, month)[1]+1):
         raise ValueError('day does not exist for specified year and month')
     
     return (day, month, year)
