@@ -582,4 +582,41 @@ segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, 
 
 
 
+# For storing WFDB Signal definitions.
+
+# SignalType class with all its parameters
+class SignalType():
+    def __init__(self, description, measurement=None, default_display=None, signalnames=None):
+        self.description = description
+        self.unitscale = unitscale
+        # Tuple pair (a, b). The plot displays range a, of unit b.
+        self.default_display = default_display
+        self.signalnames = signalnames
+
+unitscale = {
+    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
+    'Temperature': ['C'],
+    'Pressure': ['mmHg'],
+}
+
+# All signal types
+signaltypes = {
+    'BP': SignalType('Blood Pressure', 'Pressure'),
+    'CO2': SignalType('Carbon Dioxide'),
+    'CO': SignalType('Carbon Monoxide'),
+    'ECG': SignalType('Electrocardiogram'),
+    'EEG': SignalType('Electroencephalogram'),
+    'EMG': SignalType('Electromyograph'),
+    'EOG': SignalType('Electrooculograph'),
+    'HR': SignalType('Heart Rate'),
+    'MMG': SignalType('Magnetomyograph'),
+    'O2': SignalType('Oxygen'),
+    'PLETH': SignalType('Plethysmograph'),
+    'RESP': SignalType('Respiration'),
+    'SCG': SignalType('Seismocardiogram'),
+    'STAT': SignalType('Status'), # small integers indicating status
+    'ST': SignalType('ECG ST Segment'),
+    'TEMP': SignalType('Temperature'),
+}
+
 
