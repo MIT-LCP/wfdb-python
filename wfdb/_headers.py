@@ -376,9 +376,9 @@ rxSIGNAL = re.compile(
         [
             "(?P<filename>[\w]*\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
             "(?P<sampsperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
-            "(?P<adcgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-]*)[ \t]*",
+            "(?P<adcgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-\?%]*)[ \t]*",
             "(?P<adcres>\d*)[ \t]*(?P<adczero>-?\d*)[ \t]*(?P<initvalue>-?\d*)[ \t]*",
-            "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]*)"]))
+            "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]?[^\t\n\r\f\v]*)"]))
 
 # Segment Line Fields
 rxSEGMENT = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
@@ -585,12 +585,14 @@ segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, 
 # For storing WFDB Signal definitions.
 
 # SignalType class with all its parameters
-class SignalType():
+class SignalType(object):
     def __init__(self, description, measurement=None, default_display=None, signalnames=None):
         self.description = description
         self.unitscale = unitscale
+        
         # Tuple pair (a, b). The plot displays range a, of unit b.
-        self.default_display = default_display
+        #self.default_display = default_display
+        
         self.signalnames = signalnames
 
 unitscale = {
@@ -601,7 +603,7 @@ unitscale = {
 
 # All signal types
 signaltypes = {
-    'BP': SignalType('Blood Pressure', 'Pressure'),
+    'BP': SignalType('Blood Pressure', 'Pressure',None, []),
     'CO2': SignalType('Carbon Dioxide'),
     'CO': SignalType('Carbon Monoxide'),
     'ECG': SignalType('Electrocardiogram'),
