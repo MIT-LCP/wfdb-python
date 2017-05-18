@@ -56,7 +56,7 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     for ch in range(nsig):
         # Plot signal channel
         ax = fig.add_subplot(nsig, 1, ch+1)
-        ax.plot(t, record.p_signals[:,ch]) 
+        ax.plot(t, record.p_signals[:,ch], zorder=3) 
         
         if (title is not None) and (ch==0):
             plt.title(title)
@@ -94,13 +94,13 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
             min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
 
             for tick in minor_ticks_x:
-                ax.plot([tick, tick], [min_y,  max_y], c='#ededed', marker='|')
+                ax.plot([tick, tick], [min_y,  max_y], c='#ededed', marker='|', zorder=1)
             for tick in major_ticks_x:
-                ax.plot([tick, tick], [min_y, max_y], c='#bababa', marker='|')
+                ax.plot([tick, tick], [min_y, max_y], c='#bababa', marker='|', zorder=2)
             for tick in minor_ticks_y:
-                ax.plot([min_x, max_x], [tick, tick], c='#ededed', marker='_')
+                ax.plot([min_x, max_x], [tick, tick], c='#ededed', marker='_', zorder=1)
             for tick in major_ticks_y:
-                ax.plot([min_x, max_x], [tick, tick], c='#bababa', marker='_')
+                ax.plot([min_x, max_x], [tick, tick], c='#bababa', marker='_', zorder=2)
 
             # Plotting the lines changes the graph. Set the limits back
             ax.set_xlim(auto_xlims)
