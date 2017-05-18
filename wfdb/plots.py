@@ -73,13 +73,21 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
         
         # Show standard ecg grids if specified.
         if ecggrids:
+            
             major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y = calc_ecg_grids(
-                record.p_signals[:,ch], record.units[ch], record.fs, t, timeunits)                                       
-            ax.set_xticks(major_ticks_x)
-            ax.set_xticks(minor_ticks_x, minor=True)
-            ax.set_yticks(major_ticks_y)
-            ax.set_yticks(minor_ticks_y, minor=True)
-            ax.grid(which='both')
+                min(record.p_signals[:,ch]), max(record.p_signals[:,ch]), record.units[ch], record.fs, max(t), timeunits)
+
+            min_x, max_x = 0, np.max(t)
+            min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
+
+            for tick in minor_ticks_x:
+                ax.plot([tick, tick], [min_y,  max_y], c='#ededed', marker='|')
+            for tick in major_ticks_x:
+                ax.plot([tick, tick], [min_y, max_y], c='#bababa', marker='|')
+            for tick in minor_ticks_y:
+                ax.plot([min_x, max_x], [tick, tick], c='#ededed', marker='_')
+            for tick in major_ticks_y:
+                ax.plot([min_x, max_x], [tick, tick], c='#bababa', marker='_')
 
     plt.show(fig)
     
@@ -88,7 +96,7 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
         return fig
 
 # Calculate tick intervals for ecg grids
-def calc_ecg_grids(signal, units, fs, t, timeunits):
+def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
 
     # 5mm 0.2s major grids, 0.04s minor grids
     # 0.5mV major grids, 0.125 minor grids 
@@ -122,11 +130,11 @@ def calc_ecg_grids(signal, units, fs, t, timeunits):
         raise ValueError('Signal units must be uV, mV, or V to plot the ECG grid.')
 
 
-    major_ticks_x = np.arange(0, upround(max(t), majorx), majorx)
-    minor_ticks_x = np.arange(0, upround(max(t), majorx), minorx)
+    major_ticks_x = np.arange(0, upround(maxt, majorx), majorx)
+    minor_ticks_x = np.arange(0, upround(maxt, majorx), minorx)
 
-    major_ticks_y = np.arange(downround(min(signal), majory), upround(max(signal), majory), majory)
-    minor_ticks_y = np.arange(downround(min(signal), majory), upround(max(signal), majory), minory)
+    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory), majory)
+    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory), minory)
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
