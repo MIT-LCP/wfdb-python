@@ -319,18 +319,17 @@ Plotting Data
 
 ::
 
-    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig=False)
+    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', figsize=None, returnfig = False, ecggrids=[]): 
 
 Example Usage:
 
 ::
 
     import wfdb
-    record = wfdb.rdsamp('sampledata/100', sampto = 15000)
-    annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
+    record = wfdb.rdsamp('sampledata/100', sampto = 3000)
+    annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 3000)
 
-    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds')
-     
+    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds', figsize = (10,4), ecggrids = 'all')
 
 Input Arguments:
 
@@ -339,7 +338,9 @@ Input Arguments:
 - ``annotation`` (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
 - ``annch`` (default=[0]): A list of channels on which to plot the annotation samples.
 - ``timeunits`` (default='samples'): String specifying the x axis unit. Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+- ``figsize`` (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument passed into matplotlib.pyplot's figure() function.
 - ``returnfig`` (default=False): Specifies whether the figure is to be returned as an output argument
+- ``ecggrids`` (default=[]): List of integers specifying channels in which to plot ecg grids. May be set to [] for no channels, or 'all' for all channels. Major grids at 0.5mV, and minor grids at 0.125mV. All channels to be plotted with grids must have units equal to 'uV', 'mV', or 'V'.
 
 Output argument:
 - ``figure``: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.

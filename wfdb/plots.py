@@ -7,7 +7,7 @@ from . import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
-def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig = False, ecggrids=False): 
+def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', figsize=None, returnfig = False, ecggrids=[]): 
     """ Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
@@ -21,17 +21,23 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     - annch (default=[0]): A list of channels on which to plot the annotation samples.
     - timeunits (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+    - figsize (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
+      passed into matplotlib.pyplot's figure() function.
     - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
+    - ecggrids (default=[]): List of integers specifying channels in which to plot ecg grids. May be set to [] for
+      no channels, or 'all' for all channels. Major grids at 0.5mV, and minor grids at 0.125mV. All channels to be 
+      plotted with grids must have units equal to 'uV', 'mV', or 'V'.
     
     Output argument:
     - figure: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.
 
     Example Usage:
     import wfdb
-    record = wfdb.rdsamp('sampledata/100', sampto = 15000)
-    annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
+    record = wfdb.rdsamp('sampledata/100', sampto = 3000)
+    annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 3000)
 
-    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds')
+    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
+                 timeunits = 'seconds', figsize = (10,4), ecggrids = 'all')
     """
 
     # Check the validity of items used to make the plot
@@ -40,8 +46,12 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     
     siglen, nsig = record.p_signals.shape
     
+    # Expand ecg grid channels
+    if ecggrids == 'all':
+        ecggrids = range(0, record.nsig)
+
     # Create the plot  
-    fig=plt.figure()
+    fig=plt.figure(figsize=figsize)
     
     for ch in range(nsig):
         # Plot signal channel
@@ -70,14 +80,17 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
         else:
             unitlabel='NU'
         plt.ylabel(chanlabel+"/"+unitlabel)
-        
-        # Show standard ecg grids if specified.
-        if ecggrids:
-            
-            major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y = calc_ecg_grids(
-                min(record.p_signals[:,ch]), max(record.p_signals[:,ch]), record.units[ch], record.fs, max(t), timeunits)
 
-            min_x, max_x = 0, np.max(t)
+        # Show standard ecg grids if specified.
+        if ch in ecggrids:
+            
+            auto_xlims = ax.get_xlim()
+            auto_ylims= ax.get_ylim()
+
+            major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y = calc_ecg_grids(
+                auto_ylims[0], auto_ylims[1], record.units[ch], record.fs, auto_xlims[1], timeunits)
+
+            min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
             min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
 
             for tick in minor_ticks_x:
@@ -88,6 +101,10 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
                 ax.plot([min_x, max_x], [tick, tick], c='#ededed', marker='_')
             for tick in major_ticks_y:
                 ax.plot([min_x, max_x], [tick, tick], c='#bababa', marker='_')
+
+            # Plotting the lines changes the graph. Set the limits back
+            ax.set_xlim(auto_xlims)
+            ax.set_ylim(auto_ylims)
 
     plt.show(fig)
     
@@ -130,11 +147,11 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
         raise ValueError('Signal units must be uV, mV, or V to plot the ECG grid.')
 
 
-    major_ticks_x = np.arange(0, upround(maxt, majorx), majorx)
-    minor_ticks_x = np.arange(0, upround(maxt, majorx), minorx)
+    major_ticks_x = np.arange(0, upround(maxt, majorx)+0.0001, majorx)
+    minor_ticks_x = np.arange(0, upround(maxt, majorx)+0.0001, minorx)
 
-    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory), majory)
-    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory), minory)
+    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, majory)
+    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, minory)
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
@@ -298,7 +315,7 @@ def checkannplotitems(annotation, title, timeunits):
 
 # Round down to nearest <base>
 def downround(x, base):
-    return base * round(float(x)/base)
+    return base * math.floor(float(x)/base)
 
 # Round up to nearest <base>
 def upround(x, base):
