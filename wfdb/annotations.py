@@ -6,7 +6,7 @@ from . import _headers
 from . import downloads
 
 # Class for WFDB annotations
-class Annotation():
+class Annotation(object):
     """
     The class representing WFDB annotations. 
 
