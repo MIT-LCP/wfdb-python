@@ -544,7 +544,7 @@ class WFDBheaderspecs():
         # 2. Certain unimportant fields may be dependencies of other
         #    important fields. When writing, we want to fill in defaults
         #    so that the user doesn't need to. But when reading, it should
-        #    be clear that the fields are missing. 
+        #    be clear that the fields are missing.
 
 inttypes = [int, np.int64, np.int32]
 floattypes = inttypes + [float, np.float64, np.float32]
