@@ -320,6 +320,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     """
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
+                 e_p_signals=None, e_d_signals=None,
                  recordname=None, nsig=None,
                  fs=None, counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
@@ -338,6 +339,9 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
         self.p_signals = p_signals
         self.d_signals = d_signals
+        self.e_p_signals = e_p_signals
+        self.e_d_signals = e_d_signals       
+
 
         self.filename=filename
         self.fmt=fmt
@@ -695,12 +699,14 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None, m2s = True):
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None,
+           m2s = True, smoothframes = True):
     """Read a WFDB record and return the signal and record descriptors as attributes in a
     Record or MultiRecord object.
 
     Usage:
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None, m2s=True)
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None,
+             m2s=True, smoothframes = True)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -715,8 +721,13 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
        directory from which to find the required record files.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
     - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to
-      directly return a wfdb MultiRecord object (false), or to convert it into and return a wfdb
+      directly return a wfdb MultiRecord object (False), or to convert it into and return a wfdb
       Record object (True).
+    - smoothframes (default=True): Flag used when reading records with signals having multiple
+      samples per frame. Specifies whether to smooth the samples in signals with more than
+      one sample per frame to return an mxn uniform numpy array as the d_signals or p_signals
+      field (True), or to return a list of 1d numpy arrays containing every expanded sample as
+      the e_d_signals or e_p_signals field (False).
 
     Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
@@ -752,17 +763,25 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     record.checkreadinputs(sampfrom, sampto, channels)
     # A single segment record
     if type(record) == Record:
-        # Read signals from the associated dat files that contain wanted channels
-        record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
-            record.byteoffset, record.sampsperframe, record.skew,
-            sampfrom, sampto, channels)
-        # Arrange/edit the object fields to reflect user channel and/or signal range input
-        record.arrangefields(channels, sampto - sampfrom)
-        if physical == 1:
-            # Perform dac to get physical signal
-            record.p_signals = record.dac()
-            # Clear memory
-            record.d_signals = None
+
+        # Multi-sample frames are smoothed to make a uniform numpy array
+        if smoothframes or :
+            # Read signals from the associated dat files that contain wanted channels
+            record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
+                record.byteoffset, record.sampsperframe, record.skew,
+                sampfrom, sampto, channels)
+            # Arrange/edit the object fields to reflect user channel and/or signal range input
+            record.arrangefields(channels, sampto - sampfrom)
+            if physical == 1:
+                # Perform dac to get physical signal
+                record.p_signals = record.dac()
+                # Clear memory
+                record.d_signals = None
+
+        # Return each sample of the signals with multiple samples per frame
+        else:
+            record.e_d_signals = _signals.rdsegment()
+
     # A multi segment record
 
     # We can make another rdsamp function (called rdsamp_segment) to call

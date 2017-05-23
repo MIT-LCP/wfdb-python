@@ -274,7 +274,8 @@ class SignalsMixin(object):
 # Read the samples from a single segment record's associated dat file(s)
 # 'channels', 'sampfrom', and 'sampto' are user desired input fields.
 # All other input arguments are specifications of the segment
-def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperframe, skew, sampfrom, sampto, channels):
+def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
+              sampsperframe, skew, sampfrom, sampto, channels, smoothframes):
 
     # Avoid changing outer variables
     byteoffset = byteoffset[:]
@@ -290,12 +291,12 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperf
         if skew[i] == None:
             skew[i] = 0
 
-    # Get the set of dat files, and the 
-    # channels that belong to each file. 
+    # Get the set of dat files, and the
+    # channels that belong to each file.
     filename, datchannel = orderedsetlist(filename)
 
-    # Some files will not be read depending on input channels. 
-    # Get the the wanted fields only. 
+    # Some files will not be read depending on input channels.
+    # Get the the wanted fields only.
     w_filename = [] # one scalar per dat file
     w_fmt = {} # one scalar per dat file
     w_byteoffset = {} # one scalar per dat file
@@ -323,14 +324,25 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset, sampsperf
     for fn in w_channel:
         r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
         out_datchannel[fn] = [channels.index(c) for c in w_channel[fn]]
-        
-    # Allocate signal array
-    signals = np.empty([sampto-sampfrom, len(channels)], dtype = 'int64')
+    
+    # Signals with multiple samples/frame are smoothed
+    if smoothframes:
 
-    # Read each wanted dat file and store signals
-    for fn in w_filename:
-        signals[:, out_datchannel[fn]] = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
-            siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
+        # Allocate signal array
+        signals = np.empty([sampto-sampfrom, len(channels)], dtype = 'int64')
+
+        # Read each wanted dat file and store signals
+        for fn in w_filename:
+            signals[:, out_datchannel[fn]] = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
+                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto)[:, r_w_channel[fn]]
+    
+    # Return each sample in signals with multiple samples/frame
+    else:
+        signals=[]
+
+        for fn in w_filename:
+            signals.append(rddat())
+
 
     return signals 
 
