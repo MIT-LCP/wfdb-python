@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import math
 from . import records
 from . import _headers
 from . import _signals

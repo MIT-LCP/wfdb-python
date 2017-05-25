@@ -1,0 +1,6 @@
+100skew 2 360 650000
+100.dat 212 200 11 1024 995 -22131 0 MLII
+100.dat 212:3 200 11 1024 1011 20052 0 V5
+# This is just record 100 with a skew inserted in channel 1
+# 69 M 1085 1629 x1
+# Aldomet, Inderal

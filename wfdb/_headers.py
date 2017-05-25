@@ -55,7 +55,6 @@ class BaseHeadersMixin(object):
                         continue
 
                     fielditem = getattr(self, f)
-
                     # If the field is required by default or has been defined by the user
                     if fieldspecs[f].write_req or (fielditem is not None and fielditem[ch] is not None):
                         rf=f
@@ -563,7 +562,7 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
-                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
+                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, 1, None)),
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200., None)),

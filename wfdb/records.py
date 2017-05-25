@@ -784,7 +784,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     if type(record) == Record:
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smoothframes or max(sampsperframe[channels])==1:
+        if smoothframes or max([record.sampsperframe[c] for c in channels])==1:
             # Read signals from the associated dat files that contain wanted channels
             record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
                                                   record.byteoffset, record.sampsperframe, record.skew,
