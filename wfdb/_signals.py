@@ -398,110 +398,57 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     readlen = sampto - sampfrom
 
     # Calculate parameters used to read and process the dat file
-    startbyte, nreadsamples, extrapadsamples, nanreplace, blockfloorsamples, blockceilsamples = calc_read_params(fmt, siglen, byteoffset,
-                                                                       skew, tsampsperframe,
-                                                                       sampfrom, sampto)
+    startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace = calc_read_params(fmt, siglen, byteoffset,
+                                                                                                skew, tsampsperframe,
+                                                                                                sampfrom, sampto)
 
-    print(startbyte, nreadsamples, extrapadsamples, nanreplace, blockfloorsamples, blockceilsamples)
+    # Number of bytes to be read from the dat file
+    totalreadbytes = requiredbytenum('read', fmt, nreadsamples)
+    
+    # Total samples to be processed in intermediate step. Includes extra padded samples beyond dat file
+    totalprocesssamples = nreadsamples + extraflatsamples
 
-    # Read the required bytes from the dat file.
-    # Pad the end if necessary for skewed signals beyond the entire file.
-    if extrapadsamples >0:
-        # Non-special formats already load samples.
-        # Special formats load uint8 which are not samples. The extra element count should reflect that.
+    # Total number of bytes to be processed in intermediate step.
+    totalprocessbytes = requiredbytenum('read', fmt, totalprocesssamples)
 
-        # Do we need to upround (extrapadsamples * <>) ?
+    
+    # Get the intermediate bytes or samples to process. Bit of a discrepancy. Recall special formats
+    # load uint8 bytes, other formats already load samples.
 
-        if fmt == '212':
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.empty(int(extrapadsamples*3/2), dtype=np.dtype(dataloadtypes[fmt]))))
-        elif fmt in ['310', '311']:
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.empty(int(extrapadsamples*4/3), dtype=np.dtype(dataloadtypes[fmt]))))
+    #Get values from dat file, and append bytes/samples if needed.
+    if extraflatsamples:
+        if fmt in ['212', '310', '311']:
+            # Extra number of bytes to append onto the bytes read from the dat file.
+            extrabytenum = totalprocessbytes - totalreadbytes
+            sigbytes = np.concatenate(getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+                                      np.zeros(extrabytenum, dtype = 'uint8'))
         else:
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.empty(extrapadsamples, dtype=np.dtype(dataloadtypes[fmt]))))
+            sigbytes = np.concatenate(getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+                                      np.zeros(extraflatsamples, dtype=np.dtype(dataloadtypes[fmt])))
     else:
         sigbytes = getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples)
 
 
-    # Continue to process the read values into proper samples
-    if fmt == '212':
 
+    # Read the required bytes from the dat file.
+    # Then continue to process the read values into proper samples
+    if fmt == '212':
+        
         # No extra samples/frame. Obtain original uniform numpy array
         if tsampsperframe==nsig:
 
-            # Intermediate number of samples to process. (like readlen)
-            # sigbytes always loads byte blocks, so no need to account for floorsamp here when allocating processnsamp.
-            # Now has to take skew into account, which sigbytes already has.
+            # Turn the bytes into actual samples. Flat 1d array.
+            sig = bytes2samples(sigbytes, totalprocesssamples, fmt)
 
-            processnsamp = int(sigbytes.shape[0]*2/3)
-            # processnsamp always comes in whole block bytes
+            # Remove extra leading sample read within the byte block if any
+            if blockfloorsamples:
+                sig = sig[blockfloorsamples:]
 
-            
+            # Reshape into multiple channels
+            sig= sig.reshape(-1, nsig)
 
-            #if processnsamp % 2:
-            #    padone = True
-            #    sigbytes = np.append(sigbytes, np.zeros(1, dtype='uint8'))
-            #    processnsamp+=1
-            #else:
-            #    padone = False
-
-
-            # No extra samples/frame
-            if tsampsperframe == nsig:
-                # Turn the bytes into actual samples.
-                # 1d array of actual samples
-
-                # This has to be longer. Match the extra bytes read because of skew too.
-                sig = np.zeros(processnsamp, dtype='int64')
-
-
-                #pdb.set_trace()
-
-                # One sample pair is stored in one byte triplet.
-                # Even numbered samples
-                sig[0::2] = sigbytes[0::3] + 256 * np.bitwise_and(sigbytes[1::3], 0x0f)
-                
-                # Odd numbered samples (len(sig) always >1 due to enforcement of whole blocks)
-                sig[1::2] = sigbytes[2::3] + 256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
-
-                # Wait... is this done here?
-                # Remove extra leading sample read within the byte block
-                if blockfloorsamples:
-                    sig = sig[blockfloorsamples:]
-
-                # Remove extra trailing sample read within the byte block if originally odd sampled
-                if blockceilsamples:
-                    sig = sig[:-blockceilsamples]
-
-                #pdb.set_trace()
-                
-                #print(sig)
-                #print(sig.shape)
-
-
-                # Reshape into final array of samples
-                sig= sig.reshape(-1, nsig)
-
-
-                # Loaded values as unsigned. Convert to 2's complement form:
-                # values > 2^11-1 are negative.
-                sig[sig > 2047] -= 4096
-                sig[sig > 2047] -= 4096
-
-
-                #pdb.set_trace()
-
-                # Adjust for skew
-                if max(skew)>0:
-                    # Skew the channels required
-                    for ch in range(nsig):
-                        if skew[ch]>0:
-                            sig[:readlen, ch] = sig[skew[ch]:, ch]
-
-                    # Shave off the extra signal length at the end
-                    sig = sig[:readlen, :]
+            # Skew the signal
+            sig = skewsig(sig, skew, nsig, readlen)
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
@@ -509,83 +456,6 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         # Extra frames present without wanting smoothing. Return all expanded samples.
         else:
             pass
-
-
-
-        # ------------------------- original ------------------------- #
-
-        # # use this for byte processing
-        # processnsamp = nsamp
-
-        # # For odd sampled records, imagine an extra sample and add an extra byte 
-        # # to simplify the processing step and remove the extra sample at the end. 
-        # if processnsamp % 2:
-        #     sigbytes = np.append(sigbytes, 0).astype('uint64')
-        #     processnsamp+=1
-
-
-        # # No extra samples/frame
-        # if tsampsperframe == nsig:  
-        #     # Turn the bytes into actual samples.
-        #     sig = np.zeros(processnsamp, dtype='int64')  # 1d array of actual samples
-        #     # One sample pair is stored in one byte triplet.
-        #     sig[0::2] = sigbytes[0::3] + 256 * \
-        #         np.bitwise_and(sigbytes[1::3], 0x0f)  # Even numbered samples
-        #     if len(sig > 1):
-        #         # Odd numbered samples
-        #         sig[1::2] = sigbytes[2::3] + 256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
-        #     # Remove extra leading sample read within the byte block
-        #     if floorsamp:
-        #         sig = sig[floorsamp:]
-
-        #     # Remove extra trailing sample read within the byte block if originally odd sampled
-        #     if nsamp % 2:
-        #         sig = sig[:-1]
-
-        #     # Reshape into final array of samples
-        #     sig = sig.reshape(readlen, nsig)
-        #     sig = sig.astype(int)
-        #     # Loaded values as unsigned. Convert to 2's complement form: values
-        #     # > 2^11-1 are negative.
-        #     sig[sig > 2047] -= 4096
-
-
-        # # At least one channel has multiple samples per frame. All extra samples are averaged
-        # else:
-        #     # Turn the bytes into actual samples.
-        #     sigall = np.zeros(processnsamp)  # 1d array of actual samples
-        #     sigall[0::2] = sigbytes[0::3] + 256 * \
-        #         np.bitwise_and(sigbytes[1::3], 0x0f)  # Even numbered samples
-
-        #     if len(sigall) > 1:
-        #         # Odd numbered samples
-        #         sigall[1::2] = sigbytes[2::3] + 256 * \
-        #             np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
-        #     # Remove extra leading sample read within the byte block
-        #     if floorsamp:
-        #         sigall = sigall[floorsamp:]
-
-        #     # Remove extra trailing sample read within the byte block if originally odd sampled
-        #     if nsamp % 2:
-        #         sigall = sigall[:-1]
-
-        #     # Convert to int64 to be able to hold -ve values
-        #     sigall = sigall.astype('int')
-        #     # Loaded values as unsigned. Convert to 2's complement form: values
-        #     # > 2^11-1 are negative.
-        #     sigall[sigall > 2047] -= 4096
-        #     # Give the average sample in each frame for each channel
-        #     sig = np.zeros([readlen, nsig])
-        #     for ch in range(0, nsig):
-        #         if sampsperframe[ch] == 1:
-        #             sig[:, ch] = sigall[
-        #                 sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
-        #         else:
-        #             for frame in range(0, sampsperframe[ch]):
-        #                 sig[:, ch] += sigall[sum(([0] + sampsperframe)
-        #                                          [:ch + 1]) + frame::tsampsperframe]
-        #     sig = (sig / sampsperframe).astype('int')
-
 
     elif fmt == '310':
         pass
@@ -603,15 +473,8 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             # be extra skew samples
             sig = sigbytes.reshape(-1, nsig).astype('int')
 
-            # Adjust for skew
-            if max(skew)>0:
-                # Skew the channels required
-                
-                for ch in range(nsig):
-                    sig[:readlen, ch] = sig[skew[ch]:, ch]
-                
-                # Shave off the extra signal length at the end
-                sig = sig[:readlen, :]
+            # Skew the signal
+            sig = skewsig(sig, skew, nsig, readlen)
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
@@ -645,22 +508,9 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             sig = sig - 128
         elif fmt == '160':
             sig = sig - 32768
-
-    # Insert nans where skewed signal overran dat file
-    # Expanded samples per frame
-    if type(sig) == list:
-        for ch in range(nsig):
-            if nanreplace[ch]>0:
-                sig[ch][-nanreplace[ch]:] = digi_nan(fmt)
-    # Uniform array
-    else:
-        for ch in range(nsig):
-            if nanreplace[ch]>0:
-                sig[-nanreplace[ch]:, ch] = digi_nan(fmt)
     
 
     return sig
-
 
 
 def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sampto):
@@ -670,18 +520,13 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
     Output arguments:
     - startbyte - The starting byte to read the dat file from. Always points to the start of a 
       byte block for special formats.
+    - nreadsamples - The number of flat samples to read from the dat file.
     - blockfloorsamples - The extra samples read prior to the first desired sample, for special
       formats in order to ensure entire byte blocks are read.
-    - blockceilsamples - The extra samples read after the last desired sample, for special
-      formats in order to ensure entire byte blocks are read.
+    - extraflatsamples - The extra samples desired beyond what is contained in the file.
+    - nanreplace - The number of samples to replace with nan at the end of each signal
+      due to skew wanting samples beyond the file
 
-    - blockfloorbytes - This should be useful... just have to figure out exactly how to use
-
-
-    - nsampread - The number of samples to read from the dat file. Takes skew into account.
-      Also 
-    - extralen
-    - nanreplace
 
     Example Parameters:
     siglen=100, t = 4 (total samples/frame), skew = [0, 2, 4, 5]
@@ -691,98 +536,74 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
     sampfrom=95, sampto=99 --> readlen = 4, nsampread = 5*t, extralen = 4, nanreplace = [0, 1, 3, 4]
     """
 
-    # The starting sample number (if all channels were flattened)
-    startflatsample = sampfrom*tsampsperframe
-    # The last theoretical sample number (if all channels were flattened).
-    # May pass siglen*tsampsperframe at this point.
-    endflatsample = (sampto + max(skew)-sampfrom) * tsampsperframe
+    # First flat sample number to read (if all channels were flattened)
+    startflatsample = sampfrom * tsampsperframe
+    
+    #endflatsample = min((sampto + max(skew)-sampfrom), siglen) * tsampsperframe
 
-    # Adjust these desired sample numbers for special formats.
+    # Calculate the last flat sample number to read.
+    # Cannot exceed siglen * tsampsperframe, the number of samples stored in the file.
+    # If extra 'samples' are desired by the skew, keep track.
+    # Where was the -sampfrom derived from? Why was it in the formula?
+    if (sampto + max(skew))>siglen:
+        endflatsample = siglen*tsampsperframe
+        extraflatsamples = (sampto + max(skew) - siglen) * tsampsperframe
+    else:
+        endflatsample = (sampto + max(skew)) * tsampsperframe
+        extraflatsamples = 0
+
+    # Adjust the starting sample number to read from start of blocks for special fmts.
+    # Keep track of how many preceeding samples are read, to be discarded later.
     if fmt == '212':
         # Samples come in groups of 2, in 3 byte blocks
         blockfloorsamples = startflatsample % 2
-        blockceilsamples = 1-blockfloorsamples
-
         startflatsample = startflatsample - blockfloorsamples
-        endflatsample = endflatsample + blockceilsamples
-
     elif fmt in ['310', '311']:
         # Samples come in groups of 3, in 4 byte blocks
-        floorsamples = startflatsample % 3
-        blockceilsamples = 1-blockfloorsamples
-
-        startflatsample = startflatsample - floorsamples
-        endflatsample = endflatsample + blockceilsamples
-
+        blockfloorsamples = startflatsample % 3
+        startflatsample = startflatsample - blockfloorsamples
     else:
         blockfloorsamples = 0
-        blockceilsamples = 0
 
-    desiredflatsamples = endflatsample - startflatsample
+    # The starting byte to read from
+    startbyte = byteoffset + int(startflatsample * bytespersample[fmt])
 
-    # The starting byte to read from in the file
-    startbyte = int(startflatsample*bytespersample[fmt]) + byteoffset
+    # The number of samples to read
+    nreadsamples = endflatsample - startflatsample
 
+    # The number of samples to replace with nan at the end of each signal
+    # due to skew wanting samples beyond the file
 
-    #  nreadsamples: Number of flat samples to be read from the dat file.
-    # - Have to read extra samples if there is a skew, but can't read beyond file limit.
-    #   If the skew requires samples beyond the dat file, pad the bytes with
-    #   zeros, and keep track of channels insert nans into.
-    # - Have to read extra samples for special formats to capture entire blocks.
-    
-    #nsampread = (min(sampto+max(skew), siglen) - sampfrom )*tsampsperframe
-
-    # The number of theoretical samples desired that go past the file limit (due to skew).
-    # Will pad the samples read from the dat file with this number of dummy samples.
-    # For special formats, if >0, this should request whole blocks. errr.... DOES IT????
-
-    # desiredflatsamples should always come in whole blocks. siglen*tsampsperframe doesn't... 
-    # siglen*tsampsperframe is not bound to complete blocks, but the file size is. Should we take
-    # advantage of the filesize to read in more? .... But we already know desiredflatsamples is block whole,
-    # and sincle dfs = nrs + extrapad, it will be fine.
-
-    extrapadsamples = max(0, desiredflatsamples - siglen*tsampsperframe)
-
-    # The final number of samples to read from the dat file
-    nreadsamples = desiredflatsamples - extrapadsamples
-    
-    # The number of samples of each signal desired that go beyond the file due to skew.
-    # The number of samples at the end of each signal to replace with nans
+    # Calculate this using the above statement case: if (sampto + max(skew))>siglen:
     nanreplace = [max(0, sampto + s - siglen) for s in skew]
 
-    return (startbyte, nreadsamples, extrapadsamples, nanreplace, blockfloorsamples, blockceilsamples)
+    return (startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace)
 
 def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     """
-    Read bytes from a dat file, either local or remote
+    Read bytes from a dat file, either local or remote, into a numpy array.
+    Slightly misleading function name. Does not return bytes object. 
+    Output argument dtype varies depending on fmt. Non-special fmts are
+    read in their final required format. Special format are read as uint8.
     
     Input arguments:
-    - nsamp: The total number of samples to read
-    - startbyte: The starting byte to read from
+    - nsamp: The total number of samples to read. Does NOT need to create whole blocks
+      for special format. Any number of samples should be readable. But see below*.
+    - startbyte: The starting byte to read from. * See below.
 
-    This function SHOULD NOT be responsible for ensuring entire blocks
-    are read for special formats. That should be done in prev functions
-    passing in parameters. 
-
-    The input argument *startbyte* should point to the start of a block.
-    The input argument *nsamp* should read all samples to the end of a block.
-    Remember, special fmt dat file sizes should come in whole blocks (padded if necessary).
-
-    This function should just read stuff. 
+    * nsamp and startbyte should make it so that the bytes are read from the start
+      of a byte block, even if sampfrom points into the middle of one. This will not
+      be checked here. calc_read_params should ensure it.
     """
 
     # elementcount is the number of elements to read using np.fromfile (for local files)
     # bytecount is the number of bytes to read (for streaming files)
+
     if fmt == '212':
-        # These int() statements should not be doing any rounding.
-        if nsamp % 2:
-            raise ValueError('nsamp should be an integer multiple of 2 to read entire blocks')
-        bytecount = int(nsamp * 1.5)
+        bytecount = requiredbytenum('read', '212', nsamp)
         elementcount = bytecount
     elif fmt in ['310', '311']:
-        if nsamp % 3:
-            raise ValueError('nsamp should be an integer multiple of 3 to read entire blocks')
-        bytecount = int(nsamp * 4/3)
+        bytecount = requiredbytenum('read', fmt, nsamp)
         elementcount = bytecount
     else:
         elementcount = nsamp
@@ -799,16 +620,142 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
         fp.close()
 
     # Stream dat file from physiobank
+    # Same output as above np.fromfile.
     else:
         sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
 
     return sigbytes
 
 
-def bytes2sig(sigbytes):
-    # This will contain stuff from rddat! Soon!
-    pass
+# Converts loaded uint8 blocks into samples for special formats
+def bytes2samples(sigbytes, nsamp, fmt):
 
+    if fmt == '212':
+        
+        # Easier to process when dealing with whole blocks
+        if nsamp % 2:
+            nsamp = nsamp + 1
+            addedsamps = 1
+            sigbytes = np.append(sigbytes, np.zeros(1, dtype='uint8'))
+        else:
+            addedsamps = 0
+
+        sig = np.zeros(nsamp, dtype='int64')
+
+        # One sample pair is stored in one byte triplet.
+        
+        # Even numbered samples
+        sig[0::2] = sigbytes[0::3] + 256 * np.bitwise_and(sigbytes[1::3], 0x0f)
+        # Odd numbered samples (len(sig) always >1 due to processing of whole blocks)
+        sig[1::2] = sigbytes[2::3] + 256*np.bitwise_and(sigbytes[1::3] >> 4, 0x0f)
+
+        # Remove trailing sample read within the byte block if originally odd sampled
+        if addedsamps:
+            sig = sig[:-addedsamps]
+
+        # Loaded values as unsigned. Convert to 2's complement form:
+        # values > 2^11-1 are negative.
+        sig[sig > 2047] -= 4096
+        sig[sig > 2047] -= 4096
+
+    elif fmt == '310':
+    
+    elif fmt == '311':
+
+    return sig
+
+
+
+def requiredbytenum(mode, fmt, nsamp):
+    """
+    Determine how many signal bytes are needed to read a file, or now many
+    should be written to a file, for special formats.
+
+    Input arguments:
+    - mode: 'read' or 'write'
+    - fmt: format
+    - nsamp: number of samples
+
+    It would be nice if read and write were the same, but fmt 311 for
+    n_extra == 2 ruins it.
+    """
+
+    if fmt == '212':
+        nbytes = math.ceil(nsamp*1.5)
+    elif fmt in ['310', '311']:
+        n_extra = nsamp % 3
+
+        if n_extra == 2:
+            if fmt == '310':
+                nbytes = upround(nsamp * 4/3, 4)
+            # 311
+            else:
+                if mode == 'read':
+                    nbytes = math.ceil(nsamp * 4/3)
+                # Have to write more bytes for wfdb c to work
+                else:
+                    nbytes = upround(nsamp * 4/3, 4)
+        # 0 or 1
+        else:
+            nbytes = math.ceil(nsamp * 4/3 )
+    else:
+        nbytes = nsamp * bytespersample[fmt]
+
+    return int(nbytes)
+
+# Skew the signal and shave off extra samples
+def skewsig(sig, skew, nsig, readlen):
+    
+    if max(skew)>0:
+
+        # Expanded frame samples. List of arrays. 
+        if type(sig) == list:
+            # Shift the channel samples
+
+
+            # Shave off the extra signal length at the end
+
+
+            # Insert nans where skewed signal overran dat file
+            for ch in range(nsig):
+                if nanreplace[ch]>0:
+                    sig[ch][-nanreplace[ch]:] = digi_nan(fmt)
+        # Uniform array
+        else:
+            # Shift the channel samples
+            for ch in range(nsig):
+                if skew[ch]>0:
+                    sig[:readlen, ch] = sig[skew[ch]:, ch]
+            # Shave off the extra signal length at the end
+            sig = sig[:readlen, :]
+
+            # Insert nans where skewed signal overran dat file
+            for ch in range(nsig):
+                if nanreplace[ch]>0:
+                    sig[-nanreplace[ch]:, ch] = digi_nan(fmt)
+
+    return sig
+
+            
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# OLD! DO NOT USE
 
 # Read digital samples from a wfdb signal file
 # Returns the signal and the number of bytes read.
@@ -1075,6 +1022,18 @@ def processwfdbbytes(filename, dirname, pbdir, fmt, startbyte, readlen, nsig, sa
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+# OLD! DO NOT USE
 def skewsignal(sig, skew, filename, dirname, pbdir, nsig, fmt, siglen, sampfrom, sampto, startbyte, 
     bytesloaded, byteoffset, sampsperframe):
 
