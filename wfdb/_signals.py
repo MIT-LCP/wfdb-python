@@ -434,6 +434,8 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     # Then continue to process the read values into proper samples
     if fmt == '212':
         
+        # Clear memory???
+
         # No extra samples/frame. Obtain original uniform numpy array
         if tsampsperframe==nsig:
 
@@ -445,17 +447,56 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                 sig = sig[blockfloorsamples:]
 
             # Reshape into multiple channels
-            sig= sig.reshape(-1, nsig)
+            sig = sig.reshape(-1, nsig)
 
             # Skew the signal
             sig = skewsig(sig, skew, nsig, readlen)
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
-            pass
+            
+            # Turn the bytes into actual samples. Flat 1d array. All samples for all frames.
+            sigflat = bytes2samples(sigbytes, totalprocesssamples, fmt)
+
+            # Remove extra leading sample read within the byte block if any
+            if blockfloorsamples:
+                sigflat = sigflat[blockfloorsamples:]
+
+            # Smoothed signal
+            sig = np.zeros(int(len(sigflat)/tsampsperframe) , nsig)
+
+            # Transfer and average samples
+            for ch in range(nsig):
+                if sampsperframe[ch] == 1:
+                    sig[:, ch] = sigflat[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
+                else:
+                    for frame in range(sampsperframe[ch]):
+                        sig[:, ch] += sigflat[sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
+            sig = (sig / sampsperframe)
+
+            # Skew the signal
+            sig = skewsig(sig, skew, nsig, readlen)
+
         # Extra frames present without wanting smoothing. Return all expanded samples.
         else:
-            pass
+            # Turn the bytes into actual samples. Flat 1d array. All samples for all frames.
+            sigflat = bytes2samples(sigbytes, totalprocesssamples, fmt)
+
+            # Remove extra leading sample read within the byte block if any
+            if blockfloorsamples:
+                sigflat = sigflat[blockfloorsamples:]
+
+            # Arranged signals
+            sig = []
+
+            # Transfer over samples
+            for ch in range(nsig):
+                # Indices of the flat signal that belong to the channel
+                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))])
+                sig.append(sigflat[ch_indices])
+
+            # Skew the signal
+            sig = skewsig(sig, skew, nsig, readlen, sampsperframe)
 
     elif fmt == '310':
         pass
@@ -465,12 +506,16 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     else:
         # Adjust for skew, reshape, and consider sampsperframe.
 
+        # Adjust for byte offset formats
+        if fmt == '80':
+            sigbytes = sigbytes - 128
+        elif fmt == '160':
+            sigbytes = sigbytes - 32768
+
         # No extra samples/frame. Obtain original uniform numpy array
         if tsampsperframe==nsig:
 
-            # Reshape the array into the correct number of channels
-            # At this point, cannot reshape(readlen, nsig) because there might
-            # be extra skew samples
+            # Reshape into multiple channels
             sig = sigbytes.reshape(-1, nsig).astype('int')
 
             # Skew the signal
@@ -496,22 +541,24 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         else:
             # List of 1d numpy arrays
             sig=[]
+
+            # Transfer over samples
             for ch in range(nsig):
-                chansig = np.zeros(readlen*sampsperframe[ch], dtype='int')
-                for frame in range(sampsperframe[ch]):
-                    chansig[frame::sampsperframe[ch]] = sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
+                # chansig = np.zeros(readlen*sampsperframe[ch], dtype='int')
+                # for frame in range(sampsperframe[ch]):
+                #     chansig[frame::sampsperframe[ch]] = sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
+                # sig.append(chansig)
 
-                sig.append(chansig)
+                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))])
+                sig.append(sigbytes[ch_indices])
 
-        # Adjust for byte offset formats
-        if fmt == '80':
-            sig = sig - 128
-        elif fmt == '160':
-            sig = sig - 32768
+            # Skew the signal
+            sig = skewsig(sig, skew, nsig, readlen, sampsperframe)
     
+    # Integrity check of signal shape after reading
+    checksigdims(sig, readlen, nsig, sampsperframe)
 
     return sig
-
 
 def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sampto):
     """
@@ -578,6 +625,44 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
     nanreplace = [max(0, sampto + s - siglen) for s in skew]
 
     return (startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace)
+
+def requiredbytenum(mode, fmt, nsamp):
+    """
+    Determine how many signal bytes are needed to read a file, or now many
+    should be written to a file, for special formats.
+
+    Input arguments:
+    - mode: 'read' or 'write'
+    - fmt: format
+    - nsamp: number of samples
+
+    It would be nice if read and write were the same, but fmt 311 for
+    n_extra == 2 ruins it.
+    """
+
+    if fmt == '212':
+        nbytes = math.ceil(nsamp*1.5)
+    elif fmt in ['310', '311']:
+        n_extra = nsamp % 3
+
+        if n_extra == 2:
+            if fmt == '310':
+                nbytes = upround(nsamp * 4/3, 4)
+            # 311
+            else:
+                if mode == 'read':
+                    nbytes = math.ceil(nsamp * 4/3)
+                # Have to write more bytes for wfdb c to work
+                else:
+                    nbytes = upround(nsamp * 4/3, 4)
+        # 0 or 1
+        else:
+            nbytes = math.ceil(nsamp * 4/3 )
+    else:
+        nbytes = nsamp * bytespersample[fmt]
+
+    return int(nbytes)
+
 
 def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     """
@@ -658,63 +743,29 @@ def bytes2samples(sigbytes, nsamp, fmt):
         sig[sig > 2047] -= 4096
         sig[sig > 2047] -= 4096
 
-    elif fmt == '310':
+    elif fmt == '310': 
+        pass
     
     elif fmt == '311':
-
+        pass
     return sig
 
 
-
-def requiredbytenum(mode, fmt, nsamp):
-    """
-    Determine how many signal bytes are needed to read a file, or now many
-    should be written to a file, for special formats.
-
-    Input arguments:
-    - mode: 'read' or 'write'
-    - fmt: format
-    - nsamp: number of samples
-
-    It would be nice if read and write were the same, but fmt 311 for
-    n_extra == 2 ruins it.
-    """
-
-    if fmt == '212':
-        nbytes = math.ceil(nsamp*1.5)
-    elif fmt in ['310', '311']:
-        n_extra = nsamp % 3
-
-        if n_extra == 2:
-            if fmt == '310':
-                nbytes = upround(nsamp * 4/3, 4)
-            # 311
-            else:
-                if mode == 'read':
-                    nbytes = math.ceil(nsamp * 4/3)
-                # Have to write more bytes for wfdb c to work
-                else:
-                    nbytes = upround(nsamp * 4/3, 4)
-        # 0 or 1
-        else:
-            nbytes = math.ceil(nsamp * 4/3 )
-    else:
-        nbytes = nsamp * bytespersample[fmt]
-
-    return int(nbytes)
-
 # Skew the signal and shave off extra samples
-def skewsig(sig, skew, nsig, readlen):
+def skewsig(sig, skew, nsig, readlen, sampsperframe):
     
     if max(skew)>0:
 
         # Expanded frame samples. List of arrays. 
         if type(sig) == list:
             # Shift the channel samples
-
+            for ch in range(nsig):
+                if skew[ch]>0:
+                    sig[ch][:readlen*sampsperframe[ch]] = sig[ch][skew[ch]*sampsperframe[ch]:]
 
             # Shave off the extra signal length at the end
-
+            for ch in range(nsig):
+                sig[ch] = sig[ch][:readlen*sampsperframe[ch]]
 
             # Insert nans where skewed signal overran dat file
             for ch in range(nsig):
@@ -737,7 +788,17 @@ def skewsig(sig, skew, nsig, readlen):
     return sig
 
             
-
+# Integrity check of signal shape after reading
+def checksigdims(sig, readlen, nsig, sampsperframe):
+    if type(sig) == np.ndarray:
+        if sig.shape != (readlen, nsig):
+            raise ValueError('Samples were not loaded correctly')
+    else:
+        if len(sig) != nsig:
+            raise ValueError('Samples were not loaded correctly')
+        for ch in range(nsig):
+            if len(sig[ch]) != sampsperframe[ch] * readlen
+                raise ValueError('Samples were not loaded correctly')
 
 
 
