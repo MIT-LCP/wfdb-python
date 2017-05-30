@@ -404,6 +404,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
             self.wrdats()
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
+    # Account for case when signals are expanded
     def arrangefields(self, channels, expanded):
 
         # Rearrange signal specification fields

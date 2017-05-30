@@ -356,10 +356,18 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
     else:
-        signals=[]
+        signals=[None]*len(channels)
 
         for fn in w_filename:
-            signals.append(rddat())
+            # Get the list of all signals contained in the dat file 
+            datsignals = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
+                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smoothframes)
+
+            # Copy over the wanted signals
+            for cn in range(len(out_datchannel[fn])):
+
+                signals[out_datchannel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
+
 
 
     return signals 
@@ -420,11 +428,12 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         if fmt in ['212', '310', '311']:
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
-            sigbytes = np.concatenate(getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.zeros(extrabytenum, dtype = 'uint8'))
+
+            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+                                      np.zeros(extrabytenum, dtype = 'uint8')))
         else:
-            sigbytes = np.concatenate(getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.zeros(extraflatsamples, dtype=np.dtype(dataloadtypes[fmt])))
+            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+                                      np.zeros(extraflatsamples, dtype='int64')))
     else:
         sigbytes = getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples)
 
@@ -448,7 +457,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             sig = sig.reshape(-1, nsig)
 
             # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen)
+            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
@@ -461,7 +470,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                 sigflat = sigflat[blockfloorsamples:]
 
             # Smoothed signal
-            sig = np.zeros(int(len(sigflat)/tsampsperframe) , nsig)
+            sig = np.zeros((int(len(sigflat)/tsampsperframe) , nsig))
 
             # Transfer and average samples
             for ch in range(nsig):
@@ -473,7 +482,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             sig = (sig / sampsperframe)
 
             # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen)
+            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
         # Extra frames present without wanting smoothing. Return all expanded samples.
         else:
@@ -490,11 +499,11 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             # Transfer over samples
             for ch in range(nsig):
                 # Indices of the flat signal that belong to the channel
-                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))])
+                ch_indices = np.concatenate(([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))]))
                 sig.append(sigflat[ch_indices])
 
             # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, sampsperframe)
+            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
 
     elif fmt == '310':
         pass
@@ -518,12 +527,15 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             sig = sigbytes.reshape(-1, nsig)
 
             # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen)
+            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
             
+            print('sigbytes:')
+            print(sigbytes)
+
             # Allocate memory for signal
             sig = np.empty([readlen, nsig], dtype='int')
 
@@ -537,6 +549,9 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                         sig[:, ch] += sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
             sig = (sig / sampsperframe)
 
+            print('sig after smoothing:')
+            print(sig)
+
         # Extra frames present without wanting smoothing. Return all expanded samples.
         else:
             # List of 1d numpy arrays
@@ -549,11 +564,11 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                 #     chansig[frame::sampsperframe[ch]] = sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
                 # sig.append(chansig)
 
-                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))])
+                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
                 sig.append(sigbytes[ch_indices])
 
             # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, sampsperframe)
+            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
     
     # Integrity check of signal shape after reading
     checksigdims(sig, readlen, nsig, sampsperframe)
@@ -753,8 +768,11 @@ def bytes2samples(sigbytes, nsamp, fmt):
 
 
 # Skew the signal and shave off extra samples
-def skewsig(sig, skew, nsig, readlen, sampsperframe=None):
-    
+def skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe=None):
+    """
+    fmt is just for the correct nan value.
+    sampsperframe is only used for skewing expanded signals.
+    """
     if max(skew)>0:
 
         # Expanded frame samples. List of arrays. 
