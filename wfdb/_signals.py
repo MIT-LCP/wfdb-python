@@ -428,8 +428,6 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     else:
         sigbytes = getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples)
 
-
-
     # Read the required bytes from the dat file.
     # Then continue to process the read values into proper samples
     if fmt == '212':
@@ -512,14 +510,16 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         elif fmt == '160':
             sigbytes = sigbytes - 32768
 
+
         # No extra samples/frame. Obtain original uniform numpy array
         if tsampsperframe==nsig:
 
             # Reshape into multiple channels
-            sig = sigbytes.reshape(-1, nsig).astype('int')
+            sig = sigbytes.reshape(-1, nsig)
 
             # Skew the signal
             sig = skewsig(sig, skew, nsig, readlen)
+
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
@@ -700,7 +700,8 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
         fp.seek(startbyte)
 
         # Read file using corresponding dtype
-        sigbytes = np.fromfile(fp, dtype=np.dtype(dataloadtypes[fmt]), count=elementcount)
+        # Cast to int64 for further processing
+        sigbytes = np.fromfile(fp, dtype=np.dtype(dataloadtypes[fmt]), count=elementcount).astype('int')
 
         fp.close()
 
@@ -743,7 +744,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         sig[sig > 2047] -= 4096
         sig[sig > 2047] -= 4096
 
-    elif fmt == '310': 
+    elif fmt == '310':
         pass
     
     elif fmt == '311':
@@ -752,7 +753,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
 
 
 # Skew the signal and shave off extra samples
-def skewsig(sig, skew, nsig, readlen, sampsperframe):
+def skewsig(sig, skew, nsig, readlen, sampsperframe=None):
     
     if max(skew)>0:
 
@@ -797,7 +798,7 @@ def checksigdims(sig, readlen, nsig, sampsperframe):
         if len(sig) != nsig:
             raise ValueError('Samples were not loaded correctly')
         for ch in range(nsig):
-            if len(sig[ch]) != sampsperframe[ch] * readlen
+            if len(sig[ch]) != sampsperframe[ch] * readlen:
                 raise ValueError('Samples were not loaded correctly')
 
 

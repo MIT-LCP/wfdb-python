@@ -58,7 +58,8 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     sigbytes = r.content
 
     # Convert to numpy array
-    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt]))
+    # Cast to int64 for further processing
+    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt])).astype('int')
 
     return sigbytes
 
