@@ -25,7 +25,7 @@ class SignalsMixin(object):
 
         if expanded:
             # Using list of arrays e_d_signals
-            self.checkfield('e_d_signals')
+            self.checkfield('e_d_signals', channels = 'all')
         else:
             # Check the validity of the d_signals field
             self.checkfield('d_signals')
@@ -43,10 +43,9 @@ class SignalsMixin(object):
 
         # Using list of arrays e_d_signals
         if expanded:
-
             # Set default sampsperframe
             spf = self.sampsperframe
-            for ch in range(nsig):
+            for ch in range(len(spf)):
                 if spf[ch] is None:
                     spf[ch] = 1
 
@@ -133,7 +132,7 @@ class SignalsMixin(object):
 
         if expanded:
             if do_dac == 1:
-                self.checkfield('e_d_signals')
+                self.checkfield('e_d_signals', channels = 'all')
                 self.checkfield('fmt', 'all')
                 self.checkfield('adcgain', 'all')
                 self.checkfield('baseline', 'all')
@@ -143,7 +142,7 @@ class SignalsMixin(object):
                 self.e_p_signals = self.dac(expanded)
 
             # Use e_p_signals to set fields
-            self.checkfield('e_p_signals')
+            self.checkfield('e_p_signals', channels = 'all')
             self.siglen = int(len(self.e_p_signals[0])/self.sampsperframe[0])
             self.nsig = len(self.e_p_signals)
         else:
@@ -186,7 +185,7 @@ class SignalsMixin(object):
         if expanded:
             # adc is performed.
             if do_adc == True:
-                self.checkfield('e_p_signals')
+                self.checkfield('e_p_signals', channels = 'all')
 
                 # If there is no fmt set
                 if self.fmt is None:
@@ -214,7 +213,7 @@ class SignalsMixin(object):
                 self.d_signals = self.adc(expanded)
 
             # Use e_d_signals to set fields
-            self.checkfield('e_d_signals')
+            self.checkfield('e_d_signals', channels = 'all')
             self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
             self.nsig = len(self.e_d_signals)
             self.initvalue = [sig[0] for sig in self.e_d_signals]
@@ -399,7 +398,7 @@ class SignalsMixin(object):
         # Write the dat files
         if expanded:
             for fn in filenames:
-                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signals[ch] for ch in datchannels[fn]])
+                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signals[ch] for ch in datchannels[fn]], self.sampsperframe)
         else:
             # Create a copy to prevent overwrite
             dsig = self.d_signals.copy()
@@ -1443,17 +1442,19 @@ def wfdbfmtres(fmt):
 # Write a dat file.
 # All bytes are written one at a time
 # to avoid endianness issues.
-def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=None):
+def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=None, sampsperframe=None):
     f=open(filename,'wb')
 
     # Combine list of arrays into single array
     if expanded:
+        nsig = len(e_d_signals)
+        siglen = int(len(e_d_signals[0])/sampsperframe[0])
         # Effectively create MxN signal, with extra frame samples acting like extra channels
-        d_signals = np.zeros((self.siglen, sum(self.sampsperframe)), dtype = 'int64')
+        d_signals = np.zeros((siglen, sum(sampsperframe)), dtype = 'int64')
         # Counter for channel number
         expand_ch = 0
-        for ch in range(self.nsig):
-            spf = self.sampsperframe[ch]
+        for ch in range(nsig):
+            spf = sampsperframe[ch]
             for framenum in range(spf):
                 d_signals[:, expand_ch] = e_d_signals[ch][framenum::spf]
                 expand_ch = expand_ch + 1

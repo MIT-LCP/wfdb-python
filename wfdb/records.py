@@ -67,7 +67,7 @@ class BaseRecord(object):
 
         elif field == 'e_d_signals':
             # Check shape
-            for ch in range(0, len(channels)):
+            for ch in range(len(channels)):
                 if self.e_d_signals[ch].ndim != 1:
                     raise TypeError("e_d_signals must be a list of 1d numpy arrays")
                 # Check dtype
@@ -134,8 +134,6 @@ class BaseRecord(object):
                 elif field == 'sampsperframe':
                     if f < 1:
                         raise ValueError('sampsperframe values must be positive integers')
-                    if f > 1:
-                        raise Exception('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
                 elif field == 'skew':
                     if f < 0:
                         raise ValueError('skew values must be non-negative integers')
