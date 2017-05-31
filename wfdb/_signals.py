@@ -10,87 +10,163 @@ datformats = ["80","212","16","24","32"]
 # To be inherited by Record from records.py.
 class SignalsMixin(object):
 
-    def wrdats(self):
-    
+
+    def wrdats(self, expanded):
+        # Write all dat files associated with a record
+        # expanded=True to use e_d_signals instead of d_signals
+
         if not self.nsig:
             return
+        
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
         writefields = self.getwritefields()
 
-        # Check the validity of the d_signals field
-        self.checkfield('d_signals')
+        if expanded:
+            # Using list of arrays e_d_signals
+            self.checkfield('e_d_signals')
+        else:
+            # Check the validity of the d_signals field
+            self.checkfield('d_signals')
+
         # Check the cohesion of the d_signals field against the other fields used to write the header
-        self.checksignalcohesion(writefields)
+        self.checksignalcohesion(writefields, expanded)
+        
         # Write each of the specified dat files
-        self.wrdatfiles()
+        self.wrdatfiles(expanded)
 
 
-    # Check the cohesion of the d_signals field with the other fields used to write the record
-    def checksignalcohesion(self, writefields):
 
-        # Match the actual signal shape against stated length and number of channels
-        if (self.siglen, self.nsig) != self.d_signals.shape:
-            print('siglen: ', self.siglen)
-            print('nsig: ', self.nsig)
-            print('d_signals.shape: ', self.d_signals.shape)
-            raise ValueError('siglen and nsig do not match shape of d_signals')
+    # Check the cohesion of the d_signals/e_d_signals field with the other fields used to write the record
+    def checksignalcohesion(self, writefields, expanded):
 
-        # For each channel (if any), make sure the digital format has no values out of bounds
-        for ch in range(0, self.nsig):
-            fmt = self.fmt[ch]
-            dmin, dmax = digi_bounds(self.fmt[ch])
+        # Using list of arrays e_d_signals
+        if expanded:
+
+            # Set default sampsperframe
+            spf = self.sampsperframe
+            for ch in range(nsig):
+                if spf[ch] is None:
+                    spf[ch] = 1
+
+            # Match the actual signal shape against stated length and number of channels
+            if self.nsig != len(self.e_d_signals):
+                raise ValueError('nsig does not match the length of e_d_signals')
+            for ch in range(self.nsig):
+                if len(self.e_d_signals[ch]) != spf[ch]*self.siglen:
+                    raise ValueError('Length of channel '+str(ch)+'does not match sampsperframe['+str(ch+']*siglen'))
+
+            # For each channel (if any), make sure the digital format has no values out of bounds
+            for ch in range(0, self.nsig):
+                fmt = self.fmt[ch]
+                dmin, dmax = digi_bounds(self.fmt[ch])
+                
+                chmin = min(self.e_d_signals[ch])
+                chmax = max(self.e_d_signals[ch])
+                if (chmin < dmin) or (chmax > dmax):
+                    raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
             
-            chmin = min(self.d_signals[:,ch])
-            chmax = max(self.d_signals[:,ch])
-            if (chmin < dmin) or (chmax > dmax):
-                raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
-                    
-        # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
-        if self.nsig>0:
-            if 'checksum' in writefields:
-                realchecksum = self.calc_checksum()
-                if self.checksum != realchecksum:
-                    print("The actual checksum of d_signals is: ", realchecksum)
-                    raise ValueError("checksum field does not match actual checksum of d_signals")
-            if 'initvalue' in writefields:
-                realinitvalue = list(self.d_signals[0,:])
-                if self.initvalue != realinitvalue:
-                    print("The actual initvalue of d_signals is: ", realinitvalue)
-                    raise ValueError("initvalue field does not match actual initvalue of d_signals")
+            # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
+            if self.nsig>0:
+                if 'checksum' in writefields:
+                    realchecksum = self.calc_checksum(expanded)
+                    if self.checksum != realchecksum:
+                        print("The actual checksum of e_d_signals is: ", realchecksum)
+                        raise ValueError("checksum field does not match actual checksum of e_d_signals")
+                if 'initvalue' in writefields:
+                    realinitvalue = [self.e_d_signals[ch][0] for ch in range(self.nsig)]
+                    if self.initvalue != realinitvalue:
+                        print("The actual initvalue of e_d_signals is: ", realinitvalue)
+                        raise ValueError("initvalue field does not match actual initvalue of e_d_signals")
+
+        # Using uniform d_signals
+        else:
+            # Match the actual signal shape against stated length and number of channels
+            if (self.siglen, self.nsig) != self.d_signals.shape:
+                print('siglen: ', self.siglen)
+                print('nsig: ', self.nsig)
+                print('d_signals.shape: ', self.d_signals.shape)
+                raise ValueError('siglen and nsig do not match shape of d_signals')
+
+            # For each channel (if any), make sure the digital format has no values out of bounds
+            for ch in range(0, self.nsig):
+                fmt = self.fmt[ch]
+                dmin, dmax = digi_bounds(self.fmt[ch])
+                
+                chmin = min(self.d_signals[:,ch])
+                chmax = max(self.d_signals[:,ch])
+                if (chmin < dmin) or (chmax > dmax):
+                    raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
+                        
+            # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
+            if self.nsig>0:
+                if 'checksum' in writefields:
+                    realchecksum = self.calc_checksum()
+                    if self.checksum != realchecksum:
+                        print("The actual checksum of d_signals is: ", realchecksum)
+                        raise ValueError("checksum field does not match actual checksum of d_signals")
+                if 'initvalue' in writefields:
+                    realinitvalue = list(self.d_signals[0,:])
+                    if self.initvalue != realinitvalue:
+                        print("The actual initvalue of d_signals is: ", realinitvalue)
+                        raise ValueError("initvalue field does not match actual initvalue of d_signals")
 
     
-    def set_p_features(self, do_dac = False):
+    def set_p_features(self, do_dac = False, expanded=False):
         """
-        Use properties of the p_signals field to set other fields: nsig, siglen
-        If do_dac == True, the d_signals field will be used to perform digital to analogue conversion
-        to set the p_signals field, before p_signals is used. 
+        Use properties of the p_signals (expanded=False) or e_p_signals field to set other fields: 
+          - nsig
+          - siglen
+        If expanded=True, sampsperframe is also required.
+
+        If do_dac == True, the (e_)_d_signals field will be used to perform digital to analogue conversion
+        to set the (e_)p_signals field, before (e_)p_signals is used. 
         Regarding dac conversion:
           - fmt, gain, and baseline must all be set in order to perform dac.
-            Unlike with adc, there is no way to infer these fields.
-          - Using the fmt, gain and baseline fields, dac is performed, and p_signals is set.  
+          - Unlike with adc, there is no way to infer these fields.
+          - Using the fmt, gain and baseline fields, dac is performed, and (e_)p_signals is set.
+
+        *Developer note: Seems this function will be very infrequently used.
+         The set_d_features function seems far more useful.
         """
-        if do_dac == 1:
-            self.checkfield('d_signals')
-            self.checkfield('fmt', 'all')
-            self.checkfield('adcgain', 'all')
-            self.checkfield('baseline', 'all')
 
-            # All required fields are present and valid. Perform DAC
-            self.p_signals = self.dac()
+        if expanded:
+            if do_dac == 1:
+                self.checkfield('e_d_signals')
+                self.checkfield('fmt', 'all')
+                self.checkfield('adcgain', 'all')
+                self.checkfield('baseline', 'all')
+                self.checkfield('sampsperframe', 'all')
 
-        # Use p_signals to set fields
-        self.checkfield('p_signals')
-        self.siglen = self.p_signals.shape[0]
-        self.nsig = self.p_signals.shape[1]
+                # All required fields are present and valid. Perform DAC
+                self.e_p_signals = self.dac(expanded)
+
+            # Use e_p_signals to set fields
+            self.checkfield('e_p_signals')
+            self.siglen = int(len(self.e_p_signals[0])/self.sampsperframe[0])
+            self.nsig = len(self.e_p_signals)
+        else:
+            if do_dac == 1:
+                self.checkfield('d_signals')
+                self.checkfield('fmt', 'all')
+                self.checkfield('adcgain', 'all')
+                self.checkfield('baseline', 'all')
+
+                # All required fields are present and valid. Perform DAC
+                self.p_signals = self.dac()
+
+            # Use p_signals to set fields
+            self.checkfield('p_signals')
+            self.siglen = self.p_signals.shape[0]
+            self.nsig = self.p_signals.shape[1]
 
 
-    def set_d_features(self, do_adc = False, singlefmt = 1):
+    def set_d_features(self, do_adc = False, singlefmt = 1, expanded=False):
         """
-        Use properties of the d_signals field to set other fields: nsig, siglen, initvalue, checksum, *(fmt, adcgain, baseline) 
-        If do_adc == True, the p_signals field will first be used to perform analogue to digital conversion to set the d_signals 
-        field, before d_signals is used. 
+        Use properties of the (e_)d_signals field to set other fields: nsig, siglen, initvalue, checksum, *(fmt, adcgain, baseline) 
+        If do_adc == True, the (e_)p_signals field will first be used to perform analogue to digital conversion to set the (e_)d_signals 
+        field, before (e_)d_signals is used. 
 
         Regarding adc conversion:
           - If fmt is unset:
@@ -107,42 +183,79 @@ class SignalsMixin(object):
 
           ADC will occur after valid values for fmt, adcgain, and baseline are present, using all three fields.  
         """
-        # adc is performed.
-        if do_adc == True:
-            self.checkfield('p_signals')
+        if expanded:
+            # adc is performed.
+            if do_adc == True:
+                self.checkfield('e_p_signals')
 
-            # If there is no fmt set
-            if self.fmt is None:
-                # Make sure that neither adcgain nor baseline are set
-                if self.adcgain is not None or self.baseline is not None:
-                    raise Exception('If fmt is not set, gain and baseline may not be set either.')
-                # Choose appropriate fmts based on estimated signal resolutions. 
-                res = estres(self.p_signals)
-                self.fmt = wfdbfmt(res, singlefmt)
-            # If there is a fmt set
-            else:
+                # If there is no fmt set
+                if self.fmt is None:
+                    # Make sure that neither adcgain nor baseline are set
+                    if self.adcgain is not None or self.baseline is not None:
+                        raise Exception('If fmt is not set, gain and baseline may not be set either.')
+                    # Choose appropriate fmts based on estimated signal resolutions. 
+                    res = estres(self.e_p_signals)
+                    self.fmt = wfdbfmt(res, singlefmt)
+                # If there is a fmt set
+                else:
+                    self.checkfield('fmt', 'all')
+                    # Neither field set
+                    if self.adcgain is None and self.baseline is None:
+                        # Calculate and set optimal gain and baseline values to convert physical signals
+                        self.adcgain, self.baseline = self.calculate_adcparams()
+                    # Exactly one field set
+                    elif (self.adcgain is None) ^ (self.baseline is None):
+                        raise Exception('If fmt is set, gain and baseline should both be set or not set.')
                 
-                self.checkfield('fmt', 'all')
-                # Neither field set
-                if self.adcgain is None and self.baseline is None:
-                    # Calculate and set optimal gain and baseline values to convert physical signals
-                    self.adcgain, self.baseline = self.calculate_adcparams()
-                # Exactly one field set
-                elif (self.adcgain is None) ^ (self.baseline is None):
-                    raise Exception('If fmt is set, gain and baseline should both be set or not set.')
-            
-            self.checkfield('adcgain', 'all')
-            self.checkfield('baseline', 'all')
+                self.checkfield('adcgain', 'all')
+                self.checkfield('baseline', 'all')
 
-            # All required fields are present and valid. Perform ADC
-            self.d_signals = self.adc()
+                # All required fields are present and valid. Perform ADC
+                self.d_signals = self.adc(expanded)
 
-        # Use d_signals to set fields
-        self.checkfield('d_signals')
-        self.siglen = self.d_signals.shape[0]
-        self.nsig = self.d_signals.shape[1]
-        self.initvalue = list(self.d_signals[0,:])
-        self.checksum = self.calc_checksum() 
+            # Use e_d_signals to set fields
+            self.checkfield('e_d_signals')
+            self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
+            self.nsig = len(self.e_d_signals)
+            self.initvalue = [sig[0] for sig in self.e_d_signals]
+            self.checksum = self.calc_checksum(expanded)
+        else:
+            # adc is performed.
+            if do_adc == True:
+                self.checkfield('p_signals')
+
+                # If there is no fmt set
+                if self.fmt is None:
+                    # Make sure that neither adcgain nor baseline are set
+                    if self.adcgain is not None or self.baseline is not None:
+                        raise Exception('If fmt is not set, gain and baseline may not be set either.')
+                    # Choose appropriate fmts based on estimated signal resolutions. 
+                    res = estres(self.p_signals)
+                    self.fmt = wfdbfmt(res, singlefmt)
+                # If there is a fmt set
+                else:
+                    
+                    self.checkfield('fmt', 'all')
+                    # Neither field set
+                    if self.adcgain is None and self.baseline is None:
+                        # Calculate and set optimal gain and baseline values to convert physical signals
+                        self.adcgain, self.baseline = self.calculate_adcparams()
+                    # Exactly one field set
+                    elif (self.adcgain is None) ^ (self.baseline is None):
+                        raise Exception('If fmt is set, gain and baseline should both be set or not set.')
+                
+                self.checkfield('adcgain', 'all')
+                self.checkfield('baseline', 'all')
+
+                # All required fields are present and valid. Perform ADC
+                self.d_signals = self.adc()
+
+            # Use d_signals to set fields
+            self.checkfield('d_signals')
+            self.siglen = self.d_signals.shape[0]
+            self.nsig = self.d_signals.shape[1]
+            self.initvalue = list(self.d_signals[0,:])
+            self.checksum = self.calc_checksum()
 
 
     # Returns the analogue to digital conversion for the physical signal stored in p_signals. 
@@ -172,7 +285,7 @@ class SignalsMixin(object):
         return d_signals
 
     
-    def dac(self, expanded):
+    def dac(self, expanded=False):
         """
         Returns the digital to analogue conversion for a Record object's signal stored
         in d_signals if expanded is False, or e_d_signals if expanded is True.
@@ -245,23 +358,27 @@ class SignalsMixin(object):
             
             # WFDB library limits...     
             if abs(gain)>214748364 or abs(baseline)>2147483648:
-                raise Exception('cx1111, please fix this!')
+                raise Exception('adcgain and baseline must have magnitudes < 214748364')
                     
             gains.append(gain)
             baselines.append(baseline)     
         
         return (gains, baselines)
 
-    def calc_checksum(self):
+    def calc_checksum(self, expanded=False):
         """
-        Calculate the checksum(s) of the d_signals field
+        Calculate the checksum(s) of the d_signals (expanded=False)
+        or e_d_signals field (expanded=True)
         """
-        cs = list(np.sum(self.d_signals, 0) % 65536)
-        cs = [int(c) for c in cs]
+        if expanded:
+            cs = [int(np.sum(self.e_d_signals[ch]) % 65536) for ch in range(self.nsig)]
+        else:
+            cs = np.sum(self.d_signals, 0) % 65536
+            cs = [int(c) for c in cs]
         return cs
 
     # Write each of the specified dat files
-    def wrdatfiles(self):
+    def wrdatfiles(self, expanded=False):
 
         # Get the set of dat files to be written, and
         # the channels to be written to each file. 
@@ -279,12 +396,15 @@ class SignalsMixin(object):
             else:
                 datoffsets[fn] = self.byteoffset[datchannels[fn][0]]
 
-        # Write the dat files 
-        # Create a copy to prevent overwrite
-        dsig = self.d_signals.copy()
-        for fn in filenames:
-            wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
-
+        # Write the dat files
+        if expanded:
+            for fn in filenames:
+                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signals[ch] for ch in datchannels[fn]])
+        else:
+            # Create a copy to prevent overwrite
+            dsig = self.d_signals.copy()
+            for fn in filenames:
+                wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
 #------------------- Reading Signals -------------------#
@@ -1226,19 +1346,36 @@ def digi_nan(fmt):
         return -2147483648
 
 
-# Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits. 
+
 reslevels = np.power(2, np.arange(0,33))
 def estres(signals):
+    """
+    def estres(signals):
+
+    Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits.
+    Input arguments:
+    - signals: A 2d numpy array representing a uniform multichannel signal, or a list of 1d numpy arrays
+      representing multiple channels of signals with different numbers of samples per frame.
+    """
     
-    if signals.ndim ==1:
-        nsig = 1
+    # Expanded sample signals. List of numpy arrays                
+    if type(signals) == list:
+        nsig = len(signals)
+    # Uniform numpy array
     else:
-        nsig = signals.shape[1]
-    res = nsig*[]
-    
-    for ch in range(0, nsig):
+        if signals.ndim ==1:
+            nsig = 1
+        else:
+            nsig = signals.shape[1]
+    res = []
+        
+    for ch in range(nsig):
         # Estimate the number of steps as the range divided by the minimum increment. 
-        sortedsig = np.sort(signals[:,ch])
+        if type(signals) == list:
+            sortedsig = np.sort(signals[ch])
+        else:
+            sortedsig = np.sort(signals[:,ch])
+        
         min_inc = min(np.diff(sortedsig))
         
         if min_inc == 0:
@@ -1306,8 +1443,27 @@ def wfdbfmtres(fmt):
 # Write a dat file.
 # All bytes are written one at a time
 # to avoid endianness issues.
-def wrdatfile(filename, fmt, d_signals, byteoffset):
-    f=open(filename,'wb')  
+def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=None):
+    f=open(filename,'wb')
+
+    # Combine list of arrays into single array
+    if expanded:
+        # Effectively create MxN signal, with extra frame samples acting like extra channels
+        d_signals = np.zeros((self.siglen, sum(self.sampsperframe)), dtype = 'int64')
+        # Counter for channel number
+        expand_ch = 0
+        for ch in range(self.nsig):
+            spf = self.sampsperframe[ch]
+            for framenum in range(spf):
+                d_signals[:, expand_ch] = e_d_signals[ch][framenum::spf]
+                expand_ch = expand_ch + 1
+
+            # ch_indices = np.concatenate(([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))]))
+            # sig.append(sigflat[ch_indices])
+            # d_signals[] = e_d_signals[ch]
+    
+    # This nsig is used for making list items.
+    # Does not necessarily represent number of signals (ie. for expanded=True)
     nsig = d_signals.shape[1]
 
     if fmt == '80':

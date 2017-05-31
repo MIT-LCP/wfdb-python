@@ -87,15 +87,16 @@ class BaseHeadersMixin(object):
 # To be inherited by WFDBrecord from records.py.
 class HeadersMixin(BaseHeadersMixin):
     
-    # Set defaults for fields needed to write the header if they have defaults.
-    # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
-    # It is also not called by wrhea (this may be changed in the future) since 
-    # it is supposed to be an explicit function. 
-
-    # Not responsible for initializing the 
-    # attribute. That is done by the constructor. 
     def setdefaults(self):
+        """
+        Set defaults for fields needed to write the header if they have defaults.
+        This is NOT called by rdheader. It is only automatically called by the gateway wrsamp for convenience.
+        It is also not called by wrhea (this may be changed in the future) since 
+        it is supposed to be an explicit function.
 
+        Not responsible for initializing the
+        attributes. That is done by the constructor.
+        """
         rfields, sfields = self.getwritefields()
         for f in rfields:
             self.setdefault(f)
@@ -125,7 +126,7 @@ class HeadersMixin(BaseHeadersMixin):
         self.wrheaderfile(recwritefields, sigwritefields)
     
 
-    # Get the list of fields used to write the header. (Does NOT include d_signals.)
+    # Get the list of fields used to write the header. (Does NOT include d_signals or e_d_signals.)
     # Separate items by record and signal specification field.
     # Returns the default required fields, the user defined fields, and their dependencies.
     # recwritefields includes 'comment' if present.

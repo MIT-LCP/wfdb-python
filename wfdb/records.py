@@ -56,15 +56,29 @@ class BaseRecord(object):
         if field == 'd_signals':
             # Check shape
             if self.d_signals.ndim != 2:
-                raise TypeError("signals must be a 2d numpy array")
+                raise TypeError("d_signals must be a 2d numpy array")
             # Check dtype
             if self.d_signals.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                raise TypeError('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
+                raise TypeError('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')
         elif field =='p_signals':
             # Check shape
             if self.p_signals.ndim != 2:
-                raise TypeError("signals must be a 2d numpy array")
-            
+                raise TypeError("p_signals must be a 2d numpy array")
+
+        elif field == 'e_d_signals':
+            # Check shape
+            for ch in range(0, len(channels)):
+                if self.e_d_signals[ch].ndim != 1:
+                    raise TypeError("e_d_signals must be a list of 1d numpy arrays")
+                # Check dtype
+                if self.e_d_signals[ch].dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
+                    raise TypeError('e_d_d_signals must be a list of 1d numpy arrays with dtype == int64, int32, int16, or int8.')
+        elif field =='e_p_signals':
+            # Check shape
+            for ch in range(0, len(channels)):
+                if self.e_p_signals.ndim != 1:
+                    raise TypeError("e_p_signals must be a list of 1d numpy arrays")
+
         #elif field == 'segments': # Nothing to check here. 
         # Record specification fields
         elif field == 'recordname':
@@ -210,6 +224,9 @@ class BaseRecord(object):
         elif field in ['p_signals','d_signals']:
             checkitemtype(item, field, [np.ndarray])
 
+        elif field in ['e_p_signals', 'e_d_signals']:
+            checkitemtype(item, field, [np.ndarray], 'all')
+
         # Segments field. List. Elements may be None.
         elif field == 'segments':
             checkitemtype(item, field, [Record], 'none')
@@ -258,7 +275,7 @@ class BaseRecord(object):
 
 # Check the item type. Vary the print message regarding whether the item can be None.
 # Helper to checkfieldtype
-# channels is a list of binary indicating whether the field's channel must be present (1) or may be None (0)
+# channels is a list of booleans indicating whether the field's channel must be present (1) or may be None (0)
 # and is not just for signal specification fields
 def checkitemtype(item, field, allowedtypes, channels=None):
 
@@ -395,13 +412,15 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         return True
 
     # Write a wfdb header file and associated dat files if any.
-    def wrsamp(self):
+    # Uses d_signals (expanded=False) or e_d_signals to write the samples
+    def wrsamp(self, expanded=False):
 
         # Perform field validity and cohesion checks, and write the header file.
         self.wrheader()
         if self.nsig>0:
             # Perform signal validity and cohesion checks, and write the associated dat files.
-            self.wrdats()
+            self.wrdats(expanded)
+
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
     # Account for case when signals are expanded
@@ -419,7 +438,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
             self.initvalue = [None]*len(self.e_d_signals)
 
             self.nsig = len(channels)
-            self.siglen = min([len(sig) for sig in self.e_d_signals])
+            self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
 
 
         # MxN numpy array d_signals
