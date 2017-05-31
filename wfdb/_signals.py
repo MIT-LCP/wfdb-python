@@ -180,14 +180,16 @@ class SignalsMixin(object):
         """
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
-        
+
         if expanded:
             p_signal = []
             for ch in range(0, self.nsig):
-                chnanloc = self.e_d_signals == dnans
+                # nan locations for the channel
+                chnanlocs = self.e_d_signals[ch] == dnans[ch]
                 p_signal.append((self.e_d_signals[ch] - self.baseline[ch])/float(self.adcgain[ch]))
                 p_signal[ch][chnanlocs] = np.nan
         else:
+            # nan locations
             nanlocs = self.d_signals == dnans
             p_signal = (self.d_signals - self.baseline)/[float(g) for g in self.adcgain]
             p_signal[nanlocs] = np.nan
@@ -499,7 +501,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             # Transfer over samples
             for ch in range(nsig):
                 # Indices of the flat signal that belong to the channel
-                ch_indices = np.concatenate(([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))]))
+                ch_indices = np.concatenate(([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigflat)/tsampsperframe))]))
                 sig.append(sigflat[ch_indices])
 
             # Skew the signal
@@ -519,6 +521,8 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
         elif fmt == '160':
             sigbytes = sigbytes - 32768
 
+        #print('sigbytes:', sigbytes)
+
 
         # No extra samples/frame. Obtain original uniform numpy array
         if tsampsperframe==nsig:
@@ -532,9 +536,6 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
 
         # Extra frames present to be smoothed. Obtain averaged uniform numpy array
         elif smoothframes:
-            
-            print('sigbytes:')
-            print(sigbytes)
 
             # Allocate memory for signal
             sig = np.empty([readlen, nsig], dtype='int')
@@ -549,8 +550,6 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                         sig[:, ch] += sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
             sig = (sig / sampsperframe)
 
-            print('sig after smoothing:')
-            print(sig)
 
         # Extra frames present without wanting smoothing. Return all expanded samples.
         else:
@@ -564,7 +563,9 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
                 #     chansig[frame::sampsperframe[ch]] = sigbytes[skew[ch]*tsampsperframe+sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
                 # sig.append(chansig)
 
-                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
+                # Get the sample indices of the channel samples to transfer over
+                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
+
                 sig.append(sigbytes[ch_indices])
 
             # Skew the signal

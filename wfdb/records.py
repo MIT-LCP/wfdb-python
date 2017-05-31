@@ -405,33 +405,39 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
     # Account for case when signals are expanded
-    def arrangefields(self, channels, expanded):
+    def arrangefields(self, channels, expanded=False):
 
         # Rearrange signal specification fields
         for field in _headers.sigfieldspecs:
             item = getattr(self, field)
             setattr(self, field, [item[c] for c in channels])
 
-        # Checksum and initvalue to be updated if present
-        # unless the whole signal length was input
-        if self.siglen != self.d_signals.shape[0]:
+        # Expanded signals - multiple samples per frame.
+        if expanded:
+            # clear checksum and initvalue for now
+            self.checksum = [None]*len(self.e_d_signals)
+            self.initvalue = [None]*len(self.e_d_signals)
 
-            # If the signals are expanded, initvalue and checksum
-            # have no meaning, so just put None.
-            if expanded:
-                self.checksum = [None]*self.d_signals.shape[1]
-                self.initvalue = [None]*self.d_signals.shape[1]
-            else:
+            self.nsig = len(channels)
+            self.siglen = min([len(sig) for sig in self.e_d_signals])
+
+
+        # MxN numpy array d_signals
+        else:
+            # Checksum and initvalue to be updated if present
+            # unless the whole signal length was input
+            if self.siglen != self.d_signals.shape[0]:
+
                 if self.checksum is not None:
                     self.checksum = self.calc_checksum()
                 if self.initvalue is not None:
                     ival = list(self.d_signals[0, :])
                     self.initvalue = [int(i) for i in ival]
 
-        # Update record specification parameters
-        # Important that these get updated after^^
-        self.nsig = len(channels)
-        self.siglen = self.d_signals.shape[0]
+            # Update record specification parameters
+            # Important that these get updated after^^
+            self.nsig = len(channels)
+            self.siglen = self.d_signals.shape[0]
 
 
 
