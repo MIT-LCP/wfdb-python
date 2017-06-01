@@ -6,6 +6,8 @@ from . import downloads
 # All defined WFDB dat formats
 datformats = ["80","212","16","24","32"]
 
+specialfmts = ['212','310','311']
+
 # Class with signal methods
 # To be inherited by Record from records.py.
 class SignalsMixin(object):
@@ -540,7 +542,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
 
     # Read values from dat file, and append bytes/samples if needed.
     if extraflatsamples:
-        if fmt in ['212', '310', '311']:
+        if fmt in specialfmts:
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
 
@@ -554,125 +556,56 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
 
     # Continue to process the read values into proper samples
 
-    # Special formats
-    if fmt in ['212', '310', '311']:
+    # For special fmts, Turn the bytes into actual samples
+    if fmt in specialfmts:
+        sigbytes = bytes2samples(sigbytes, totalprocesssamples, fmt)
+        # Remove extra leading sample read within the byte block if any
+        if blockfloorsamples:
+            sigbytes = sigbytes[blockfloorsamples:]
+    # Adjust for byte offset formats
+    elif fmt == '80':
+        sigbytes = sigbytes - 128
+    elif fmt == '160':
+        sigbytes = sigbytes - 32768
 
-        # No extra samples/frame. Obtain original uniform numpy array
-        if tsampsperframe==nsig:
+    # No extra samples/frame. Obtain original uniform numpy array
+    if tsampsperframe==nsig:
+        # Reshape into multiple channels
+        sig = sigbytes.reshape(-1, nsig)
+        # Skew the signal
+        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
-            # Turn the bytes into actual samples. Flat 1d array.
-            sig = bytes2samples(sigbytes, totalprocesssamples, fmt)
+    # Extra frames present to be smoothed. Obtain averaged uniform numpy array
+    elif smoothframes:
 
-            # Remove extra leading sample read within the byte block if any
-            if blockfloorsamples:
-                sig = sig[blockfloorsamples:]
+        # Allocate memory for smoothed signal
+        sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype='int64')
 
-            # Reshape into multiple channels
-            sig = sig.reshape(-1, nsig)
+        # Transfer and average samples
+        for ch in range(nsig):
+            if sampsperframe[ch] == 1:
+                sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
+            else:
+                for frame in range(sampsperframe[ch]):
+                    sig[:, ch] += sigbytes[sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
+        # Have to change the dtype for averaging frames
+        sig = (sig.astype('float64') / sampsperframe)
+        # Skew the signal
+        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
-
-        # Extra frames present to be smoothed. Obtain averaged uniform numpy array
-        elif smoothframes:
-            
-            # Turn the bytes into actual samples. Flat 1d array. All samples for all frames.
-            sigbytes = bytes2samples(sigbytes, totalprocesssamples, fmt)
-
-            # Remove extra leading sample read within the byte block if any
-            if blockfloorsamples:
-                sigbytes = sigbytes[blockfloorsamples:]
-
-            # Allocate memory for smoothed signal
-            sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype='int64')
-
-            # Transfer and average samples
-            for ch in range(nsig):
-                if sampsperframe[ch] == 1:
-                    sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
-                else:
-                    for frame in range(sampsperframe[ch]):
-                        sig[:, ch] += sigbytes[sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
-
-            # Have to change the dtype for averaging frames
-            sig = (sig.astype('float64') / sampsperframe)
-
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
-
-        # Extra frames present without wanting smoothing. Return all expanded samples.
-        else:
-            # Turn the bytes into actual samples. Flat 1d array. All samples for all frames.
-            sigbytes = bytes2samples(sigbytes, totalprocesssamples, fmt)
-
-            # Remove extra leading sample read within the byte block if any
-            if blockfloorsamples:
-                sigbytes = sigbytes[blockfloorsamples:]
-
-            # Arranged signals
-            sig = []
-
-            # Transfer over samples
-            for ch in range(nsig):
-                # Indices of the flat signal that belong to the channel
-                ch_indices = np.concatenate(([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))]))
-                sig.append(sigbytes[ch_indices])
-
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
-    # Simple format signals that are loaded as they are stored.
+    # Extra frames present without wanting smoothing. Return all expanded samples.
     else:
-        # Adjust for skew, reshape, and consider sampsperframe.
+        # List of 1d numpy arrays
+        sig=[]
 
-        # Adjust for byte offset formats
-        if fmt == '80':
-            sigbytes = sigbytes - 128
-        elif fmt == '160':
-            sigbytes = sigbytes - 32768
+        # Transfer over samples
+        for ch in range(nsig):
+            # Indices of the flat signal that belong to the channel
+            ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
+            sig.append(sigbytes[ch_indices])
+        # Skew the signal
+        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
 
-        # No extra samples/frame. Obtain original uniform numpy array
-        if tsampsperframe==nsig:
-
-            # Reshape into multiple channels
-            sig = sigbytes.reshape(-1, nsig)
-
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
-
-
-        # Extra frames present to be smoothed. Obtain averaged uniform numpy array
-        elif smoothframes:
-
-            # Allocate memory for smoothed signal
-            sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype='int64')
-
-            # Transfer and average samples
-            for ch in range(nsig):
-                if sampsperframe[ch] == 1:
-                    sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
-                else:
-                    for frame in range(sampsperframe[ch]):
-                        sig[:, ch] += sigbytes[sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
-            # Have to change the dtype for averaging frames
-            sig = (sig.astype('float64') / sampsperframe)
-
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
-
-        # Extra frames present without wanting smoothing. Return all expanded samples.
-        else:
-            # List of 1d numpy arrays
-            sig=[]
-
-            # Transfer over samples
-            for ch in range(nsig):
-                # Indices of the flat signal that belong to the channel
-                ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
-                sig.append(sigbytes[ch_indices])
-
-            # Skew the signal
-            sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
-    
     # Integrity check of signal shape after reading
     checksigdims(sig, readlen, nsig, sampsperframe)
 
