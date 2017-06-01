@@ -431,13 +431,14 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
         # Expanded signals - multiple samples per frame.
         if expanded:
-            # clear checksum and initvalue for now
-            self.checksum = [None]*len(self.e_d_signals)
-            self.initvalue = [None]*len(self.e_d_signals)
+            # Checksum and initvalue to be updated if present
+            # unless the whole signal length was input
+            if self.siglen != int(len(self.e_d_signals[0])/self.sampsperframe[0]):
+                self.checksum = self.calc_checksum(expanded)
+                self.initvalue = [s[0] for s in self.e_d_signals]
 
             self.nsig = len(channels)
             self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
-
 
         # MxN numpy array d_signals
         else:
@@ -455,7 +456,6 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
             # Important that these get updated after^^
             self.nsig = len(channels)
             self.siglen = self.d_signals.shape[0]
-
 
 
 
@@ -767,7 +767,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
       Record object (True).
     - smoothframes (default=True): Flag used when reading records with signals having multiple
       samples per frame. Specifies whether to smooth the samples in signals with more than
-      one sample per frame to return an mxn uniform numpy array as the d_signals or p_signals
+      one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals
       field (True), or to return a list of 1d numpy arrays containing every expanded sample as
       the e_d_signals or e_p_signals field (False).
 

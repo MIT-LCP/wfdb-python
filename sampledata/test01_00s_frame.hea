@@ -1,0 +1,6 @@
+test01_00s_frame 3 500 4000
+test01_00s.dat 16 100/mV 16 0 10 114 0 ECG_1
+test01_00s.dat 16x2 100/mV 16 0 -8 822 0 ECG_2
+test01_00s.dat 16 100/mV 16 0 -57 65135 0 ECG_3
+# <age>: 25  <sex>: M  <diagnoses>: (none)  <medications>: (none)
+# This is a copy of test01_00s with 2 samples/frame for channel 1, cutting out channel 3.

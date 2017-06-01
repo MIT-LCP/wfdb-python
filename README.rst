@@ -155,6 +155,7 @@ Input Arguments:
 -  ``physical`` (default=True): Flag that specifies whether to return  signals in physical (True) or digital (False) units.
 -  ``pbdir`` (default=None): Option used to stream data from Physiobank. The Physiobank database directory from which to find the required record files. eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 -  ``m2s`` (default=True): Flag used only for multi-segment records. Specifies whether to convert the returned wfdb.MultiRecord object into a wfdb.Record object (True) or not (False).
+-  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_signals or e_p_signals field (False).
 
 Output Arguments:
 

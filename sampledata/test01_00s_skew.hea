@@ -1,0 +1,7 @@
+test01_00s_skew 4 500 4000
+test01_00s.dat 16 100/mV 16 0 10 114 0 ECG_1
+test01_00s.dat 16:3 100/mV 16 0 -8 941 0 ECG_2
+test01_00s.dat 16 100/mV 16 0 -57 -119 0 ECG_3
+test01_00s.dat 16 100/mV 16 0 -66 -401 0 ECG_4
+# <age>: 25  <sex>: M  <diagnoses>: (none)  <medications>: (none)
+# This is a copy of test01_00s with a skew stated in channel 1.
