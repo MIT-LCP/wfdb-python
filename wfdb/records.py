@@ -816,11 +816,16 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=False)
+            # Obtain physical values
             if physical == 1:
                 # Perform dac to get physical signal
                 record.p_signals = record.dac(expanded=False)
                 # Clear memory
                 record.d_signals = None
+            # If the frames had to be smoothed, and d_signals is desired, 
+            # the dtype must be cast back into int
+            elif max(record.sampsperframe)>1:
+                record.d_signals = record.d_signals.astype('int64')
 
         # Return each sample of the signals with multiple samples per frame
         else:
@@ -830,6 +835,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=True)
+            # Obtain physical values
             if physical == 1:
                 # Perform dac to get physical signal
                 record.e_p_signals = record.dac(expanded=True)
