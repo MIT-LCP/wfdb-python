@@ -127,13 +127,15 @@ class test_rdsamp():
     # Target file created with: rdsamp -r sampledata/100_3chan -P | cut -f 2- >
     # target2c
     def test_2c(self):
-        sig, fields = wfdb.srdsamp('sampledata/100_3chan')
-        siground = np.round(sig, decimals=8)
+        record = wfdb.rdsamp('sampledata/100_3chan')
+        siground = np.round(record.p_signals, decimals=8)
         targetsig = np.genfromtxt('tests/targetoutputdata/target2c')
 
         # Test file writing
+        record.d_signals = record.adc()
         record.wrsamp()
-        recordwrite = wfdb.rdsamp('100_3chan', physical=False)
+        recordwrite = wfdb.rdsamp('100_3chan')
+        record.d_signals = None
 
         assert np.array_equal(siground, targetsig)
         assert record.__eq__(recordwrite)
@@ -276,8 +278,8 @@ class test_rdsamp():
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
         assert np.array_equal(sig, writesig) and fields == writefields
-        
-        
+
+
     # Format 16 multi-samples per frame and skew, read expanded signals
     # Target file created with: rdsamp -r sampledata/test01_00s_skewframe -P -H | cut 
     # -f 2- > target4d

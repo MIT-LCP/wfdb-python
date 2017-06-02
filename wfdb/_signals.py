@@ -261,7 +261,7 @@ class SignalsMixin(object):
 
     # Returns the analogue to digital conversion for the physical signal stored in p_signals. 
     # The p_signals, fmt, gain, and baseline fields must all be valid.
-    def adc(self, expanded):
+    def adc(self, expanded=False):
         
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
