@@ -742,13 +742,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None,
-           m2s = True, smoothframes = True):
+           m2s = True, smoothframes = True, ignoreskew=False):
     """Read a WFDB record and return the signal and record descriptors as attributes in a
     Record or MultiRecord object.
 
     Usage:
     record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None,
-             m2s=True, smoothframes = True)
+             m2s=True, smoothframes = True, ignoreskew=False)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -770,6 +770,9 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
       one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals
       field (True), or to return a list of 1d numpy arrays containing every expanded sample as
       the e_d_signals or e_p_signals field (False).
+    - ignoreskew (default=False): Flag used when reading records with at least one skewed signal.
+      Specifies whether to apply the skew to align the signals in the output variable (False), or
+      to ignore the skew field and load in all values contained in the dat files unaligned (True).
 
     Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
@@ -812,7 +815,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             # Read signals from the associated dat files that contain wanted channels
             record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
                                                   record.byteoffset, record.sampsperframe, record.skew,
-                                                  sampfrom, sampto, channels, smoothframes)
+                                                  sampfrom, sampto, channels, smoothframes, ignoreskew)
             
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=False)
@@ -831,7 +834,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         else:
             record.e_d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
                                                     record.byteoffset, record.sampsperframe, record.skew,
-                                                    sampfrom, sampto, channels, smoothframes)
+                                                    sampfrom, sampto, channels, smoothframes, ignoreskew)
 
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=True)

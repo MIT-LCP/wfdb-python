@@ -408,13 +408,24 @@ class SignalsMixin(object):
                 wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
+    def smoothframes(self, signal='physical'):
+        """
+        Convert expanded signals with different samples/frame into
+        a uniform numpy array 
+        """
+
+
 #------------------- Reading Signals -------------------#
 
-# Read the samples from a single segment record's associated dat file(s)
-# 'channels', 'sampfrom', 'sampto', and 'smoothframes' are user desired input fields.
-# All other input arguments are specifications of the segment
 def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
-              sampsperframe, skew, sampfrom, sampto, channels, smoothframes):
+              sampsperframe, skew, sampfrom, sampto, channels,
+              smoothframes, ignoreskew):
+    """
+    Read the samples from a single segment record's associated dat file(s)
+    'channels', 'sampfrom', 'sampto', 'smoothframes', and 'ignoreskew' are
+    user desired input fields.
+    All other input arguments are specifications of the segment
+    """
 
     # Avoid changing outer variables
     byteoffset = byteoffset[:]
@@ -429,6 +440,10 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
             sampsperframe[i] = 1
         if skew[i] == None:
             skew[i] = 0
+
+    # If skew is to be ignored, set all to 0
+    if ignoreskew:
+        skew = [0]*nsig
 
     # Get the set of dat files, and the
     # channels that belong to each file.
