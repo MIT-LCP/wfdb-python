@@ -408,12 +408,53 @@ class SignalsMixin(object):
                 wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
-    def smoothframes(self, signal='physical'):
+    def smoothframes(self, sigtype='physical'):
         """
         Convert expanded signals with different samples/frame into
-        a uniform numpy array 
+        a uniform numpy array. 
+        
+        Input parameters
+        - sigtype (default='physical'): Specifies whether to mooth
+          the e_p_signals field ('physical'), or the e_d_signals
+          field ('digital').
         """
+        spf = self.sampsperframe[:]
+        for ch in range(len(spf)):
+            if spf[ch] is None:
+                spf[ch] = 1
 
+        # Total samples per frame
+        tspf = sum(spf)
+
+        if sigtype == 'physical':
+            nsig = len(self.e_p_signals)
+            siglen = int(len(self.e_p_signals[0])/spf[0])
+            signal = np.zeros((siglen, nsig), dtype='float64')
+
+            for ch in range(nsig):
+                if spf[ch] == 1:
+                    signal[:, ch] = self.e_p_signals[ch]
+                else:
+                    for frame in range(spf[ch]):
+                        signal[:, ch] += self.e_p_signals[ch][frame::spf[ch]]
+                    signal[:, ch] = signal[:, ch] / spf[ch]
+
+        elif sigtype == 'digital':
+            nsig = len(self.e_d_signals)
+            siglen = int(len(self.e_d_signals[0])/spf[0])
+            signal = np.zeros((siglen, nsig), dtype='int64')
+
+            for ch in range(nsig):
+                if spf[ch] == 1:
+                    signal[:, ch] = self.e_d_signals[ch]
+                else:
+                    for frame in range(spf[ch]):
+                        signal[:, ch] += self.e_d_signals[ch][frame::spf[ch]]
+                    signal[:, ch] = signal[:, ch] / spf[ch]
+        else:
+            raise ValueError("sigtype must be 'physical' or 'digital'")
+
+        return signal
 
 #------------------- Reading Signals -------------------#
 
