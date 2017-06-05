@@ -113,12 +113,13 @@ by https://www.physionet.org/physiotools/wag/annot-5.htm:
 - ``num``: The labelled annotation number. 
 - ``aux``: The auxiliary information string for the annotation.
 - ``fs``: The sampling frequency of the record if contained in the annotation file.
+- ``custom_anntypes``: The custom annotation types defined in the annotation file. A dictionary with {key:value} corresponding to {anntype:description}. eg. {'#': 'lost connection', 'C': 'reconnected'}
 
 Constructor function:
 ::
 
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
-                 chan = None, num = None, aux = None, fs = None)
+                 chan = None, num = None, aux = None, fs = None, custom_anntypes = None)
 
 Call `showanncodes()` to see the list of standard annotation codes. Any text used to label annotations that are not one of these codes should go in the 'aux' field rather than the 'anntype' field.
 

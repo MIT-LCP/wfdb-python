@@ -298,19 +298,17 @@ def checkitemtype(item, field, allowedtypes, channels=None):
             # The field must exist for the channel
             if mustexist:
                 if type(item[ch]) not in allowedtypes:
-                    print(allowedtypes)
-                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be one of the above types")
+                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:", allowedtypes)
+
             # The field may be None for the channel
             else:
                 if type(item[ch]) not in allowedtypes and item[ch] is not None:
-                    print(allowedtypes)
-                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the above types")
+                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:", allowedtypes)
 
     # Single scalar to check
     else:
         if type(item) not in allowedtypes:
-            print(allowedtypes)
-            raise TypeError("Field: '"+field+"' must be one of the above types")
+            raise TypeError("Field: '"+field+"' must be one of the following types:", allowedtypes)
 
 
 

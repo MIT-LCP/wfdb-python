@@ -19,11 +19,11 @@ class Annotation(object):
     - anntype: The annotation type according the the standard WFDB codes.
     - subtype: The marked class/category of the annotation.
     - chan: The signal channel associated with the annotations.
-    - num: The labelled annotation number. 
+    - num: The labelled annotation number.
     - aux: The auxiliary information string for the annotation.
     - fs: The sampling frequency of the record if contained in the annotation file.
     - custom_anntypes: The custom annotation types defined in the annotation file.
-      A dictionary with {key:value} corresponding to {anntype:description}. 
+      A dictionary with {key:value} corresponding to {anntype:description}.
       eg. {'#': 'lost connection', 'C': 'reconnected'}
 
     Constructor function:
@@ -114,12 +114,13 @@ class Annotation(object):
     def checkfield(self, field):
 
         # Non list/array fields
-        if field in ['recordname', 'annotator', 'fs']:
+        if field in ['recordname', 'annotator', 'fs', 'custom_anntypes']:
             # Check the field type
             if type(getattr(self, field)) not in annfieldtypes[field]:
-                print(annfieldtypes[field])
-                raise TypeError('The '+field+' field must be one of the above types.')
-            
+                if len(annfieldtypes[field]>1):
+                    raise TypeError('The '+field+' field must be one of the following types:', annfieldtypes)
+                else:
+                    raise TypeError('The '+field+' field must be the following type:', annfieldtypes[0])
             # Field specific checks
             if field == 'recordname':
                 # Allow letters, digits, hyphens, and underscores.
@@ -134,6 +135,25 @@ class Annotation(object):
             elif field == 'fs':
                 if self.fs <=0:
                     raise ValueError('The fs field must be a non-negative number')
+            elif field == 'custom_anntypes':
+                # All key/values must be strings
+                for key in self.custom_anntypes.keys():
+                    if type(key)!= str:
+                        raise ValueError('All custom_anntypes keys must be strings')
+                    if len(key)>1:
+                        raise ValueError('All custom_anntypes keys must be single characters')
+                    # Discourage (but not prevent) using existing codes
+                    if key in annsyms.values():
+                        print('It is discouraged to define the custom annotation code: '+key+' that already has an entry in the wfdb library.')
+                        print('To see existing annotation codes and their meanings, call: showanncodes(). Continuing...')
+
+                for value in self.custom_anntypes.values():
+                    if type(key)!= str:
+                        raise ValueError('All custom_anntypes dictionary values must be strings')
+                    # No pointless characters
+                    acceptedstring = re.match('[\w -]+', value)
+                    if not acceptedstring or acceptedstring.string != value:
+                        raise ValueError('custom_anntypes dictionary values must only contain alphanumerics, spaces, underscores, and dashes')
 
         else:
             fielditem = getattr(self, field)
@@ -147,8 +167,7 @@ class Annotation(object):
             if field in ['annsamp','anntype']:
                 for item in fielditem:
                     if type(item) not in annfieldtypes[field]:
-                        print("All elements of the '", field, "' field must be one of the following types:")
-                        print(annfieldtypes[field])
+                        print("All elements of the '"+field+"' field must be one of the following types:", annfieldtypes[field])
                         print("All elements must be present")
                         raise Exception()
             else:
@@ -170,11 +189,12 @@ class Annotation(object):
                 if max(sampdiffs) > 2147483648:
                     raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
             elif field == 'anntype':
-                # Ensure all fields lie in standard WFDB annotation codes
-                if set(self.anntype) - set(annsyms.values()) != set():
-                    print("The 'anntype' field contains items not encoded in the WFDB annotation library.")
+                # Ensure all fields lie in standard WFDB annotation codes or custom codes
+                if set(self.anntype) - set(annsyms.values()).union() != set():
+                    print("The 'anntype' field contains items not encoded in the WFDB library, or in this object's custom defined anntypes.")
                     print('To see the valid annotation codes call: showanncodes()')
                     print('To transfer non-encoded anntype items into the aux field call: self.type2aux()')
+                    print("To define custom codes, set the custom_anntypes field as a dictionary with format: {custom anntype character:description}")
                     raise Exception()
             elif field == 'subtype':
                 # signed character
@@ -204,20 +224,23 @@ class Annotation(object):
     # Write an annotation file
     def wrannfile(self):
 
-        # If there is an fs, write it
+        # Calculate the fs bytes to write if present
         if self.fs is not None:
             fsbytes = fs2bytes(self.fs)
         else:
-            fsbytes = None
+            fsbytes = []
+
+        # Calculate the custom_anntypes bytes to write if present
+        if self.custom_anntypes is not None:
+            cabytes = ca2bytes(self.custom_anntypes)
+        else:
+            cabytes = []
 
         # Calculate the main bytes to write
         databytes = self.fieldbytes()
 
-        # Combine all bytes to write including file terminator
-        if fsbytes is not None:
-            databytes = np.concatenate((fsbytes, databytes, np.array([0,0]).astype('u1')))
-        else:
-            databytes = np.concatenate((databytes, np.array([0,0]).astype('u1')))
+        # Combine all bytes to write: fs (if any), custom annotations(if any), main content, file terminator
+        databytes = np.concatenate((fsbytes, cabytes, databytes, np.array([0,0]).astype('u1')))
 
         # Write the file
         with open(self.recordname+'.'+self.annotator, 'wb') as f:
@@ -307,6 +330,51 @@ def fs2bytes(fs):
     databytes = databytes+[0, 236, 255, 255, 255, 255, 1, 0] 
 
     return np.array(databytes).astype('u1')
+
+# Calculate the bytes written to the annotation file for the custom_anntypes field
+def ca2bytes(custom_anntypes):
+
+    # The start wrapper: '0 NOTE length AUX ## annotation type definitions'
+    headbytes = [0,88,30,252,35,35,32,97,110,110,111,116,97,116,105,111,110,32,116
+                 121,112,101,32,100,101,102,105,110,105,116,105,111,110,115]
+
+    # The end wrapper: '0 NOTE length AUX ## end of definitions' followed by SKIP -1, +1
+    tailbytes =  [0,88,21,252,35,35,32,101,110,100,32,111,102,32,100,101,102,105,110,
+                  105,116,105,111,110,115,0,0,236,255,255,255,255,1,0]
+
+    # Annotation codes range from 0-49.
+    freenumbers = list(set(range(50)) - set(annsyms.keys()))
+
+    if len(custom_anntypes) > len(freenumbers):
+        raise Exception('There can only be a maximum of '+len(freenumbers)+' custom annotation codes.')
+
+    # Allocate a number to each custom anntype.
+    # List sublists: [number, code, description]
+    writecontent = []
+    for i in range(len(custom_anntypes)):
+        writecontent.append([i,custom_anntypes.keys()[i],custom_anntypes.values()[i]])
+
+    custombytes = [customcode2bytes(triplet) for triplet in writecontent]
+    custombytes = [item for sublist in custombytes for item in sublist]
+
+    return np.array(headbytes+custombytes+tailbytes).astype('u1')
+
+# Convert triplet of [number, codesymbol (character), description] into annotation bytes
+# Helper function to ca2bytes
+def customcode2bytes(c_triplet):
+
+    # Structure: 0, NOTE, len(aux), AUX, codenumber, space, codesymbol, space, description, (0 null if necessary)
+    # Remember, aux string includes 'number(s)<space><symbol><space><description>''
+    annbytes = [0, 88, len(c_triplet[2]) + 3 + len(str(c_triplet[0])), 252] + [ord(c) for c in str(c_triplet[0])] \
+               + [32] + ord(c_triplet[1]) + [32] + [ord(c) for c in c_triplet[2]] 
+
+    if len(annbytes) % 2:
+        annbytes.append(0)
+
+    return annbytes
+
+
+
 
 # Convert an annotation field into bytes to write
 def field2bytes(field, value):
@@ -791,6 +859,7 @@ def proc_special_types(annsamp,anntype,num,subtype,chan,aux):
 
 # Annotation mnemonic symbols for the 'anntype' field as specified in annot.c
 # from wfdb software library 10.5.24. At this point, several values are blank.
+# Commented out values are present in original file but have no meaning.
 annsyms = {
     0: ' ',  # not-QRS (not a getann/putann codedict) */
     1: 'N',  # normal beat */
@@ -807,9 +876,9 @@ annsyms = {
     12: '/',  # paced beat */
     13: 'Q',  # unclassifiable beat */
     14: '~',  # signal quality change */
-    15: '[15]',
+#    15: '[15]',
     16: '|',  # isolated QRS-like artifact */
-    17: '[17]',
+#    17: '[17]',
     18: 's',  # ST change */
     19: 'T',  # T-wave change */
     20: '*',  # systole */
@@ -834,20 +903,21 @@ annsyms = {
     39: '(',  # waveform onset */
     40: ')',  # waveform end */
     41: 'r',  # R-on-T premature ventricular contraction */
-    42: '[42]',
-    43: '[43]',
-    44: '[44]',
-    45: '[45]',
-    46: '[46]',
-    47: '[47]',
-    48: '[48]',
-    49: '[49]',
+#    42: '[42]',
+#    43: '[43]',
+#    44: '[44]',
+#    45: '[45]',
+#    46: '[46]',
+#    47: '[47]',
+#    48: '[48]',
+#    49: '[49]',
 }
 # Reverse ann symbols for mapping symbols back to numbers
 revannsyms = {v: k for k, v in annsyms.items()}
 
 # Annotation codes for 'anntype' field as specified in ecgcodes.h from
-# wfdb software library 10.5.24
+# wfdb software library 10.5.24. Commented out values are present in
+# original file but have no meaning.
 anncodes = {
     0: 'NOTQRS',  # not-QRS (not a getann/putann codedict) */
     1: 'NORMAL',  # normal beat */
@@ -864,9 +934,9 @@ anncodes = {
     12: 'PACE',  # paced beat */
     13: 'UNKNOWN',  # unclassifiable beat */
     14: 'NOISE',  # signal quality change */
-    15: '',
+#    15: '',
     16: 'ARFCT',  # isolated QRS-like artifact */
-    17: '',
+#    17: '',
     18: 'STCH',  # ST change */
     19: 'TCH',  # T-wave change */
     20: 'SYSTOLE',  # systole */
@@ -890,15 +960,15 @@ anncodes = {
     38: 'PFUS',  # fusion of paced and normal beat */
     39: 'WFON',  # waveform onset */
     40: 'WFOFF',  # waveform end */
-    41: 'RONT',  # R-on-T premature ventricular contraction */
-    42: '',
-    43: '', 
-    44: '', 
-    45: '', 
-    46: '',
-    47: '',
-    48: '', 
-    49: ''
+    41: 'RONT',  # R-on-T premature ventricular contraction */  
+#    42: '',
+#    43: '', 
+#    44: '', 
+#    45: '', 
+#    46: '',
+#    47: '',
+#    48: '', 
+#    49: ''
 }
 
 # Mapping annotation symbols to the annotation codes
@@ -906,7 +976,8 @@ anncodes = {
 symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code Meaning': list(anncodes.values())})
 symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
-annfields = ['recordname', 'annotator', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs', 'custom_anntypes']
+# All annotation fields. Note: custom_anntypes placed first to check field before anntype
+annfields = ['recordname', 'annotator', 'custom_anntypes', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
 
 annfieldtypes = {'recordname': [str], 'annotator': [str], 'annsamp': _headers.inttypes, 
                  'anntype': [str], 'num':_headers.inttypes, 'subtype': _headers.inttypes, 
