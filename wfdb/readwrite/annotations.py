@@ -22,10 +22,13 @@ class Annotation(object):
     - num: The labelled annotation number. 
     - aux: The auxiliary information string for the annotation.
     - fs: The sampling frequency of the record if contained in the annotation file.
+    - custom_anntypes: The custom annotation types defined in the annotation file.
+      A dictionary with {key:value} corresponding to {anntype:description}. 
+      eg. {'#': 'lost connection', 'C': 'reconnected'}
 
     Constructor function:
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
-                 chan = None, num = None, aux = None, fs = None)
+                 chan = None, num = None, aux = None, fs = None, custom_anntypes = None)
 
     Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
     annotations that are not one of these codes should go in the 'aux' field rather than the 
@@ -37,7 +40,7 @@ class Annotation(object):
                            anntype = ['N','N','['], aux=[None, None, 'Serious Vfib'])
     """
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
-                 chan = None, num = None, aux = None, fs = None):
+                 chan = None, num = None, aux = None, fs = None, custom_anntypes=None):
         self.recordname = recordname
         self.annotator = annotator
 
@@ -48,6 +51,7 @@ class Annotation(object):
         self.num = num
         self.aux = aux
         self.fs = fs
+        self.custom_anntypes = custom_anntypes
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other):
@@ -409,6 +413,7 @@ def showanncodes():
 
 ## ------------- Reading Annotations ------------- ##
 
+
 def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     """ Read a WFDB annotation file recordname.annotator and return an
     Annotation object.
@@ -424,7 +429,7 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
     - sampto (default=None): The maximum sample number for annotations to be returned.
     - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
-       directory from which to find the required annotation file.
+      directory from which to find the required annotation file.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 
     Output argument:
@@ -450,66 +455,31 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     filebytes = loadbytepairs(recordname, annotator, pbdir)
 
     # The maximum number of annotations potentially contained
-    annotlength = filebytes.shape[0]
+    maxannlen = filebytes.shape[0]
 
     # Initialise arrays to the total potential number of annotations in the file
-    annsamp, anntype, subtype, chan, num, aux = init_arrays(annotlength)
-
-    # Indexing Variables
-    ts = 0 # Total number of samples from beginning of record. Annotation bytes only store dt.
-    ai = 0 # Annotation index, the number of annotations processed.
+    annsamp, anntype, subtype, chan, num, aux = init_arrays(maxannlen)
 
     # Check the beginning of the file for a potential fs field
+    # bpi = byte pair index. The index at which to continue processing the bytes
     fs, bpi = get_fs(filebytes)
 
-    # Process annotations. Iterate across byte pairs. 
-    # Sequence for one ann is: 
-    #   SKIP pair (if any)
-    #   samp + anntype pair
-    #   other pairs (if any)
-    # The last byte pair is 0 indicating eof.
-    while (bpi < annotlength - 1):
 
-        # The first byte pair will either store the actual samples + anntype,
-        # or 0 + SKIP.
-        AT = filebytes[bpi, 1] >> 2  # anntype
 
-        # flags that specify whether to copy the previous channel/num value for
-        # the current annotation. Set default. 
-        cpychan, cpynum = 1, 1
-        ts, annsamp, anntype, bpi = copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai)
-
-        AT = filebytes[bpi, 1] >> 2
-
-        # Process any other fields belonging to this annotation
-        while (AT > 59):  
-
-            subtype,bpi,num,chan,cpychan,cpynum,aux = proc_extra_fields(AT,
-                subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux)
-
-            # Only aux and sub are reset between annotations. Chan and num keep
-            # previous value if missing.
-            AT = filebytes[bpi, 1] >> 2
-
-        if (ai > 0):  # Fill in previous values of chan and num.
-            if cpychan:
-                chan[ai] = chan[ai - 1]
-            if cpynum:
-                num[ai] = num[ai - 1]
-
-        # Finished processing current annotation. Move onto next.
-        ai = ai + 1
-
-        if sampto and sampto<ts:
-            break;
+    # Get the main annotation fields from the annotation bytes
+    annsamp,anntype,num,subtype,chan,aux,ai  = proc_ann_bytes(annsamp,anntype,num,
+                                                              subtype,chan,aux,
+                                                              filebytes,bpi,maxannlen,
+                                                              sampto)
 
     # Snip the unallocated end of the arrays
     annsamp,anntype,num,subtype,chan,aux = snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai)
 
-    # Process the fields if there are custom annotation types
-    allannsyms,annsamp,anntype,num,subtype,chan,aux = proccustomtypes(annsamp,anntype,num,subtype,chan,aux)
+    # Process and remove annotations with special types - custom anntype definition and notqrs
+    allannsyms,annsamp,anntype,num,subtype,chan,aux,custom_anntypes = proc_special_types(annsamp,anntype,num,
+                                                                                         subtype,chan,aux)
 
-    # Apply annotation range
+    # Keep annotations within the user specified sample range
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
@@ -518,9 +488,10 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
 
     # Store fields in an Annotation object
     annotation = Annotation(os.path.split(recordname)[1], annotator, annsamp, anntype, 
-        subtype, chan, num, aux, fs)
+        subtype, chan, num, aux, fs,custom_anntypes)
 
     return annotation
+
 
 # Load the annotation file 1 byte at a time and arrange in pairs
 def loadbytepairs(recordname, annot, pbdir):
@@ -535,20 +506,23 @@ def loadbytepairs(recordname, annot, pbdir):
     return filebytes
 
 # Initialize arrays for storing content
-def init_arrays(annotlength):
-    annsamp = np.zeros(annotlength)
-    anntype = np.zeros(annotlength)
-    subtype = np.zeros(annotlength)
-    chan = np.zeros(annotlength)
-    num = np.zeros(annotlength)
-    aux = [''] * annotlength
+def init_arrays(maxannlen):
+    annsamp = np.zeros(maxannlen)
+    anntype = np.zeros(maxannlen)
+    subtype = np.zeros(maxannlen)
+    chan = np.zeros(maxannlen)
+    num = np.zeros(maxannlen)
+    aux = [''] * maxannlen
     return (annsamp, anntype, subtype, chan, num, aux)
 
 # Check the beginning of the annotation file for an fs
 def get_fs(filebytes):
 
-    fs = None # fs potentially stored in the file
-    bpi = 0 # Byte pair index for searching the annotation file
+    # fs potentially stored in the file
+    fs = None
+    # Byte pair index for continuing to process the annotation file
+    # Set default for case where fs is not present
+    bpi = 0
 
     if filebytes.size > 24:
         testbytes = filebytes[:12, :].flatten()
@@ -565,52 +539,140 @@ def get_fs(filebytes):
             bpi = int(0.5 * (auxlen + 12 + (auxlen & 1)))
     return (fs, bpi)
 
-def copy_prev(AT,ts,filebytes,bpi,annsamp,anntype,ai):    
-    if AT == 59:  # Skip.
-        ts = ts + 65536 * filebytes[bpi + 1,0] + \
-               16777216 * filebytes[bpi + 1,1] + \
-                          filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]  # 4 bytes storing dt
+#  Get the main annotation fields from the annotation bytes
+def proc_ann_bytes(annsamp,anntype,num,subtype,chan,aux,filebytes,bpi,maxannlen,sampto):
+
+    # Indexing Variables
+    # Total number of samples from beginning of record. Annotation bytes only store dt
+    ts = 0
+    # Annotation index, the number of annotations processed.
+    ai = 0
+
+    # Process annotations. Iterate across byte pairs.
+    # Sequence for one ann is:
+    # - SKIP pair (if any)
+    # - samp + anntype pair
+    # - other pairs (if any)
+    # The last byte pair is 0 indicating eof.
+    while (bpi < maxannlen - 1):
+
+        # anntype - use this to get final anntype and annsamp
+        AT = filebytes[bpi, 1] >> 2
+
+        # Get the annsamp and anntype fields of the current annotation
+        ts, annsamp, anntype, bpi = get_samp_type(AT,ts,filebytes,bpi,annsamp,anntype,ai)
+
+        # Flags that specify whether to copy the previous channel/num value for
+        # the current annotation. Set default.
+        cpychan, cpynum = True, True
+
+        # get the next anntype value - it may indicate additional
+        # fields for this annotation, or the values of the next annotation.
+        AT = filebytes[bpi, 1] >> 2
+
+        # Process any other fields belonging to this annotation
+        while (AT > 59):
+
+            subtype,bpi,num,chan,cpychan,cpynum,aux = proc_extra_fields(AT,
+                subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux)
+
+            AT = filebytes[bpi, 1] >> 2
+
+        # Carry over previous values of chan and num if necessary
+        chan, num = carry_fields(ai, cpychan, cpynum, chan, num)
+
+        # Finished processing current annotation. Move onto next.
+        ai = ai + 1
+
+        if sampto and sampto<ts:
+            break
+
+    return annsamp,anntype,num,subtype,chan,aux,ai 
+
+# Get the annsamp and anntype fields of the current annotation
+def get_samp_type(AT,ts,filebytes,bpi,annsamp,anntype,ai):
+    # The first byte pair will either store the actual samples + anntype,
+    # or 0 + SKIP.
+    
+    # Skip.
+    if AT == 59:
+        # 4 bytes storing dt
+        dt = 65536 * filebytes[bpi + 1,0] + 16777216 * filebytes[bpi + 1,1] \
+             + filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]
+
+        # Data type is long integer (stored in two's complement). Range -2**31 to 2**31 - 1
+        if dt > 2147483647:
+            dt = dt - 4294967296
+
+        # After the 4 bytes, the next pair's annsamp is also added
+        dt = dt + filebytes[bpi + 3, 0] + 256 * (filebytes[bpi + 3, 1] & 3)
+
+        ts = ts + dt
         annsamp[ai] = ts
         # The anntype is stored after the 4 bytes. Samples here should be 0.
+        # Note: Could there be another skip?
         anntype[ai] = filebytes[bpi + 3, 1] >> 2
         bpi = bpi + 4
-    # Not a skip so it should be the actual samples + anntype. Should not
-    # need to check for alternatives.
+    # Not a skip - it is the actual sample number + anntype.
     else:
-        # total samples = previous + delta samples stored in current byte
-        # pair
+        # total samples = previous + delta samples stored in current byte pair
         ts = ts + filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
         annsamp[ai] = ts
         anntype[ai] = AT
         bpi = bpi + 1
+
     return ts,annsamp,anntype,bpi
 
+
 def proc_extra_fields(AT,subtype,ai,filebytes,bpi,num,chan,cpychan,cpynum,aux):
-    if AT == 61:  # SUB
+    # Process extra fields belonging to the current annotation
+
+    # aux and sub are reset between annotations. chan and num copy over
+    # previous value if missing.
+
+    # SUB
+    if AT == 61:
         # sub is interpreted as signed char.
         # range.
         subtype[ai] = filebytes[bpi, 0].astype('i1')
         bpi = bpi + 1
-    elif AT == 62:  # CHAN
+    # CHAN
+    elif AT == 62:
         # chan is interpreted as unsigned char
         chan[ai] = filebytes[bpi, 0]
-        cpychan = 0
+        cpychan = False
         bpi = bpi + 1
-    elif AT == 60:  # NUM
+    # NUM
+    elif AT == 60:
         # num is interpreted as signed char
         num[ai] = filebytes[bpi, 0].astype('i1')
-        cpynum = 0
+        cpynum = False
         bpi = bpi + 1
-    elif AT == 63:  # AUX
+    # AUX
+    elif AT == 63:
         # length of aux string. Max 256? No need to check other bits of
         # second byte?
         auxlen = filebytes[bpi, 0]
         auxbytes = filebytes[bpi + 1:bpi + 1 + int(np.ceil(auxlen / 2.)),:].flatten()
         if auxlen & 1:
             auxbytes = auxbytes[:-1]
-        aux[ai] = "".join([chr(char) for char in auxbytes])  # The aux string
+        # The aux string
+        aux[ai] = "".join([chr(char) for char in auxbytes])
         bpi = bpi + 1 + int(np.ceil(auxlen / 2.))
     return subtype,bpi,num,chan,cpychan,cpynum,aux
+
+
+def carry_fields(ai, cpychan, cpynum, chan, num):
+    # Carry over previous values of chan and num if necessary
+    if (ai > 0):
+        if cpychan:
+            chan[ai] = chan[ai - 1]
+        if cpynum:
+            num[ai] = num[ai - 1]
+
+    return chan, num 
+
+
 
 # Remove unallocated part of array
 def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
@@ -622,71 +684,94 @@ def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
     aux = aux[0:ai]
     return annsamp,anntype,num,subtype,chan,aux
 
-# Keep annotations within a sample range
+# Keep annotations within the user specified sample range
 def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux):
     
-    returnempty = 0
+    # No need to do anything if no custom user input range
+    if not (sampfrom == 0 and sampto is None):
 
-    afterfrom = np.where(annsamp >= sampfrom)[0]
-    if len(afterfrom) > 0:
-        ik0 = afterfrom[0]  # index keep start
-    else:  # No annotations in specified range.
-        returnempty = 1
+        returnempty = False
 
-    if not sampto:
-        sampto = annsamp[-1]
+        afterfrom = np.where(annsamp >= sampfrom)[0]
+        if len(afterfrom) > 0:
+            # index keep start
+            ik0 = afterfrom[0]
+        # No annotations in specified range.
+        else:
+            returnempty = True
 
-    beforeto = np.where(annsamp <= sampto)[0]
+        if not sampto:
+            sampto = annsamp[-1]
 
-    if len(beforeto) > 0:
-        ik1 = beforeto[-1]
-    else:
-        returnempty = 1
+        beforeto = np.where(annsamp <= sampto)[0]
 
-    if returnempty:
-        annsamp = []
-        anntype = []
-        num = []
-        subtype = []
-        chan = []
-        aux = []
-        print("No annotations in specified sample range")
-    else:
-        annsamp = annsamp[ik0:ik1 + 1]
-        anntype = anntype[ik0:ik1 + 1]
-        num = num[ik0:ik1 + 1]
-        subtype = subtype[ik0:ik1 + 1]
-        chan = chan[ik0:ik1 + 1]
-        aux = aux[ik0:ik1 + 1]
+        if len(beforeto) > 0:
+            ik1 = beforeto[-1]
+        else:
+            returnempty = True
+
+        if returnempty:
+            annsamp = []
+            anntype = []
+            num = []
+            subtype = []
+            chan = []
+            aux = []
+            print("No annotations in specified sample range")
+        else:
+            annsamp = annsamp[ik0:ik1 + 1]
+            anntype = anntype[ik0:ik1 + 1]
+            num = num[ik0:ik1 + 1]
+            subtype = subtype[ik0:ik1 + 1]
+            chan = chan[ik0:ik1 + 1]
+            aux = aux[ik0:ik1 + 1]
+
     return annsamp,anntype,num,subtype,chan,aux
 
 
-# Process the fields if there are custom annotation types
-def proccustomtypes(annsamp,anntype,num,subtype,chan,aux):
+# Process and remove annotations with special types - custom anntype definition and notqrs
+def proc_special_types(annsamp,anntype,num,subtype,chan,aux):
     # Custom anncodes appear as regular annotations in the form: 
-    # sample = 0, anntype = 22 (note annotation '"'), aux = "NUMBER[ \t]CUSTOMANNCODE[ \t]Calibration"
-    s0 = np.where(annsamp == 0)[0]
-    t22 = np.where(anntype == 22)[0]
-    s0t22 = list(set(s0).intersection(t22))
+    # sample = 0, anntype = 22 (note annotation '"'), aux = "<number>[ \t]<customanncode>[ \t]<customannstring>"
+    s0_inds = np.where(annsamp == 0)[0]
+    t22_inds = np.where(anntype == 22)[0]
 
+    # Annotations with anntype == notqrs are also to be removed
+    notqrs_inds = np.where(anntype == 0)[0]
+
+    special_inds = list(set(s0_inds).intersection(t22_inds).union(notqrs_inds))
+
+    # Custom annotation types
+    custom_anntypes = {}
+    # The annotation symbol dictionary to modify and use
     allannsyms = annsyms.copy()
-    if s0t22 != []:
-        # The custom anncode indices
-        custominds = []
-        # Check aux for custom codes
-        for i in s0t22:
-            acceptedstring = re.match('(\d+)[ \t](\w+)[ \t]Calibration', aux[i])
-            # Found custom annotation code. 
-            if acceptedstring is not None and acceptedstring.string==aux[i]:
-                # Keep track of index
-                custominds.append(i)
-                # Add code to annsym dictionary
-                codenum, codesym = acceptedstring.group(1, 2)
-                allannsyms[int(codenum)] = codesym
 
-        # Remove the attributes with the custom anncode indices
-        if custominds != []:
-            keepinds = [i for i in range(len(annsamp)) if i not in custominds]
+    if special_inds != []:
+        # The annotation indices to be removed
+        rm_inds = []
+
+        # Check aux for custom codes
+        for i in special_inds:
+            # notqrs annotations
+            if anntype[i] == 0:
+                rm_inds.append(i)
+            # Encasing annotations for custom annotation types
+            elif aux[i] == "## annotation type definitions" or aux[i] == '## end of definitions':
+                rm_inds.append(i)
+            # Custom annotation types
+            else:
+                acceptedstring = re.match('(\d+)[ \t](\S)[ \t](.+)', aux[i])
+                # Found custom annotation code. 
+                if acceptedstring is not None and acceptedstring.string==aux[i]:
+                    rm_inds.append(i)
+                    # Code number, symbol, and description
+                    codenum, codesym, codedesc = acceptedstring.group(1, 2, 3)
+                    allannsyms[int(codenum)] = codesym
+                    custom_anntypes[codesym] = codedesc
+            
+        # Remove the 'annotations' with the special anncode indices
+        if rm_inds != []:
+            keepinds = [i for i in range(len(annsamp)) if i not in rm_inds]
 
             annsamp = annsamp[keepinds]
             anntype = anntype[keepinds]
@@ -695,7 +780,10 @@ def proccustomtypes(annsamp,anntype,num,subtype,chan,aux):
             chan = chan[keepinds]
             aux = [aux[i] for i in keepinds]
 
-    return (allannsyms,annsamp,anntype,num,subtype,chan,aux)
+    if custom_anntypes == {}:
+        custom_anntypes = None
+
+    return (allannsyms,annsamp,anntype,num,subtype,chan,aux,custom_anntypes)
     
 
 ## ------------- /Reading Annotations ------------- ##
@@ -818,8 +906,9 @@ anncodes = {
 symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code Meaning': list(anncodes.values())})
 symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
-annfields = ['recordname', 'annotator', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
+annfields = ['recordname', 'annotator', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs', 'custom_anntypes']
 
 annfieldtypes = {'recordname': [str], 'annotator': [str], 'annsamp': _headers.inttypes, 
                  'anntype': [str], 'num':_headers.inttypes, 'subtype': _headers.inttypes, 
-                 'chan': _headers.inttypes, 'aux': [str], 'fs': _headers.floattypes}
+                 'chan': _headers.inttypes, 'aux': [str], 'fs': _headers.floattypes,
+                 'custom_anntypes': [dict]}
