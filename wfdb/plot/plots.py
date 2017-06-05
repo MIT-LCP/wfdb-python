@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from . import records
-from . import _headers
-from . import _signals
-from . import annotations
+from ..readwrite import records
+from ..readwrite import _headers
+from ..readwrite import _signals
+from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
