@@ -1,0 +1,3 @@
+310derive_2 1 360 1020
+310derive_2.dat 310 200 10 0 -5 -3380 0 col 1
+# 1020 samples * 4/3 bytes/sample = 1360 bytes exactly.

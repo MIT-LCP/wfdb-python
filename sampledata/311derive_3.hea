@@ -1,0 +1,4 @@
+311derive_3 1 360 1019
+311derive_3.dat 311 200 10 0 -5 62164 0 ch1
+# The dat file is 1359 bytes. 1019*4/3 = 1358+2/3. Extends into 1359.
+# wfdb c rdsamp fails to read this!

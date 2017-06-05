@@ -1,0 +1,5 @@
+100_3chan 3 360.0 999
+100_3chan.dat 212 200(1024)/mV 11 1024 995 43172 0 I
+100_3chan.dat 212 200(1024)/mV 11 1024 1011 63954 0 II
+100_3chan.dat 212 200(1024)/mV 11 1024 995 43172 0 III
+# Made this to test fmt 212 with odd number of samples

@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import math
-from . import records
-from . import _headers
-from . import annotations
+from ..readwrite import records
+from ..readwrite import _headers
+from ..readwrite import _signals
+from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
@@ -147,11 +147,11 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
         raise ValueError('Signal units must be uV, mV, or V to plot the ECG grid.')
 
 
-    major_ticks_x = np.arange(0, upround(maxt, majorx)+0.0001, majorx)
-    minor_ticks_x = np.arange(0, upround(maxt, majorx)+0.0001, minorx)
+    major_ticks_x = np.arange(0, _signals.upround(maxt, majorx)+0.0001, majorx)
+    minor_ticks_x = np.arange(0, _signals.upround(maxt, majorx)+0.0001, minorx)
 
-    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, majory)
-    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, minory)
+    major_ticks_y = np.arange(_signals.downround(minsig, majory), _signals.upround(maxsig, majory)+0.0001, majory)
+    minor_ticks_y = np.arange(_signals.downround(minsig, majory), _signals.upround(maxsig, majory)+0.0001, minory)
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
@@ -313,10 +313,3 @@ def checkannplotitems(annotation, title, timeunits):
     
     return plotvals
 
-# Round down to nearest <base>
-def downround(x, base):
-    return base * math.floor(float(x)/base)
-
-# Round up to nearest <base>
-def upround(x, base):
-    return base * math.ceil(float(x)/base)

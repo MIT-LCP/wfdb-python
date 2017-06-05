@@ -1,0 +1,7 @@
+310derive_3 1 360 1018
+310derive_3.dat 310 200 10 0 -5 62172 0 ch1
+# 1020 samples * 4/3 = 1360 bytes
+# 1019 samples would still need 1360 bytes since it extends. This file tests 1018.
+# 1018 samples * 4/3 bytes/sample = 1357+1/3 bytes. The last sample extends into 1358.
+# The dat file is 1358 bytes. 
+# wfdb c CAN read this.

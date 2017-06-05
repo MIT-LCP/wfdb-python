@@ -55,7 +55,6 @@ class BaseHeadersMixin(object):
                         continue
 
                     fielditem = getattr(self, f)
-
                     # If the field is required by default or has been defined by the user
                     if fieldspecs[f].write_req or (fielditem is not None and fielditem[ch] is not None):
                         rf=f
@@ -88,15 +87,16 @@ class BaseHeadersMixin(object):
 # To be inherited by WFDBrecord from records.py.
 class HeadersMixin(BaseHeadersMixin):
     
-    # Set defaults for fields needed to write the header if they have defaults.
-    # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
-    # It is also not called by wrhea (this may be changed in the future) since 
-    # it is supposed to be an explicit function. 
-
-    # Not responsible for initializing the 
-    # attribute. That is done by the constructor. 
     def setdefaults(self):
+        """
+        Set defaults for fields needed to write the header if they have defaults.
+        This is NOT called by rdheader. It is only automatically called by the gateway wrsamp for convenience.
+        It is also not called by wrhea (this may be changed in the future) since 
+        it is supposed to be an explicit function.
 
+        Not responsible for initializing the
+        attributes. That is done by the constructor.
+        """
         rfields, sfields = self.getwritefields()
         for f in rfields:
             self.setdefault(f)
@@ -126,7 +126,7 @@ class HeadersMixin(BaseHeadersMixin):
         self.wrheaderfile(recwritefields, sigwritefields)
     
 
-    # Get the list of fields used to write the header. (Does NOT include d_signals.)
+    # Get the list of fields used to write the header. (Does NOT include d_signals or e_d_signals.)
     # Separate items by record and signal specification field.
     # Returns the default required fields, the user defined fields, and their dependencies.
     # recwritefields includes 'comment' if present.
@@ -544,7 +544,7 @@ class WFDBheaderspecs():
         # 2. Certain unimportant fields may be dependencies of other
         #    important fields. When writing, we want to fill in defaults
         #    so that the user doesn't need to. But when reading, it should
-        #    be clear that the fields are missing. 
+        #    be clear that the fields are missing.
 
 inttypes = [int, np.int64, np.int32]
 floattypes = inttypes + [float, np.float64, np.float32]
@@ -563,7 +563,7 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
-                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, None, None)),
+                         ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, 1, None)),
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200., None)),

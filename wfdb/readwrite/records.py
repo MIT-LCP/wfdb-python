@@ -56,15 +56,29 @@ class BaseRecord(object):
         if field == 'd_signals':
             # Check shape
             if self.d_signals.ndim != 2:
-                raise TypeError("signals must be a 2d numpy array")
+                raise TypeError("d_signals must be a 2d numpy array")
             # Check dtype
             if self.d_signals.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                raise TypeError('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')   
+                raise TypeError('d_signals must be a 2d numpy array with dtype == int64, int32, int16, or int8.')
         elif field =='p_signals':
             # Check shape
             if self.p_signals.ndim != 2:
-                raise TypeError("signals must be a 2d numpy array")
-            
+                raise TypeError("p_signals must be a 2d numpy array")
+
+        elif field == 'e_d_signals':
+            # Check shape
+            for ch in range(len(channels)):
+                if self.e_d_signals[ch].ndim != 1:
+                    raise TypeError("e_d_signals must be a list of 1d numpy arrays")
+                # Check dtype
+                if self.e_d_signals[ch].dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
+                    raise TypeError('e_d_d_signals must be a list of 1d numpy arrays with dtype == int64, int32, int16, or int8.')
+        elif field =='e_p_signals':
+            # Check shape
+            for ch in range(0, len(channels)):
+                if self.e_p_signals.ndim != 1:
+                    raise TypeError("e_p_signals must be a list of 1d numpy arrays")
+
         #elif field == 'segments': # Nothing to check here. 
         # Record specification fields
         elif field == 'recordname':
@@ -120,8 +134,6 @@ class BaseRecord(object):
                 elif field == 'sampsperframe':
                     if f < 1:
                         raise ValueError('sampsperframe values must be positive integers')
-                    if f > 1:
-                        raise Exception('Sorry, I have not implemented multiple samples per frame into wrsamp yet')
                 elif field == 'skew':
                     if f < 0:
                         raise ValueError('skew values must be non-negative integers')
@@ -210,12 +222,15 @@ class BaseRecord(object):
         elif field in ['p_signals','d_signals']:
             checkitemtype(item, field, [np.ndarray])
 
+        elif field in ['e_p_signals', 'e_d_signals']:
+            checkitemtype(item, field, [np.ndarray], 'all')
+
         # Segments field. List. Elements may be None.
         elif field == 'segments':
             checkitemtype(item, field, [Record], 'none')
 
     # Ensure that input read parameters are valid for the record
-    def checkreadinputs(self, sampfrom, sampto, channels):
+    def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes):
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
             raise TypeError('sampfrom must be an integer')
@@ -244,10 +259,21 @@ class BaseRecord(object):
             if c>self.nsig-1:
                 raise ValueError('Input channels must all be lower than the total number of channels')
 
+        # Cannot expand multiple samples/frame for multi-segment records
+        if type(self) == MultiRecord:
+
+            # If m2s == True, Physical must be true. There is no
+            # meaningful representation of digital signals transferred
+            # from individual segments.
+            if m2s is True and physical is not True:
+                raise Exception('If m2s is True, physical must also be True.')
+
+            if smoothframes is False:
+                raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
 # Check the item type. Vary the print message regarding whether the item can be None.
 # Helper to checkfieldtype
-# channels is a list of binary indicating whether the field's channel must be present (1) or may be None (0)
+# channels is a list of booleans indicating whether the field's channel must be present (1) or may be None (0)
 # and is not just for signal specification fields
 def checkitemtype(item, field, allowedtypes, channels=None):
 
@@ -320,6 +346,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
     """
     # Constructor
     def __init__(self, p_signals=None, d_signals=None,
+                 e_p_signals=None, e_d_signals=None,
                  recordname=None, nsig=None,
                  fs=None, counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
@@ -338,6 +365,9 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
         self.p_signals = p_signals
         self.d_signals = d_signals
+        self.e_p_signals = e_p_signals
+        self.e_d_signals = e_d_signals       
+
 
         self.filename=filename
         self.fmt=fmt
@@ -380,36 +410,52 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         return True
 
     # Write a wfdb header file and associated dat files if any.
-    def wrsamp(self):
+    # Uses d_signals (expanded=False) or e_d_signals to write the samples
+    def wrsamp(self, expanded=False):
 
         # Perform field validity and cohesion checks, and write the header file.
         self.wrheader()
         if self.nsig>0:
             # Perform signal validity and cohesion checks, and write the associated dat files.
-            self.wrdats()
+            self.wrdats(expanded)
+
 
     # Arrange/edit object fields to reflect user channel and/or signal range input
-    def arrangefields(self, channels, usersiglen):
+    # Account for case when signals are expanded
+    def arrangefields(self, channels, expanded=False):
 
         # Rearrange signal specification fields
         for field in _headers.sigfieldspecs:
             item = getattr(self, field)
             setattr(self, field, [item[c] for c in channels])
 
-        # Checksum and initvalue to be updated if present
-        # unless the whole signal length was input
-        if self.siglen != self.d_signals.shape[0]:
-            if self.checksum is not None:
-                self.checksum = self.calc_checksum()
-            if self.initvalue is not None:
-                self.initvalue = list(self.d_signals[0, :])
-                self.initvalue = [int(i) for i in self.initvalue]
+        # Expanded signals - multiple samples per frame.
+        if expanded:
+            # Checksum and initvalue to be updated if present
+            # unless the whole signal length was input
+            if self.siglen != int(len(self.e_d_signals[0])/self.sampsperframe[0]):
+                self.checksum = self.calc_checksum(expanded)
+                self.initvalue = [s[0] for s in self.e_d_signals]
 
-        # Update record specification parameters
-        # Important that these get updated after^^
-        self.nsig = len(channels)
-        self.siglen = self.d_signals.shape[0]
+            self.nsig = len(channels)
+            self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
 
+        # MxN numpy array d_signals
+        else:
+            # Checksum and initvalue to be updated if present
+            # unless the whole signal length was input
+            if self.siglen != self.d_signals.shape[0]:
+
+                if self.checksum is not None:
+                    self.checksum = self.calc_checksum()
+                if self.initvalue is not None:
+                    ival = list(self.d_signals[0, :])
+                    self.initvalue = [int(i) for i in ival]
+
+            # Update record specification parameters
+            # Important that these get updated after^^
+            self.nsig = len(channels)
+            self.siglen = self.d_signals.shape[0]
 
 
 
@@ -695,12 +741,14 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 #------------------- Reading Records -------------------#
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None, m2s = True):
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None,
+           m2s = True, smoothframes = True, ignoreskew=False):
     """Read a WFDB record and return the signal and record descriptors as attributes in a
     Record or MultiRecord object.
 
     Usage:
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None, m2s=True)
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None,
+             m2s=True, smoothframes = True, ignoreskew=False)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -715,8 +763,16 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
        directory from which to find the required record files.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
     - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to
-      directly return a wfdb MultiRecord object (false), or to convert it into and return a wfdb
+      directly return a wfdb MultiRecord object (False), or to convert it into and return a wfdb
       Record object (True).
+    - smoothframes (default=True): Flag used when reading records with signals having multiple
+      samples per frame. Specifies whether to smooth the samples in signals with more than
+      one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals
+      field (True), or to return a list of 1d numpy arrays containing every expanded sample as
+      the e_d_signals or e_p_signals field (False).
+    - ignoreskew (default=False): Flag used when reading records with at least one skewed signal.
+      Specifies whether to apply the skew to align the signals in the output variable (False), or
+      to ignore the skew field and load in all values contained in the dat files unaligned (True).
 
     Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
@@ -749,20 +805,46 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         channels = list(range(record.nsig))
 
     # Ensure that input fields are valid for the record
-    record.checkreadinputs(sampfrom, sampto, channels)
+    record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes)
+
     # A single segment record
     if type(record) == Record:
-        # Read signals from the associated dat files that contain wanted channels
-        record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
-            record.byteoffset, record.sampsperframe, record.skew,
-            sampfrom, sampto, channels)
-        # Arrange/edit the object fields to reflect user channel and/or signal range input
-        record.arrangefields(channels, sampto - sampfrom)
-        if physical == 1:
-            # Perform dac to get physical signal
-            record.p_signals = record.dac()
-            # Clear memory
-            record.d_signals = None
+
+        # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
+        if smoothframes or max([record.sampsperframe[c] for c in channels])==1:
+            # Read signals from the associated dat files that contain wanted channels
+            record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
+                                                  record.byteoffset, record.sampsperframe, record.skew,
+                                                  sampfrom, sampto, channels, smoothframes, ignoreskew)
+            
+            # Arrange/edit the object fields to reflect user channel and/or signal range input
+            record.arrangefields(channels, expanded=False)
+            # Obtain physical values
+            if physical == 1:
+                # Perform dac to get physical signal
+                record.p_signals = record.dac(expanded=False)
+                # Clear memory
+                record.d_signals = None
+            # If the frames had to be smoothed, and d_signals is desired, 
+            # the dtype must be cast back into int
+            elif max(record.sampsperframe)>1:
+                record.d_signals = record.d_signals.astype('int64')
+
+        # Return each sample of the signals with multiple samples per frame
+        else:
+            record.e_d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
+                                                    record.byteoffset, record.sampsperframe, record.skew,
+                                                    sampfrom, sampto, channels, smoothframes, ignoreskew)
+
+            # Arrange/edit the object fields to reflect user channel and/or signal range input
+            record.arrangefields(channels, expanded=True)
+            # Obtain physical values
+            if physical == 1:
+                # Perform dac to get physical signal
+                record.e_p_signals = record.dac(expanded=True)
+                # Clear memory
+                record.e_d_signals = None
+
     # A multi segment record
 
     # We can make another rdsamp function (called rdsamp_segment) to call
@@ -780,12 +862,6 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
         # Segments field is a list of Record objects
         # Empty segments store None.
-
-        # If m2s == True, Physical must be true. There is no
-        # meaningful representation of digital signals transferred
-        # from individual segments.
-        if m2s == True and physical != True:
-            raise Exception('If m2s is True, physical must also be True.')
 
         record.segments = [None]*record.nseg
 

@@ -58,12 +58,8 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     sigbytes = r.content
 
     # Convert to numpy array
-    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt]))
-
-    # For special formats that were read as unsigned 1 byte blocks to be further processed,
-    # convert dtype from uint8 to uint64
-    if fmt in ['212', '310', '311']:
-        sigbytes = sigbytes.astype('uint')
+    # Cast to int64 for further processing
+    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt])).astype('int')
 
     return sigbytes
 
