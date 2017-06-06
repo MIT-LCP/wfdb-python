@@ -57,7 +57,7 @@ class test_rdann():
         pbannotation.aux[0] = '(N'
         
         # Test file writing
-        annotation.wrann()
+        annotation.wrann(writefs=True)
         annotationwrite = wfdb.rdann('100', 'atr')
 
         assert (comp == [True] * 6)
@@ -107,7 +107,7 @@ class test_rdann():
         pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp')
 
         # Test file writing
-        annotation.wrann()
+        annotation.wrann(writefs=True)
         annotationwrite = wfdb.rdann('12726', 'anI')
 
         assert (comp == [True] * 6)
@@ -158,7 +158,7 @@ class test_rdann():
         pbannotation = wfdb.rdann('1003', 'atr', pbdir = 'challenge/2014/set-p2')
         
         # Test file writing
-        annotation.wrann()
+        annotation.wrann(writefs=True)
         annotationwrite = wfdb.rdann('1003', 'atr')
 
         assert (comp == [True] * 6)

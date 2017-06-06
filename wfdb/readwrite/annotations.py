@@ -3,6 +3,7 @@ import pandas as pd
 import re
 import os
 import copy
+from . import records
 from . import _headers
 from . import downloads
 
@@ -79,11 +80,16 @@ class Annotation(object):
         return True
 
     # Write an annotation file
-    def wrann(self):
+    def wrann(self, writefs=False):
         """
         Instance method to write a WFDB annotation file from an Annotation object.
+        
+        def wrann(self, writefs=False)
+        
+        Input Parameters:
+        - writefs (default=False): Flag specifying whether to write the fs
+          attribute to the file.
 
-        Example usage: 
         """
         # Check the validity of individual fields used to write the annotation file
         self.checkfields() 
@@ -92,7 +98,7 @@ class Annotation(object):
         self.checkfieldcohesion()
         
         # Write the header file using the specified fields
-        self.wrannfile()
+        self.wrannfile(writefs)
 
     # Check the mandatory and set fields of the annotation object
     # Return indices of anntype field which are not encoded, and thus need
@@ -222,10 +228,10 @@ class Annotation(object):
                     raise ValueError("All written annotation fields: ['annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux'] must have the same length")
 
     # Write an annotation file
-    def wrannfile(self):
+    def wrannfile(self, writefs):
 
-        # Calculate the fs bytes to write if present
-        if self.fs is not None:
+        # Calculate the fs bytes to write if present and desired to write
+        if self.fs is not None and writefs:
             fsbytes = fs2bytes(self.fs)
         else:
             fsbytes = []
@@ -359,19 +365,31 @@ class Annotation(object):
 
 # Calculate the bytes written to the annotation file for the fs field
 def fs2bytes(fs):
-    databytes = [0,88,23, 252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
+
+    # Initial indicators of encoding fs
+    databytes = [0,88, None, 252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
+
+    # Be aware of potential float and int
+
+    # Check if fs is close enough to int
+    if type(fs) == float:
+        if round(fs,8) == float(int(fs)):
+            fs = int(fs)
 
     fschars = str(fs)
     ndigits = len(fschars)
 
-    for i in range(0, ndigits):
+    for i in range(ndigits):
         databytes.append(ord(fschars[i]))
+
+    # Fill in the aux length
+    databytes[2] = ndigits + 20
 
     # odd number of digits
     if ndigits % 2:
         databytes.append(0)
 
-    # Add the extra -1 0 filler
+    # Add the extra -1 0 notqrs filler
     databytes = databytes+[0, 236, 255, 255, 255, 255, 1, 0] 
 
     return np.array(databytes).astype('u1')
@@ -553,7 +571,7 @@ def wrann(recordname, annotator, annsamp, anntype, subtype = None, chan = None, 
     # Create Annotation object
     annotation = Annotation(recordname, annotator, annsamp, anntype, num, subtype, chan, aux, fs)
     # Perform field checks and write the annotation file
-    annotation.wrann()
+    annotation.wrann(writefs = True)
 
 # Display the annotation symbols and the codes they represent
 def showanncodes():
@@ -619,8 +637,6 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     # bpi = byte pair index. The index at which to continue processing the bytes
     fs, bpi = get_fs(filebytes)
 
-
-
     # Get the main annotation fields from the annotation bytes
     annsamp,anntype,num,subtype,chan,aux,ai  = proc_ann_bytes(annsamp,anntype,num,
                                                               subtype,chan,aux,
@@ -640,6 +656,17 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
 
     # Set the annotation type to the annotation codes
     anntype = [allannsyms[code] for code in anntype]
+
+
+    # If the fs field was not present in the file, try to read a wfdb header
+    # the annotation is associated with to get the fs
+    if fs is None:
+        # Use try except to not make rdann dependent on the validity of the header
+        try:
+            rec = records.rdheader(recordname, pbdir)
+            fs = rec.fs
+        except:
+            pass
 
     # Store fields in an Annotation object
     annotation = Annotation(os.path.split(recordname)[1], annotator, annsamp, anntype, 
@@ -689,7 +716,10 @@ def get_fs(filebytes):
             # the file.
             auxlen = testbytes[2]
             testbytes = filebytes[:(12 + int(np.ceil(auxlen / 2.))), :].flatten()
-            fs = int("".join([chr(char) for char in testbytes[24:auxlen + 4]]))
+            fs = float("".join([chr(char) for char in testbytes[24:auxlen + 4]]))
+            # fs may be int
+            if round(fs, 8) == float(int(fs)):
+                fs = int(fs)
             # byte pair index to start reading actual annotations.
             bpi = int(0.5 * (auxlen + 12 + (auxlen & 1)))
     return (fs, bpi)

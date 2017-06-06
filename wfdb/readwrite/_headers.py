@@ -227,7 +227,12 @@ class HeadersMixin(BaseHeadersMixin):
         for field in recfieldspecs:
             # If the field is being used, add it with its delimiter
             if field in recwritefields:
-                recordline = recordline + recfieldspecs[field].delimiter + str(getattr(self, field))
+                stringfield = str(getattr(self, field))
+                # If fs is float, check whether it as an integer
+                if field == 'fs' and type(self.fs) == float:
+                    if round(self.fs, 8) == float(int(self.fs)):
+                        stringfield = str(int(self.fs))
+                recordline = recordline + recfieldspecs[field].delimiter + stringfield
         headerlines.append(recordline)
 
         # Create signal specification lines (if any) one channel at a time
@@ -390,13 +395,13 @@ def getheaderlines(recordname, pbdir):
     if pbdir is None:
         with open(recordname + ".hea", 'r') as fp:
             # Record line followed by signal/segment lines if any
-            headerlines = []  
+            headerlines = [] 
             # Comment lines
-            commentlines = []  
+            commentlines = []
             for line in fp:
                 line = line.strip()
                 # Comment line
-                if line.startswith('#'):  
+                if line.startswith('#'):
                     commentlines.append(line)
                 # Non-empty non-comment line = header line.
                 elif line:  
@@ -434,8 +439,12 @@ def read_rec_line(recline):
         else:
             if recfieldspecs[field].allowedtypes is inttypes:
                 d_rec[field] = int(d_rec[field])
-            elif recfieldspecs[field].allowedtypes is floattypes:
-                d_rec[field] = float(d_rec[field])
+            # fs may be read as float or int
+            elif field == 'fs':
+                fs = float(d_rec['fs'])
+                if round(fs, 8) == float(int(fs)):
+                    fs = int(fs)
+                d_rec['fs'] = fs
 
     return d_rec
 
