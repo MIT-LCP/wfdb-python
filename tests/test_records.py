@@ -1,5 +1,6 @@
 import wfdb
 import numpy as np
+import os
 
 # Target files created using the original WFDB Software Package version 10.5.24
 class test_rdsamp():
@@ -356,3 +357,18 @@ class test_rdsamp():
     #    targetsig=np.genfromtxt('tests/targetoutputdata/target12')
     #    
     #    assert np.array_equal(sig, targetsig)
+
+
+    # Cleanup written files
+    @classmethod
+    def tearDownClass(self):
+
+        writefiles = ['03700181.dat','03700181.hea','100.atr','100.dat',
+                      '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
+                      '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
+                      's0010_re.hea','s0010_re.xyz','test01_00s.dat',
+                      'test01_00s.hea','test01_00s_skewframe.hea']
+
+        for file in writefiles:
+            if os.path.isfile(file):
+                os.remove(file)

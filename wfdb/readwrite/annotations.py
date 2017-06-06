@@ -240,12 +240,43 @@ class Annotation(object):
         databytes = self.fieldbytes()
 
         # Combine all bytes to write: fs (if any), custom annotations(if any), main content, file terminator
-        databytes = np.concatenate((fsbytes, cabytes, databytes, np.array([0,0]).astype('u1')))
+        databytes = np.concatenate((fsbytes, cabytes, databytes, np.array([0,0]))).astype('u1')
 
         # Write the file
         with open(self.recordname+'.'+self.annotator, 'wb') as f:
             databytes.tofile(f)
-    
+
+    # # Convert all used annotation fields into bytes to write
+    # def fieldbytes(self):
+
+    #     # The difference samples to write
+    #     annsampdiff = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
+
+    #     # All fields to be written. samp and type are together
+    #     extrawritefields = []
+
+    #     for field in ['num', 'subtype', 'chan', 'aux']:
+    #         if getattr(self, field) is not None:
+    #             extrawritefields.append(field)
+
+    #     databytes = []
+
+    #     # Iterate across all fields one index at a time
+    #     for i in range(len(annsampdiff)):
+
+    #         # Process the annsamp (difference) and anntype items
+    #         databytes.append(field2bytes('samptype', [annsampdiff[i], self.anntype[i]]))
+
+    #         for field in extrawritefields:
+    #             value = getattr(self, field)[i]
+    #             if value is not None:
+    #                 databytes.append(field2bytes(field, value))
+
+    #     # Flatten and convert to correct format
+    #     databytes = np.array([item for sublist in databytes for item in sublist]).astype('u1')
+
+    #     return databytes
+
 
     # Convert all used annotation fields into bytes to write
     def fieldbytes(self):
@@ -263,9 +294,9 @@ class Annotation(object):
         databytes = []
 
         # Iterate across all fields one index at a time
-        for i in range(0, len(annsampdiff)):
+        for i in range(len(annsampdiff)):
 
-            # Process the samp (difference) and type items together
+            # Process the annsamp (difference) and anntype items
             databytes.append(field2bytes('samptype', [annsampdiff[i], self.anntype[i]]))
 
             for field in extrawritefields:
@@ -335,7 +366,7 @@ def fs2bytes(fs):
 def ca2bytes(custom_anntypes):
 
     # The start wrapper: '0 NOTE length AUX ## annotation type definitions'
-    headbytes = [0,88,30,252,35,35,32,97,110,110,111,116,97,116,105,111,110,32,116
+    headbytes = [0,88,30,252,35,35,32,97,110,110,111,116,97,116,105,111,110,32,116,
                  121,112,101,32,100,101,102,105,110,105,116,105,111,110,115]
 
     # The end wrapper: '0 NOTE length AUX ## end of definitions' followed by SKIP -1, +1
@@ -352,7 +383,7 @@ def ca2bytes(custom_anntypes):
     # List sublists: [number, code, description]
     writecontent = []
     for i in range(len(custom_anntypes)):
-        writecontent.append([i,custom_anntypes.keys()[i],custom_anntypes.values()[i]])
+        writecontent.append([freenumbers[i],list(custom_anntypes.keys())[i],list(custom_anntypes.values())[i]])
 
     custombytes = [customcode2bytes(triplet) for triplet in writecontent]
     custombytes = [item for sublist in custombytes for item in sublist]
@@ -366,7 +397,7 @@ def customcode2bytes(c_triplet):
     # Structure: 0, NOTE, len(aux), AUX, codenumber, space, codesymbol, space, description, (0 null if necessary)
     # Remember, aux string includes 'number(s)<space><symbol><space><description>''
     annbytes = [0, 88, len(c_triplet[2]) + 3 + len(str(c_triplet[0])), 252] + [ord(c) for c in str(c_triplet[0])] \
-               + [32] + ord(c_triplet[1]) + [32] + [ord(c) for c in c_triplet[2]] 
+               + [32] + [ord(c_triplet[1])] + [32] + [ord(c) for c in c_triplet[2]] 
 
     if len(annbytes) % 2:
         annbytes.append(0)
