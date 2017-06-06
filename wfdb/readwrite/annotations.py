@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import re
 import os
+import copy
 from . import _headers
 from . import downloads
 
@@ -73,7 +74,6 @@ class Annotation(object):
                     return False
             else:
                 if v1 != v2:
-                    print(k)
                     return False
 
         return True
@@ -246,49 +246,24 @@ class Annotation(object):
         with open(self.recordname+'.'+self.annotator, 'wb') as f:
             databytes.tofile(f)
 
-    # # Convert all used annotation fields into bytes to write
-    # def fieldbytes(self):
-
-    #     # The difference samples to write
-    #     annsampdiff = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
-
-    #     # All fields to be written. samp and type are together
-    #     extrawritefields = []
-
-    #     for field in ['num', 'subtype', 'chan', 'aux']:
-    #         if getattr(self, field) is not None:
-    #             extrawritefields.append(field)
-
-    #     databytes = []
-
-    #     # Iterate across all fields one index at a time
-    #     for i in range(len(annsampdiff)):
-
-    #         # Process the annsamp (difference) and anntype items
-    #         databytes.append(field2bytes('samptype', [annsampdiff[i], self.anntype[i]]))
-
-    #         for field in extrawritefields:
-    #             value = getattr(self, field)[i]
-    #             if value is not None:
-    #                 databytes.append(field2bytes(field, value))
-
-    #     # Flatten and convert to correct format
-    #     databytes = np.array([item for sublist in databytes for item in sublist]).astype('u1')
-
-    #     return databytes
-
-
     # Convert all used annotation fields into bytes to write
     def fieldbytes(self):
 
         # The difference samples to write
         annsampdiff = np.concatenate(([self.annsamp[0]], np.diff(self.annsamp)))
 
-        # All fields to be written. samp and type are together
+
+        # Create a copy of the annotation object with a
+        # compact version of fields to write
+        compact_annotation = copy.deepcopy(self)
+        compact_annotation.compact_fields()
+
+
+        # The optional fields to be written. Write if they are not None or all empty
         extrawritefields = []
 
         for field in ['num', 'subtype', 'chan', 'aux']:
-            if getattr(self, field) is not None:
+            if not isblank(getattr(compact_annotation, field)):
                 extrawritefields.append(field)
 
         databytes = []
@@ -299,8 +274,9 @@ class Annotation(object):
             # Process the annsamp (difference) and anntype items
             databytes.append(field2bytes('samptype', [annsampdiff[i], self.anntype[i]]))
 
+            # Process the extra optional fields
             for field in extrawritefields:
-                value = getattr(self, field)[i]
+                value = getattr(compact_annotation, field)[i]
                 if value is not None:
                     databytes.append(field2bytes(field, value))
 
@@ -308,6 +284,44 @@ class Annotation(object):
         databytes = np.array([item for sublist in databytes for item in sublist]).astype('u1')
 
         return databytes
+
+    # Compact all of the object's fields so that the output
+    # writing annotation file writes as few bytes as possible
+    def compact_fields(self):
+
+        # Number of annotations
+        nannots = len(self.annsamp)
+
+        # Chan and num carry over previous fields. Get lists of as few
+        # elements to write as possible
+        self.chan = compact_carry_field(self.chan)
+        self.num = compact_carry_field(self.num)
+
+        # Elements of 0 (default) do not need to be written for subtype.
+        # num and sub are signed in original c package...
+        if self.subtype is not None:
+            if type(self.subtype) == list:
+                for i in range(nannots):
+                    if self.subtype[i] == 0:
+                        self.subtype[i] = None
+                if np.array_equal(self.subtype, [None]*nannots):
+                    self.subtype = None
+            else:
+                zero_inds = np.where(self.subtype==0)[0]
+                if len(zero_inds) == nannots:
+                    self.subtype = None
+                else:
+                    self.subtype = list(self.subtype)
+                    for i in zero_inds:
+                        self.subtype[i] = None
+            
+        # Empty aux strings are not written
+        if self.aux is not None:
+            for i in range(nannots):
+                if self.aux[i] == '':
+                    self.aux[i] = None
+            if np.array_equal(self.aux, [None]*nannots):
+                self.aux = None
 
 
     # Move non-encoded anntype elements into the aux field 
@@ -404,7 +418,49 @@ def customcode2bytes(c_triplet):
 
     return annbytes
 
+# Tests whether the item is blank
+def isblank(x):
+    if x is None:
+        return True
+    elif type(x) == list:
+        if np.array_equal(x, [None]*len(x)):
+            return True
+    return False
 
+
+def compact_carry_field(full_field):
+    """
+    Return the compact list version of a list/array of an
+    annotation field that has previous values carried over
+    (chan or num)
+    - The first sample is 0 by default. Only set otherwise
+      if necessary.
+    - Only set fields if they are different from their prev
+      field
+    """
+
+    # Keep in mind that the field may already be compact or None
+
+    if full_field is None:
+        return None
+
+    # List of same length. Place None where element
+    # does not need to be written
+    compact_field = [None]*len(full_field)
+
+    prev_field = 0
+
+    for i in range(len(full_field)):
+        current_field = full_field[i]
+        if current_field != prev_field:
+            compact_field[i] = current_field
+            prev_field = current_field
+
+    # May further simplify
+    if np.array_equal(compact_field, [None]*len(full_field)):
+        compact_field = None
+
+    return compact_field
 
 
 # Convert an annotation field into bytes to write
