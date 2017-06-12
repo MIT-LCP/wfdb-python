@@ -503,6 +503,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                     fs, counterfreq, basecounter, siglen,
                     basetime, basedate, comments)
 
+        self.layout = layout
         self.segments = segments
         self.segname = segname
         self.seglen = seglen
@@ -794,7 +795,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     dirname, baserecordname = os.path.split(recordname)
 
     # Read the header fields into the appropriate record object
-    record = rdheader(recordname, pbdir = pbdir)
+    record = rdheader(recordname, pbdir = pbdir, rdsegments = False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -899,11 +900,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
 
 # Read a WFDB header. Return a Record object or MultiRecord object
-def rdheader(recordname, pbdir = None):
+def rdheader(recordname, pbdir = None, rdsegments = False):
     """Read a WFDB header file and return the record descriptors as attributes in a Record object
 
     Usage:
-    record = rdheader(recordname, pbdir = None)
+    record = rdheader(recordname, pbdir = None, rdsegments = False)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -912,6 +913,8 @@ def rdheader(recordname, pbdir = None):
     - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database
        directory from which to find the required record files.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
+    - rdsegments (default=False): Boolean flag used when reading multi-segment headers. If True,
+      segment headers will also be read (into the record object's 'segments' field).
 
     Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the header read.
@@ -959,6 +962,23 @@ def rdheader(recordname, pbdir = None):
         # Set the objects' record line fields
         for field in _headers.recfieldspecs:
             setattr(record, field, d_rec[field])
+        # Determine whether the record is fixed or variable
+        if record.seglen[0] == 0:
+            record.layout = 'Variable'
+        else:
+            record.layout = 'Fixed'
+
+        # If specified, read the segment headers
+        if rdsegments:
+            record.segments = []
+            # Get the base record name (could be empty)
+            dirname = os.path.split(recordname)[0]
+            for s in record.segname:
+                if s == '~':
+                    record.segments.append(None)
+                else:
+                    record.segments.append(rdheader(os.path.join(dirname,s), pbdir))
+
     # Set the comments field
     record.comments = []
     for line in commentlines:
