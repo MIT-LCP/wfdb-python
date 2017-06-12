@@ -24,7 +24,7 @@ class BaseRecord(object):
     def __init__(self, recordname=None, nsig=None,
                  fs=None, counterfreq=None, basecounter = None,
                  siglen = None, basetime = None, basedate = None,
-                 comments = None):
+                 comments = None, signame=None):
         self.recordname = recordname
         self.nsig = nsig
         self.fs = fs
@@ -34,7 +34,7 @@ class BaseRecord(object):
         self.basetime = basetime
         self.basedate = basedate
         self.comments = comments
-
+        self.signame = signame
 
     # Check whether a single field is valid in its basic form. Does not check compatibility with other fields.
     # ch is only used for signal specification fields, specifying the channels to check. Other channels
@@ -359,7 +359,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
         super(Record, self).__init__(recordname, nsig,
                     fs, counterfreq, basecounter, siglen,
-                    basetime, basedate, comments)
+                    basetime, basedate, comments, signame)
 
         self.p_signals = p_signals
         self.d_signals = d_signals
@@ -380,7 +380,6 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
         self.initvalue=initvalue
         self.checksum=checksum
         self.blocksize=blocksize
-        self.signame=signame
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other):
@@ -480,7 +479,8 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                  recordname=None, nsig=None, fs=None,
                  counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
-                 segname = None, seglen = None, comments=None)
+                 segname = None, seglen = None, comments=None,
+                 signame = None)
 
     Example Usage:
     import wfdb
@@ -496,12 +496,13 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                  recordname=None, nsig=None, fs=None,
                  counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
-                 segname = None, seglen = None, comments=None):
+                 segname = None, seglen = None, comments=None,
+                 signame = None):
 
 
         super(MultiRecord, self).__init__(recordname, nsig,
                     fs, counterfreq, basecounter, siglen,
-                    basetime, basedate, comments)
+                    basetime, basedate, comments, signame)
 
         self.layout = layout
         self.segments = segments
@@ -978,6 +979,8 @@ def rdheader(recordname, pbdir = None, rdsegments = False):
                     record.segments.append(None)
                 else:
                     record.segments.append(rdheader(os.path.join(dirname,s), pbdir))
+            # Fill in the signame attribute
+            record.signame = record.getsignames()
 
     # Set the comments field
     record.comments = []

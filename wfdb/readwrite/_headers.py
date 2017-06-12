@@ -345,7 +345,7 @@ class MultiHeadersMixin(BaseHeadersMixin):
                 recordline = recordline + recfieldspecs[field].delimiter + str(getattr(self, field))
         headerlines.append(recordline)
 
-        # Create segment specification lines 
+        # Create segment specification lines
         segmentlines = self.nseg*['']
         # For both fields, add each of its elements with the delimiter to the appropriate line 
         for field in ['segname', 'segname']:
@@ -360,6 +360,43 @@ class MultiHeadersMixin(BaseHeadersMixin):
             headerlines = headerlines + commentlines
 
         linestofile(self.recordname+'.hea', headerlines)
+
+    # Get a list of the segment numbers that contain a particular signal
+    # (or a list of segment numbers for a list of signals)
+    # Only works if information about the segments has been read in
+    def signalsegments(self, signame=None):
+        if self.segments is None:
+            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rdsegments=True")
+        
+        # Default value = all signal names.
+        if signame is None:
+            signame = self.getsignames()
+
+        if type(signame) == list:
+            return [self.signalsegments(sig) for sig in signame]
+        elif type(signame) == str:
+            sigsegs = []
+            for i in range(self.nseg):
+                if self.segname[i] != '~' and signame in self.segments[i].signame:
+                    sigsegs.append(i)
+            return sigsegs
+        else:
+            raise TypeError('signame must be a string or a list of strings')
+
+    # Get the signal names for the entire record
+    def getsignames(self):
+        if self.segments is None:
+            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rdsegments=True")
+        
+        if self.layout == 'Fixed':
+            for i in range(self.nseg):
+                if self.segname[i] != '~':
+                    signame = self.segments[i].signame
+                    break
+        else:
+            signame = self.segments[0].signame
+        
+        return signame
 
 
 # Regexp objects for reading headers
