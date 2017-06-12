@@ -1063,7 +1063,7 @@ def estres(signals):
             if nlevels>=reslevels[-1]:
                 res.append(32)
             else:
-                res.append(np.where(reslevels>nlevels)[0][0])
+                res.append(np.where(reslevels>=nlevels)[0][0])
             
     return res
 
