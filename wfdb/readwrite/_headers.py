@@ -362,9 +362,9 @@ class MultiHeadersMixin(BaseHeadersMixin):
         linestofile(self.recordname+'.hea', headerlines)
 
     # Get a list of the segment numbers that contain a particular signal
-    # (or a list of segment numbers for a list of signals)
+    # (or a dictionary of segment numbers for a list of signals)
     # Only works if information about the segments has been read in
-    def signalsegments(self, signame=None):
+    def getsigsegments(self, signame=None):
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rdsegments=True")
         
@@ -373,7 +373,10 @@ class MultiHeadersMixin(BaseHeadersMixin):
             signame = self.getsignames()
 
         if type(signame) == list:
-            return [self.signalsegments(sig) for sig in signame]
+            sigdict = {}
+            for sig in signame:
+                sigdict[sig] = self.getsigsegments(sig)
+            return sigdict
         elif type(signame) == str:
             sigsegs = []
             for i in range(self.nseg):

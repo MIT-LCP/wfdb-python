@@ -475,12 +475,12 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     of the record as a Record object. The resulting Record object will have its 'p_signals' field set.
 
     Contructor function:
-    def __init__(self, segments = None, layout = None,
+    def __init__(self, segments=None, layout=None,
                  recordname=None, nsig=None, fs=None,
                  counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
-                 segname = None, seglen = None, comments=None,
-                 signame = None)
+                 segname=None, seglen=None, comments=None,
+                 signame=None, sigsegments=None)
 
     Example Usage:
     import wfdb
@@ -492,12 +492,12 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
     """
 
     # Constructor
-    def __init__(self, segments = None, layout = None,
+    def __init__(self, segments=None, layout=None,
                  recordname=None, nsig=None, fs=None,
                  counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
-                 segname = None, seglen = None, comments=None,
-                 signame = None):
+                 segname=None, seglen=None, comments=None,
+                 signame=None, sigsegments=None):
 
 
         super(MultiRecord, self).__init__(recordname, nsig,
@@ -508,6 +508,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         self.segments = segments
         self.segname = segname
         self.seglen = seglen
+        self.sigsegments=sigsegments
 
     # Write a multi-segment header, along with headers and dat files for all segments
     def wrsamp(self):
@@ -585,20 +586,11 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
             readsegs = list(range(readsegs[0], readsegs[1]+1))
             readsamps = [[0, self.seglen[s]] for s in readsegs]
 
-
-            #print('readsegs: ', readsegs)
-            #print('cumsumlengths: ', cumsumlengths)
-            #print('startseg: ', startseg)
-
             # Starting sample for first segment.
             readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]-startseg]
 
             # End sample for last segment
             readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]-startseg]
-
-        #print('\n\nEnd of requiredsegments.')
-        #print('readsegs: ', readsegs)
-        #print('readsamps: ', readsamps)
 
         return (readsegs, readsamps)
 
@@ -981,6 +973,8 @@ def rdheader(recordname, pbdir = None, rdsegments = False):
                     record.segments.append(rdheader(os.path.join(dirname,s), pbdir))
             # Fill in the signame attribute
             record.signame = record.getsignames()
+            # Fill in the sigsegments attribute
+            record.sigsegments = record.getsigsegments()
 
     # Set the comments field
     record.comments = []
