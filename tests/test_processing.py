@@ -39,3 +39,15 @@ class test_processing():
         assert x.shape[0] == sig.shape[0]
         assert numpy.min(x) >= lb
         assert numpy.max(x) <= ub
+
+    def test_4(self):
+        x = []
+        hp, sp = wfdb.processing.find_peaks(x)
+        assert hp.shape == (0,)
+        assert sp.shape == (0,)
+
+    def test_5(self):
+        x = [0, 2, 1, 0, -10, -15, -15, -15, 9, 8, 0, 0, 1, 2, 10]
+        hp, sp = wfdb.processing.find_peaks(x)
+        assert numpy.array_equal(hp, [1, 8])
+        assert numpy.array_equal(sp, [6, 10])
