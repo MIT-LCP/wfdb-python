@@ -52,7 +52,8 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     
     # Expand list styles
     if type(sigstyle) == str:
-        sigtyle = [sigstyle]*record.nsig
+        sigstyle = [sigstyle]*record.nsig
+        print('was string now:', sigstyle)
     else:
         if len(sigstyle) < record.nsig:
             sigstyle = sigstyle+['']*(record.nsig-len(sigstyle))
