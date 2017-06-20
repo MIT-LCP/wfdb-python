@@ -7,12 +7,13 @@ from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
-def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', figsize=None, returnfig = False, ecggrids=[]): 
+def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
     """ Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
     Usage: 
-    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', returnfig=False)
+    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', sigstyle='',
+            figsize=None, returnfig = False, ecggrids=[])
     
     Input arguments:
     - record (required): A wfdb Record object. The p_signals attribute will be plotted.
@@ -21,6 +22,9 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     - annch (default=[0]): A list of channels on which to plot the annotation samples.
     - timeunits (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+    - sigstyle (default=''): String, or list of strings, specifying the styling of the matplotlib plot for the signals.
+      If 'sigstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
+      correspond to the list element. ie. sigtype=['r','b','k']
     - figsize (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
       passed into matplotlib.pyplot's figure() function.
     - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
@@ -42,10 +46,17 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
 
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)
-    t, tann = checkplotitems(record, title, annotation, annch, timeunits)
+    t, tann = checkplotitems(record, title, annotation, annch, timeunits, sigstyle)
     
     siglen, nsig = record.p_signals.shape
     
+    # Expand list styles
+    if type(sigstyle) == str:
+        sigtyle = [sigstyle]*record.nsig
+    else:
+        if len(sigstyle) < record.nsig:
+            sigstyle = sigstyle+['']*(record.nsig-len(sigstyle))
+
     # Expand ecg grid channels
     if ecggrids == 'all':
         ecggrids = range(0, record.nsig)
@@ -56,7 +67,7 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
     for ch in range(nsig):
         # Plot signal channel
         ax = fig.add_subplot(nsig, 1, ch+1)
-        ax.plot(t, record.p_signals[:,ch], zorder=3) 
+        ax.plot(t, record.p_signals[:,ch], sigstyle[ch], zorder=3) 
         
         if (title is not None) and (ch==0):
             plt.title(title)
@@ -157,7 +168,7 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
 
 # Check the validity of items used to make the plot
 # Return the x axis time values to plot for the record (and annotation if any)
-def checkplotitems(record, title, annotation, annch, timeunits):
+def checkplotitems(record, title, annotation, annch, timeunits, sigstyle):
     
     # signals
     if type(record) != records.Record:
@@ -201,11 +212,21 @@ def checkplotitems(record, title, annotation, annch, timeunits):
     else:
         if type(record.signame) != list or len(record.signame)!= nsig:
             raise ValueError("The 'signame' parameter must be a list of strings, with length equal to the number of signal channels")
-                
+    
     # title
     if title is not None and type(title) != str:
         raise TypeError("The 'title' field must be a string")
     
+    # signal line style
+    if type(sigstyle) == str:
+        pass
+    elif type(sigstyle) == list:
+        if len(sigstyle) > record.nsig:
+            raise ValueError("The 'sigstyle' list cannot have more elements than the number of record channels")
+    else:
+        raise TypeError("The 'sigstyle' field must be a string or a list of strings")
+
+
     # Annotations if any
     if annotation is not None:
         if type(annotation) != annotations.Annotation:

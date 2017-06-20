@@ -322,7 +322,8 @@ Plotting Data
 
 ::
 
-    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', figsize=None, returnfig = False, ecggrids=[]): 
+    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples',
+            sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
 
 Example Usage:
 
@@ -341,6 +342,7 @@ Input Arguments:
 - ``annotation`` (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
 - ``annch`` (default=[0]): A list of channels on which to plot the annotation samples.
 - ``timeunits`` (default='samples'): String specifying the x axis unit. Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
+- ``sigstyle`` (default=''): String, or list of strings, specifying the styling of the matplotlib plot for the signals. If 'sigstyle' is a string, each channel will have the same style. If it is a list, each channel's style will correspond to the list element. ie. sigtype=['r','b','k'].
 - ``figsize`` (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument passed into matplotlib.pyplot's figure() function.
 - ``returnfig`` (default=False): Specifies whether the figure is to be returned as an output argument
 - ``ecggrids`` (default=[]): List of integers specifying channels in which to plot ecg grids. May be set to [] for no channels, or 'all' for all channels. Major grids at 0.5mV, and minor grids at 0.125mV. All channels to be plotted with grids must have units equal to 'uV', 'mV', or 'V'.
