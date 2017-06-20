@@ -587,7 +587,7 @@ def showanncodes():
 ## ------------- Reading Annotations ------------- ##
 
 
-def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
+def rdann(recordname, annotator, sampfrom=0, sampto=None, shiftsamps=False, pbdir=None):
     """ Read a WFDB annotation file recordname.annotator and return an
     Annotation object.
 
@@ -601,6 +601,9 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
       file '100.atr', annotator='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
     - sampto (default=None): The maximum sample number for annotations to be returned.
+    - shiftsamps (default=False): Boolean flag that specifies whether to return the
+      sample indices relative to 'sampfrom' (True), or sample 0 (False). Annotation files
+      store exact sample locations.
     - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
       directory from which to find the required annotation file.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
@@ -657,7 +660,6 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
     # Set the annotation type to the annotation codes
     anntype = [allannsyms[code] for code in anntype]
 
-
     # If the fs field was not present in the file, try to read a wfdb header
     # the annotation is associated with to get the fs
     if fs is None:
@@ -667,6 +669,11 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None):
             fs = rec.fs
         except:
             pass
+
+    # Return annotation samples relative to starting signal index
+    if shiftsamps and annsamp!=[] and sampfrom:
+        annsamp = np.array(annsamp, dtype='int64')
+        annsamp = annsamp - sampfrom
 
     # Store fields in an Annotation object
     annotation = Annotation(os.path.split(recordname)[1], annotator, annsamp, anntype, 

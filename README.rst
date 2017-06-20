@@ -243,7 +243,7 @@ Reading Annotations
 
 ::
 
-    annotation = rdann(recordname, annotator, sampfrom=0, sampto=None, pbdir=None)
+    annotation = rdann(recordname, annotator, sampfrom=0, sampto=None, shiftsamps=False, pbdir=None)
 
 Example Usage:
 ::
@@ -258,6 +258,7 @@ Input arguments:
   file '100.atr', annotator='atr'
 - ``sampfrom`` (default=0): The minimum sample number for annotations to be returned.
 - ``sampto`` (default=None): The maximum sample number for annotations to be returned.
+- ``shiftsamps`` (default=False): Boolean flag that specifies whether to return the sample indices relative to 'sampfrom' (True), or sample 0 (False). Annotation files store exact sample locations. 
 - ``pbdir`` (default=None): Option used to stream data from Physiobank. The Physiobank database directory from which to find the required annotation file. eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 
 Output arguments:
