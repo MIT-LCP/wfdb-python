@@ -209,7 +209,7 @@ class Annotation(object):
             elif field == 'chan':
                 # unsigned character
                 if min(self.chan) < 0 or max(self.chan) >255:
-                    raise ValueErrort("The 'chan' field must only contain non-negative integers up to 255")
+                    raise ValueError("The 'chan' field must only contain non-negative integers up to 255")
             elif field == 'num':
                 # signed character
                 if min(self.num) < 0 or max(self.num) >127:
@@ -569,7 +569,7 @@ def wrann(recordname, annotator, annsamp, anntype, subtype = None, chan = None, 
     """    
 
     # Create Annotation object
-    annotation = Annotation(recordname, annotator, annsamp, anntype, num, subtype, chan, aux, fs)
+    annotation = Annotation(recordname, annotator, annsamp, anntype, subtype, chan, num, aux, fs)
     # Perform field checks and write the annotation file
     annotation.wrann(writefs = True)
 
