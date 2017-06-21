@@ -7,13 +7,13 @@ from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
-def plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
+def plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='', annstyle='r*', figsize=None, returnfig = False, ecggrids=[]): 
     """ Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
     Usage: 
     plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='',
-            figsize=None, returnfig = False, ecggrids=[])
+            annstyle='r*', figsize=None, returnfig = False, ecggrids=[])
     
     Input arguments:
     - record (required): A wfdb Record object. The p_signals attribute will be plotted.
@@ -25,9 +25,12 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
       an Annotation object or numpy array, which will be plotted over channel 0.
     - timeunits (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
-    - sigstyle (default=''): String, or list of strings, specifying the styling of the matplotlib plot for the signals.
+    - sigstyle (default='r*'): String, or list of strings, specifying the styling of the matplotlib plot for the signals.
       If 'sigstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
       correspond to the list element. ie. sigtype=['r','b','k']
+    - annstyle (default='r*'): String, or list of strings, specifying the styling of the matplotlib plot for the annotations.
+      If 'annstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
+      correspond to the list element.
     - figsize (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
       passed into matplotlib.pyplot's figure() function.
     - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
@@ -49,7 +52,7 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
 
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)
-    t, tann, annplot = checkplotitems(record, title, annotation, timeunits, sigstyle)
+    t, tann, annplot = checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle)
 
     siglen, nsig = record.p_signals.shape
     
@@ -59,6 +62,11 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
     else:
         if len(sigstyle) < record.nsig:
             sigstyle = sigstyle+['']*(record.nsig-len(sigstyle))
+    if type(annstyle) == str:
+        annstyle = [annstyle]*record.nsig
+    else:
+        if len(annstyle) < record.nsig:
+            annstyle = annstyle+['r*']*(record.nsig-len(annstyle))
 
     # Expand ecg grid channels
     if ecggrids == 'all':
@@ -77,7 +85,7 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
             
         # Plot annotation if specified
         if annplot[ch] is not None:
-            ax.plot(tann[ch], record.p_signals[annplot[ch], ch], 'r+')
+            ax.plot(tann[ch], record.p_signals[annplot[ch], ch], annstyle[ch])
 
         # Axis Labels
         if timeunits == 'samples':
@@ -170,8 +178,8 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 # Check the validity of items used to make the plot
-# Return the x axis time values to plot for the record (and annotation if any)
-def checkplotitems(record, title, annotation, timeunits, sigstyle):
+# Return the x axis time values to plot for the record (and time and values for annotation if any)
+def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
     
     # signals
     if type(record) != records.Record:
@@ -228,6 +236,15 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle):
             raise ValueError("The 'sigstyle' list cannot have more elements than the number of record channels")
     else:
         raise TypeError("The 'sigstyle' field must be a string or a list of strings")
+
+    # annotation plot style
+    if type(annstyle) == str:
+        pass
+    elif type(annstyle) == list:
+        if len(annstyle) > record.nsig:
+            raise ValueError("The 'annstyle' list cannot have more elements than the number of record channels")
+    else:
+        raise TypeError("The 'annstyle' field must be a string or a list of strings")
 
 
     # Annotations if any
