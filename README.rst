@@ -323,7 +323,7 @@ Plotting Data
 
 ::
 
-    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples',
+    plotrec(record=None, title = None, annotation = None, timeunits='samples',
             sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
 
 Example Usage:
@@ -340,8 +340,7 @@ Input Arguments:
 
 - ``record`` (required): A wfdb Record object. The p_signals attribute will be plotted.
 - ``title`` (default=None): A string containing the title of the graph.
-- ``annotation`` (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
-- ``annch`` (default=[0]): A list of channels on which to plot the annotation samples.
+- ``annotation`` (default=None): A list of Annotation objects or numpy arrays. The locations of the Annotation objects' 'annsamp' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals. The list index of the annotation item corresponds to the signal channel that each annotation set will be plotted on. For channels without annotations to plot, put None in the list. This argument may also be just an Annotation object or numpy array, which will be plotted over channel 0.
 - ``timeunits`` (default='samples'): String specifying the x axis unit. Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
 - ``sigstyle`` (default=''): String, or list of strings, specifying the styling of the matplotlib plot for the signals. If 'sigstyle' is a string, each channel will have the same style. If it is a list, each channel's style will correspond to the list element. ie. sigtype=['r','b','k'].
 - ``figsize`` (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument passed into matplotlib.pyplot's figure() function.

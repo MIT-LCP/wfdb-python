@@ -164,25 +164,35 @@ class Annotation(object):
         else:
             fielditem = getattr(self, field)
 
+            # annsamp must be a numpy array, not a list.
+            if field == 'annsamp':
+                if type(fielditem) != np.ndarray:
+                    raise TypeError('The '+field+' field must be a numpy array')
             # Ensure the field item is a list or array.
-            if type(fielditem) not in [list, np.ndarray]:
-                raise TypeError('The '+field+' field must be a list or numpy array')        
-
-            # Check the data types of the elements
-            # annsamp and anntype may NOT have nones. Others may. 
-            if field in ['annsamp','anntype']:
-                for item in fielditem:
-                    if type(item) not in annfieldtypes[field]:
-                        print("All elements of the '"+field+"' field must be one of the following types:", annfieldtypes[field])
-                        print("All elements must be present")
-                        raise Exception()
             else:
-                for item in fielditem:
-                    if item is not None and type(item) not in annfieldtypes[field]:
-                        print("All elements of the '", field, "' field must be one of the following types:")
-                        print(annfieldtypes[field])
-                        print("Elements may also be set to 'None'")
-                        raise Exception()
+                if type(fielditem) not in [list, np.ndarray]:
+                    raise TypeError('The '+field+' field must be a list or numpy array')
+
+            # Check the data types of the elements.
+            # If the field is a numpy array, just check dtype. If list, check individual elements.
+            # annsamp and anntype may NOT have nones. Others may.
+            if type(fielditem) == np.ndarray:
+                if fielditem.dtype not in intdtypes:
+                    raise TypeError('The '+field+' field must have one of the following dtypes:', intdtypes)
+            else:
+                if field =='anntype':
+                    for item in fielditem:
+                        if type(item) not in annfieldtypes[field]:
+                            print("All elements of the '"+field+"' field must be one of the following types:", annfieldtypes[field])
+                            print("All elements must be present")
+                            raise Exception()
+                else:
+                    for item in fielditem:
+                        if item is not None and type(item) not in annfieldtypes[field]:
+                            print("All elements of the '", field, "' field must be one of the following types:")
+                            print(annfieldtypes[field])
+                            print("Elements may also be set to 'None'")
+                            raise Exception()
         
             # Field specific checks
             # The C WFDB library stores num/sub/chan as chars. 
@@ -657,6 +667,9 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, shiftsamps=False, pbdi
     annsamp,anntype,num,subtype,chan,aux = apply_annotation_range(annsamp,
         sampfrom,sampto,anntype,num,subtype,chan,aux)
 
+    # Convert annsamp to numpy array
+    annsamp = np.array(annsamp, dtype='int64')
+
     # Set the annotation type to the annotation codes
     anntype = [allannsyms[code] for code in anntype]
 
@@ -672,7 +685,6 @@ def rdann(recordname, annotator, sampfrom=0, sampto=None, shiftsamps=False, pbdi
 
     # Return annotation samples relative to starting signal index
     if shiftsamps and annsamp!=[] and sampfrom:
-        annsamp = np.array(annsamp, dtype='int64')
         annsamp = annsamp - sampfrom
 
     # Store fields in an Annotation object
@@ -1107,3 +1119,6 @@ annfieldtypes = {'recordname': [str], 'annotator': [str], 'annsamp': _headers.in
                  'anntype': [str], 'num':_headers.inttypes, 'subtype': _headers.inttypes, 
                  'chan': _headers.inttypes, 'aux': [str], 'fs': _headers.floattypes,
                  'custom_anntypes': [dict]}
+
+# Acceptable numpy integer dtypes
+intdtypes = ['int64', 'uint64', 'int32', 'uint32','int16','uint16']

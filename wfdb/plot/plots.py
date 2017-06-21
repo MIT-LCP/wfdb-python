@@ -7,19 +7,22 @@ from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
-def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
+def plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
     """ Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
     Usage: 
-    plotrec(record=None, title = None, annotation = None, annch = [0], timeunits='samples', sigstyle='',
+    plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='',
             figsize=None, returnfig = False, ecggrids=[])
     
     Input arguments:
     - record (required): A wfdb Record object. The p_signals attribute will be plotted.
     - title (default=None): A string containing the title of the graph.
-    - annotation (default=None): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
-    - annch (default=[0]): A list of channels on which to plot the annotation samples.
+    - annotation (default=None): A list of Annotation objects or numpy arrays. The locations of the Annotation
+      objects' 'annsamp' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals.
+      The list index of the annotation item corresponds to the signal channel that each annotation set will be
+      plotted on. For channels without annotations to plot, put None in the list. This argument may also be just
+      an Annotation object or numpy array, which will be plotted over channel 0.
     - timeunits (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
     - sigstyle (default=''): String, or list of strings, specifying the styling of the matplotlib plot for the signals.
@@ -46,8 +49,8 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
 
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)
-    t, tann = checkplotitems(record, title, annotation, annch, timeunits, sigstyle)
-    
+    t, tann, annplot = checkplotitems(record, title, annotation, timeunits, sigstyle)
+
     siglen, nsig = record.p_signals.shape
     
     # Expand list styles
@@ -73,8 +76,8 @@ def plotrec(record=None, title = None, annotation = None, annch = [0], timeunits
             plt.title(title)
             
         # Plot annotation if specified
-        if annotation is not None and ch in annch:
-            ax.plot(tann, record.p_signals[annotation.annsamp, ch], 'r+')
+        if annplot[ch] is not None:
+            ax.plot(tann[ch], record.p_signals[annplot[ch], ch], 'r+')
 
         # Axis Labels
         if timeunits == 'samples':
@@ -168,7 +171,7 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
 
 # Check the validity of items used to make the plot
 # Return the x axis time values to plot for the record (and annotation if any)
-def checkplotitems(record, title, annotation, annch, timeunits, sigstyle):
+def checkplotitems(record, title, annotation, timeunits, sigstyle):
     
     # signals
     if type(record) != records.Record:
@@ -229,26 +232,54 @@ def checkplotitems(record, title, annotation, annch, timeunits, sigstyle):
 
     # Annotations if any
     if annotation is not None:
-        if type(annotation) != annotations.Annotation:
-            raise TypeError("The 'annotation' argument must be a valid wfdb.Annotation object")
-        if type(annch)!= list:
-            raise TypeError("The 'annch' argument must be a list of integers")
-        if min(annch)<0 or max(annch)>nsig:
-            raise ValueError("The elements of 'annch' must be between 0 and the number of record channels")
 
-        # The annotation locations to plot   
-        if timeunits == 'samples':
-            tann = annotation.annsamp
-        elif timeunits == 'seconds':
-            tann = annotation.annsamp/record.fs
-        elif timeunits == 'minutes':
-            tann = annotation.annsamp/record.fs/60
+        # The output list of numpy arrays (or Nones) to plot
+        annplot = [None]*record.nsig
+
+        # Move single channel annotations to channel 0
+        if type(annotation) == annotations.Annotation:
+            annplot[0] = annotation.annsamp
+        elif type(annotation) == np.ndarray:
+            annplot[0] = annotation
+        # Ready list.
+        elif type(annotation) == list:
+            if len(annotation) > record.nsig:
+                raise ValueError("The number of annotation series to plot cannot be more than the number of channels")
+            if len(annotation) < record.nsig:
+                annotation = annotation+[None]*(record.nsig-len(annotation))
+            # Check elements. Copy over to new list.
+            for ch in range(record.nsig):
+                if type(annotation[ch]) == annotations.Annotation:
+                    annplot[ch] = annotation[ch].annsamp
+                elif type(annotation[ch]) == np.ndarray:
+                    annplot[ch] = annotation[ch]
+                elif annotation[ch] is None:
+                    pass
+                else:
+                    raise TypeError("The 'annotation' argument must be a wfdb.Annotation object, a numpy array, None, or a list of these data types")
         else:
-            tann = annotation.annsamp/record.fs/3600
+            raise TypeError("The 'annotation' argument must be a wfdb.Annotation object, a numpy array, None, or a list of these data types")
+        
+        # The annotation locations to plot
+        tann = [None]*record.nsig
+
+        for ch in range(record.nsig):
+            if annplot[ch] is None:
+                continue
+            if timeunits == 'samples':
+                tann[ch] = annplot[ch]
+            elif timeunits == 'seconds':
+                tann[ch] = annplot[ch]/record.fs
+            elif timeunits == 'minutes':
+                tann[ch] = annplot[ch]/record.fs/60
+            else:
+                tann[ch] = annplot[ch]/record.fs/3600
     else:
         tann = None
+        annplot = [None]*record.nsig
 
-    return (t, tann)
+    # tann is the sample values to plot for each annotation series
+    return (t, tann, annplot)
 
 
 
