@@ -19,6 +19,7 @@ class Annotation(object):
     by https://www.physionet.org/physiotools/wag/annot-5.htm:
     - annsamp: The annotation location in samples relative to the beginning of the record.
     - anntype: The annotation type according the the standard WFDB codes.
+    - annids: The numerical representation of anntype values
     - subtype: The marked class/category of the annotation.
     - chan: The signal channel associated with the annotations.
     - num: The labelled annotation number.
@@ -48,6 +49,7 @@ class Annotation(object):
 
         self.annsamp = annsamp
         self.anntype = anntype
+        self.annids = np.array([revannsyms[t] for t in anntype])
         self.subtype = subtype
         self.chan = chan
         self.num = num
