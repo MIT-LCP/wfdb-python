@@ -921,7 +921,6 @@ def apply_annotation_range(annsamp,sampfrom,sampto,anntype,num,subtype,chan,aux)
             subtype = []
             chan = []
             aux = []
-            print("No annotations in specified sample range")
         else:
             annsamp = annsamp[ik0:ik1 + 1]
             anntype = anntype[ik0:ik1 + 1]
