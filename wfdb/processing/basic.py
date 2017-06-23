@@ -107,3 +107,8 @@ def normalize(x, lb=0, ub=1):
     mid_v =  max_v - (max_v - min_v) / 2
     coef = (ub - lb) / (max_v - min_v)
     return x * coef - (mid_v * coef) + mid
+
+
+def smooth(x, window_size):
+    box = numpy.ones(window_size)/window_size
+    return numpy.convolve(x, box, mode='same')

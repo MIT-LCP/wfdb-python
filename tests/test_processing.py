@@ -62,3 +62,21 @@ class test_processing():
         print([a.time for a in annotations])
         print(expecting)
         assert [a.time for a in annotations] == expecting
+
+    def test_7(self):
+        sig, fields = wfdb.srdsamp('sampledata/100', channels = [0, 1])
+        ann = wfdb.rdann('sampledata/100', 'atr')
+        fs = fields['fs']
+        trained_fs = 360
+        min_bpm = 10
+        max_bpm = 350
+        min_gap = fs*60/min_bpm
+        max_gap = fs*60/max_bpm
+
+        y_idxs = wfdb.processing.correct_peaks(sig[:,0], ann.annsamp, min_gap, max_gap, smooth_window=150)
+
+        yz = numpy.zeros(sig.shape[0])
+        yz[y_idxs] = 1
+        yz = numpy.where(yz[:10000]==1)[0]
+
+        assert numpy.array_equal(yz, [77, 370, 663, 947, 1231, 1515, 1809, 2045, 2403, 2706, 2998, 3283, 3560, 3863, 4171, 4466, 4765, 5061, 5347, 5634, 5919, 6215, 6527, 6824, 7106, 7393, 7670, 7953, 8246, 8539, 8837, 9142, 9432, 9710, 9998])
