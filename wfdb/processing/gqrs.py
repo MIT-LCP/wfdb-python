@@ -475,7 +475,7 @@ def gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0,
     * RTmin: Minimum interval between R and T peaks, in seconds
     * RTmax: Maximum interval between R and T peaks, in seconds
     * QRSa: Typical QRS peak-to-peak amplitude, in microvolts
-    * QRSamin: Minimum QRS peak-to-peak amplitude, in microvolts (* see note)
+    * QRSamin: Minimum QRS peak-to-peak amplitude, in microvolts
     """
     conf = Conf(freq=frequency, gain=adcgain, hr=hr,
                 RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,
@@ -485,4 +485,4 @@ def gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0,
                 thresh=threshold)
     gqrs = GQRS()
     annotations = gqrs.detect(x=x, conf=conf, adczero=adczero)
-    return annotations
+    return [a.time for a in annotations]

@@ -25,7 +25,7 @@ Download or clone this repository https://github.com/MIT-LCP/wfdb-python for the
 Usage
 -----
 
-See the **demo.ipynb** file for example cases. 
+See the **demo.ipynb** file for example cases.
 
 Objects
 ~~~~~~~
@@ -36,8 +36,8 @@ As of version 1.0.0, wfdb records are stored in **Record** or **MultiRecord** ob
 **Record** - The class representing WFDB headers, and single segment WFDB records.
 
 Record objects can be created using the constructor, by reading a WFDB header
-with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp' 
-or 'srdsamp'. 
+with 'rdheader', or a WFDB record (header and associated dat files) with rdsamp'
+or 'srdsamp'.
 
 The attributes of the Record object give information about the record as specified
 by https://www.physionet.org/physiotools/wag/header-5.htm
@@ -49,23 +49,23 @@ Contructor function:
 ::
 
     def __init__(self, p_signals=None, d_signals=None,
-                 recordname=None, nsig=None, 
-                 fs=None, counterfreq=None, basecounter=None, 
-                 siglen=None, basetime=None, basedate=None, 
-                 filename=None, fmt=None, sampsperframe=None, 
-                 skew=None, byteoffset=None, adcgain=None, 
-                 baseline=None, units=None, adcres=None, 
-                 adczero=None, initvalue=None, checksum=None, 
+                 recordname=None, nsig=None,
+                 fs=None, counterfreq=None, basecounter=None,
+                 siglen=None, basetime=None, basedate=None,
+                 filename=None, fmt=None, sampsperframe=None,
+                 skew=None, byteoffset=None, adcgain=None,
+                 baseline=None, units=None, adcres=None,
+                 adczero=None, initvalue=None, checksum=None,
                  blocksize=None, signame=None, comments=None)
 
-Example Usage: 
+Example Usage:
 ::
 
     import wfdb
     record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
 
 
-**MultiRecord** - The class representing multi-segment WFDB records. 
+**MultiRecord** - The class representing multi-segment WFDB records.
 
 MultiRecord objects can be created using the constructor, or by reading a multi-segment
 WFDB record using 'rdsamp' with the 'm2s' (multi to single) input parameter set to False.
@@ -76,20 +76,20 @@ by https://www.physionet.org/physiotools/wag/header-5.htm
 In addition, the 'segments' parameter is a list of Record objects representing each
 individual segment, or 'None' representing empty segments, of the entire multi-segment record.
 
-Noteably, this class has no attribute representing the signals as a whole. The 'multi_to_single' 
-instance method can be called on MultiRecord objects to return a single segment representation 
+Noteably, this class has no attribute representing the signals as a whole. The 'multi_to_single'
+instance method can be called on MultiRecord objects to return a single segment representation
 of the record as a Record object. The resulting Record object will have its 'p_signals' field set.
 
 Contructor function:
-:: 
+::
 
     def __init__(self, segments = None, layout = None,
-                 recordname=None, nsig=None, fs=None, 
-                 counterfreq=None, basecounter=None, 
-                 siglen=None, basetime=None, basedate=None, 
+                 recordname=None, nsig=None, fs=None,
+                 counterfreq=None, basecounter=None,
+                 siglen=None, basetime=None, basedate=None,
                  segname = None, seglen = None, comments=None)
-    
-Example Usage: 
+
+Example Usage:
 ::
 
     import wfdb
@@ -99,10 +99,10 @@ Example Usage:
     recordL = recordL.multi_to_single()
 
 
-**Annotation** - The class representing WFDB annotations. 
+**Annotation** - The class representing WFDB annotations.
 
 Annotation objects can be created using the constructor, or by reading a WFDB annotation
-file with 'rdann'. 
+file with 'rdann'.
 
 The attributes of the Annotation object give information about the annotation as specified
 by https://www.physionet.org/physiotools/wag/annot-5.htm:
@@ -110,7 +110,7 @@ by https://www.physionet.org/physiotools/wag/annot-5.htm:
 - ``anntype``: The annotation type according the the standard WFDB codes.
 - ``subtype``: The marked class/category of the annotation.
 - ``chan``: The signal channel associated with the annotations.
-- ``num``: The labelled annotation number. 
+- ``num``: The labelled annotation number.
 - ``aux``: The auxiliary information string for the annotation.
 - ``fs``: The sampling frequency of the record if contained in the annotation file.
 - ``custom_anntypes``: The custom annotation types defined in the annotation file. A dictionary with {key:value} corresponding to {anntype:description}. eg. {'#': 'lost connection', 'C': 'reconnected'}
@@ -118,7 +118,7 @@ by https://www.physionet.org/physiotools/wag/annot-5.htm:
 Constructor function:
 ::
 
-    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
+    def __init__(self, recordname, annotator, annsamp, anntype, subtype = None,
                  chan = None, num = None, aux = None, fs = None, custom_anntypes = None)
 
 Call `showanncodes()` to see the list of standard annotation codes. Any text used to label annotations that are not one of these codes should go in the 'aux' field rather than the 'anntype' field.
@@ -185,7 +185,7 @@ Input arguments:
 
 Output arguments:
 
-- ``signals``: A 2d numpy array storing the physical signals from the record. 
+- ``signals``: A 2d numpy array storing the physical signals from the record.
 - ``fields``: A dictionary specifying several key attributes of the read record:
     - ``fs``: The sampling frequency of the record
     - ``units``: The units for each channel
@@ -215,20 +215,20 @@ Example Usage:
 
 Input Arguments:
 
-- ``recordname`` (required): The string name of the WFDB record to be written (without any file extensions). 
+- ``recordname`` (required): The string name of the WFDB record to be written (without any file extensions).
 - ``fs`` (required): The numerical sampling frequency of the record.
 - ``units`` (required): A list of strings giving the units of each signal channel.
 - ``signames`` (required): A list of strings giving the signal name of each signal channel.
 - ``p_signals`` (default=None): An MxN 2d numpy array, where M is the signal length. Gives the physical signal
-  values intended to be written. Either p_signals or d_signals must be set, but not both. If p_signals 
+  values intended to be written. Either p_signals or d_signals must be set, but not both. If p_signals
   is set, this method will use it to perform analogue-digital conversion, writing the resultant digital
   values to the dat file(s). If fmt is set, gain and baseline must be set or unset together. If fmt is
-  unset, gain and baseline must both be unset. 
+  unset, gain and baseline must both be unset.
 - ``d_signals`` (default=None): An MxN 2d numpy array, where M is the signal length. Gives the digital signal
-  values intended to be directly written to the dat file(s). The dtype must be an integer type. Either 
-  p_signals or d_signals must be set, but not both. In addition, if d_signals is set, fmt, gain and baseline 
+  values intended to be directly written to the dat file(s). The dtype must be an integer type. Either
+  p_signals or d_signals must be set, but not both. In addition, if d_signals is set, fmt, gain and baseline
   must also all be set.
-- ``fmt`` (default=None): A list of strings giving the WFDB format of each file used to store each channel. 
+- ``fmt`` (default=None): A list of strings giving the WFDB format of each file used to store each channel.
   Accepted formats are: "80","212","16","24", and "32". There are other WFDB formats but this library
   will not write (though it will read) those file types.
 - ``gain`` (default=None): A list of integers specifying the DAC/ADC gain.
@@ -254,11 +254,11 @@ Example Usage:
 Input arguments:
 
 - ``recordname`` (required): The record name of the WFDB annotation file. ie. for file `100.atr`, recordname='100'
-- ``annotator`` (required): The annotator extension of the annotation file. ie. for 
+- ``annotator`` (required): The annotator extension of the annotation file. ie. for
   file '100.atr', annotator='atr'
 - ``sampfrom`` (default=0): The minimum sample number for annotations to be returned.
 - ``sampto`` (default=None): The maximum sample number for annotations to be returned.
-- ``shiftsamps`` (default=False): Boolean flag that specifies whether to return the sample indices relative to 'sampfrom' (True), or sample 0 (False). Annotation files store exact sample locations. 
+- ``shiftsamps`` (default=False): Boolean flag that specifies whether to return the sample indices relative to 'sampfrom' (True), or sample 0 (False). Annotation files store exact sample locations.
 - ``pbdir`` (default=None): Option used to stream data from Physiobank. The Physiobank database directory from which to find the required annotation file. eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 
 Output arguments:
@@ -268,7 +268,7 @@ Output arguments:
     - ``anntype``: The annotation type according the the standard WFDB codes.
     - ``subtype``: The marked class/category of the annotation.
     - ``chan``: The signal channel associated with the annotations.
-    - ``num``: The labelled annotation number. 
+    - ``num``: The labelled annotation number.
     - ``aux``: The auxiliary information string for the annotation.
     - ``fs``: The sampling frequency of the record if contained in the annotation file.
 
@@ -283,7 +283,7 @@ Output arguments:
 Writing Annotations
 ~~~~~~~~~~~~~~~~~~~
 
-The Annotation class has a **wrann** instance method.  
+The Annotation class has a **wrann** instance method.
 
 The Annotation class has a **wrann** instance method for writing wfdb annotation files. Create a valid Annotation object and call ``annotation.wrsamp()``. In addition, there is also the following simpler module level **wrann** function.
 
@@ -303,8 +303,8 @@ Example Usage:
 
 Input Arguments:
 
-- ``recordname`` (required): The string name of the WFDB record to be written (without any file extensions). 
-- ``annotator`` (required): The string annotation file extension. 
+- ``recordname`` (required): The string name of the WFDB record to be written (without any file extensions).
+- ``annotator`` (required): The string annotation file extension.
 - ``annsamp`` (required): The annotation location in samples relative to the beginning of the record. List or numpy array.
 - ``anntype`` (required): The annotation type according the the standard WFDB codes. List or numpy array.
 - ``subtype`` (default=None): The marked class/category of the annotation. List or numpy array.
@@ -324,7 +324,7 @@ Plotting Data
 ::
 
     plotrec(record=None, title = None, annotation = None, timeunits='samples',
-            sigstyle='', figsize=None, returnfig = False, ecggrids=[]): 
+            sigstyle='', figsize=None, returnfig = False, ecggrids=[]):
 
 Example Usage:
 
@@ -367,7 +367,7 @@ Example Usage:
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
 
     wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds')
-     
+
 
 Input Arguments:
 
@@ -387,11 +387,11 @@ Download files from various Physiobank databases. The Physiobank index page loca
 
 
 **getdblist** - Return a list of all the physiobank databases available.
-    
+
 ::
 
     dblist = wfdb.getdblist()
-    
+
 Example Usage:
 
 ::
@@ -411,7 +411,7 @@ Example Usage:
 
     import wfdb
     wfdb.dldatabase('ahadb', os.getcwd())
-     
+
 Input arguments:
 
 - ``pbdb`` (required): The Physiobank database directory to download. eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
@@ -422,19 +422,19 @@ Input arguments:
 - ``overwrite`` (default=False): If set to True, all files will be redownloaded regardless. If set to False, existing files with the same name and relative subdirectory will be checked. If the local file is the same size as the online file, the download is skipped. If the local file is larger, it will be deleted and the file will be redownloaded. If the local file is smaller, the file will be assumed to be partially downloaded and the remaining bytes will be downloaded and appended.
 
 
-**dldatabasefiles** - Download specified files from a Physiobank database. 
+**dldatabasefiles** - Download specified files from a Physiobank database.
 
 ::
 
     dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False)
-    
+
 Example Usage:
 
 ::
 
     import wfdb
     wfdb.dldatabasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
-     
+
 Input arguments:
 
 - ``pbdb`` (required): The Physiobank database directory to download. eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
@@ -442,6 +442,163 @@ Input arguments:
 - ``files`` (required): A list of strings specifying the file names to download relative to the database base directory
 - ``keepsubdirs`` (default=True): Whether to keep the relative subdirectories of downloaded files as they are organized in Physiobank (True), or to download all files into the same base directory (False).
 - ``overwrite`` (default=False): If set to True, all files will be redownloaded regardless. If set to False, existing files with the same name and relative subdirectory will be checked. If the local file is the same size as the online file, the download is skipped. If the local file is larger, it will be deleted and the file will be redownloaded. If the local file is smaller, the file will be assumed to be partially downloaded and the remaining bytes will be downloaded and appended.
+
+
+Signal processing
+-----------------
+
+Basic functionalities
+~~~~~~~~~~~~~~~~~~~~~
+
+**resample_sig** - Resample a single-channel signal
+
+::
+
+    resample_sig(x, fs, fs_target)
+
+Example Usage:
+
+::
+
+    import wfdb
+    sig, fields = wfdb.srdsamp('sampledata/100', sampto=10000)
+    x, _ = wfdb.processing.resample_sig(x=sig[:,0], fs=fields['fs'], fs_target=128)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``fs`` (required): The signal frequency.
+- ``fs_target`` (required): The target signal frequency.
+
+
+**resample_singlechan** - Resample a single-channel signal and its annotation.
+
+::
+
+    resample_singlechan(x, ann, fs, fs_target)
+
+Example Usage:
+
+::
+
+    import wfdb
+    sig, fields = wfdb.srdsamp('sampledata/100')
+    ann = wfdb.rdann('sampledata/100', 'atr')
+    new_sig, new_ann = wfdb.processing.resample_singlechan(x=sig[:, 0], ann=ann, fs=fields['fs'], fs_target=50)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``ann`` (required): The signal Annotation.
+- ``fs`` (required): The signal frequency.
+- ``fs_target`` (required): The target signal frequency.
+
+
+
+**resample_multichan** - Resample a multi-channel signal and its annotation.
+
+::
+
+    resample_multichan(sig, ann, fs, fs_target)
+
+Example Usage:
+
+::
+
+    import wfdb
+    sig, fields = wfdb.srdsamp('sampledata/100')
+    ann = wfdb.rdann('sampledata/100', 'atr')
+    new_sig, new_ann = wfdb.processing.resample_multichan(sig=sig, ann=ann, fs=fields['fs'], fs_target=50)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``ann`` (required): The signal Annotation.
+- ``fs`` (required): The signal frequency.
+- ``fs_target`` (required): The target signal frequency.
+
+
+
+**normalize** - Resizes a signal between a lower and upper bound
+
+::
+
+    normalize(x, lb=0, ub=1)
+
+Example Usage:
+
+::
+
+    import wfdb
+    sig, _ = wfdb.srdsamp('sampledata/100')
+    x = wfdb.processing.normalize(x=sig[:, 0], lb=-2, ub=15)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``lb`` (required): The lower bound.
+- ``ub`` (required): The upper bound.
+
+
+
+**smooth** - Signal smoothing
+
+::
+
+    smooth(x, window_size)
+
+Example Usage:
+
+::
+
+    import wfdb
+    sig, _ = wfdb.srdsamp('sampledata/100')
+    x = smooth(x=sig[:,0], window_size=150)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``window_size`` (required): The smoothing window width.
+
+
+GQRS detector
+~~~~~~~~~~~~~
+
+**gqrs_detect** - The GQRS detector function
+
+::
+
+  gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0, hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4, QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33, QRSa=750, QRSamin=130)
+
+Example Usage:
+
+::
+
+    import wfdb
+    t0 = 10000
+    tf = 20000
+    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
+    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
+
+    peak_indexes = wfdb.processing.gqrs_detect(x=x, freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+
+Input arguments:
+
+- ``x`` (required): The signal.
+- ``frequency`` (required): The signal frequency.
+- ``adcgain`` (required): The gain of the signal (the number of adus (q.v.) per physical unit).
+- ``adczero`` (required): The value produced by the ADC given a 0 volt input.
+- ``threshold`` (default=1.0): The threshold for detection.
+- ``hr`` (default=75): Typical heart rate, in beats per minute.
+- ``RRdelta`` (default=0.2): Typical difference between successive RR intervals in seconds.
+- ``RRmin`` (default=0.28): Minimum RR interval ("refractory period"), in seconds.
+- ``RRmax`` (default=2.4): Maximum RR interval, in seconds; thresholds will be adjusted if no peaks are detected within this interval.
+- ``QS`` (default=0.07): Typical QRS duration, in seconds.
+- ``QT`` (default=0.35): Typical QT interval, in seconds.
+- ``RTmin`` (default=0.25): Minimum interval between R and T peaks, in seconds.
+- ``RTmax`` (default=0.33): Maximum interval between R and T peaks, in seconds.
+- ``QRSa`` (default=750): Typical QRS peak-to-peak amplitude, in microvolts.
+- ``QRSamin`` (default=130): Minimum QRS peak-to-peak amplitude, in microvolts.
 
 
 Based on the original WFDB software package specifications

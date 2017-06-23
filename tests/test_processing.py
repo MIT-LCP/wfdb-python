@@ -58,10 +58,10 @@ class test_processing():
         frequency = 360.0
         adcgain = 200.0
         adczero = 1024
-        annotations = wfdb.processing.gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0)
-        print([a.time for a in annotations])
+        peaks = wfdb.processing.gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0)
+        print(peaks)
         print(expecting)
-        assert [a.time for a in annotations] == expecting
+        assert peaks == expecting
 
     def test_7(self):
         sig, fields = wfdb.srdsamp('sampledata/100', channels = [0, 1])
