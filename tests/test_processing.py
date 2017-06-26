@@ -61,7 +61,7 @@ class test_processing():
         peaks = wfdb.processing.gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0)
         print(peaks)
         print(expecting)
-        assert peaks == expecting
+        assert numpy.array_equal(peaks, expecting)
 
     def test_7(self):
         sig, fields = wfdb.srdsamp('sampledata/100', channels = [0, 1])

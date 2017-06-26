@@ -579,7 +579,7 @@ Example Usage:
     tf = 20000
     sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
     record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    peaks_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
 
 Input arguments:
 
@@ -598,6 +598,10 @@ Input arguments:
 - ``RTmax`` (default=0.33): Maximum interval between R and T peaks, in seconds.
 - ``QRSa`` (default=750): Typical QRS peak-to-peak amplitude, in microvolts.
 - ``QRSamin`` (default=130): Minimum QRS peak-to-peak amplitude, in microvolts.
+
+Output Arguments:
+
+- ``peaks_indexes``: A python list containing the peaks indexes.
 
 
 **correct_peaks** - A post-processing algorithm to correct peaks position.
@@ -624,7 +628,7 @@ Example Usage:
     max_bpm = 350
     min_gap = fs*60/min_bpm
     max_gap = fs*60/max_bpm
-    y_idxs = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
+    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
 
 Input arguments:
 peaks_indexes, min_gap, max_gap, smooth_window
@@ -633,6 +637,45 @@ peaks_indexes, min_gap, max_gap, smooth_window
 - ``min_gap`` (required): The minimum gap in samples between two peaks.
 - ``max_gap`` (required): The maximum gap in samples between two peaks.
 - ``smooth_window`` (required): The size of the smoothing window.
+
+Output Arguments:
+
+- ``new_indexes``: A python list containing the new peaks indexes.
+
+
+Heart rate
+~~~~~~~~~~~~~~
+
+**compute_hr** - Compute heart rate from peak indexes and signal frequency.
+
+::
+
+  compute_hr(length, peaks_indexes, fs)
+
+Example Usage:
+
+::
+
+    import wfdb
+    t0 = 10000
+    tf = 20000
+    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
+    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
+    peaks_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    hr = compute_hr(length=tf-t0, peaks_indexes=peaks_indexes, fs=fields['fs'])
+
+Input arguments:
+
+- ``length`` (required): The length of the corresponding signal.
+- ``peaks_indexes`` (required): The peak indexes.
+- ``fs`` (required): The signal frequency.
+
+
+Output Arguments:
+
+- ``hr``: A numpy.array containing heart rate for each sample. Contains numpy.nan where heart rate could not be computed.
+
+
 
 Based on the original WFDB software package specifications
 ----------------------------------------------------------

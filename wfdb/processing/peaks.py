@@ -82,11 +82,9 @@ def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
     rpeaks = numpy.zeros(N)
     rpeaks[peaks_indexes] = 1.0
 
-    # Multiple ones '1' side by side:
-    # in order to prevent that, the following code computes the best peak
     rpeaks = rpeaks.astype('int32')
 
-    # 1- Extract ranges where we have one or many ones side by side (rpeaks locations predicted by NN)
+    # 1- Extract ranges where we have one or many ones side by side
     rpeaks_ranges = []
     tmp_idx = 0
     for i in range(1, len(rpeaks)):
@@ -144,4 +142,4 @@ def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
     for v, _ in to_remove.items():
         rpeaks_indexes.remove(v)
 
-    return rpeaks_indexes
+    return sorted(rpeaks_indexes)
