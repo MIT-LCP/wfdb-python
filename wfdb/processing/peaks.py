@@ -76,8 +76,8 @@ def find_peaks(x):
     return hard_peaks, soft_peaks
 
 
-def correct_peaks(signal, peaks_indexes, min_gap, max_gap, smooth_window):
-    N = signal.shape[0]
+def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
+    N = x.shape[0]
 
     rpeaks = numpy.zeros(N)
     rpeaks[peaks_indexes] = 1.0
@@ -97,23 +97,23 @@ def correct_peaks(signal, peaks_indexes, min_gap, max_gap, smooth_window):
             if rpeaks[i] == 1:
                 tmp_idx = i
 
-    smoothed = smooth(signal, smooth_window)
+    smoothed = smooth(x, smooth_window)
 
     # Compute signal's peaks
-    hard_peaks, soft_peaks = find_peaks(x=signal)
+    hard_peaks, soft_peaks = find_peaks(x=x)
     all_peak_idxs = numpy.concatenate((hard_peaks, soft_peaks)).astype('int64')
 
     # Replace each range of ones by the index of the best value in it
     tmp = set()
     for rp_range in rpeaks_ranges:
         r = numpy.arange(rp_range[0], rp_range[1]+1, dtype='int64')
-        vals = signal[r]
+        vals = x[r]
         smoothed_vals = smoothed[r]
         p = r[numpy.argmax(numpy.absolute(numpy.asarray(vals)-smoothed_vals))]
         tmp.add(p)
 
     # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have the bigget distance from smooth curve
-    dist = numpy.absolute(signal-smoothed) # Peak distance from the smoothed mean
+    dist = numpy.absolute(x-smoothed) # Peak distance from the smoothed mean
     rpeaks_indexes = set()
     for p in tmp:
         a = max(0, p-max_gap)
@@ -135,7 +135,7 @@ def correct_peaks(signal, peaks_indexes, min_gap, max_gap, smooth_window):
         if len(r) == 1:
             continue
         rr = r.astype('int64')
-        vals = signal[rr]
+        vals = x[rr]
         smoo = smoothed[rr]
         the_one = r[numpy.argmax(numpy.absolute(vals-smoo))]
         for i in r:

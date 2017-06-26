@@ -67,7 +67,6 @@ class test_processing():
         sig, fields = wfdb.srdsamp('sampledata/100', channels = [0, 1])
         ann = wfdb.rdann('sampledata/100', 'atr')
         fs = fields['fs']
-        trained_fs = 360
         min_bpm = 10
         max_bpm = 350
         min_gap = fs*60/min_bpm

@@ -561,8 +561,8 @@ Input arguments:
 - ``window_size`` (required): The smoothing window width.
 
 
-GQRS detector
-~~~~~~~~~~~~~
+Peak detection
+~~~~~~~~~~~~~~
 
 **gqrs_detect** - The GQRS detector function
 
@@ -579,8 +579,7 @@ Example Usage:
     tf = 20000
     sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
     record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-
-    peak_indexes = wfdb.processing.gqrs_detect(x=x, freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
 
 Input arguments:
 
@@ -600,6 +599,40 @@ Input arguments:
 - ``QRSa`` (default=750): Typical QRS peak-to-peak amplitude, in microvolts.
 - ``QRSamin`` (default=130): Minimum QRS peak-to-peak amplitude, in microvolts.
 
+
+**correct_peaks** - A post-processing algorithm to correct peaks position.
+
+See code comments for details about the algorithm.
+
+
+::
+
+  correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window)
+
+Example Usage:
+
+::
+
+    import wfdb
+    t0 = 10000
+    tf = 20000
+    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
+    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
+    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    fs = fields['fs']
+    min_bpm = 10
+    max_bpm = 350
+    min_gap = fs*60/min_bpm
+    max_gap = fs*60/max_bpm
+    y_idxs = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
+
+Input arguments:
+peaks_indexes, min_gap, max_gap, smooth_window
+- ``x`` (required): The signal.
+- ``peaks_indexes`` (required): The location of the peaks.
+- ``min_gap`` (required): The minimum gap in samples between two peaks.
+- ``max_gap`` (required): The maximum gap in samples between two peaks.
+- ``smooth_window`` (required): The size of the smoothing window.
 
 Based on the original WFDB software package specifications
 ----------------------------------------------------------
