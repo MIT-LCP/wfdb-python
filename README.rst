@@ -618,7 +618,7 @@ Example Usage:
     tf = 20000
     sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
     record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], freq=fields['fs'], gain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
     fs = fields['fs']
     min_bpm = 10
     max_bpm = 350
