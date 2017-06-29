@@ -10,27 +10,39 @@ def resample_ann(tt, annsamp):
 
     # Compute the new annotation indexes
 
-    result = numpy.zeros(len(tt), dtype='bool')
+    tmp = numpy.zeros(len(tt), dtype='int16')
     j = 0
     tprec = tt[j]
     for i, v in enumerate(annsamp):
         while True:
             d = False
+            if v < tprec:
+                j -= 1
+                tprec = tt[j]
+                
             if j+1 == len(tt):
-                result[j] = 1
+                tmp[j] += 1
                 break
+            
             tnow = tt[j+1]
             if tprec <= v and v <= tnow:
                 if v-tprec < tnow-v:
-                    result[j] = 1
+                    tmp[j] += 1
                 else:
-                    result[j+1] = 1
+                    tmp[j+1] += 1
                 d = True
             j += 1
             tprec = tnow
             if d:
                 break
-    return numpy.where(result==1)[0].astype('int64')
+                
+    idx = numpy.where(tmp>0)[0].astype('int64')
+    res = []
+    for i in idx:
+        for j in range(tmp[i]):
+            res.append(i)
+    assert len(res) == len(annsamp)
+    return numpy.asarray(res, dtype='int64')
 
 
 def resample_sig(x, fs, fs_target):
