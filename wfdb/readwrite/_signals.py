@@ -1024,7 +1024,7 @@ def digi_nan(fmt):
 
 
 
-reslevels = np.power(2, np.arange(0,33))
+
 def estres(signals):
     """
     def estres(signals):
@@ -1034,6 +1034,7 @@ def estres(signals):
     - signals: A 2d numpy array representing a uniform multichannel signal, or a list of 1d numpy arrays
       representing multiple channels of signals with different numbers of samples per frame.
     """
+    reslevels = np.power(2, np.arange(0,33)) # This has to be corrected as it throws an error
     
     # Expanded sample signals. List of numpy arrays                
     if type(signals) == list:
