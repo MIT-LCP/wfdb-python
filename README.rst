@@ -631,7 +631,7 @@ Example Usage:
     new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
 
 Input arguments:
-peaks_indexes, min_gap, max_gap, smooth_window
+
 - ``x`` (required): The signal.
 - ``peaks_indexes`` (required): The location of the peaks.
 - ``min_gap`` (required): The minimum gap in samples between two peaks.
