@@ -15,7 +15,7 @@ def streamheader(recordname, pbdir):
     r.raise_for_status()
 
     # Get each line as a string
-    filelines = r.content.decode('ascii').splitlines()
+    filelines = r.content.decode('iso-8859-1').splitlines()
 
     # Separate content into header and comment lines
     headerlines = []
