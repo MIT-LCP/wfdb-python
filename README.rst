@@ -628,7 +628,7 @@ Example Usage:
     max_bpm = 350
     min_gap = fs*60/min_bpm
     max_gap = fs*60/max_bpm
-    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
+    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peaks_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
 
 Input arguments:
 
