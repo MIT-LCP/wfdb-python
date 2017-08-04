@@ -106,6 +106,7 @@ file with 'rdann'.
 
 The attributes of the Annotation object give information about the annotation as specified
 by https://www.physionet.org/physiotools/wag/annot-5.htm:
+
 - ``annsamp``: The annotation location in samples relative to the beginning of the record.
 - ``anntype``: The annotation type according the the standard WFDB codes.
 - ``subtype``: The marked class/category of the annotation.
