@@ -230,7 +230,7 @@ class BaseRecord(object):
             checkitemtype(item, field, [Record], 'none')
 
     # Ensure that input read parameters are valid for the record
-    def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes):
+    def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes, returnres):
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
             raise TypeError('sampfrom must be an integer')
@@ -258,6 +258,11 @@ class BaseRecord(object):
                 raise ValueError('Input channels must all be non-negative integers')
             if c>self.nsig-1:
                 raise ValueError('Input channels must all be lower than the total number of channels')
+
+        if returnres not in [64, 32, 16, 8]:
+            raise ValueError("returnres must be one of the following: 64, 32, 16, 8")
+        if physical is True and returnres == 8:
+            raise ValueError("returnres must be one of the following when physical is True: 64, 32, 16")
 
         # Cannot expand multiple samples/frame for multi-segment records
         if type(self) == MultiRecord:
@@ -649,7 +654,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         self.nseg = len(self.segments)
 
     # Convert a MultiRecord object to a Record object
-    def multi_to_single(self):
+    def multi_to_single(self, returnres):
 
         # The fields to transfer to the new object
         fields = self.__dict__.copy()
@@ -661,7 +666,15 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         del(fields['nseg'])
 
         # The output physical signals
-        p_signals = np.zeros([self.siglen, self.nsig])
+        if returnres == 64:
+            floatdtype = 'float64'
+        elif returnres == 32:
+            floatdtype = 'float32'
+        else:
+            floatdtype = 'float16'
+
+
+        p_signals = np.zeros([self.siglen, self.nsig], dtype=floatdtype)
 
         # Get the physical samples from each segment
 
@@ -671,20 +684,12 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         endsamps = list(np.cumsum(self.seglen))
 
         if self.layout == 'Fixed':
-            # Figure out the signal names and units from one of the segments
-            for seg in self.segments:
-                if seg is not None:
-                    fields['signame'] = seg.signame
-                    fields['units'] = seg.units
-                    break
+            # Get the signal names and units from the first segment
+            fields['signame'] = self.segments[0].signame
+            fields['units'] = self.segments[0].units
 
-            for i in range(0, self.nseg):
-                seg = self.segments[i]
-
-                # Fixed layout signals cannot have empty segments
-                if not hasattr(seg, 'p_signals'):
-                    seg.p_signals = seg.dac()
-                p_signals[startsamps[i]:endsamps[i],:] = seg.p_signals
+            for i in range(self.nseg):
+                p_signals[startsamps[i]:endsamps[i],:] = self.segments[i].p_signals
         # For variable layout, have to get channels by name
         else:
             # Get the signal names from the layout segment
@@ -713,8 +718,10 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                         p_signals[startsamps[i]:endsamps[i],:] = np.nan
                     # Segment contains wanted channel(s). Transfer samples.
                     else:
+                        # This statement is necessary in case this function is not called
+                        # directly from rdsamp with m2s=True.
                         if not hasattr(seg, 'p_signals'):
-                            seg.p_signals = seg.dac()
+                            seg.p_signals = seg.dac(returnres=returnres)
                         for ch in range(0, fields['nsig']):
                             if ch not in outchannels:
                                 p_signals[startsamps[i]:endsamps[i],ch] = np.nan
@@ -734,7 +741,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
 # Read a WFDB single or multi segment record. Return a Record or MultiRecord object
 def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None,
-           m2s = True, smoothframes = True, ignoreskew=False):
+           m2s = True, smoothframes = True, ignoreskew=False, returnres=64):
     """Read a WFDB record and return the signal and record descriptors as attributes in a
     Record or MultiRecord object.
 
@@ -765,8 +772,9 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     - ignoreskew (default=False): Flag used when reading records with at least one skewed signal.
       Specifies whether to apply the skew to align the signals in the output variable (False), or
       to ignore the skew field and load in all values contained in the dat files unaligned (True).
-
-    Output argument:
+    - returnres (default=64): The numpy array dtype of the returned signals. Options are: 64, 32,
+       16, or 8, where the value represents the numpy int or float dtype. Note that the value
+       cannot be 8 when physical=True since there is no float8 format.
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
 
     Note: If a signal range or channel selection is specified when calling this function, the
@@ -797,7 +805,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         channels = list(range(record.nsig))
 
     # Ensure that input fields are valid for the record
-    record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes)
+    record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes, returnres)
 
     # A single segment record
     if type(record) == Record:
@@ -812,15 +820,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=False)
             # Obtain physical values
-            if physical == 1:
+            if physical is True:
                 # Perform dac to get physical signal
-                record.p_signals = record.dac(expanded=False)
-                # Clear memory
+                record.d_signals = record.dac(expanded=False, returnres=returnres)
+                record.p_signals = record.d_signals
                 record.d_signals = None
-            # If the frames had to be smoothed, and d_signals is desired, 
-            # the dtype must be cast back into int
-            elif max(record.sampsperframe)>1:
-                record.d_signals = record.d_signals.astype('int64')
 
         # Return each sample of the signals with multiple samples per frame
         else:
@@ -831,10 +835,10 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=True)
             # Obtain physical values
-            if physical == 1:
+            if physical is True:
                 # Perform dac to get physical signal
-                record.e_p_signals = record.dac(expanded=True)
-                # Clear memory
+                record.e_d_signals = record.dac(expanded=True, returnres=returnres)
+                record.e_p_signals = record.e_d_signals
                 record.e_d_signals = None
 
     # A multi segment record
@@ -872,7 +876,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         segsigs = record.requiredsignals(readsegs, channels, dirname, pbdir)
 
         # Read the desired samples in the relevant segments
-        for i in range(0, len(readsegs)):
+        for i in range(len(readsegs)):
             segnum = readsegs[i]
             # Empty segment or segment with no relevant channels
             if record.segname[segnum] == '~' or segsigs[i] is None:
@@ -880,14 +884,44 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             else:
                 record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]),
                     sampfrom = segranges[i][0], sampto = segranges[i][1],
-                    channels = segsigs[i], physical = physical, pbdir=pbdir)
+                    channels = segsigs[i], physical = True, pbdir=pbdir)
 
         # Arrange the fields of the overall object to reflect user input
         record.arrangefields(readsegs, segranges, channels)
 
         # Convert object into a single segment Record object
         if m2s:
-            record = record.multi_to_single()
+            record = record.multi_to_single(returnres=returnres)
+
+    # Perform dtype conversion if necessary
+    if type(record) == Record and record.nsig>0:
+        if physical is True:
+            returndtype = 'float'+str(returnres)
+            if smoothframes is True:
+                currentdtype = record.p_signals.dtype
+                if currentdtype != returndtype:
+                    record.p_signals = record.p_signals.astype(returndtype, copy=False)
+            else:
+                for ch in range(record.nsig):
+                    if record.e_p_signals[ch].dtype != returndtype:
+                        record.e_p_signals[ch] = record.e_p_signals[ch].astype(returndtype, copy=False)
+        else:
+            returndtype = 'int'+str(returnres)
+            if smoothframes is True:
+                currentdtype = record.d_signals.dtype
+                if currentdtype != returndtype:
+                    # Do not allow changing integer dtype to lower value due to over/underflow
+                    if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                        raise Exception('Cannot convert digital samples to lower dtype. Overflow/Underflow likely.')
+                    record.d_signals = record.d_signals.astype(returndtype, copy=False)
+            else:
+                for ch in range(record.nsig):
+                    currentdtype = record.e_d_signals[ch].dtype
+                    if currentdtype != returndtype:
+                        # Do not allow changing integer dtype to lower value due to over/underflow
+                        if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                            raise Exception('Cannot convert digital samples to lower dtype. Overflow/Underflow likely.')
+                        record.e_d_signals[ch] = record.e_d_signals[ch].astype(returndtype, copy=False)
 
     return record
 

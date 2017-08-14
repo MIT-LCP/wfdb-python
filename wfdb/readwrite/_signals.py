@@ -2,6 +2,7 @@ import numpy as np
 import os
 import math
 from . import downloads
+import pdb
 
 # All defined WFDB dat formats
 datformats = ["80","212","16","24","32"]
@@ -286,7 +287,7 @@ class SignalsMixin(object):
         return d_signals
 
     
-    def dac(self, expanded=False):
+    def dac(self, expanded=False, returnres=64):
         """
         Returns the digital to analogue conversion for a Record object's signal stored
         in d_signals if expanded is False, or e_d_signals if expanded is True.
@@ -295,17 +296,27 @@ class SignalsMixin(object):
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
 
+        # Get the appropriate float dtype
+        
+        if returnres == 64:
+            floatdtype = 'float64'
+        elif returnres == 32:
+            floatdtype = 'float32'
+        else:
+            floatdtype = 'float16'
+
         if expanded:
             p_signal = []
             for ch in range(0, self.nsig):
                 # nan locations for the channel
                 chnanlocs = self.e_d_signals[ch] == dnans[ch]
-                p_signal.append((self.e_d_signals[ch] - self.baseline[ch])/float(self.adcgain[ch]))
+                p_signal.append((self.e_d_signals[ch] - np.array(self.baseline[ch], dtype=self.e_d_signals[ch].dtype))/
+                    np.array(self.adcgain[ch], dtype=floatdtype).astype(floatdtype, copy=False))
                 p_signal[ch][chnanlocs] = np.nan
         else:
             # nan locations
             nanlocs = self.d_signals == dnans
-            p_signal = (self.d_signals - self.baseline)/[float(g) for g in self.adcgain]
+            p_signal = (self.d_signals - np.array(self.baseline, dtype=self.d_signals.dtype)) / np.array(self.adcgain, dtype=floatdtype).astype(floatdtype, copy=False)
             p_signal[nanlocs] = np.nan
                 
         return p_signal
@@ -456,6 +467,7 @@ class SignalsMixin(object):
 
         return signal
 
+
 #------------------- Reading Signals -------------------#
 
 def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
@@ -523,9 +535,10 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
     if smoothframes or sum(sampsperframe)==nsig:
-
-        # Allocate signal array
-        signals = np.zeros([sampto-sampfrom, len(channels)], dtype = 'int64')
+        # Figure out the largest required dtype for the segment to minimize memory usage
+        maxdtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
+        # Allocate signal array. Minimize dtype
+        signals = np.zeros([sampto-sampfrom, len(channels)], dtype = maxdtype)
 
         # Read each wanted dat file and store signals
         for fn in w_filename:
@@ -603,10 +616,10 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             extrabytenum = totalprocessbytes - totalreadbytes
 
             sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.zeros(extrabytenum, dtype = 'uint8')))
+                                      np.zeros(extrabytenum, dtype = np.dtype(dataloadtypes[fmt]))))
         else:
             sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
-                                      np.zeros(extraflatsamples, dtype='int64')))
+                                      np.zeros(extraflatsamples, dtype = np.dtype(dataloadtypes[fmt]))))
     else:
         sigbytes = getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples)
 
@@ -620,9 +633,12 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             sigbytes = sigbytes[blockfloorsamples:]
     # Adjust for byte offset formats
     elif fmt == '80':
-        sigbytes = sigbytes - 128
+        sigbytes = (sigbytes.astype('int16') - 128).astype('int8')
     elif fmt == '160':
-        sigbytes = sigbytes - 32768
+        sigbytes = (sigbytes.astype('int32') - 32768).astype('int16')
+
+    # At this point, dtype of sigbytes is the minimum integer format required for storing
+    # final samples.
 
     # No extra samples/frame. Obtain original uniform numpy array
     if tsampsperframe==nsig:
@@ -634,18 +650,19 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     # Extra frames present to be smoothed. Obtain averaged uniform numpy array
     elif smoothframes:
 
-        # Allocate memory for smoothed signal
-        sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype='int64')
+        # Allocate memory for smoothed signal.
+        sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype=sigbytes.dtype)
 
         # Transfer and average samples
         for ch in range(nsig):
             if sampsperframe[ch] == 1:
                 sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
             else:
-                for frame in range(sampsperframe[ch]):
-                    sig[:, ch] += sigbytes[sum(([0] + sampsperframe)[:ch + 1]) + frame::tsampsperframe]
-        # Have to change the dtype for averaging frames
-        sig = (sig.astype('float64') / sampsperframe)
+                if ch == 0:
+                    startind = 0
+                else:
+                    startind = np.sum(sampsperframe[:ch])
+                sig[:,ch] = [np.average(sigbytes[ind:ind+sampsperframe[ch]]) for ind in range(startind,len(sigbytes),tsampsperframe)]
         # Skew the signal
         sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
@@ -653,7 +670,6 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     else:
         # List of 1d numpy arrays
         sig=[]
-
         # Transfer over samples
         for ch in range(nsig):
             # Indices of the flat signal that belong to the channel
@@ -807,8 +823,7 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
         fp.seek(startbyte)
 
         # Read file using corresponding dtype
-        # Cast to int64 for further processing
-        sigbytes = np.fromfile(fp, dtype=np.dtype(dataloadtypes[fmt]), count=elementcount).astype('int')
+        sigbytes = np.fromfile(fp, dtype=np.dtype(dataloadtypes[fmt]), count=elementcount)
 
         fp.close()
 
@@ -816,6 +831,8 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     # Same output as above np.fromfile.
     else:
         sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
+
+    #pdb.set_trace()
 
     return sigbytes
 
@@ -833,7 +850,8 @@ def bytes2samples(sigbytes, nsamp, fmt):
         else:
             addedsamps = 0
 
-        sig = np.zeros(nsamp, dtype='int64')
+        sigbytes = sigbytes.astype('int16')
+        sig = np.zeros(nsamp, dtype='int16')
 
         # One sample pair is stored in one byte triplet.
         
@@ -859,8 +877,8 @@ def bytes2samples(sigbytes, nsamp, fmt):
         else:
             addedsamps = 0
 
-        # 1d array of actual samples. Fill the individual triplets.
-        sig = np.zeros(nsamp, dtype='int64')
+        sigbytes = sigbytes.astype('int16')
+        sig = np.zeros(nsamp, dtype='int16')
 
         # One sample triplet is stored in one byte quartet
         # First sample is 7 msb of first byte and 3 lsb of second byte.
@@ -887,8 +905,8 @@ def bytes2samples(sigbytes, nsamp, fmt):
         else:
             addedsamps = 0
 
-        # 1d array of actual samples. Fill the individual triplets.
-        sig = np.zeros(nsamp, dtype='int64')
+        sigbytes = sigbytes.astype('int16')
+        sig = np.zeros(nsamp, dtype='int16')
 
         # One sample triplet is stored in one byte quartet
         # First sample is first byte and 2 lsb of second byte.
@@ -1069,12 +1087,12 @@ def estres(signals):
 
 
 # Return the most suitable wfdb format(s) to use given signal resolutions.
-# If singlefmt == 1, the format for the maximum resolution will be returned.
-def wfdbfmt(res, singlefmt = 1):
+# If singlefmt is True, the format for the maximum resolution will be returned.
+def wfdbfmt(res, singlefmt = True):
 
     if type(res) == list:
         # Return a single format
-        if singlefmt == 1:
+        if singlefmt is True:
             res = [max(res)]*len(res)
 
         fmts = []
@@ -1094,14 +1112,14 @@ def wfdbfmt(res, singlefmt = 1):
         return '32'
 
 # Return the resolution of the WFDB format(s).
-def wfdbfmtres(fmt):
+def wfdbfmtres(fmt, maxres=False):
 
     if type(fmt)==list:
-        res = []
-        for f in fmt:
-            res.append(wfdbfmtres(f))
+        res = [wfdbfmtres(f) for f in fmt]
+        if maxres is True:
+            res = np.max(res)
         return res
-    
+
     if fmt in ['8', '80']:
         return 8
     elif fmt in ['310', '311']:
@@ -1116,6 +1134,22 @@ def wfdbfmtres(fmt):
         return 32
     else:
         raise ValueError('Invalid WFDB format.')
+
+# Given the resolution of a signal, return the minimum
+# dtype to store it
+def npdtype(res, discrete):
+    
+    if not hasattr(res, '__index__') or res>64:
+        raise TypeError('res must be integer based and <=64')
+    
+    for npres in [8, 16, 32, 64]:
+        if res<=npres:
+            break
+    
+    if discrete is True:
+        return 'int'+str(npres)
+    else:
+        return 'float'+str(npres)
 
 # Write a dat file.
 # All bytes are written one at a time
