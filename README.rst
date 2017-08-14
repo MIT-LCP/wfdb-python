@@ -106,6 +106,7 @@ file with 'rdann'.
 
 The attributes of the Annotation object give information about the annotation as specified
 by https://www.physionet.org/physiotools/wag/annot-5.htm:
+
 - ``annsamp``: The annotation location in samples relative to the beginning of the record.
 - ``anntype``: The annotation type according the the standard WFDB codes.
 - ``subtype``: The marked class/category of the annotation.
@@ -628,10 +629,10 @@ Example Usage:
     max_bpm = 350
     min_gap = fs*60/min_bpm
     max_gap = fs*60/max_bpm
-    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peak_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
+    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peaks_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
 
 Input arguments:
-peaks_indexes, min_gap, max_gap, smooth_window
+
 - ``x`` (required): The signal.
 - ``peaks_indexes`` (required): The location of the peaks.
 - ``min_gap`` (required): The minimum gap in samples between two peaks.
