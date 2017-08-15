@@ -773,8 +773,10 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
       Specifies whether to apply the skew to align the signals in the output variable (False), or
       to ignore the skew field and load in all values contained in the dat files unaligned (True).
     - returnres (default=64): The numpy array dtype of the returned signals. Options are: 64, 32,
-       16, or 8, where the value represents the numpy int or float dtype. Note that the value
-       cannot be 8 when physical=True since there is no float8 format.
+       16, and 8, where the value represents the numpy int or float dtype. Note that the value
+       cannot be 8 when physical is True since there is no float8 format.
+    
+    Output argument:
     - record: The wfdb Record or MultiRecord object representing the contents of the record read.
 
     Note: If a signal range or channel selection is specified when calling this function, the
@@ -895,33 +897,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
     # Perform dtype conversion if necessary
     if type(record) == Record and record.nsig>0:
-        if physical is True:
-            returndtype = 'float'+str(returnres)
-            if smoothframes is True:
-                currentdtype = record.p_signals.dtype
-                if currentdtype != returndtype:
-                    record.p_signals = record.p_signals.astype(returndtype, copy=False)
-            else:
-                for ch in range(record.nsig):
-                    if record.e_p_signals[ch].dtype != returndtype:
-                        record.e_p_signals[ch] = record.e_p_signals[ch].astype(returndtype, copy=False)
-        else:
-            returndtype = 'int'+str(returnres)
-            if smoothframes is True:
-                currentdtype = record.d_signals.dtype
-                if currentdtype != returndtype:
-                    # Do not allow changing integer dtype to lower value due to over/underflow
-                    if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
-                        raise Exception('Cannot convert digital samples to lower dtype. Overflow/Underflow likely.')
-                    record.d_signals = record.d_signals.astype(returndtype, copy=False)
-            else:
-                for ch in range(record.nsig):
-                    currentdtype = record.e_d_signals[ch].dtype
-                    if currentdtype != returndtype:
-                        # Do not allow changing integer dtype to lower value due to over/underflow
-                        if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
-                            raise Exception('Cannot convert digital samples to lower dtype. Overflow/Underflow likely.')
-                        record.e_d_signals[ch] = record.e_d_signals[ch].astype(returndtype, copy=False)
+        record.convert_dtype(physical, returnres, smoothframes)
 
     return record
 

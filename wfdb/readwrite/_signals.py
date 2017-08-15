@@ -377,6 +377,37 @@ class SignalsMixin(object):
         
         return (gains, baselines)
 
+
+    def convert_dtype(self, physical, returnres, smoothframes):
+        if physical is True:
+            returndtype = 'float'+str(returnres)
+            if smoothframes is True:
+                currentdtype = self.p_signals.dtype
+                if currentdtype != returndtype:
+                    self.p_signals = self.p_signals.astype(returndtype, copy=False)
+            else:
+                for ch in range(self.nsig):
+                    if self.e_p_signals[ch].dtype != returndtype:
+                        self.e_p_signals[ch] = self.e_p_signals[ch].astype(returndtype, copy=False)
+        else:
+            returndtype = 'int'+str(returnres)
+            if smoothframes is True:
+                currentdtype = self.d_signals.dtype
+                if currentdtype != returndtype:
+                    # Do not allow changing integer dtype to lower value due to over/underflow
+                    if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                        raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
+                    self.d_signals = self.d_signals.astype(returndtype, copy=False)
+            else:
+                for ch in range(self.nsig):
+                    currentdtype = self.e_d_signals[ch].dtype
+                    if currentdtype != returndtype:
+                        # Do not allow changing integer dtype to lower value due to over/underflow
+                        if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                            raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
+                        self.e_d_signals[ch] = self.e_d_signals[ch].astype(returndtype, copy=False)
+        return
+
     def calc_checksum(self, expanded=False):
         """
         Calculate the checksum(s) of the d_signals (expanded=False)

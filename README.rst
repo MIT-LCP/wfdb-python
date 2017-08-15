@@ -159,6 +159,7 @@ Input Arguments:
 -  ``m2s`` (default=True): Flag used only for multi-segment records. Specifies whether to convert the returned wfdb.MultiRecord object into a wfdb.Record object (True) or not (False).
 -  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_signals or e_p_signals field (False).
 -  ``ignoreskew`` (default=False): Flag used when reading records with at least one skewed signal. Specifies whether to apply the skew to align the signals in the output variable (False), or to ignore the skew field and load in all values contained in the dat files unaligned (True).
+-  ``returnres`` (default=64): The numpy array dtype of the returned signals. Options are: 64, 32, 16, and 8, where the value represents the numpy int or float dtype. Note that the value cannot be 8 when physical is True since there is no float8 format.
 
 Output Arguments:
 
