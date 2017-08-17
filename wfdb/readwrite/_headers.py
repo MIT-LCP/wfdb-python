@@ -635,15 +635,11 @@ segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, 
 
 # SignalType class with all its parameters
 class SignalType(object):
-    def __init__(self, description, measurement=None, default_display=None, signalnames=None):
+    def __init__(self, description, signalnames):
         self.description = description
-        self.unitscale = unitscale
-        
-        # Tuple pair (a, b). The plot displays range a, of unit b.
-        #self.default_display = default_display
-        
         # names that are assigned to this signal type
         self.signalnames = signalnames
+        
 
 # Unit scales used for default display scales.
 unitscale = {
@@ -652,28 +648,29 @@ unitscale = {
     'Pressure': ['mmHg'],
 }
 
-# All signal types.
+# All signal types. Make sure signal names are in lower case.
 # Used for:
 # - signal search
 # - default waveform display
 signaltypes = {
     #'ANGLE': SignalType('Angle',None, ['angle, pitch, roll, yaw']),
-    'BP': SignalType('Blood Pressure', 'Pressure',None, ['bp','abp','pap','cvp',]),
-    'CO2': SignalType('Carbon Dioxide',None, ['co2']),
-    'CO': SignalType('Carbon Monoxide',None, ['co']),
-    'ECG': SignalType('Electrocardiogram',None, ['i','ii','iii','iv','v','avr']),
-    'EEG': SignalType('Electroencephalogram',None, ['eeg']),
-    'EMG': SignalType('Electromyograph',None, ['emg']),
-    'EOG': SignalType('Electrooculograph',None, ['eog']),
-    'HR': SignalType('Heart Rate',None, ['hr']),
-    'MMG': SignalType('Magnetomyograph',None, ['mmg']),
-    'O2': SignalType('Oxygen',None, ['o2','sp02']),
-    'PLETH': SignalType('Plethysmograph',None, ['pleth']),
-    'RESP': SignalType('Respiration',None, ['resp']),
-    'SCG': SignalType('Seismocardiogram',None, ['scg']),
-    'STAT': SignalType('Status',None, ['stat','status']), # small integers indicating status
-    'ST': SignalType('ECG ST Segment',None, ['st']),
-    'TEMP': SignalType('Temperature',None, ['temp']),
+    'BP': SignalType('Blood Pressure', ['bp','abp','pap','cvp',]),
+    'CO2': SignalType('Carbon Dioxide', ['co2']),
+    'CO': SignalType('Carbon Monoxide', ['co']),
+    'ECG': SignalType('Electrocardiogram', ['i','ii','iii','iv','v','avr']),
+    'EEG': SignalType('Electroencephalogram',['eeg']),
+    'EMG': SignalType('Electromyograph', ['emg']),
+    'EOG': SignalType('Electrooculograph', ['eog']),
+    'HR': SignalType('Heart Rate', ['hr']),
+    'MMG': SignalType('Magnetomyograph', ['mmg']),
+    'O2': SignalType('Oxygen', ['o2','sp02']),
+    'PLETH': SignalType('Plethysmograph', ['pleth']),
+    'RESP': SignalType('Respiration', ['resp']),
+    'SCG': SignalType('Seismocardiogram', ['scg']),
+    'STAT': SignalType('Status', ['stat','status']), # small integers indicating status
+    'ST': SignalType('ECG ST Segment', ['st']),
+    'TEMP': SignalType('Temperature', ['temp']),
+    'UNKNOWN': SignalType('Unknown', []),
 }
 
 
