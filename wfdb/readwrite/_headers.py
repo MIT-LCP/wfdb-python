@@ -608,7 +608,7 @@ recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, Tru
                          ('siglen', WFDBheaderspecs(inttypes, ' ', 'fs', True, None, None)),
                          ('basetime', WFDBheaderspecs([str], ' ', 'siglen', False, None, '00:00:00')),
                          ('basedate', WFDBheaderspecs([str], ' ', 'basetime', False, None, None))])
- 
+
 # Signal specification fields.
 sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
                          ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
@@ -631,15 +631,18 @@ segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, 
 
 
 
-# For storing WFDB Signal definitions.
+# ---------- For storing WFDB Signal definitions ---------- #
 
-# SignalType class with all its parameters
-class SignalType(object):
-    def __init__(self, description, signalnames):
+# Signal class with all its parameters
+class SignalClass(object):
+    def __init__(self, abbreviation, description, signalnames):
+        self.abbreviation = abbreviation
         self.description = description
         # names that are assigned to this signal type
         self.signalnames = signalnames
-        
+    
+    def __str__(self):
+        return self.abbreviation
 
 # Unit scales used for default display scales.
 unitscale = {
@@ -649,28 +652,24 @@ unitscale = {
 }
 
 # All signal types. Make sure signal names are in lower case.
-# Used for:
-# - signal search
-# - default waveform display
-signaltypes = {
-    #'ANGLE': SignalType('Angle',None, ['angle, pitch, roll, yaw']),
-    'BP': SignalType('Blood Pressure', ['bp','abp','pap','cvp',]),
-    'CO2': SignalType('Carbon Dioxide', ['co2']),
-    'CO': SignalType('Carbon Monoxide', ['co']),
-    'ECG': SignalType('Electrocardiogram', ['i','ii','iii','iv','v','avr']),
-    'EEG': SignalType('Electroencephalogram',['eeg']),
-    'EMG': SignalType('Electromyograph', ['emg']),
-    'EOG': SignalType('Electrooculograph', ['eog']),
-    'HR': SignalType('Heart Rate', ['hr']),
-    'MMG': SignalType('Magnetomyograph', ['mmg']),
-    'O2': SignalType('Oxygen', ['o2','sp02']),
-    'PLETH': SignalType('Plethysmograph', ['pleth']),
-    'RESP': SignalType('Respiration', ['resp']),
-    'SCG': SignalType('Seismocardiogram', ['scg']),
-    'STAT': SignalType('Status', ['stat','status']), # small integers indicating status
-    'ST': SignalType('ECG ST Segment', ['st']),
-    'TEMP': SignalType('Temperature', ['temp']),
-    'UNKNOWN': SignalType('Unknown', []),
-}
+signalclasses = [
+    SignalClass('BP', 'Blood Pressure', ['bp','abp','pap','cvp',]),
+    SignalClass('CO2', 'Carbon Dioxide', ['co2']),
+    SignalClass('CO', 'Carbon Monoxide', ['co']),
+    SignalClass('ECG', 'Electrocardiogram', ['i','ii','iii','iv','v','avr']),
+    SignalClass('EEG', 'Electroencephalogram',['eeg']),
+    SignalClass('EMG', 'Electromyograph', ['emg']),
+    SignalClass('EOG', 'Electrooculograph', ['eog']),
+    SignalClass('HR', 'Heart Rate', ['hr']),
+    SignalClass('MMG', 'Magnetomyograph', ['mmg']),
+    SignalClass('O2', 'Oxygen', ['o2','sp02']),
+    SignalClass('PLETH', 'Plethysmograph', ['pleth']),
+    SignalClass('RESP', 'Respiration', ['resp']),
+    SignalClass('SCG', 'Seismocardiogram', ['scg']),
+    SignalClass('STAT', 'Status', ['stat','status']), # small integers indicating status
+    SignalClass('ST', 'ECG ST Segment', ['st']),
+    SignalClass('TEMP', 'Temperature', ['temp']),
+    SignalClass('UNKNOWN', 'Unknown Class', []),
+]
 
 

@@ -148,10 +148,6 @@ class Annotation(object):
                         raise ValueError('All custom_anntypes keys must be strings')
                     if len(key)>1:
                         raise ValueError('All custom_anntypes keys must be single characters')
-                    # Discourage (but not prevent) using existing codes
-                    if key in annsyms.values():
-                        print('It is discouraged to define the custom annotation code: '+key+' that already has an entry in the wfdb library.')
-                        print('To see existing annotation codes and their meanings, call: showanncodes(). Continuing...')
 
                 for value in self.custom_anntypes.values():
                     if type(key)!= str:
@@ -1095,7 +1091,7 @@ anncodes = {
     38: 'PFUS',  # fusion of paced and normal beat */
     39: 'WFON',  # waveform onset */
     40: 'WFOFF',  # waveform end */
-    41: 'RONT',  # R-on-T premature ventricular contraction */  
+    41: 'RONT',  # R-on-T premature ventricular contraction */
 #    42: '',
 #    43: '', 
 #    44: '', 
@@ -1105,6 +1101,7 @@ anncodes = {
 #    48: '', 
 #    49: ''
 }
+
 
 # Mapping annotation symbols to the annotation codes
 # For printing/user guidance
@@ -1121,3 +1118,33 @@ annfieldtypes = {'recordname': [str], 'annotator': [str], 'annsamp': _headers.in
 
 # Acceptable numpy integer dtypes
 intdtypes = ['int64', 'uint64', 'int32', 'uint32','int16','uint16']
+
+
+
+# Classes = extensions
+class AnnotationClass(object):
+    def __init__(self, extension, description, isreference):
+        self.extension = extension
+        self.description = description
+        self.isreference = isreference
+
+annclasses = [
+    AnnotationClass('atr', 'Reference ECG annotations', True),
+    AnnotationClass('apn', 'Reference apnea annotations', True),
+    AnnotationClass('alarm', 'Machine alarm annotations', False),
+]
+
+# Individual annotation labels
+class AnnotationLabel(object):
+    def __init__(self, storevalue, symbol, description):
+        self.storevalue = storevalue
+        self.symbol = symbol
+        self.description = description
+
+annlabels = [
+    AnnotationLabel(0, ' ',  'Not an actual annotation'),
+    AnnotationLabel(1, 'N',  'Normal beat'),
+    AnnotationLabel(2, 'L',  'Left bundle branch block beat'),
+    AnnotationLabel(3, 'R',  'Right bundle branch block beat'),
+    AnnotationLabel(4, 'a',  'Aberrated atrial premature beat'),
+]
