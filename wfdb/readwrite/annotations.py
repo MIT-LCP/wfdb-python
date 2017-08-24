@@ -32,7 +32,7 @@ class Annotation(object):
     def __init__(self, recordname, annotator, annsamp, anntype, subtype = None, 
                  chan = None, num = None, aux = None, fs = None, custom_anntypes = None)
 
-    Call 'showanncodes()' to see the list of standard annotation codes. Any text used to label 
+    Call 'show_ann_labels()' to see the list of standard annotation codes. Any text used to label 
     annotations that are not one of these codes should go in the 'aux' field rather than the 
     'anntype' field.
 
@@ -202,9 +202,9 @@ class Annotation(object):
                     raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
             elif field == 'anntype':
                 # Ensure all fields lie in standard WFDB annotation codes or custom codes
-                if set(self.anntype) - set(annsyms.values()).union() != set():
+                if set(self.anntype) - set(ann_label_table['Symbol'].values).union() != set():
                     print("The 'anntype' field contains items not encoded in the WFDB library, or in this object's custom defined anntypes.")
-                    print('To see the valid annotation codes call: showanncodes()')
+                    print('To see the valid annotation codes call: show_ann_labels()')
                     print('To transfer non-encoded anntype items into the aux field call: self.type2aux()')
                     print("To define custom codes, set the custom_anntypes field as a dictionary with format: {custom anntype character:description}")
                     raise Exception()
@@ -346,7 +346,7 @@ class Annotation(object):
             if type(at) != str:
                 raise TypeError('anntype elements must all be strings')
 
-        external_anntypes = set(self.anntype) - set(annsyms.values())
+        external_anntypes = set(self.anntype) - set(ann_label_table['Symbol'].values)
 
         # Nothing to do
         if external_anntypes == set():
@@ -412,7 +412,7 @@ def ca2bytes(custom_anntypes):
                   105,116,105,111,110,115,0,0,236,255,255,255,255,1,0]
 
     # Annotation codes range from 0-49.
-    freenumbers = list(set(range(50)) - set(annsyms.keys()))
+    freenumbers = list(set(range(50)) - set(ann_label_table['Store-Value'].values))
 
     if len(custom_anntypes) > len(freenumbers):
         raise Exception('There can only be a maximum of '+len(freenumbers)+' custom annotation codes.')
@@ -494,9 +494,9 @@ def field2bytes(field, value):
 
     # annsamp and anntype bytes come together
     if field == 'samptype':
-
         # Numerical value encoding annotation symbol
-        typecode = revannsyms[value[1]]
+        typecode = ann_label_table.loc[ann_label_table['Symbol']==value[1], 'Store-Value'].values[0]
+
         # sample difference
         sd = value[0]
 
@@ -579,16 +579,23 @@ def wrann(recordname, annotator, annsamp, anntype, subtype = None, chan = None, 
     # Perform field checks and write the annotation file
     annotation.wrann(writefs = True)
 
-# Display the annotation symbols and the codes they represent
-def showanncodes():
+
+def show_ann_labels():
     """
-    Display the annotation symbols and the codes they represent according to the 
-    standard WFDB library 10.5.24
+    Display the standard wfdb annotation label mapping
     
     Usage: 
-    showanncodes()
+    show_ann_labels()
     """
-    print(symcodes)
+    print(ann_label_table)
+
+
+def show_ann_classes():
+    """
+    Display the standard wfdb annotation classes
+    """
+
+    pass
 
 ## ------------- Reading Annotations ------------- ##
 
@@ -873,7 +880,6 @@ def carry_fields(ai, cpychan, cpynum, chan, num):
     return chan, num 
 
 
-
 # Remove unallocated part of array
 def snip_arrays(annsamp,anntype,num,subtype,chan,aux,ai):
     annsamp = annsamp[0:ai].astype(int)
@@ -943,7 +949,7 @@ def proc_special_types(annsamp,anntype,num,subtype,chan,aux):
     # Custom annotation types
     custom_anntypes = {}
     # The annotation symbol dictionary to modify and use
-    allannsyms = annsyms.copy()
+    allannsyms = dict(zip(ann_label_table['Store-Value'].values, ann_label_table['Symbol'].values))
 
     if special_inds != []:
         # The annotation indices to be removed
@@ -988,125 +994,7 @@ def proc_special_types(annsamp,anntype,num,subtype,chan,aux):
 ## ------------- /Reading Annotations ------------- ##
 
 
-# Annotation mnemonic symbols for the 'anntype' field as specified in annot.c
-# from wfdb software library 10.5.24. At this point, several values are blank.
-# Commented out values are present in original file but have no meaning.
-annsyms = {
-    0: ' ',  # not-QRS (not a getann/putann codedict) */
-    1: 'N',  # normal beat */
-    2: 'L',  # left bundle branch block beat */
-    3: 'R',  # right bundle branch block beat */
-    4: 'a',  # aberrated atrial premature beat */
-    5: 'V',  # premature ventricular contraction */
-    6: 'F',  # fusion of ventricular and normal beat */
-    7: 'J',  # nodal (junctional) premature beat */
-    8: 'A',  # atrial premature contraction */
-    9: 'S',  # premature or ectopic supraventricular beat */
-    10: 'E',  # ventricular escape beat */
-    11: 'j',  # nodal (junctional) escape beat */
-    12: '/',  # paced beat */
-    13: 'Q',  # unclassifiable beat */
-    14: '~',  # signal quality change */
-#    15: '[15]',
-    16: '|',  # isolated QRS-like artifact */
-#    17: '[17]',
-    18: 's',  # ST change */
-    19: 'T',  # T-wave change */
-    20: '*',  # systole */
-    21: 'D',  # diastole */
-    22: '"',  # comment annotation */
-    23: '=',  # measurement annotation */
-    24: 'p',  # P-wave peak */
-    25: 'B',  # left or right bundle branch block */
-    26: '^',  # non-conducted pacer spike */
-    27: 't',  # T-wave peak */
-    28: '+',  # rhythm change */
-    29: 'u',  # U-wave peak */
-    30: '?',  # learning */
-    31: '!',  # ventricular flutter wave */
-    32: '[',  # start of ventricular flutter/fibrillation */
-    33: ']',  # end of ventricular flutter/fibrillation */
-    34: 'e',  # atrial escape beat */
-    35: 'n',  # supraventricular escape beat */
-    36: '@',  # link to external data (aux contains URL) */
-    37: 'x',  # non-conducted P-wave (blocked APB) */
-    38: 'f',  # fusion of paced and normal beat */
-    39: '(',  # waveform onset */
-    40: ')',  # waveform end */
-    41: 'r',  # R-on-T premature ventricular contraction */
-#    42: '[42]',
-#    43: '[43]',
-#    44: '[44]',
-#    45: '[45]',
-#    46: '[46]',
-#    47: '[47]',
-#    48: '[48]',
-#    49: '[49]',
-}
-# Reverse ann symbols for mapping symbols back to numbers
-revannsyms = {v: k for k, v in annsyms.items()}
 
-# Annotation codes for 'anntype' field as specified in ecgcodes.h from
-# wfdb software library 10.5.24. Commented out values are present in
-# original file but have no meaning.
-anncodes = {
-    0: 'NOTQRS',  # not-QRS (not a getann/putann codedict) */
-    1: 'NORMAL',  # normal beat */
-    2: 'LBBB',  # left bundle branch block beat */
-    3: 'RBBB',  # right bundle branch block beat */
-    4: 'ABERR',  # aberrated atrial premature beat */
-    5: 'PVC',  # premature ventricular contraction */
-    6: 'FUSION',  # fusion of ventricular and normal beat */
-    7: 'NPC',  # nodal (junctional) premature beat */
-    8: 'APC',  # atrial premature contraction */
-    9: 'SVPB',  # premature or ectopic supraventricular beat */
-    10: 'VESC',  # ventricular escape beat */
-    11: 'NESC',  # nodal (junctional) escape beat */
-    12: 'PACE',  # paced beat */
-    13: 'UNKNOWN',  # unclassifiable beat */
-    14: 'NOISE',  # signal quality change */
-#    15: '',
-    16: 'ARFCT',  # isolated QRS-like artifact */
-#    17: '',
-    18: 'STCH',  # ST change */
-    19: 'TCH',  # T-wave change */
-    20: 'SYSTOLE',  # systole */
-    21: 'DIASTOLE',  # diastole */
-    22: 'NOTE',  # comment annotation */
-    23: 'MEASURE',  # measurement annotation */
-    24: 'PWAVE',  # P-wave peak */
-    25: 'BBB',  # left or right bundle branch block */
-    26: 'PACESP',  # non-conducted pacer spike */
-    27: 'TWAVE',  # T-wave peak */
-    28: 'RHYTHM',  # rhythm change */
-    29: 'UWAVE',  # U-wave peak */
-    30: 'LEARN',  # learning */
-    31: 'FLWAV',  # ventricular flutter wave */
-    32: 'VFON',  # start of ventricular flutter/fibrillation */
-    33: 'VFOFF',  # end of ventricular flutter/fibrillation */
-    34: 'AESC',  # atrial escape beat */
-    35: 'SVESC',  # supraventricular escape beat */
-    36: 'LINK',  # link to external data (aux contains URL) */
-    37: 'NAPC',  # non-conducted P-wave (blocked APB) */
-    38: 'PFUS',  # fusion of paced and normal beat */
-    39: 'WFON',  # waveform onset */
-    40: 'WFOFF',  # waveform end */
-    41: 'RONT',  # R-on-T premature ventricular contraction */
-#    42: '',
-#    43: '', 
-#    44: '', 
-#    45: '', 
-#    46: '',
-#    47: '',
-#    48: '', 
-#    49: ''
-}
-
-
-# Mapping annotation symbols to the annotation codes
-# For printing/user guidance
-symcodes = pd.DataFrame({'Ann Symbol': list(annsyms.values()), 'Ann Code Meaning': list(anncodes.values())})
-symcodes = symcodes.set_index('Ann Symbol', list(annsyms.values()))
 
 # All annotation fields. Note: custom_anntypes placed first to check field before anntype
 annfields = ['recordname', 'annotator', 'custom_anntypes', 'annsamp', 'anntype', 'num', 'subtype', 'chan', 'aux', 'fs']
@@ -1121,30 +1009,107 @@ intdtypes = ['int64', 'uint64', 'int32', 'uint32','int16','uint16']
 
 
 
+
 # Classes = extensions
 class AnnotationClass(object):
-    def __init__(self, extension, description, isreference):
+    def __init__(self, extension, description, human_reviewed):
+
         self.extension = extension
         self.description = description
-        self.isreference = isreference
+        self.human_reviewed = human_reviewed
 
-annclasses = [
+
+ann_classes = [
     AnnotationClass('atr', 'Reference ECG annotations', True),
-    AnnotationClass('apn', 'Reference apnea annotations', True),
-    AnnotationClass('alarm', 'Machine alarm annotations', False),
+
+    AnnotationClass('blh', 'Human reviewed beat labels', True),
+    AnnotationClass('blm', 'Machine beat labels', False),
+
+    AnnotationClass('alh', 'Human reviewed alarms', True),
+    AnnotationClass('alm', 'Machine alarms', False),
+
+    AnnotationClass('qrsc', 'Human reviewed qrs detections', True),
+    AnnotationClass('qrs', 'Machine QRS detections', False),
+    
+    AnnotationClass('bph', 'Human reviewed BP beat detections', True),
+    AnnotationClass('bpm', 'Machine BP beat detections', False),
+
+    #AnnotationClass('alh', 'Human reviewed BP alarms', True),
+    #AnnotationClass('alm', 'Machine BP alarms', False),
+    # separate ecg and other signal category alarms?
+    # Can we use signum to determine the channel it was triggered off?
+
+    #ppg alarms?
+    #eeg alarms
 ]
 
 # Individual annotation labels
 class AnnotationLabel(object):
-    def __init__(self, storevalue, symbol, description):
-        self.storevalue = storevalue
+    def __init__(self, store_value, symbol, short_description, description):
+        self.store_value = store_value
         self.symbol = symbol
+        self.short_description = short_description
         self.description = description
 
-annlabels = [
-    AnnotationLabel(0, ' ',  'Not an actual annotation'),
-    AnnotationLabel(1, 'N',  'Normal beat'),
-    AnnotationLabel(2, 'L',  'Left bundle branch block beat'),
-    AnnotationLabel(3, 'R',  'Right bundle branch block beat'),
-    AnnotationLabel(4, 'a',  'Aberrated atrial premature beat'),
+    def __str__(self):
+        return str(self.store_value)+', '+str(self.symbol)+', '+str(self.short_description)+', '+str(self.description)
+
+ann_labels = [
+    AnnotationLabel(0, " ", 'NOTQRS', 'Not an actual annotation'),
+    AnnotationLabel(1, "N", 'NORMAL', 'Normal beat'),
+    AnnotationLabel(2, "L", 'LBBB', 'Left bundle branch block beat'),
+    AnnotationLabel(3, "R", 'RBBB', 'Right bundle branch block beat'),
+    AnnotationLabel(4, "a", 'ABERR', 'Aberrated atrial premature beat'),
+    AnnotationLabel(5, "V", 'PVC', 'Premature ventricular contraction'),
+    AnnotationLabel(6, "F", 'FUSION', 'Fusion of ventricular and normal beat'),
+    AnnotationLabel(7, "J", 'NPC', 'Nodal (junctional) premature beat'),
+    AnnotationLabel(8, "A", 'APC', 'Atrial premature contraction'),
+    AnnotationLabel(9, "S", 'SVPB', 'Premature or ectopic supraventricular beat'),
+    AnnotationLabel(10, "E", 'VESC', 'Ventricular escape beat'),
+    AnnotationLabel(11, "j", 'NESC', 'Nodal (junctional) escape beat'),
+    AnnotationLabel(12, "/", 'PACE', 'Paced beat'),
+    AnnotationLabel(13, "Q", 'UNKNOWN', 'Unclassifiable beat'),
+    AnnotationLabel(14, "~", 'NOISE', 'Signal quality change'),
+    # AnnotationLabel(15, None, None, None),
+    AnnotationLabel(16, "|", 'ARFCT',  'Isolated QRS-like artifact'),
+    # AnnotationLabel(17, None, None, None),
+    AnnotationLabel(18, "s", 'STCH',  'ST change'),
+    AnnotationLabel(19, "T", 'TCH',  'T-wave change'),
+    AnnotationLabel(20, "*", 'SYSTOLE',  'Systole'),
+    AnnotationLabel(21, "D", 'DIASTOLE',  'Diastole'),
+    AnnotationLabel(22, '"', 'NOTE',  'Comment annotation'),
+    AnnotationLabel(23, "=", 'MEASURE',  'Measurement annotation'),
+    AnnotationLabel(24, "p", 'PWAVE',  'P-wave peak'),
+    AnnotationLabel(25, "B", 'BBB',  'Left or right bundle branch block'),
+    AnnotationLabel(26, "^", 'PACESP',  'Non-conducted pacer spike'),
+    AnnotationLabel(27, "t", 'TWAVE',  'T-wave peak'),
+    AnnotationLabel(28, "+", 'RHYTHM',  'Rhythm change'),
+    AnnotationLabel(29, "u", 'UWAVE',  'U-wave peak'),
+    AnnotationLabel(30, "?", 'LEARN',  'Learning'),
+    AnnotationLabel(31, "!", 'FLWAV',  'Ventricular flutter wave'),
+    AnnotationLabel(32, "[", 'VFON',  'Start of ventricular flutter/fibrillation'),
+    AnnotationLabel(33, "]", 'VFOFF',  'End of ventricular flutter/fibrillation'),
+    AnnotationLabel(34, "e", 'AESC',  'Atrial escape beat'),
+    AnnotationLabel(35, "n", 'SVESC',  'Supraventricular escape beat'),
+    AnnotationLabel(36, "@", 'LINK',  'Link to external data (aux contains URL)'),
+    AnnotationLabel(37, "x", 'NAPC',  'Non-conducted P-wave (blocked APB)'),
+    AnnotationLabel(38, "f", 'PFUS',  'Fusion of paced and normal beat'),
+    AnnotationLabel(39, "(", 'WFON',  'Waveform onset'),
+    AnnotationLabel(40, ")", 'WFOFF',  'Waveform end'),
+    AnnotationLabel(41, "r", 'RONT',  'R-on-T premature ventricular contraction'),
+    # AnnotationLabel(42, None, None, None),
+    # AnnotationLabel(43, None, None, None),
+    # AnnotationLabel(44, None, None, None),
+    # AnnotationLabel(45, None, None, None),
+    # AnnotationLabel(46, None, None, None),
+    # AnnotationLabel(47, None, None, None),
+    # AnnotationLabel(48, None, None, None),
+    # AnnotationLabel(49, None, None, None),
 ]
+
+
+ann_label_table = pd.DataFrame({'Store-Value':[al.store_value for al in ann_labels], 'Symbol':[al.symbol for al in ann_labels], 
+                               'Short-Description':[al.short_description for al in ann_labels], 'Description':[al.description for al in ann_labels]})
+ann_label_table.set_index('Store-Value', list(ann_label_table['Store-Value'].values))
+ann_label_table = ann_label_table[['Store-Value','Symbol','Short-Description','Description']]
+

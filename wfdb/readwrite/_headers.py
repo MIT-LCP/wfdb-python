@@ -633,6 +633,16 @@ segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, 
 
 # ---------- For storing WFDB Signal definitions ---------- #
 
+
+# Unit scales used for default display scales.
+unitscale = {
+    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
+    'Temperature': ['C'],
+    'Pressure': ['mmHg'],
+}
+
+
+
 # Signal class with all its parameters
 class SignalClass(object):
     def __init__(self, abbreviation, description, signalnames):
@@ -644,15 +654,8 @@ class SignalClass(object):
     def __str__(self):
         return self.abbreviation
 
-# Unit scales used for default display scales.
-unitscale = {
-    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
-    'Temperature': ['C'],
-    'Pressure': ['mmHg'],
-}
-
 # All signal types. Make sure signal names are in lower case.
-signalclasses = [
+sig_classes = [
     SignalClass('BP', 'Blood Pressure', ['bp','abp','pap','cvp',]),
     SignalClass('CO2', 'Carbon Dioxide', ['co2']),
     SignalClass('CO', 'Carbon Monoxide', ['co']),
