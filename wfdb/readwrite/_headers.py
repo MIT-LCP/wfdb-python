@@ -595,7 +595,7 @@ class WFDBheaderspecs():
         #    so that the user doesn't need to. But when reading, it should
         #    be clear that the fields are missing.
 
-inttypes = [int, np.int64, np.int32]
+inttypes = [int, np.int64, np.int32, np.int16]
 floattypes = inttypes + [float, np.float64, np.float32]
 
 # Record specification fields            
