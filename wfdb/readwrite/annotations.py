@@ -6,7 +6,6 @@ import copy
 from . import records
 from . import _headers
 from . import downloads
-import pdb
 
 # Class for WFDB annotations
 class Annotation(object):
@@ -14,24 +13,27 @@ class Annotation(object):
     The class representing WFDB annotations. 
 
     Annotation objects can be created using the constructor, or by reading a WFDB annotation
-    file with 'rdann'. 
+    file with 'rdann'.
 
     The attributes of the Annotation object give information about the annotation as specified
     by https://www.physionet.org/physiotools/wag/annot-5.htm:
-    - samp: The annotation location in sample relative to the beginning of the record.
-    - sym: The annotation type according the the standard WFDB codes.
-    - subtype: The marked class/category of the annotation.
-    - chan: The signal channel associated with the annotations.
-    - num: The labelled annotation number.
-    - aux_note: The auxiliary information string for the annotation.
-    - fs: The sampling frequency of the record if contained in the annotation file.
-    - custom_labels: The custom annotation types defined in the annotation file.
-      A list or tuple of (label_store,sym,description) or (sym,description) subelements.
-
-
-      eg. (('#','lost connection'), ('C','reconnected')
-
-    
+    - recordname: The base file name (without extension) of the record that the annotation
+      is attached to.
+    - extension: The file extension of the file the annotation is stored in.
+    - sample: The annotation locations in samples relative to the beginning of the record.
+    - symbol: The symbol used to display each annotation label.
+    - subtype: The marked class/category of each annotation.
+    - chan: The signal channel associated with each annotations.
+    - num: The labelled annotation number for each annotation.
+    - aux_note: The auxiliary information string for each annotation.
+    - fs: The sampling frequency of the record, if available.
+    - label_store: The integer value used to store/encode each annotation label
+    - description: The descriptive string of each annotation label
+    - custom_labels: The custom annotation labels defined in the annotation file.
+      Maps the relationship between the three label fields.
+      The data type is a pandas DataFrame with three columns: ['label_store', 'symbol', 'description']
+    - contained_labels: The unique labels contained in this annotation. Same structure
+      as custom_labels.
 
     Constructor function:
     def __init__(self, recordname, extension, sample, symbol=None, subtype=None,
@@ -44,11 +46,11 @@ class Annotation(object):
 
     Example usage:
     import wfdb
-    ann1 = wfdb.Annotation(recordname='ann1', extension='atr', samp=[10,20,400],
-                           sym = ['N','N','['], aux_note=[None, None, 'Serious Vfib'])
+    ann1 = wfdb.Annotation(recordname='rec1', extension='atr', sample=[10,20,400],
+                           symbol = ['N','N','['], aux_note=[None, None, 'Serious Vfib'])
     """
 
-    #__label_map__: (storevalue, symbol, description) hidden attribute
+    
     def __init__(self, recordname, extension, sample, symbol=None, subtype=None,
                  chan=None, num=None, aux_note=None, fs=None, label_store=None,
                  description=None, custom_labels=None, contained_labels=None):
@@ -56,7 +58,6 @@ class Annotation(object):
         self.extension = extension
 
         self.sample = sample
-
         self.symbol = symbol
 
         self.subtype = subtype
@@ -71,6 +72,7 @@ class Annotation(object):
         self.custom_labels = custom_labels
         self.contained_labels = contained_labels
 
+        #__label_map__: (storevalue, symbol, description) hidden attribute
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other):
@@ -988,8 +990,8 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
     - The record name of the WFDB record (recordname)
     - The annotation file extension (extension)
     - The annotation locations in samples relative to the beginning of the record (sample)
-    - Either the numerical values used to store the labels (label_store), or the display
-      symbols of each label (symbol).
+    - Either the numerical values used to store the labels (label_store), or more commonly, 
+      the display symbols of each label (symbol).
 
 
     Usage:
@@ -1002,9 +1004,9 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
     - sample (required): The annotation location in samples relative to the beginning of the record. Numpy array.
     - symbol (default=None): The symbols used to display the annotation labels. List or numpy array. If this field
       is present, 'label_store' must not be present.
-    - subtype (default=None): The marked class/category of the annotation. Numpy array.
-    - chan (default=None): The signal channel associated with the annotations. Numpy array.
-    - num (default=None): The labelled annotation number. Numpy array.
+    - subtype (default=None): The marked class/category of each annotation. Numpy array.
+    - chan (default=None): The signal channel associated with each annotation. Numpy array.
+    - num (default=None): The labelled annotation number of each annotation. Numpy array.
     - aux_note (default=None): The auxiliary information strings. List or numpy array.
     - label_store (default=None): The integer values used to store the annotation labels. Numpy array.
       If this field is present, 'symbol' must not be present.
@@ -1029,7 +1031,7 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
           
           You may also create an Annotation object, manually set its attributes, and call its wrann() instance method. 
           
-    Note: Each annotation stored in a WFDB annotation file contains an sample and an symbol field. All other fields
+    Note: Each annotation stored in a WFDB annotation file contains a sample field and a label field. All other fields
           may or may not be present.
     
     Example Usage:
@@ -1087,7 +1089,8 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     Annotation object.
 
     Usage: 
-    annotation = rdann(recordname, extension, sampfrom=0, sampto=None, pbdir=None)
+    annotation = rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
+                 pbdir=None, return_label_elements=['symbol'], summarize_labels=False)
 
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
@@ -1102,17 +1105,19 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
       directory from which to find the required annotation file.
       eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
-    - return_label_elements (default=['symbol']):
-    - summarize_labels (default=False): Assign a summary table of the annotation labels
+    - return_label_elements (default=['symbol']): The label elements that are to be returned
+      from reading the annotation file. A list with at least one of the following: 'symbol',
+      'label_store', 'description'.
+    - summarize_labels (default=False): Assign a summary table of the set of annotation labels
       contained in the file to the 'contained_labels' attribute of the returned object.
       This table will contain the columns: ['label_store', 'symbol', 'description', 'n_occurences']
 
     Output argument:
     - annotation: The Annotation object. Call help(wfdb.Annotation) for the attribute
-      description.
+      descriptions.
 
-    Note: For every annotation sample, the annotation file explictly stores the 'samp' 
-    and 'sym' fields but not necessarily the others. When reading annotation files
+    Note: For every annotation sample, the annotation file explictly stores the 'sample' 
+    and 'symbol' fields but not necessarily the others. When reading annotation files
     using this function, fields which are not stored in the file will either take their
     default values of 0 or None, or will be carried over from their previous values if any.
 
