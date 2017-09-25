@@ -9,7 +9,6 @@ from . import downloads
 # Class of common methods for single and multi-segment headers
 class BaseHeadersMixin(object):
 
-
     # Helper function for getwritefields
     # specfields is the set of specification fields
     # For record specs, it returns a list of all fields needed.
@@ -595,7 +594,7 @@ class WFDBheaderspecs():
         #    so that the user doesn't need to. But when reading, it should
         #    be clear that the fields are missing.
 
-inttypes = [int, np.int64, np.int32, np.int16]
+inttypes = [int, np.int64, np.int32, np.int16, np.int8]
 floattypes = inttypes + [float, np.float64, np.float32]
 
 # Record specification fields            
