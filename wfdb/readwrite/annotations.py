@@ -122,14 +122,15 @@ class Annotation(object):
         # Standardize the format of the custom_labels field
         self.standardize_custom_labels()
 
+        # Create the label map used in this annotaion
+        self.create_label_map()
+
         # Check the cohesion of fields
         self.check_field_cohesion(present_label_fields)
         
-        self.create_label_map()
-
         # Calculate the label_store field if necessary
-        if present_label_fields[0] != 'label_store':
-            self.label_store = 
+        if 'label_store' not in present_label_fields:
+            convert_label_attribute(source_field=present_label_fields[0], target_field='label_store')
 
         # Write the header file using the specified fields
         self.wrannfile(writefs=writefs)
@@ -244,31 +245,6 @@ class Annotation(object):
                 if bool(re.search('[\t\n\r\f\v]', description[i])):
                     raise ValueError('The description values of the '+field+' field must not contain tabs or newlines')
 
-
-
-
-
-            # ------------------------------------------------
-
-
-            # If the item is not a df, convert it first (if valid)
-            if not isinstance(item, pd.DataFrame):
-                if set([len(i) for i in item]) == {2}:
-                    item = label_pairs_to_df(item)
-                elif set([len(i) for i in item]) == {3}:
-                    item = label_triplets_to_df(item)
-                else:
-                    raise ValueError(''.join(['If the '+field+' field is an array-like object, its subelements',
-                                             ' must be one of the following:\n- tuple triplets storing: ',
-                                             '(label_store symbol, description)\n- tuple pairs storing: ',
-                                             '(symbol, description)']))
-                
-      
-
-            # ------------------------------------------------
-
-
-
         # The string fields
         elif field in ['symbol', 'description', 'aux_note']:
             uniq_elements = set(item)
@@ -316,9 +292,8 @@ class Annotation(object):
                 raise ValueError("The 'num' field must only contain non-negative integers up to 127")
 
         return
-                
 
-    
+
     def check_field_cohesion(self, present_label_fields):
         """
         Check that the content and structure of different fields are consistent
@@ -332,22 +307,18 @@ class Annotation(object):
                 if len(getattr(self, field)) != nannots:
                     raise ValueError("The lengths of the 'sample' and '"+field+"' fields do not match")
 
-        # Deal with label fields.
+        # Ensure all label fields are defined by the label map. This has to be checked because
+        # it is possible the user defined (or lack of) custom_labels does not capture all the 
+        # labels present.
+        for field in present_label_fields:
+            defined_values = self.__label_map__[field].values
+            if set(getattr(self, field)) - defined_values != {}:
+                raise ValueError('\n'.join('\nThe '+field+' field contains elements not encoded in the stardard WFDB annotation labels or this object\'s custom_labels field',
+                                      'To see the standard WFDB annotation labels, call: show_ann_labels()',
+                                      'To transfer non-encoded symbol items into the aux_note field, call: self.sym_to_aux()',
+                                      'To define custom labels, set the custom_labels field as a list of tuple triplets with format: (label_store, symbol, description)'))
 
-        if self.custom_labels is None:
-            defined_values = set(ann_label_table[field].values)
-        else:
-            # If this runs successfully, custom_labels is now a df
-            self.checkfield(custom_labels)
-            defined_values = set(ann_label_table[field].values).intersection(set(self.custom_labels[field].values))
-
-        # Ensure all fields are defined by standard WFDB annotation labels or custom labels
-        if set(getattr(self, field)) - defined_values != set():
-            raise ValueError('\n'.join('\nThe '+field+' field contains elements not encoded in the stardard WFDB annotation labels or this object\'s custom_labels field',
-                                  'To see the standard WFDB annotation labels, call: show_ann_labels()',
-                                  'To transfer non-encoded symbol items into the aux_note field call: self.sym_to_aux()',
-                                  'To define custom labels, set the custom_labels field as a list of tuple triplets with format: (label_store, symbol, description)'))
-
+        return
 
 
     def standardize_custom_labels(self):
@@ -356,7 +327,8 @@ class Annotation(object):
         3 column pandas df with ann_label_fields as columns.
 
         Does nothing if there are no custom labels defined.
-        
+        Does nothing if custom_labels is already a df with all 3 columns
+
         If custom_labels is an iterable of pairs/triplets, this
         function will convert it into a df.
 
@@ -535,8 +507,7 @@ class Annotation(object):
         label_map =  ann_label_table.copy()
 
         if self.custom_labels is not None:
-            self.checkfield('custom_labels')
-
+            self.standardize_custom_labels()
             for i in self.custom_labels.index:
                 label_map.loc[i] = self.custom_labels.loc[i]
         
@@ -553,11 +524,11 @@ class Annotation(object):
         """
 
         # Calculate the fs bytes to write if present and desired to write
-        fs_bytes = self.get_fs_bytes()
+        fs_bytes = self.calc_fs_bytes()
         # Calculate the custom_labels bytes to write if present
-        cl_bytes = self.get_cl_bytes()
+        cl_bytes = self.calc_cl_bytes()
         # Calculate the core field bytes to write
-        core_bytes = self.get_core_bytes()
+        core_bytes = self.calc_core_bytes()
 
         # Write the file
         with open(self.recordname+'.'+self.extension, 'wb') as f:
@@ -567,7 +538,7 @@ class Annotation(object):
         return
 
     # Calculate the bytes written to the annotation file for the fs field
-    def get_fs_bytes(self):
+    def calc_fs_bytes(self):
 
         if self.fs is None:
             return []
@@ -599,7 +570,7 @@ class Annotation(object):
         return np.array(data_bytes).astype('u1')
 
     # Calculate the bytes written to the annotation file for the custom_labels field
-    def get_cl_bytes(self):
+    def calc_cl_bytes(self):
 
         if self.custom_labels is None:
             return []
@@ -625,7 +596,7 @@ class Annotation(object):
 
         return np.array(headbytes+custom_bytes+tailbytes).astype('u1')
 
-    def get_core_bytes(self):
+    def calc_core_bytes(self):
         """
         Convert all used annotation fields into bytes to write
         """
@@ -708,7 +679,7 @@ class Annotation(object):
         self.checkfield('symbol')
 
         # Non-encoded symbols
-        label_table_map = self.create_label_map()
+        label_table_map = self.create_label_map(inplace=False)
         external_syms = set(self.symbol) - set(label_table_map['symbol'].values)
 
         if external_syms == set():
