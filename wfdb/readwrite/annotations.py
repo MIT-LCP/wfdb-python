@@ -130,7 +130,7 @@ class Annotation(object):
         
         # Calculate the label_store field if necessary
         if 'label_store' not in present_label_fields:
-            convert_label_attribute(source_field=present_label_fields[0], target_field='label_store')
+            self.convert_label_attribute(source_field=present_label_fields[0], target_field='label_store')
 
         # Write the header file using the specified fields
         self.wrannfile(writefs=writefs)
@@ -172,7 +172,7 @@ class Annotation(object):
 
         # Field specific checks
         if field == 'recordname':
-            if bool(re.search('[^-\w]', self.recordname))
+            if bool(re.search('[^-\w]', self.recordname)):
                 raise ValueError('recordname must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'extension':
             if bool(re.search('[^a-zA-Z]', self.extension)):
@@ -193,7 +193,7 @@ class Annotation(object):
                 column_names = list(item)
                 if 'symbol' in column_names and 'description' in column_names:
                     if 'label_store' in column_names:
-                        label_store = item['label_store'].values
+                        label_store = list(item['label_store'].values)
                     else:
                         label_store = None
                     symbol = item['symbol'].values
@@ -312,11 +312,12 @@ class Annotation(object):
         # labels present.
         for field in present_label_fields:
             defined_values = self.__label_map__[field].values
-            if set(getattr(self, field)) - defined_values != {}:
-                raise ValueError('\n'.join('\nThe '+field+' field contains elements not encoded in the stardard WFDB annotation labels or this object\'s custom_labels field',
-                                      'To see the standard WFDB annotation labels, call: show_ann_labels()',
-                                      'To transfer non-encoded symbol items into the aux_note field, call: self.sym_to_aux()',
-                                      'To define custom labels, set the custom_labels field as a list of tuple triplets with format: (label_store, symbol, description)'))
+
+            if set(getattr(self, field)) - set(defined_values) != set():
+                raise ValueError('\n'.join(['\nThe '+field+' field contains elements not encoded in the stardard WFDB annotation labels, or this object\'s custom_labels field',
+                                      '- To see the standard WFDB annotation labels, call: show_ann_labels()',
+                                      '- To transfer non-encoded symbol items into the aux_note field, call: self.sym_to_aux()',
+                                      '- To define custom labels, set the custom_labels field as a list of tuple triplets with format: (label_store, symbol, description)']))
 
         return
 
@@ -355,20 +356,23 @@ class Annotation(object):
         # Convert to dataframe if not already
         if not isinstance(custom_labels, pd.DataFrame):
             if len(self.custom_labels[0]) == 2:
-                symbol , description = get_custom_label_attribute(['symbol', 'description'])
+                symbol = self.get_custom_label_attribute('symbol')
+                description = self.get_custom_label_attribute('description')
                 custom_labels = pd.DataFrame({'symbol': symbol, 'description': description})
             else:
-                label_store, symbol , description = get_custom_label_attribute(['label_store', 'symbol', 'description'])
+                label_store = self.get_custom_label_attribute('label_store')
+                symbol = self.get_custom_label_attribute('symbol')
+                description = self.get_custom_label_attribute('description')
                 custom_labels = pd.DataFrame({'label_store':label_store, 'symbol': symbol, 'description': description})
 
         # Assign label_store values to the custom labels if not defined
         if 'label_store' not in list(custom_labels):
-
             undefined_label_stores = self.get_undefined_label_stores()
+            
             if len(custom_labels) > len(undefined_label_stores):
-                    available_label_stores = self.get_available_label_stores()
-                else:
-                    available_label_stores = undefined_label_stores
+                available_label_stores = self.get_available_label_stores()
+            else:
+                available_label_stores = undefined_label_stores
 
             n_custom_labels = custom_labels.shape[0]
 
@@ -378,6 +382,8 @@ class Annotation(object):
             custom_labels['label_store'] = available_label_stores[:n_custom_labels]
 
         custom_labels.set_index(custom_labels['label_store'].values, inplace=True)
+        custom_labels = custom_labels[list(ann_label_fields)]
+
         self.custom_labels = custom_labels
 
         return
@@ -439,14 +445,14 @@ class Annotation(object):
             # Get the standard wfdb label_store values overwritten by the 
             # custom_labels if any
             if self.custom_symbols is not None:
-                custom_field = set(get_custom_label_attribute(usefield))
+                custom_field = set(self.get_custom_label_attribute(usefield))
                 if usefield == 'label_store':
                     overwritten_label_stores = set(custom_field).intersection(set(ann_label_table['label_store']))
                 else:
                     overwritten_fields = set(custom_field).intersection(set(ann_label_table[usefield]))
                     overwritten_label_stores = ann_label_table.loc[ann_label_table[usefield] in overwritten_fields, 'label_store'].values
             else:
-                overwritten_label_stores = {}
+                overwritten_label_stores = set()
 
 
             # The undefined values in the standard wfdb labels
@@ -462,13 +468,9 @@ class Annotation(object):
         Get a list of the custom_labels attribute.
         ie. label_store, symbol, or description.
 
-        attribute can also be a list of attributes.
-
         The custom_labels variable could be in
         a number of formats
         """
-        if type(attribute) != 'string':
-            return [get_custom_label_attribute[a] for a in attribute]
 
         if attribute not in ann_label_fields:
             raise ValueError('Invalid attribute specified')
@@ -524,16 +526,25 @@ class Annotation(object):
         """
 
         # Calculate the fs bytes to write if present and desired to write
-        fs_bytes = self.calc_fs_bytes()
+        if writefs:
+            fs_bytes = self.calc_fs_bytes()
+        else:
+            fs_bytes = []
         # Calculate the custom_labels bytes to write if present
         cl_bytes = self.calc_cl_bytes()
         # Calculate the core field bytes to write
         core_bytes = self.calc_core_bytes()
 
+        # Mark the end of the special annotation types if needed
+        if fs_bytes == [] and cl_bytes == []:
+            end_special_bytes = []
+        else:
+            end_special_bytes = [0, 236, 255, 255, 255, 255, 1, 0]
+
         # Write the file
         with open(self.recordname+'.'+self.extension, 'wb') as f:
-            # Combine all bytes to write: fs (if any), custom annotations (inf any), main content, file terminator
-            np.concatenate((fsbytes, core_bytes, data_bytes, np.array([0,0]))).astype('u1').tofile(f)
+            # Combine all bytes to write: fs (if any), custom annotations (if any), main content, file terminator
+            np.concatenate((fs_bytes, cl_bytes, end_special_bytes, core_bytes, np.array([0,0]))).astype('u1').tofile(f)
         
         return
 
@@ -564,9 +575,6 @@ class Annotation(object):
         if ndigits % 2:
             data_bytes.append(0)
 
-        # Add the extra -1 0 notqrs filler
-        data_bytes = data_bytes+[0, 236, 255, 255, 255, 255, 1, 0]
-
         return np.array(data_bytes).astype('u1')
 
     # Calculate the bytes written to the annotation file for the custom_labels field
@@ -581,11 +589,12 @@ class Annotation(object):
 
         # The end wrapper: '0 NOTE length aux_note ## end of definitions' followed by SKIP -1, +1
         tailbytes =  [0,88,21,252,35,35,32,101,110,100,32,111,102,32,100,101,102,105,110,
-                      105,116,105,111,110,115,0,0,236,255,255,255,255,1,0]
+                      105,116,105,111,110,115,0]
 
         custom_bytes = []
+
         for i in self.custom_labels.index:
-            custom_bytes += custom_triplet_bytes(list(self.custom_labels.loc[i,:]))
+            custom_bytes += custom_triplet_bytes(list(self.custom_labels.loc[i, list(ann_label_fields)]))
 
         # writecontent = []
         # for i in range(len(self.custom_labels)):
@@ -622,7 +631,7 @@ class Annotation(object):
         for i in range(len(sampdiff)):
 
             # Process the samp (difference) and sym items
-            data_bytes.append(field2bytes('samptype', [sampdiff[i], self.sym[i]]))
+            data_bytes.append(field2bytes('samptype', [sampdiff[i], self.symbol[i]]))
 
             # Process the extra optional fields
             for field in extra_write_fields:
@@ -640,7 +649,7 @@ class Annotation(object):
     def compact_fields(self):
 
         # Number of annotations
-        nannots = len(self.samp)
+        nannots = len(self.sample)
 
         # Chan and num carry over previous fields. Get lists of as few
         # elements to write as possible
@@ -686,7 +695,7 @@ class Annotation(object):
             return
 
         if self.aux_note is None:
-            self.aux_note = ['']*len(self.samp)
+            self.aux_note = ['']*len(self.sample)
 
         for ext in external_syms:
             for i in [i for i,x in enumerate(self.symbol) if x == ext]:
@@ -815,12 +824,12 @@ class Annotation(object):
             if getattr(self, target_field) is not None:
                 return
 
-        label_map_table = self.create_label_map()
-        label_map_table.set_index(label_map_table[source_field].values, inplace=True)
+        label_map = self.create_label_map(inplace=False)
+        label_map.set_index(label_map[source_field].values, inplace=True)
 
-        target_item = label_map_table.loc[getattr(self, source_field), target_field].values
+        target_item = label_map.loc[getattr(self, source_field), target_field].values
 
-        if source_field != 'label_store':
+        if target_field != 'label_store':
             # Should already be int64 dtype if target is label_store
             target_item = list(target_item)
 
@@ -854,7 +863,6 @@ def custom_triplet_bytes(custom_triplet):
     Convert triplet of [label_store, symbol, description] into bytes
     for defining custom labels in the annotation file
     """
-
     # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space, description, (0 null if necessary)
     # Remember, aux_note string includes 'number(s)<space><symbol><space><description>''
     annbytes = [0, 88, len(custom_triplet[2]) + 3 + len(str(custom_triplet[0])), 252] + [ord(c) for c in str(custom_triplet[0])] \
@@ -871,7 +879,7 @@ def isblank(x):
     if x is None:
         return True
     elif isinstance(x, list):
-        set(x) == set([None]):
+        if set(x) == set([None]):
             return True
     return False
 
@@ -1142,6 +1150,8 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     annotation = Annotation(os.path.split(recordname)[1], extension, sample=sample, label_store=label_store,
                             subtype=subtype, chan=chan, num=num, aux_note=aux_note, fs=fs,
                             custom_labels=custom_labels)
+
+
 
     # Get the set of unique label definitions contained in this annotation
     if summarize_labels:
@@ -1427,7 +1437,7 @@ def lists_to_arrays(*args):
 # Allowed types of each Annotation object attribute.
 ann_field_types = {'recordname': (str), 'extension': (str), 'sample': (np.ndarray),
                  'symbol': (list, np.ndarray),  'subtype': (np.ndarray), 'chan': (np.ndarray),
-                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': _headers.floattypes,
+                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': tuple(_headers.floattypes),
                  'label_store': (np.ndarray), 'description':(list, np.ndarray), 'custom_labels': (pd.DataFrame, list, tuple),
                  'contained_labels':(pd.DataFrame, list, tuple)}
 
