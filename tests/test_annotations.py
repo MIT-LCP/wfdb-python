@@ -14,8 +14,8 @@ class test_rdann():
         
         # This is not the fault of the script. The annotation file specifies a
         # length 3
-        annotation.aux[0] = '(N'
-        # aux field with a null written after '(N' which the script correctly picks up. I am just
+        annotation.aux_note[0] = '(N'
+        # aux_note field with a null written after '(N' which the script correctly picks up. I am just
         # getting rid of the null in this unit test to compare with the regexp output below which has
         # no null to detect in the output text file of rdann.
 
@@ -23,48 +23,50 @@ class test_rdann():
         lines = tuple(open('tests/targetoutputdata/anntarget1', 'r'))
         nannot = len(lines)
 
-        Ttime = [None] * nannot
-        Tannsamp = np.empty(nannot, dtype='object')
-        Tanntype = [None] * nannot
-        Tsubtype = np.empty(nannot, dtype='object')
-        Tchan = np.empty(nannot, dtype='object')
-        Tnum = np.empty(nannot, dtype='object')
-        Taux = [None] * nannot
+        target_time = [None] * nannot
+        target_sample = np.empty(nannot, dtype='object')
+        target_symbol = [None] * nannot
+        target_subtype = np.empty(nannot, dtype='object')
+        target_chan = np.empty(nannot, dtype='object')
+        target_num = np.empty(nannot, dtype='object')
+        target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<annsamp>\d+) +(?P<anntype>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux>.*)')
+            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)')
 
         for i in range(0, nannot):
-            Ttime[i], Tannsamp[i], Tanntype[i], Tsubtype[i], Tchan[
-                i], Tnum[i], Taux[i] = RXannot.findall(lines[i])[0]
+            target_time[i], target_sample[i], target_symbol[i], target_subtype[i], target_chan[
+                i], target_num[i], target_aux_note[i] = RXannot.findall(lines[i])[0]
 
         # Convert objects into integers
-        Tannsamp = Tannsamp.astype('int')
-        Tnum = Tnum.astype('int')
-        Tsubtype = Tsubtype.astype('int')
-        Tchan = Tchan.astype('int')
+        target_sample = target_sample.astype('int')
+        target_num = target_num.astype('int')
+        target_subtype = target_subtype.astype('int')
+        target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
-                np.array_equal(annotation.anntype, Tanntype), 
-                np.array_equal(annotation.subtype, Tsubtype), 
-                np.array_equal(annotation.chan, Tchan), 
-                np.array_equal(annotation.num, Tnum), 
-                annotation.aux == Taux]
+        comp = [np.array_equal(annotation.sample, target_sample), 
+                np.array_equal(annotation.symbol, target_symbol), 
+                np.array_equal(annotation.subtype, target_subtype), 
+                np.array_equal(annotation.chan, target_chan), 
+                np.array_equal(annotation.num, target_num), 
+                annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb')
-        pbannotation.aux[0] = '(N'
+        pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb', return_label_elements=['label_store', 'symbol'])
+        pbannotation.aux_note[0] = '(N'
+        pbannotation.create_label_map()
         
         # Test file writing
         annotation.wrann(writefs=True)
-        annotationwrite = wfdb.rdann('100', 'atr')
+        writeannotation = wfdb.rdann('100', 'atr', return_label_elements=['label_store', 'symbol'])
+        writeannotation.create_label_map()
 
         assert (comp == [True] * 6)
         assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(annotationwrite)
+        assert annotation.__eq__(writeannotation)
 
-    # Test 2 - Annotation file 12726.anI with many aux strings.
+    # Test 2 - Annotation file 12726.anI with many aux_note strings.
     # Target file created with: rdann -r sampledata/100 -a atr > anntarget2
     def test_2(self):
 
@@ -75,44 +77,46 @@ class test_rdann():
         lines = tuple(open('tests/targetoutputdata/anntarget2', 'r'))
         nannot = len(lines)
 
-        Ttime = [None] * nannot
-        Tannsamp = np.empty(nannot, dtype='object')
-        Tanntype = [None] * nannot
-        Tsubtype = np.empty(nannot, dtype='object')
-        Tchan = np.empty(nannot, dtype='object')
-        Tnum = np.empty(nannot, dtype='object')
-        Taux = [None] * nannot
+        target_time = [None] * nannot
+        target_sample = np.empty(nannot, dtype='object')
+        target_symbol = [None] * nannot
+        target_subtype = np.empty(nannot, dtype='object')
+        target_chan = np.empty(nannot, dtype='object')
+        target_num = np.empty(nannot, dtype='object')
+        target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<annsamp>\d+) +(?P<anntype>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux>.*)')
+            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)')
 
         for i in range(0, nannot):
-            Ttime[i], Tannsamp[i], Tanntype[i], Tsubtype[i], Tchan[
-                i], Tnum[i], Taux[i] = RXannot.findall(lines[i])[0]
+            target_time[i], target_sample[i], target_symbol[i], target_subtype[i], target_chan[
+                i], target_num[i], target_aux_note[i] = RXannot.findall(lines[i])[0]
 
         # Convert objects into integers
-        Tannsamp = Tannsamp.astype('int')
-        Tnum = Tnum.astype('int')
-        Tsubtype = Tsubtype.astype('int')
-        Tchan = Tchan.astype('int')
+        target_sample = target_sample.astype('int')
+        target_num = target_num.astype('int')
+        target_subtype = target_subtype.astype('int')
+        target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
-                np.array_equal(annotation.anntype, Tanntype), 
-                np.array_equal(annotation.subtype, Tsubtype), 
-                np.array_equal(annotation.chan, Tchan), 
-                np.array_equal(annotation.num, Tnum), 
-                annotation.aux == Taux]
+        comp = [np.array_equal(annotation.sample, target_sample), 
+                np.array_equal(annotation.symbol, target_symbol), 
+                np.array_equal(annotation.subtype, target_subtype), 
+                np.array_equal(annotation.chan, target_chan), 
+                np.array_equal(annotation.num, target_num), 
+                annotation.aux_note == target_aux_note]
         # Test file streaming
-        pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp')
+        pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp', return_label_elements=['label_store', 'symbol'])
+        pbannotation.create_label_map()
 
         # Test file writing
         annotation.wrann(writefs=True)
-        annotationwrite = wfdb.rdann('12726', 'anI')
+        writeannotation = wfdb.rdann('12726', 'anI', return_label_elements=['label_store', 'symbol'])
+        writeannotation.create_label_map()
 
         assert (comp == [True] * 6)
         assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(annotationwrite)
+        assert annotation.__eq__(writeannotation)
 
     # Test 3 - Annotation file 1003.atr with custom annotation types
     # Target file created with: rdann -r sampledata/1003 -a atr > anntarget3
@@ -125,42 +129,44 @@ class test_rdann():
         lines = tuple(open('tests/targetoutputdata/anntarget3', 'r'))
         nannot = len(lines)
 
-        Ttime = [None] * nannot
-        Tannsamp = np.empty(nannot, dtype='object')
-        Tanntype = [None] * nannot
-        Tsubtype = np.empty(nannot, dtype='object')
-        Tchan = np.empty(nannot, dtype='object')
-        Tnum = np.empty(nannot, dtype='object')
-        Taux = [None] * nannot
+        target_time = [None] * nannot
+        target_sample = np.empty(nannot, dtype='object')
+        target_symbol = [None] * nannot
+        target_subtype = np.empty(nannot, dtype='object')
+        target_chan = np.empty(nannot, dtype='object')
+        target_num = np.empty(nannot, dtype='object')
+        target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<annsamp>\d+) +(?P<anntype>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux>.*)')
+            '[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)')
 
         for i in range(0, nannot):
-            Ttime[i], Tannsamp[i], Tanntype[i], Tsubtype[i], Tchan[
-                i], Tnum[i], Taux[i] = RXannot.findall(lines[i])[0]
+            target_time[i], target_sample[i], target_symbol[i], target_subtype[i], target_chan[
+                i], target_num[i], target_aux_note[i] = RXannot.findall(lines[i])[0]
 
         # Convert objects into integers
-        Tannsamp = Tannsamp.astype('int')
-        Tnum = Tnum.astype('int')
-        Tsubtype = Tsubtype.astype('int')
-        Tchan = Tchan.astype('int')
+        target_sample = target_sample.astype('int')
+        target_num = target_num.astype('int')
+        target_subtype = target_subtype.astype('int')
+        target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.annsamp, Tannsamp), 
-                np.array_equal(annotation.anntype, Tanntype), 
-                np.array_equal(annotation.subtype, Tsubtype), 
-                np.array_equal(annotation.chan, Tchan), 
-                np.array_equal(annotation.num, Tnum), 
-                annotation.aux == Taux]
+        comp = [np.array_equal(annotation.sample, target_sample), 
+                np.array_equal(annotation.symbol, target_symbol), 
+                np.array_equal(annotation.subtype, target_subtype), 
+                np.array_equal(annotation.chan, target_chan), 
+                np.array_equal(annotation.num, target_num), 
+                annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('1003', 'atr', pbdir = 'challenge/2014/set-p2')
-        
+        pbannotation = wfdb.rdann('1003', 'atr', pbdir = 'challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
+        pbannotation.create_label_map()
+
         # Test file writing
         annotation.wrann(writefs=True)
-        annotationwrite = wfdb.rdann('1003', 'atr')
+        writeannotation = wfdb.rdann('1003', 'atr', return_label_elements=['label_store', 'symbol'])
+        writeannotation.create_label_map()
 
         assert (comp == [True] * 6)
         assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(annotationwrite)
+        assert annotation.__eq__(writeannotation)

@@ -78,6 +78,7 @@ class Annotation(object):
         att2 = other.__dict__
 
         if set(att1.keys()) != set(att2.keys()):
+            print('keyset')
             return False
 
         for k in att1.keys():
@@ -85,13 +86,20 @@ class Annotation(object):
             v2 = att2[k]
 
             if type(v1) != type(v2):
+                print(k)
                 return False
 
             if isinstance(v1, np.ndarray):
                 if not np.array_equal(v1, v2):
+                    print(k)
+                    return False
+            elif isinstance(v1, pd.DataFrame):
+                if not v1.equals(v2):
+                    print(k)
                     return False
             else:
                 if v1 != v2:
+                    print(k)
                     return False
 
         return True
@@ -1152,7 +1160,6 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
                             custom_labels=custom_labels)
 
 
-
     # Get the set of unique label definitions contained in this annotation
     if summarize_labels:
         annotation.get_contained_labels(inplace=True)
@@ -1179,14 +1186,14 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
     return return_label_elements
 
 # Load the annotation file 1 byte at a time and arrange in pairs
-def load_byte_pairs(recordname, annot, pbdir):
+def load_byte_pairs(recordname, extension, pbdir):
     # local file
     if pbdir is None:
-        with open(recordname + '.' + annot, 'rb') as f:
+        with open(recordname + '.' + extension, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # physiobank file
     else:
-        filebytes = downloads.streamannotation(recordname+'.'+annot, pbdir).reshape([-1, 2])
+        filebytes = downloads.streamannotation(recordname+'.'+extension, pbdir).reshape([-1, 2])
 
     return filebytes
 
@@ -1288,13 +1295,13 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
     # CHAN
     elif label_store == 62:
         # chan is interpreted as unsigned char
-        chan[ai] = filebytes[bpi, 0]
+        chan.append(filebytes[bpi, 0])
         update['chan'] = False
         bpi = bpi + 1
     # NUM
     elif label_store == 60:
         # num is interpreted as signed char
-        num[ai] = filebytes[bpi, 0].astype('i1')
+        num.append(filebytes[bpi, 0].astype('i1'))
         update['num'] = False
         bpi = bpi + 1
     # aux_note

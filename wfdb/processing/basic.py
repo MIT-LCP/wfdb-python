@@ -4,16 +4,16 @@ from scipy import signal
 from wfdb import Annotation
 
 
-def resample_ann(tt, annsamp):
+def resample_ann(tt, sample):
     # tt: numpy.array as returned by signal.resample
-    # annsamp: numpy.array containing indexes of annotations (Annotation.annsamp)
+    # sample: numpy.array containing indexes of annotations (Annotation.sample)
 
     # Compute the new annotation indexes
 
     tmp = numpy.zeros(len(tt), dtype='int16')
     j = 0
     tprec = tt[j]
-    for i, v in enumerate(annsamp):
+    for i, v in enumerate(sample):
         while True:
             d = False
             if v < tprec:
@@ -41,7 +41,7 @@ def resample_ann(tt, annsamp):
     for i in idx:
         for j in range(tmp[i]):
             res.append(i)
-    assert len(res) == len(annsamp)
+    assert len(res) == len(sample)
     return numpy.asarray(res, dtype='int64')
 
 
@@ -74,10 +74,10 @@ def resample_singlechan(x, ann, fs, fs_target):
 
     xx, tt = resample_sig(x, fs, fs_target)
 
-    new_annsamp = resample_ann(tt, ann.annsamp)
-    assert ann.annsamp.shape == new_annsamp.shape
+    new_sample = resample_ann(tt, ann.sample)
+    assert ann.sample.shape == new_sample.shape
 
-    new_ann = Annotation(ann.recordname, ann.annotator, new_annsamp, ann.anntype, ann.num, ann.subtype, ann.chan, ann.aux, ann.fs)
+    new_ann = Annotation(ann.recordname, ann.extension, new_sample, ann.symbol, ann.num, ann.subtype, ann.chan, ann.aux_note, ann.fs)
     return xx, new_ann
 
 
@@ -100,10 +100,10 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
         if chan == resamp_ann_chan:
             lt = tt
 
-    new_annsamp = resample_ann(lt, ann.annsamp)
-    assert ann.annsamp.shape == new_annsamp.shape
+    new_sample = resample_ann(lt, ann.sample)
+    assert ann.sample.shape == new_sample.shape
 
-    new_ann = Annotation(ann.recordname, ann.annotator, new_annsamp, ann.anntype, ann.num, ann.subtype, ann.chan, ann.aux, ann.fs)
+    new_ann = Annotation(ann.recordname, ann.extension, new_sample, ann.symbol, ann.num, ann.subtype, ann.chan, ann.aux_note, ann.fs)
     return numpy.column_stack(lx), new_ann
 
 

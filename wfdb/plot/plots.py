@@ -19,7 +19,7 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
     - record (required): A wfdb Record object. The p_signals attribute will be plotted.
     - title (default=None): A string containing the title of the graph.
     - annotation (default=None): A list of Annotation objects or numpy arrays. The locations of the Annotation
-      objects' 'annsamp' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals.
+      objects' 'sample' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals.
       The list index of the annotation item corresponds to the signal channel that each annotation set will be
       plotted on. For channels without annotations to plot, put None in the list. This argument may also be just
       an Annotation object or numpy array, which will be plotted over channel 0.
@@ -255,7 +255,7 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
 
         # Move single channel annotations to channel 0
         if type(annotation) == annotations.Annotation:
-            annplot[0] = annotation.annsamp
+            annplot[0] = annotation.sample
         elif type(annotation) == np.ndarray:
             annplot[0] = annotation
         # Ready list.
@@ -267,7 +267,7 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
             # Check elements. Copy over to new list.
             for ch in range(record.nsig):
                 if type(annotation[ch]) == annotations.Annotation:
-                    annplot[ch] = annotation[ch].annsamp
+                    annplot[ch] = annotation[ch].sample
                 elif type(annotation[ch]) == np.ndarray:
                     annplot[ch] = annotation[ch]
                 elif annotation[ch] is None:
@@ -307,7 +307,7 @@ def plotann(annotation, title = None, timeunits = 'samples', returnfig = False):
     Usage: plotann(annotation, title = None, timeunits = 'samples', returnfig = False)
     
     Input arguments:
-    - annotation (required): An Annotation object. The annsamp attribute locations will be overlaid on the signal.
+    - annotation (required): An Annotation object. The sample attribute locations will be overlaid on the signal.
     - title (default=None): A string containing the title of the graph.
     - timeunits (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
@@ -368,13 +368,13 @@ def checkannplotitems(annotation, title, timeunits):
 
     # Get x axis values to plot
     if timeunits == 'samples':
-        plotvals = annotation.annsamp
+        plotvals = annotation.sample
     elif timeunits == 'seconds':
-        plotvals = annotation.annsamp/annotation.fs
+        plotvals = annotation.sample/annotation.fs
     elif timeunits == 'minutes':
-        plotvals = annotation.annsamp/(annotation.fs*60)
+        plotvals = annotation.sample/(annotation.fs*60)
     elif timeunits == 'hours':
-        plotvals = annotation.annsamp/(annotation.fs*3600)
+        plotvals = annotation.sample/(annotation.fs*3600)
 
     # title
     if title is not None and type(title) != str:

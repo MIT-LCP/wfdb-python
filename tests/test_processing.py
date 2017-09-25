@@ -72,7 +72,7 @@ class test_processing():
         min_gap = fs*60/min_bpm
         max_gap = fs*60/max_bpm
 
-        y_idxs = wfdb.processing.correct_peaks(sig[:,0], ann.annsamp, min_gap, max_gap, smooth_window=150)
+        y_idxs = wfdb.processing.correct_peaks(sig[:,0], ann.sample, min_gap, max_gap, smooth_window=150)
 
         yz = numpy.zeros(sig.shape[0])
         yz[y_idxs] = 1
