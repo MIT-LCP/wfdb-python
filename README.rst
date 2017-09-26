@@ -335,27 +335,28 @@ Input Arguments:
 - ``recordname`` (required): The string name of the WFDB record to be written (without any file extensions).
 - ``extension`` (required): The string annotation file extension.
 - ``sample`` (required): The annotation location in samples relative to the beginning of the record. Numpy array.
-- ``symbol (default=None): The symbols used to display the annotation labels. List or numpy array. If this field
-  is present, 'label_store' must not be present.
+- ``symbol`` (default=None): The symbols used to display the annotation labels. List or numpy array. If this field is present, 'label_store' must not be present.
 - ``subtype`` (default=None): The marked class/category of each annotation. Numpy array.
-- ``chan (default=None): The signal channel associated with each annotation. Numpy array.
-- ``num ``(default=None): The labelled annotation number of each annotation. Numpy array.
+- ``chan`` (default=None): The signal channel associated with each annotation. Numpy array.
+- ``num`` (default=None): The labelled annotation number of each annotation. Numpy array.
 - ``aux_note`` (default=None): The auxiliary information strings. List or numpy array.
-- ``label_store`` (default=None): The integer values used to store the annotation labels. Numpy array.
-  If this field is present, 'symbol' must not be present.
+- ``label_store`` (default=None): The integer values used to store the annotation labels. Numpy array. If this field is present, 'symbol' must not be present.
 - ``fs`` (default=None): The numerical sampling frequency of the record to be written to the file.
-- ``custom_labels`` (default=None): The map of custom defined annotation labels used for this annotation, in
-  addition to the standard WFDB annotation labels. The custom labels are defined by two or three fields: 
+- ``custom_labels`` (default=None): The map of custom defined annotation labels used for this annotation, in addition to the standard WFDB annotation labels. The custom labels are defined by two or three fields:
+
   - The integer values used to store custom annotation labels in the file (optional)
   - Their short display symbols
   - Their long descriptions.
+
   This input argument may come in four formats:
+
   1. A pandas.DataFrame object with columns: ['label_store', 'symbol', 'description']
   2. A pandas.DataFrame object with columns: ['symbol', 'description']
      If this option is chosen, label_store values are automatically chosen.
   3. A list or tuple of tuple triplets, with triplet elements representing: (label_store, symbol, description).
   4. A list or tuple of tuple pairs, with pair elements representing: (symbol, description).
      If this option is chosen, label_store values are automatically chosen.
+  
   If the 'label_store' field is given for this function, and 'custom_labels' is defined, 'custom_labels'
   must contain 'label_store' in its mapping. ie. it must come in format 1 or 3 above.
 
