@@ -237,7 +237,7 @@ class BaseRecord(object):
         if not hasattr(sampto, '__index__'):
             raise TypeError('sampto must be an integer')
 
-        if type(channels) != list:
+        if not isinstance(channels, list):
             raise TypeError('channels must be a list of integers')
 
         # Duration Ranges
@@ -265,7 +265,7 @@ class BaseRecord(object):
             raise ValueError("returnres must be one of the following when physical is True: 64, 32, 16")
 
         # Cannot expand multiple samples/frame for multi-segment records
-        if type(self) == MultiRecord:
+        if isinstance(self, MultiRecord):
 
             # If m2s == True, Physical must be true. There is no
             # meaningful representation of digital signals transferred
@@ -286,7 +286,7 @@ def checkitemtype(item, field, allowedtypes, channels=None):
     if channels is not None:
 
         # First make sure the item is a list
-        if type(item) != list:
+        if not isinstance(item, list):
             raise TypeError("Field: '"+field+"' must be a list")
 
         # Expand to make sure all channels must have present field
@@ -302,17 +302,17 @@ def checkitemtype(item, field, allowedtypes, channels=None):
             mustexist=channels[ch]
             # The field must exist for the channel
             if mustexist:
-                if type(item[ch]) not in allowedtypes:
+                if not isinstance(item[ch], allowedtypes):
                     raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:", allowedtypes)
 
             # The field may be None for the channel
             else:
-                if type(item[ch]) not in allowedtypes and item[ch] is not None:
+                if not isinstance(item[ch], allowedtypes) and item[ch] is not None:
                     raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:", allowedtypes)
 
     # Single scalar to check
     else:
-        if type(item) not in allowedtypes:
+        if not isinstance(item, allowedtypes):
             raise TypeError("Field: '"+field+"' must be one of the following types:", allowedtypes)
 
 
@@ -810,7 +810,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes, returnres)
 
     # A single segment record
-    if type(record) == Record:
+    if isinstance(record, Record):
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smoothframes or max([record.sampsperframe[c] for c in channels])==1:
@@ -896,7 +896,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             record = record.multi_to_single(returnres=returnres)
 
     # Perform dtype conversion if necessary
-    if type(record) == Record and record.nsig>0:
+    if isinstance(record, Record) and record.nsig>0:
         record.convert_dtype(physical, returnres, smoothframes)
 
     return record
@@ -1277,7 +1277,7 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
             record = rdheader(baserecname, pbdir = posixpath.join(pbdb, dirname))
 
             # Single segment record
-            if type(record) == Record:
+            if isinstance(record, Record):
                 # Add all dat files of the segment
                 for file in record.filename:
                     allfiles.append(posixpath.join(dirname, file))

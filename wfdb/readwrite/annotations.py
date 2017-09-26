@@ -177,7 +177,7 @@ class Annotation(object):
             raise TypeError('The '+field+' field must be one of the following types:', ann_field_types[field])
 
         if field in int_ann_fields:
-            if item.dtype not in int_dtypes:
+            if item.dtype not in _headers.int_dtypes:
                 raise TypeError('The '+field+' field must have an integer-based dtype.')
 
         # Field specific checks
@@ -485,7 +485,7 @@ class Annotation(object):
         if attribute not in ann_label_fields:
             raise ValueError('Invalid attribute specified')
 
-        if type(self.custom_labels) == pd.DataFrame:
+        if isinstance(self.custom_labels, pd.DataFrame):
             if 'label_store' not in list(self.custom_labels):
                 raise ValueError('label_store not defined in custom_labels')  
             a = list(self.custom_labels[attribute].values)
@@ -1449,12 +1449,9 @@ def lists_to_arrays(*args):
 # Allowed types of each Annotation object attribute.
 ann_field_types = {'recordname': (str), 'extension': (str), 'sample': (np.ndarray),
                  'symbol': (list, np.ndarray),  'subtype': (np.ndarray), 'chan': (np.ndarray),
-                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': tuple(_headers.floattypes),
+                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': _headers.floattypes,
                  'label_store': (np.ndarray), 'description':(list, np.ndarray), 'custom_labels': (pd.DataFrame, list, tuple),
                  'contained_labels':(pd.DataFrame, list, tuple)}
-
-# Acceptable numpy integer dtypes
-int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
 
 strtypes = (str, np.str_)
 

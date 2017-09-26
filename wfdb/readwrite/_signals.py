@@ -967,7 +967,7 @@ def skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe=None):
     if max(skew)>0:
 
         # Expanded frame samples. List of arrays. 
-        if type(sig) == list:
+        if isinstance(sig, list):
             # Shift the channel samples
             for ch in range(nsig):
                 if skew[ch]>0:
@@ -1000,7 +1000,7 @@ def skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe=None):
             
 # Integrity check of signal shape after reading
 def checksigdims(sig, readlen, nsig, sampsperframe):
-    if type(sig) == np.ndarray:
+    if isinstance(sig, np.ndarray):
         if sig.shape != (readlen, nsig):
             raise ValueError('Samples were not loaded correctly')
     else:
@@ -1027,7 +1027,7 @@ dataloadtypes = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
 
 # Return min and max digital values for each format type. Accepts lists.
 def digi_bounds(fmt):
-    if type(fmt) == list:
+    if isinstance(fmt, list):
         digibounds = []
         for f in fmt:
             digibounds.append(digi_bounds(f))
@@ -1046,7 +1046,7 @@ def digi_bounds(fmt):
     
 # Return nan value for the format type(s). 
 def digi_nan(fmt):
-    if type(fmt) == list:
+    if isinstance(fmt, list):
         diginans = []
         for f in fmt:
             diginans.append(digi_nan(f))
@@ -1085,7 +1085,7 @@ def estres(signals):
     """
     
     # Expanded sample signals. List of numpy arrays                
-    if type(signals) == list:
+    if isinstance(signals, list):
         nsig = len(signals)
     # Uniform numpy array
     else:
@@ -1097,7 +1097,7 @@ def estres(signals):
         
     for ch in range(nsig):
         # Estimate the number of steps as the range divided by the minimum increment. 
-        if type(signals) == list:
+        if isinstance(signals, list):
             sortedsig = np.sort(signals[ch])
         else:
             sortedsig = np.sort(signals[:,ch])
@@ -1121,7 +1121,7 @@ def estres(signals):
 # If singlefmt is True, the format for the maximum resolution will be returned.
 def wfdbfmt(res, singlefmt = True):
 
-    if type(res) == list:
+    if isinstance(res, list):
         # Return a single format
         if singlefmt is True:
             res = [max(res)]*len(res)
@@ -1145,7 +1145,7 @@ def wfdbfmt(res, singlefmt = True):
 # Return the resolution of the WFDB format(s).
 def wfdbfmtres(fmt, maxres=False):
 
-    if type(fmt)==list:
+    if isinstance(fmt, list):
         res = [wfdbfmtres(f) for f in fmt]
         if maxres is True:
             res = np.max(res)

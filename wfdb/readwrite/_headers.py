@@ -228,7 +228,7 @@ class HeadersMixin(BaseHeadersMixin):
             if field in recwritefields:
                 stringfield = str(getattr(self, field))
                 # If fs is float, check whether it as an integer
-                if field == 'fs' and type(self.fs) == float:
+                if field == 'fs' and isinstance(self.fs, float):
                     if round(self.fs, 8) == float(int(self.fs)):
                         stringfield = str(int(self.fs))
                 recordline = recordline + recfieldspecs[field].delimiter + stringfield
@@ -371,12 +371,12 @@ class MultiHeadersMixin(BaseHeadersMixin):
         if signame is None:
             signame = self.getsignames()
 
-        if type(signame) == list:
+        if isinstance(signame, list):
             sigdict = {}
             for sig in signame:
                 sigdict[sig] = self.getsigsegments(sig)
             return sigdict
-        elif type(signame) == str:
+        elif isinstance(signame, str):
             sigsegs = []
             for i in range(self.nseg):
                 if self.segname[i] != '~' and signame in self.segments[i].signame:
@@ -594,38 +594,39 @@ class WFDBheaderspecs():
         #    so that the user doesn't need to. But when reading, it should
         #    be clear that the fields are missing.
 
-inttypes = [int, np.int64, np.int32, np.int16, np.int8]
-floattypes = inttypes + [float, np.float64, np.float32]
+inttypes = (int, np.int64, np.int32, np.int16, np.int8)
+floattypes = inttypes + (float, np.float64, np.float32)
+int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
 
 # Record specification fields            
-recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs([str], '', None, True, None, None)),
+recfieldspecs = OrderedDict([('recordname', WFDBheaderspecs((str), '', None, True, None, None)),
                          ('nseg', WFDBheaderspecs(inttypes, '/', 'recordname', True, None, None)), 
                          ('nsig', WFDBheaderspecs(inttypes, ' ', 'recordname', True, None, None)),
                          ('fs', WFDBheaderspecs(floattypes, ' ', 'nsig', True, 250, None)),
                          ('counterfreq', WFDBheaderspecs(floattypes, '/', 'fs', False, None, None)),
                          ('basecounter', WFDBheaderspecs(floattypes, '(', 'counterfreq', False, None, None)),
                          ('siglen', WFDBheaderspecs(inttypes, ' ', 'fs', True, None, None)),
-                         ('basetime', WFDBheaderspecs([str], ' ', 'siglen', False, None, '00:00:00')),
-                         ('basedate', WFDBheaderspecs([str], ' ', 'basetime', False, None, None))])
+                         ('basetime', WFDBheaderspecs((str), ' ', 'siglen', False, None, '00:00:00')),
+                         ('basedate', WFDBheaderspecs((str), ' ', 'basetime', False, None, None))])
 
 # Signal specification fields.
-sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs([str], '', None, True, None, None)),
-                         ('fmt', WFDBheaderspecs([str], ' ', 'filename', True, None, None)),
+sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs((str), '', None, True, None, None)),
+                         ('fmt', WFDBheaderspecs((str), ' ', 'filename', True, None, None)),
                          ('sampsperframe', WFDBheaderspecs(inttypes, 'x', 'fmt', False, 1, None)),
                          ('skew', WFDBheaderspecs(inttypes, ':', 'fmt', False, None, None)),
                          ('byteoffset', WFDBheaderspecs(inttypes, '+', 'fmt', False, None, None)),
                          ('adcgain', WFDBheaderspecs(floattypes, ' ', 'fmt', True, 200., None)),
                          ('baseline', WFDBheaderspecs(inttypes, '(', 'adcgain', True, 0, None)),
-                         ('units', WFDBheaderspecs([str], '/', 'adcgain', True, 'mV', None)),
+                         ('units', WFDBheaderspecs((str), '/', 'adcgain', True, 'mV', None)),
                          ('adcres', WFDBheaderspecs(inttypes, ' ', 'adcgain', False, None, 0)),
                          ('adczero', WFDBheaderspecs(inttypes, ' ', 'adcres', False, None, 0)),
                          ('initvalue', WFDBheaderspecs(inttypes, ' ', 'adczero', False, None, None)),
                          ('checksum', WFDBheaderspecs(inttypes, ' ', 'initvalue', False, None, None)),
                          ('blocksize', WFDBheaderspecs(inttypes, ' ', 'checksum', False, None, 0)),
-                         ('signame', WFDBheaderspecs([str], ' ', 'blocksize', False, None, None))])
+                         ('signame', WFDBheaderspecs((str), ' ', 'blocksize', False, None, None))])
     
 # Segment specification fields.
-segfieldspecs = OrderedDict([('segname', WFDBheaderspecs([str], '', None, True, None, None)),
+segfieldspecs = OrderedDict([('segname', WFDBheaderspecs((str), '', None, True, None, None)),
                          ('seglen', WFDBheaderspecs(inttypes, ' ', 'segname', True, None, None))])
 
 
