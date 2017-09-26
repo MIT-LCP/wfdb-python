@@ -821,13 +821,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=False)
-            # Obtain physical values
-            if physical is True:
-                # Perform dac to get physical signal
-                record.d_signals = record.dac(expanded=False, returnres=returnres)
-                record.p_signals = record.d_signals
-                record.d_signals = None
 
+            if physical is True:
+                # Perform inplace dac to get physical signal
+                record.dac(expanded=False, returnres=returnres, inplace=True)
+                
         # Return each sample of the signals with multiple samples per frame
         else:
             record.e_d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
@@ -836,12 +834,11 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
 
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=True)
-            # Obtain physical values
+
             if physical is True:
                 # Perform dac to get physical signal
-                record.e_d_signals = record.dac(expanded=True, returnres=returnres)
-                record.e_p_signals = record.e_d_signals
-                record.e_d_signals = None
+                record.dac(expanded=True, returnres=returnres, inplace=True)
+                
 
     # A multi segment record
 

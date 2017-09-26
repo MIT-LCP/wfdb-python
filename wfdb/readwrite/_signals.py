@@ -2,7 +2,6 @@ import numpy as np
 import os
 import math
 from . import downloads
-import pdb
 
 # All defined WFDB dat formats
 datformats = ["80","212","16","24","32"]
@@ -287,12 +286,18 @@ class SignalsMixin(object):
         return d_signals
 
     
-    def dac(self, expanded=False, returnres=64):
+    def dac(self, expanded=False, returnres=64, inplace=False):
         """
-        Returns the digital to analogue conversion for a Record object's signal stored
+        Performs the digital to analogue conversion of the signal stored
         in d_signals if expanded is False, or e_d_signals if expanded is True.
+
         The d_signals/e_d_signals, fmt, gain, and baseline fields must all be valid.
+
+        If inplace is True, the dac will be performed inplace on the variable, the
+        p_signals attribute will be set, and d_signals will be set to None.
+
         """
+
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
 
@@ -305,21 +310,48 @@ class SignalsMixin(object):
         else:
             floatdtype = 'float16'
 
-        if expanded:
-            p_signal = []
-            for ch in range(0, self.nsig):
-                # nan locations for the channel
-                chnanlocs = self.e_d_signals[ch] == dnans[ch]
-                p_signal.append((self.e_d_signals[ch] - np.array(self.baseline[ch], dtype=self.e_d_signals[ch].dtype))/
-                    np.array(self.adcgain[ch], dtype=floatdtype).astype(floatdtype, copy=False))
-                p_signal[ch][chnanlocs] = np.nan
+        # Do inplace conversion and set relevant variables.
+        if inplace:
+            # No clever memory saving here...
+            if expanded:
+                p_signal = []
+                for ch in range(0, self.nsig):
+                    # nan locations for the channel
+                    chnanlocs = self.e_d_signals[ch] == dnans[ch]
+                    
+                    p_signal.append(((self.e_d_signals[ch] - self.baseline[ch])/self.adcgain[ch]).astype(floatdtype, copy=False))
+                    p_signal[ch][chnanlocs] = np.nan
+
+                self.e_p_signals = p_signal
+                self.e_d_signals = None
+            else:
+                # nan locations
+                nanlocs = self.d_signals == dnans
+                # Do float conversion immediately to avoid potential under/overflow
+                # of efficient int dtype
+                self.d_signals = self.d_signals.astype(floatdtype, copy=False)
+                np.subtract(self.d_signals, self.baseline, self.d_signals)
+                np.divide(self.d_signals, self.adcgain, self.d_signals)
+                self.d_signals[nanlocs] = np.nan
+                self.p_signals = self.d_signals
+                self.d_signals = None
+
+        # Return the variable
         else:
-            # nan locations
-            nanlocs = self.d_signals == dnans
-            p_signal = (self.d_signals - np.array(self.baseline, dtype=self.d_signals.dtype)) / np.array(self.adcgain, dtype=floatdtype).astype(floatdtype, copy=False)
-            p_signal[nanlocs] = np.nan
-                
-        return p_signal
+            if expanded:
+                p_signal = []
+                for ch in range(0, self.nsig):
+                    # nan locations for the channel
+                    chnanlocs = self.e_d_signals[ch] == dnans[ch]
+                    p_signal.append(((self.e_d_signals[ch] - self.baseline[ch])/self.adcgain[ch]).astype(floatdtype, copy=False))
+                    p_signal[ch][chnanlocs] = np.nan
+            else:
+                # nan locations
+                nanlocs = self.d_signals == dnans
+                p_signal = ((self.d_signals - self.baseline) / self.adcgain).astype(floatdtype, copy=False)
+                p_signal[nanlocs] = np.nan
+                    
+            return p_signal
 
 
     # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
@@ -862,8 +894,6 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     # Same output as above np.fromfile.
     else:
         sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
-
-    #pdb.set_trace()
 
     return sigbytes
 
