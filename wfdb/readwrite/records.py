@@ -216,18 +216,18 @@ class BaseRecord(object):
 
         # Comments field. List. Elements cannot be None
         elif field == 'comments':
-            checkitemtype(item, field, [str], 'all')
+            checkitemtype(item, field, (str), 'all')
 
         # Signals field.
         elif field in ['p_signals','d_signals']:
-            checkitemtype(item, field, [np.ndarray])
+            checkitemtype(item, field, (np.ndarray))
 
         elif field in ['e_p_signals', 'e_d_signals']:
-            checkitemtype(item, field, [np.ndarray], 'all')
+            checkitemtype(item, field, (np.ndarray), 'all')
 
         # Segments field. List. Elements may be None.
         elif field == 'segments':
-            checkitemtype(item, field, [Record], 'none')
+            checkitemtype(item, field, (Record), 'none')
 
     # Ensure that input read parameters are valid for the record
     def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes, returnres):
