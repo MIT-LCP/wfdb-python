@@ -312,20 +312,17 @@ class SignalsMixin(object):
 
         # Do inplace conversion and set relevant variables.
         if inplace:
-            # No clever memory saving here...
             if expanded:
-                p_signal = []
                 for ch in range(0, self.nsig):
                     # nan locations for the channel
-                    chnanlocs = self.e_d_signals[ch] == dnans[ch]
-                    
-                    p_signal.append(((self.e_d_signals[ch] - self.baseline[ch])/self.adcgain[ch]).astype(floatdtype, copy=False))
-                    p_signal[ch][chnanlocs] = np.nan
-
-                self.e_p_signals = p_signal
+                    ch_nanlocs = self.e_d_signals[ch] == dnans[ch]
+                    self.e_d_signals[ch] = self.e_d_signals[ch].astype(floatdtype, copy=False)
+                    np.subtract(self.e_d_signals[ch], self.baseline[ch], self.e_d_signals[ch])
+                    np.divide(self.e_d_signals[ch], self.adcgain[ch], self.e_d_signals[ch])
+                    self.e_d_signals[ch][ch_nanlocs] = np.nan
+                self.e_p_signals = self.e_d_signals
                 self.e_d_signals = None
             else:
-                # nan locations
                 nanlocs = self.d_signals == dnans
                 # Do float conversion immediately to avoid potential under/overflow
                 # of efficient int dtype
@@ -342,13 +339,17 @@ class SignalsMixin(object):
                 p_signal = []
                 for ch in range(0, self.nsig):
                     # nan locations for the channel
-                    chnanlocs = self.e_d_signals[ch] == dnans[ch]
-                    p_signal.append(((self.e_d_signals[ch] - self.baseline[ch])/self.adcgain[ch]).astype(floatdtype, copy=False))
-                    p_signal[ch][chnanlocs] = np.nan
+                    ch_nanlocs = self.e_d_signals[ch] == dnans[ch]
+                    ch_p_signal = self.e_d_signals[ch].astype(floatdtype, copy=False)
+                    np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
+                    np.divide(ch_p_signal, self.adcgain[ch], ch_p_signal)
+                    ch_p_signal[ch_nanlocs] = np.nan
+                    p_signal.append(ch_p_signal)
             else:
-                # nan locations
                 nanlocs = self.d_signals == dnans
-                p_signal = ((self.d_signals - self.baseline) / self.adcgain).astype(floatdtype, copy=False)
+                p_signal = self.d_signal.astype(floatdtype, copy=False)
+                np.subtract(p_signal, self.baseline, p_signal)
+                np.divide(p_signal, self.adcgain, p_signal)
                 p_signal[nanlocs] = np.nan
                     
             return p_signal

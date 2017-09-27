@@ -1247,6 +1247,7 @@ def proc_ann_bytes(filebytes, sampto):
         subtype, chan, num, aux_note = update_extra_fields(subtype, chan, num, aux_note, update)
 
         if sampto and sampto<sample_total:
+            sample, label_store, subtype, chan, num, aux_note = rm_last(sample, label_store, subtype, chan, num, aux_note)
             break
 
     return sample, label_store, subtype, chan, num, aux_note
@@ -1442,7 +1443,15 @@ def lists_to_arrays(*args):
     """
     return [np.array(a, dtype='int') for a in args]
 
-
+def rm_last(*args):
+    """
+    Remove the last index from each list
+    """
+    if len(args) == 1:
+        return args[:-1]
+    else:
+        return [a[:-1] for a in args]
+    return
 
 ## ------------- /Reading Annotations ------------- ##
 
