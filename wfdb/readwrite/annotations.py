@@ -243,8 +243,8 @@ class Annotation(object):
                     if not hasattr(label_store[i], '__index__'):
                         raise TypeError('The label_store values of the '+field+' field must be integer-like')
                 
-                if not isinstance(symbol[i], strtypes) or len(symbol[i]) not in [1,2]:
-                    raise ValueError('The symbol values of the '+field+' field must be strings of length 1 or 2')
+                if not isinstance(symbol[i], strtypes) or len(symbol[i]) not in [1,2,3]:
+                    raise ValueError('The symbol values of the '+field+' field must be strings of length 1 to 3')
 
                 if bool(re.search('[ \t\n\r\f\v]', symbol[i])):
                     raise ValueError('The symbol values of the '+field+' field must not contain whitespace characters')
@@ -252,8 +252,9 @@ class Annotation(object):
                 if not isinstance(description[i], strtypes):
                     raise TypeError('The description values of the '+field+' field must be strings')
 
-                if bool(re.search('[\t\n\r\f\v]', description[i])):
-                    raise ValueError('The description values of the '+field+' field must not contain tabs or newlines')
+                # Would be good to enfore this but existing garbage annotations have tabs and newlines...
+                #if bool(re.search('[\t\n\r\f\v]', description[i])):
+                #    raise ValueError('The description values of the '+field+' field must not contain tabs or newlines')
 
         # The string fields
         elif field in ['symbol', 'description', 'aux_note']:
@@ -265,8 +266,8 @@ class Annotation(object):
             
             if field == 'symbol':
                 for e in uniq_elements:
-                    if len(e) not in [1,2]:
-                        raise ValueError('Subelements of the '+field+' field must be strings of length 1 or 2')
+                    if len(e) not in [1,2,3]:
+                        raise ValueError('Subelements of the '+field+' field must be strings of length 1 to 3')
                     if bool(re.search('[ \t\n\r\f\v]', e)):
                         raise ValueError('Subelements of the '+field+' field may not contain whitespace characters')
             else:
