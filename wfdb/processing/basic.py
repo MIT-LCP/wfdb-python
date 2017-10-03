@@ -6,9 +6,9 @@ from wfdb import Annotation
 
 def resample_ann(tt, sample):
     # tt: numpy.array as returned by signal.resample
-    # sample: numpy.array containing indexes of annotations (Annotation.sample)
+    # sample: numpy.array containing indices of annotations (Annotation.sample)
 
-    # Compute the new annotation indexes
+    # Compute the new annotation indices
 
     tmp = numpy.zeros(len(tt), dtype='int16')
     j = 0
@@ -86,7 +86,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     # ann: an Annotation object
     # fs: the current frequency
     # fs_target: the target frequency
-    # resample_ann_channel: the signal channel that is used to compute new annotation indexes
+    # resample_ann_channel: the signal channel that is used to compute new annotation indices
 
     # Resample multiple channels with their annotations
 

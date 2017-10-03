@@ -62,7 +62,8 @@ Example Usage:
 ::
 
     import wfdb
-    record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
+    record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000,
+                          filename=['r1.dat','r1.dat'])
 
 
 **MultiRecord** - The class representing multi-segment WFDB records.
@@ -93,7 +94,9 @@ Example Usage:
 ::
 
     import wfdb
-    recordM = wfdb.MultiRecord(recordname='rm', fs=50, nsig=8, siglen=9999, segname=['rm_1', '~', rm_2'], seglen=[800, 200, 900])
+    recordM = wfdb.MultiRecord(recordname='rm', fs=50, nsig=8, siglen=9999,
+                               segname=['rm_1', '~', rm_2'],
+                               seglen=[800, 200, 900])
 
     recordL = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s = False)
     recordL = recordL.multi_to_single()
@@ -148,7 +151,8 @@ Reading Signals
 
 ::
 
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None, m2s=True)
+    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None,
+                    physical=True, pbdir = None, m2s=True)
 
 Example Usage:
 
@@ -166,7 +170,7 @@ Input Arguments:
 -  ``physical`` (default=True): Flag that specifies whether to return  signals in physical (True) or digital (False) units.
 -  ``pbdir`` (default=None): Option used to stream data from Physiobank. The Physiobank database directory from which to find the required record files. eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 -  ``m2s`` (default=True): Flag used only for multi-segment records. Specifies whether to convert the returned wfdb.MultiRecord object into a wfdb.Record object (True) or not (False).
--  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_signals or e_p_signals field (False).
+-  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_sign.als or e_p_signals field (False).
 -  ``ignoreskew`` (default=False): Flag used when reading records with at least one skewed signal. Specifies whether to apply the skew to align the signals in the output variable (False), or to ignore the skew field and load in all values contained in the dat files unaligned (True).
 -  ``returnres`` (default=64): The numpy array dtype of the returned signals. Options are: 64, 32, 16, and 8, where the value represents the numpy int or float dtype. Note that the value cannot be 8 when physical is True since there is no float8 format.
 
@@ -204,6 +208,80 @@ Output arguments:
 - ``comments``: Any comments written in the header
 
 
+Converting between Analog and Digital Values
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When reading signal sample values into ``record`` objects using ``rdsamp``, the samples are stored in either the ``p_signals`` or the ``d_signals`` field depending on the specified return type (``physical`` = ``True`` or ``False`` respectively).
+
+One can also use existing objects to obtain physical values from digital values and vice versa, without having to re-read the wfdb file with a different set of options. The two following instance methods perform the conversions.
+
+
+**adc** - Performs analogue to digital conversion of the physical signal stored 
+          in p_signals if expanded is False, or e_p_signals if expanded is True.
+
+          The p_signals/e_p_signals, fmt, gain, and baseline fields must all be
+          valid.
+
+          If inplace is True, the adc will be performed inplace on the variable,
+          the d_signals/e_d_signals attribute will be set, and the 
+          p_signals/e_p_signals field will be set to None.
+
+::
+
+    record.adc(self, expanded=False, inplace=False)
+
+Input arguments:
+
+- ``expanded`` (default=False): Boolean specifying whether to transform the e_p_signals attribute (True) or the p_signals attribute (False).
+- ``inplace`` (default=False): Boolean specifying whether to automatically set the object's corresponding digital signal attribute and set the physical signal attribute to None (True), or to return the converted signal as a separate variable without changing the original physical signal attribute (False).
+
+Possible output argument:
+
+- ``d_signals``: The digital conversion of the signal. Either a 2d numpy array or a list of 1d numpy arrays.
+
+Example Usage:
+        
+::     
+  import wfdb
+  record = wfdb.rdsamp('sampledata/100')
+  d_signal = record.adc()
+  record.adc(inplace=True)
+  record.dac(inplace=True)
+
+
+**dac** - Performs digital to analogue conversion of the digital signal stored 
+          in d_signals if expanded is False, or e_d_signals if expanded is True.
+
+          The d_signals/e_d_signals, fmt, gain, and baseline fields must all be
+          valid.
+
+          If inplace is True, the dac will be performed inplace on the variable,
+          the p_signals/e_p_signals attribute will be set, and the 
+          d_signals/e_d_signals field will be set to None.
+
+::
+
+    record.dac(self, expanded=False, inplace=False)
+
+Input arguments:
+
+- ``expanded`` (default=False): Boolean specifying whether to transform the e_d_signals attribute (True) or the d_signals attribute (False).
+- ``inplace`` (default=False): Boolean specifying whether to automatically set the object's corresponding physical signal attribute and set the digital signal attribute to None (True), or to return the converted signal as a separate variable without changing the original digital signal attribute (False).
+
+Possible output argument:
+
+- ``p_signals``: The physical conversion of the signal. Either a 2d numpy array or a list of 1d numpy arrays.
+
+Example Usage:
+        
+::     
+  import wfdb
+  record = wfdb.rdsamp('sampledata/100', physical=False)
+  p_signal = record.dac()
+  record.dac(inplace=True)
+  record.adc(inplace=True)
+
+
 Writing Signals
 ~~~~~~~~~~~~~~~
 
@@ -214,15 +292,18 @@ The Record class has a **wrsamp** instance method for writing wfdb record files.
 
 ::
 
-    wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None, fmt = None, gain = None, baseline = None, comments = None)
+    wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None,
+           fmt = None, gain = None, baseline = None, comments = None)
 
 Example Usage:
 
 ::
 
     import wfdb
-    sig, fields = wfdb.srdsamp('a103l', sampfrom = 50000, channels = [0,1], pbdir = 'challenge/2015/training')
-    wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'], signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
+    sig, fields = wfdb.srdsamp('a103l', sampfrom = 50000, channels = [0,1],
+                               pbdir = 'challenge/2015/training')
+    wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'],
+                signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
 
 Input Arguments:
 
@@ -320,7 +401,8 @@ The Annotation class has a **wrann** instance method for writing wfdb annotation
 
 ::
 
-    wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, num=None, aux_note=None, label_store=None, fs=None, custom_labels=None)
+    wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None,
+          num=None, aux_note=None, label_store=None, fs=None, custom_labels=None)
 
 Example Usage:
 
@@ -381,7 +463,9 @@ Example Usage:
     record = wfdb.rdsamp('sampledata/100', sampto = 3000)
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 3000)
 
-    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds', figsize = (10,4), ecggrids = 'all')
+    wfdb.plotrec(record, annotation = annotation,
+                 title='Record 100 from MIT-BIH Arrhythmia Database',
+                 timeunits = 'seconds', figsize = (10,4), ecggrids = 'all')
 
 Input Arguments:
 
@@ -413,7 +497,9 @@ Example Usage:
     record = wfdb.rdsamp('sampledata/100', sampto = 15000)
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 15000)
 
-    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', timeunits = 'seconds')
+    wfdb.plotrec(record, annotation = annotation,
+                 title='Record 100 from MIT-BIH Arrhythmia Database',
+                 timeunits = 'seconds')
 
 
 Input Arguments:
@@ -450,7 +536,8 @@ Example Usage:
 
 ::
 
-    dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
+    dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' ,
+               keepsubdirs = True, overwrite = False)
 
 Example Usage:
 
@@ -491,10 +578,10 @@ Input arguments:
 - ``overwrite`` (default=False): If set to True, all files will be redownloaded regardless. If set to False, existing files with the same name and relative subdirectory will be checked. If the local file is the same size as the online file, the download is skipped. If the local file is larger, it will be deleted and the file will be redownloaded. If the local file is smaller, the file will be assumed to be partially downloaded and the remaining bytes will be downloaded and appended.
 
 
-Signal processing
+Signal Processing
 -----------------
 
-Basic functionalities
+Basic Functionalities
 ~~~~~~~~~~~~~~~~~~~~~
 
 **resample_sig** - Resample a single-channel signal
@@ -608,14 +695,16 @@ Input arguments:
 - ``window_size`` (required): The smoothing window width.
 
 
-Peak detection
+Peak Detection
 ~~~~~~~~~~~~~~
 
 **gqrs_detect** - The GQRS detector function
 
 ::
 
-  gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0, hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4, QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33, QRSa=750, QRSamin=130)
+  gqrs_detect(x, fs, adcgain, adczero, threshold=1.0, hr=75, RRdelta=0.2, 
+              RRmin=0.28, RRmax=2.4, QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
+              QRSa=750, QRSamin=130):
 
 Example Usage:
 
@@ -624,31 +713,31 @@ Example Usage:
     import wfdb
     t0 = 10000
     tf = 20000
-    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
-    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peaks_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0])
+    d_signal = record.adc()[:,0]
+    peak_indices = wfdb.processing.gqrs_detect(x=d_signal, fs=record.fs, adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
 
 Input arguments:
 
-- ``x`` (required): The signal.
-- ``frequency`` (required): The signal frequency.
-- ``adcgain`` (required): The gain of the signal (the number of adus (q.v.) per physical unit).
+- ``x`` (required): The digital signal as a numpy array
+- ``fs`` (required): The sampling frequency of the signal
+- ``adcgain``: The gain of the signal (the number of adus (q.v.) per physical unit)
 - ``adczero`` (required): The value produced by the ADC given a 0 volt input.
-- ``threshold`` (default=1.0): The threshold for detection.
-- ``hr`` (default=75): Typical heart rate, in beats per minute.
-- ``RRdelta`` (default=0.2): Typical difference between successive RR intervals in seconds.
-- ``RRmin`` (default=0.28): Minimum RR interval ("refractory period"), in seconds.
-- ``RRmax`` (default=2.4): Maximum RR interval, in seconds; thresholds will be adjusted if no peaks are detected within this interval.
-- ``QS`` (default=0.07): Typical QRS duration, in seconds.
-- ``QT`` (default=0.35): Typical QT interval, in seconds.
-- ``RTmin`` (default=0.25): Minimum interval between R and T peaks, in seconds.
-- ``RTmax`` (default=0.33): Maximum interval between R and T peaks, in seconds.
-- ``QRSa`` (default=750): Typical QRS peak-to-peak amplitude, in microvolts.
-- ``QRSamin`` (default=130): Minimum QRS peak-to-peak amplitude, in microvolts.
+- ``threshold`` (default=1.0): The threshold for detection
+- ``hr`` (default=75): Typical heart rate, in beats per minute
+- ``RRdelta`` (default=0.2): Typical difference between successive RR intervals in seconds
+- ``RRmin`` (default=0.28): Minimum RR interval ("refractory period"), in seconds
+- ``RRmax`` (default=2.4): Maximum RR interval, in seconds; thresholds will be adjusted if no peaks are detected within this interval
+- ``QS`` (default=0.07): Typical QRS duration, in seconds
+- ``QT`` (default=0.35): Typical QT interval, in seconds
+- ``RTmin`` (default=0.25): Minimum interval between R and T peaks, in seconds
+- ``RTmax`` (default=0.33): Maximum interval between R and T peaks, in seconds
+- ``QRSa`` (default=750): Typical QRS peak-to-peak amplitude, in microvolts
+- ``QRSamin`` (default=130): Minimum QRS peak-to-peak amplitude, in microvolts
 
 Output Arguments:
 
-- ``peaks_indexes``: A python list containing the peaks indexes.
+- ``peak_indices``: A python list containing the peak indices.
 
 
 **correct_peaks** - A post-processing algorithm to correct peaks position.
@@ -658,7 +747,7 @@ See code comments for details about the algorithm.
 
 ::
 
-  correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window)
+  correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window)
 
 Example Usage:
 
@@ -669,35 +758,38 @@ Example Usage:
     tf = 20000
     sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
     record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peak_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    peak_indices = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], 
+                                               adcgain=record.adcgain[0], adczero=record.adczero[0],
+                                               threshold=1.0)
     fs = fields['fs']
     min_bpm = 10
     max_bpm = 350
     min_gap = fs*60/min_bpm
     max_gap = fs*60/max_bpm
-    new_indexes = wfdb.processing.correct_peaks(x=sig[:,0], peaks_indexes=peak_indexes, min_gap=min_gap, max_gap=max_gap, smooth_window=150)
+    new_indices = wfdb.processing.correct_peaks(x=sig[:,0], peak_indices=peak_indices,
+                                                min_gap=min_gap, max_gap=max_gap, smooth_window=150)
 
 Input arguments:
 
 - ``x`` (required): The signal.
-- ``peaks_indexes`` (required): The location of the peaks.
+- ``peak_indices`` (required): The location of the peaks.
 - ``min_gap`` (required): The minimum gap in samples between two peaks.
 - ``max_gap`` (required): The maximum gap in samples between two peaks.
 - ``smooth_window`` (required): The size of the smoothing window.
 
 Output Arguments:
 
-- ``new_indexes``: A python list containing the new peaks indexes.
+- ``new_indices``: A python list containing the new peaks indices.
 
 
-Heart rate
+Heart Rate
 ~~~~~~~~~~~~~~
 
-**compute_hr** - Compute heart rate from peak indexes and signal frequency.
+**compute_hr** - Compute instantaneous heart rate from peak indices and signal frequency.
 
 ::
 
-  compute_hr(length, peaks_indexes, fs)
+  compute_hr(siglen, peak_indices, fs)
 
 Example Usage:
 
@@ -708,19 +800,19 @@ Example Usage:
     tf = 20000
     sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
     record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peaks_indexes = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
-    hr = compute_hr(length=tf-t0, peaks_indexes=peaks_indexes, fs=fields['fs'])
+    peak_indices = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
+    hr = compute_hr(siglen=tf-t0, peak_indices=peak_indices, fs=fields['fs'])
 
 Input arguments:
 
-- ``length`` (required): The length of the corresponding signal.
-- ``peaks_indexes`` (required): The peak indexes.
-- ``fs`` (required): The signal frequency.
+- ``siglen`` (required): The length of the corresponding signal.
+- ``peak_indices`` (required): The peak indices.
+- ``fs`` (required): The corresponding signal's sampling frequency.
 
 
 Output Arguments:
 
-- ``hr``: A numpy.array containing heart rate for each sample. Contains numpy.nan where heart rate could not be computed.
+- ``hr``: A numpy array of the instantaneous heart rate, with the length of the corresponding signal. Contains numpy.nan where heart rate could not be computed.
 
 
 

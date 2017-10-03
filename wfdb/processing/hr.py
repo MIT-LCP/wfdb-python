@@ -1,21 +1,37 @@
-import numpy
+import numpy as np
 
 
-def compute_hr(length, peaks_indexes, fs):
-    result = numpy.full(length, numpy.nan, dtype='float32')
+def compute_hr(siglen, peak_indices, fs):
+    """
+    Compute instantaneous heart rate from peak indices.
 
-    if len(peaks_indexes) < 2:
-        return result
+    Usage: 
+    heart_rate = compute_hr(siglen, peak_indices, fs)
 
-    current_hr = numpy.nan
+    Input argumnets:
+    - siglen (required): The length of the corresponding signal
+    - peak_indices (required): The peak indices.
+    - fs (required): The corresponding signal's sampling frequency.
 
-    for i in range(0, len(peaks_indexes)-2):
-        a = peaks_indexes[i]
-        b = peaks_indexes[i+1]
-        c = peaks_indexes[i+2]
+    Output arguments:
+    - heart_rate: A numpy array of the instantaneous heart rate, with the length
+      of the corresponding signal. Contains numpy.nan where heart rate could not be computed.
+    """
+    heart_rate = np.full(siglen, np.nan, dtype='float32')
+
+    if len(peak_indices) < 2:
+        return heart_rate
+
+    current_hr = np.nan
+
+    for i in range(0, len(peak_indices)-2):
+        a = peak_indices[i]
+        b = peak_indices[i+1]
+        c = peak_indices[i+2]
         RR = (b-a) * (1.0 / fs) * 1000
         hr = 60000.0 / RR
-        result[b+1:c+1] = hr
-    result[peaks_indexes[-1]:] = result[peaks_indexes[-1]]
+        heart_rate[b+1:c+1] = hr
 
-    return result
+    heart_rate[peak_indices[-1]:] = heart_rate[peak_indices[-1]]
+
+    return heart_rate
