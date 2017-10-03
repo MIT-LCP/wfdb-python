@@ -420,7 +420,7 @@ rxSIGNAL = re.compile(
         [
             "(?P<filename>[\w]*\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
             "(?P<sampsperframe>\d*):?(?P<skew>\d*)\+?(?P<byteoffset>\d*)[ \t]*",
-            "(?P<adcgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^/-\?%]*)[ \t]*",
+            "(?P<adcgain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
             "(?P<adcres>\d*)[ \t]*(?P<adczero>-?\d*)[ \t]*(?P<initvalue>-?\d*)[ \t]*",
             "(?P<checksum>-?\d*)[ \t]*(?P<blocksize>\d*)[ \t]*(?P<signame>[\S]?[^\t\n\r\f\v]*)"]))
 
