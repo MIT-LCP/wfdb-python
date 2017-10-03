@@ -344,7 +344,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
     Example Usage:
     import wfdb
-    record1 = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
+    record = wfdb.Record(recordname='r1', fs=250, nsig=2, siglen=1000, filename=['r1.dat','r1.dat'])
 
     """
     # Constructor

@@ -259,31 +259,94 @@ class SignalsMixin(object):
             self.checksum = self.calc_checksum()
 
 
-    # Returns the analogue to digital conversion for the physical signal stored in p_signals. 
-    # The p_signals, fmt, gain, and baseline fields must all be valid.
-    def adc(self, expanded=False):
+    
+    def adc(self, expanded=False, inplace=False):
+        """
+        Performs analogue to digital conversion of the physical signal stored 
+        in p_signals if expanded is False, or e_p_signals if expanded is True.
+
+        The p_signals/e_p_signals, fmt, gain, and baseline fields must all be
+        valid.
+
+        If inplace is True, the adc will be performed inplace on the variable,
+        the d_signals/e_d_signals attribute will be set, and the 
+        p_signals/e_p_signals field will be set to None.
+
+        Input arguments:
+        - expanded (default=False): Boolean specifying whether to transform the
+          e_p_signals attribute (True) or the p_signals attribute (False).
+        - inplace (default=False): Boolean specifying whether to automatically
+          set the object's corresponding digital signal attribute and set the
+          physical signal attribute to None (True), or to return the converted
+          signal as a separate variable without changing the original physical 
+          signal attribute (False).
+        
+        Possible output argument:
+        - d_signals: The digital conversion of the signal. Either a 2d numpy
+          array or a list of 1d numpy arrays.
+
+        Example Usage:
+        import wfdb
+        record = wfdb.rdsamp('sampledata/100')
+        d_signal = record.adc()
+        record.adc(inplace=True)
+        record.dac(inplace=True)
+        """
         
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
         
-        if expanded:
-            d_signals = []
-            for ch in range(0, self.nsig):
-                chnanloc = np.isnan(self.e_p_signals)
-                d_signals.append(self.e_p_signals[ch] * self.adcgain[ch] + self.baseline[ch])
-                d_signals[ch][chnanlocs] = dnans[ch]
-        else:
-            d_signals = self.p_signals * self.adcgain + self.baseline
-            
-            for ch in range(0, np.shape(self.p_signals)[1]):
-                # Nan locations
-                nanlocs = np.isnan(self.p_signals[:,ch])
-                if nanlocs.any():
-                    d_signals[nanlocs,ch] = dnans[ch]
-            
-            d_signals = d_signals.astype('int64')
+        # To do: choose the minimum return res needed
+        intdtype = 'int64'
 
-        return d_signals
+        # Do inplace conversion and set relevant variables.
+        if inplace:
+            if expanded:
+                for ch in range(0, self.nsig):
+                    # nan locations for the channel
+                    ch_nanlocs = np.isnan(self.e_p_signals[ch])
+                    np.multiply(self.e_p_signals[ch], self.adcgain[ch], self.e_p_signals[ch])
+                    np.add(e_p_signals[ch], self.baseline[ch], self.e_p_signals[ch])
+                    self.e_p_signals[ch] = self.e_p_signals[ch].astype(intdtype, copy=False)
+                    self.e_p_signals[ch][ch_nanlocs] = dnans[ch]
+                self.e_d_signals = self.e_p_signals
+                self.e_p_signals = None
+            else:
+                nanlocs = np.isnan(self.p_signals)
+                np.multiply(self.p_signals, self.adcgain, self.p_signals)
+                np.add(self.p_signals, self.baseline, self.p_signals)
+                self.p_signals = self.p_signals.astype(intdtype, copy=False)
+                self.d_signals = self.p_signals
+                self.p_signals = None
+
+        # Return the variable
+        else:
+            if expanded:
+                d_signals = []
+                for ch in range(0, self.nsig):
+                    # nan locations for the channel
+                    ch_nanlocs = np.isnan(self.e_p_signals[ch])
+                    ch_d_signal = self.e_p_signals.copy()
+                    np.multiply(ch_d_signal, self.adcgain[ch], ch_d_signal)
+                    np.add(ch_d_signal, self.baseline[ch], ch_d_signal)
+                    ch_d_signal = ch_d_signal.astype(intdtype, copy=False)
+                    ch_d_signal[ch_nanlocs] = dnans[ch]
+                    d_signals.append(ch_d_signal)
+
+            else:
+                nanlocs = np.isnan(self.p_signals)
+                # Cannot cast dtype to int now because gain is float.
+                d_signals = self.p_signals.copy()
+                np.multiply(d_signals, self.adcgain, d_signals)
+                np.add(d_signals, self.baseline, d_signals)
+                d_signals = d_signals.astype(intdtype, copy=False)
+
+                if nanlocs.any():
+                    for ch in range(d_signals.shape[1]):
+                        if nanlocs[:,ch].any():
+                            d_signals[nanlocs[:,ch],ch] = dnans[ch]
+                
+            return d_signals
 
     
     def dac(self, expanded=False, returnres=64, inplace=False):
@@ -291,18 +354,38 @@ class SignalsMixin(object):
         Performs the digital to analogue conversion of the signal stored
         in d_signals if expanded is False, or e_d_signals if expanded is True.
 
-        The d_signals/e_d_signals, fmt, gain, and baseline fields must all be valid.
+        The d_signals/e_d_signals, fmt, gain, and baseline fields must all be
+        valid.
 
-        If inplace is True, the dac will be performed inplace on the variable, the
-        p_signals attribute will be set, and d_signals will be set to None.
+        If inplace is True, the dac will be performed inplace on the variable,
+        the p_signals/e_p_signals attribute will be set, and the 
+        d_signals/e_d_signals field will be set to None.
+    
+        Input arguments:
+        - expanded (default=False): Boolean specifying whether to transform the
+          e_d_signals attribute (True) or the d_signals attribute (False).
+        - inplace (default=False): Boolean specifying whether to automatically
+          set the object's corresponding physical signal attribute and set the
+          digital signal attribute to None (True), or to return the converted
+          signal as a separate variable without changing the original digital 
+          signal attribute (False).
+        
+        Possible output argument:
+        - p_signals: The physical conversion of the signal. Either a 2d numpy
+          array or a list of 1d numpy arrays.
 
+        Example Usage:
+        import wfdb
+        record = wfdb.rdsamp('sampledata/100', physical=False)
+        p_signal = record.dac()
+        record.dac(inplace=True)
+        record.adc(inplace=True)
         """
 
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
 
         # Get the appropriate float dtype
-        
         if returnres == 64:
             floatdtype = 'float64'
         elif returnres == 32:
@@ -336,7 +419,7 @@ class SignalsMixin(object):
         # Return the variable
         else:
             if expanded:
-                p_signal = []
+                p_signals = []
                 for ch in range(0, self.nsig):
                     # nan locations for the channel
                     ch_nanlocs = self.e_d_signals[ch] == dnans[ch]
@@ -344,15 +427,15 @@ class SignalsMixin(object):
                     np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
                     np.divide(ch_p_signal, self.adcgain[ch], ch_p_signal)
                     ch_p_signal[ch_nanlocs] = np.nan
-                    p_signal.append(ch_p_signal)
+                    p_signals.append(ch_p_signal)
             else:
                 nanlocs = self.d_signals == dnans
-                p_signal = self.d_signal.astype(floatdtype, copy=False)
-                np.subtract(p_signal, self.baseline, p_signal)
-                np.divide(p_signal, self.adcgain, p_signal)
-                p_signal[nanlocs] = np.nan
+                p_signals = self.d_signals.astype(floatdtype, copy=False)
+                np.subtract(p_signals, self.baseline, p_signals)
+                np.divide(p_signals, self.adcgain, p_signals)
+                p_signals[nanlocs] = np.nan
                     
-            return p_signal
+            return p_signals
 
 
     # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
@@ -406,7 +489,7 @@ class SignalsMixin(object):
                 raise Exception('adcgain and baseline must have magnitudes < 214748364')
                     
             gains.append(gain)
-            baselines.append(baseline)     
+            baselines.append(baseline)
         
         return (gains, baselines)
 

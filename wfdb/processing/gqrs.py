@@ -453,31 +453,37 @@ class GQRS(object):
             p = p.next_peak
 
 
-def gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0,
+def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
                 hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4,
                 QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
                 QRSa=750, QRSamin=130):
     """
-    A signal with a frequency of only 50Hz is not handled by the original algorithm,
-    thus it is not recommended to use this algorithm for this case.
+    Detect qrs locations in a single channel ecg.
 
-    * x: The signal as an array
-    * frequency: The signal frequency
-    * adcgain: The gain of the signal (the number of adus (q.v.) per physical unit)
-    * adczero: The value produced by the ADC given a 0 volt input.
-    * threshold: The threshold for detection
-    * hr: Typical heart rate, in beats per minute
-    * RRdelta: Typical difference between successive RR intervals in seconds
-    * RRmin: Minimum RR interval ("refractory period"), in seconds
-    * RRmax: Maximum RR interval, in seconds; thresholds will be adjusted if no peaks are detected within this interval
-    * QS: Typical QRS duration, in seconds
-    * QT: Typical QT interval, in seconds
-    * RTmin: Minimum interval between R and T peaks, in seconds
-    * RTmax: Maximum interval between R and T peaks, in seconds
-    * QRSa: Typical QRS peak-to-peak amplitude, in microvolts
-    * QRSamin: Minimum QRS peak-to-peak amplitude, in microvolts
+    Functionally, a direct port of the gqrs algorithm from the original
+    wfdb package. Therefore written to accept wfdb record fields.
+    
+    Input arguments:
+    - x (required): The digital signal as a numpy array
+    - fs (required): The sampling frequency of the signal
+    - adcgain: The gain of the signal (the number of adus (q.v.) per physical unit)
+    - adczero (required): The value produced by the ADC given a 0 volt input.
+    - threshold (default=1.0): The threshold for detection
+    - hr (default=75): Typical heart rate, in beats per minute
+    - RRdelta (default=0.2): Typical difference between successive RR intervals in seconds
+    - RRmin (default=0.28): Minimum RR interval ("refractory period"), in seconds
+    - RRmax (default=2.4): Maximum RR interval, in seconds; thresholds will be adjusted 
+      if no peaks are detected within this interval
+    - QS (default=0.07): Typical QRS duration, in seconds
+    - QT (default=0.35): Typical QT interval, in seconds
+    - RTmin (default=0.25): Minimum interval between R and T peaks, in seconds
+    - RTmax (default=0.33): Maximum interval between R and T peaks, in seconds
+    - QRSa (default=750): Typical QRS peak-to-peak amplitude, in microvolts
+    - QRSamin (default=130): Minimum QRS peak-to-peak amplitude, in microvolts
+
+    Note: This function should not be used for signals with fs <= 50Hz
     """
-    conf = Conf(freq=frequency, gain=adcgain, hr=hr,
+    conf = Conf(freq=fs, gain=adcgain, hr=hr,
                 RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,
                 QS=QS, QT=QT,
                 RTmin=RTmin, RTmax=RTmax,

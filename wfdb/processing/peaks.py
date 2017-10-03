@@ -9,8 +9,8 @@ def find_peaks(x):
     # * Soft peak: a peak that is either /-*\ or \-*/ (In that cas we define the middle of it as the peak)
 
     # Returns two numpy arrays:
-    # * hard_peaks contains the indexes of the Hard peaks
-    # * soft_peaks contains the indexes of the Soft peaks
+    # * hard_peaks contains the indices of the Hard peaks
+    # * soft_peaks contains the indices of the Soft peaks
 
     if len(x) == 0:
         return numpy.empty([0]), numpy.empty([0])
@@ -40,11 +40,11 @@ def find_peaks(x):
     return hard_peaks, soft_peaks
 
 
-def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
+def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
     N = x.shape[0]
 
     rpeaks = numpy.zeros(N)
-    rpeaks[peaks_indexes] = 1.0
+    rpeaks[peak_indices] = 1.0
 
     rpeaks = rpeaks.astype('int32')
 
@@ -76,21 +76,21 @@ def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
 
     # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have the bigget distance from smooth curve
     dist = numpy.absolute(x-smoothed) # Peak distance from the smoothed mean
-    rpeaks_indexes = set()
+    rpeak_indices = set()
     for p in tmp:
         a = max(0, p-max_gap)
         b = min(N, p+max_gap)
         r = numpy.arange(a, b, dtype='int64')
         idx_best = r[numpy.argmax(dist[r])]
-        rpeaks_indexes.add(idx_best)
+        rpeak_indices.add(idx_best)
 
-    rpeaks_indexes = list(rpeaks_indexes)
+    rpeak_indices = list(rpeak_indices)
 
     # Prevent multiple peaks to appear in the max bpm range (max_gap)
     # If we found more than one peak in this interval, then we choose the peak with the maximum amplitude compared to the mean of the signal
-    tmp = numpy.asarray(rpeaks_indexes)
+    tmp = numpy.asarray(rpeak_indices)
     to_remove = {}
-    for idx in rpeaks_indexes:
+    for idx in rpeak_indices:
         if idx in to_remove:
             continue
         r = tmp[numpy.where(numpy.absolute(tmp-idx)<=max_gap)[0]]
@@ -104,6 +104,6 @@ def correct_peaks(x, peaks_indexes, min_gap, max_gap, smooth_window):
             if i != the_one:
                 to_remove[i] = True
     for v, _ in to_remove.items():
-        rpeaks_indexes.remove(v)
+        rpeak_indices.remove(v)
 
-    return sorted(rpeaks_indexes)
+    return sorted(rpeak_indices)
