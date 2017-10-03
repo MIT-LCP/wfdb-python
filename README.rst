@@ -216,15 +216,7 @@ When reading signal sample values into ``record`` objects using ``rdsamp``, the 
 One can also use existing objects to obtain physical values from digital values and vice versa, without having to re-read the wfdb file with a different set of options. The two following instance methods perform the conversions.
 
 
-**adc** - Performs analogue to digital conversion of the physical signal stored 
-          in p_signals if expanded is False, or e_p_signals if expanded is True.
-
-          The p_signals/e_p_signals, fmt, gain, and baseline fields must all be
-          valid.
-
-          If inplace is True, the adc will be performed inplace on the variable,
-          the d_signals/e_d_signals attribute will be set, and the 
-          p_signals/e_p_signals field will be set to None.
+**adc** - Performs analogue to digital conversion of the physical signal stored in p_signals if expanded is False, or e_p_signals if expanded is True. The p_signals/e_p_signals, fmt, gain, and baseline fields must all be valid. If inplace is True, the adc will be performed inplace on the variable, the d_signals/e_d_signals attribute will be set, and the p_signals/e_p_signals field will be set to None.
 
 ::
 
@@ -241,7 +233,8 @@ Possible output argument:
 
 Example Usage:
         
-::     
+::
+
   import wfdb
   record = wfdb.rdsamp('sampledata/100')
   d_signal = record.adc()
@@ -249,15 +242,7 @@ Example Usage:
   record.dac(inplace=True)
 
 
-**dac** - Performs digital to analogue conversion of the digital signal stored 
-          in d_signals if expanded is False, or e_d_signals if expanded is True.
-
-          The d_signals/e_d_signals, fmt, gain, and baseline fields must all be
-          valid.
-
-          If inplace is True, the dac will be performed inplace on the variable,
-          the p_signals/e_p_signals attribute will be set, and the 
-          d_signals/e_d_signals field will be set to None.
+**dac** - Performs digital to analogue conversion of the digital signal stored in d_signals if expanded is False, or e_d_signals if expanded is True. The d_signals/e_d_signals, fmt, gain, and baseline fields must all be valid. If inplace is True, the dac will be performed inplace on the variable, the p_signals/e_p_signals attribute will be set, and the d_signals/e_d_signals field will be set to None.
 
 ::
 
@@ -274,7 +259,8 @@ Possible output argument:
 
 Example Usage:
         
-::     
+::
+
   import wfdb
   record = wfdb.rdsamp('sampledata/100', physical=False)
   p_signal = record.dac()
@@ -344,7 +330,7 @@ Example Usage:
     import wfdb
     ann = wfdb.rdann('sampledata/100', 'atr', sampto = 300000)
 
-Input arguments:
+Input Arguments:
 
 - ``recordname`` (required): The record name of the WFDB annotation file. ie. for file `100.atr`, recordname='100'
 - ``extension`` (required): The annotatator extension of the annotation file. ie. for 
