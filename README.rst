@@ -735,26 +735,6 @@ See code comments for details about the algorithm.
 
   correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window)
 
-Example Usage:
-
-::
-
-    import wfdb
-    t0 = 10000
-    tf = 20000
-    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
-    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peak_indices = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], 
-                                               adcgain=record.adcgain[0], adczero=record.adczero[0],
-                                               threshold=1.0)
-    fs = fields['fs']
-    min_bpm = 10
-    max_bpm = 350
-    min_gap = fs*60/min_bpm
-    max_gap = fs*60/max_bpm
-    new_indices = wfdb.processing.correct_peaks(x=sig[:,0], peak_indices=peak_indices,
-                                                min_gap=min_gap, max_gap=max_gap, smooth_window=150)
-
 Input arguments:
 
 - ``x`` (required): The signal.
@@ -768,6 +748,28 @@ Output Arguments:
 - ``new_indices``: A python list containing the new peaks indices.
 
 
+Example Usage:
+
+::
+
+    import wfdb
+    t0 = 10000
+    tf = 20000
+    record = wfdb.rdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
+    d_signal = record.adc()[:,0]
+    peak_indices = wfdb.processing.gqrs_detect(d_signal, fs=record.fs, 
+                                               adcgain=record.adcgain[0], 
+                                               adczero=record.adczero[0],
+                                               threshold=1.0)
+    min_bpm = 10
+    max_bpm = 350
+    min_gap = record.fs*60/min_bpm
+    max_gap = record.fs*60/max_bpm
+    new_indices = wfdb.processing.correct_peaks(d_signal, peak_indices=peak_indices,
+                                                min_gap=min_gap, max_gap=max_gap, 
+                                                smooth_window=150)
+
+
 Heart Rate
 ~~~~~~~~~~~~~~
 
@@ -776,18 +778,6 @@ Heart Rate
 ::
 
   compute_hr(siglen, peak_indices, fs)
-
-Example Usage:
-
-::
-
-    import wfdb
-    t0 = 10000
-    tf = 20000
-    sig, fields = wfdb.srdsamp('sampledata/100', sampfrom=t0, sampto=tf, channels=[0])
-    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0], physical=False)
-    peak_indices = wfdb.processing.gqrs_detect(x=sig[:,0], frequency=fields['fs'], adcgain=record.adcgain[0], adczero=record.adczero[0], threshold=1.0)
-    hr = compute_hr(siglen=tf-t0, peak_indices=peak_indices, fs=fields['fs'])
 
 Input arguments:
 
@@ -799,6 +789,22 @@ Input arguments:
 Output Arguments:
 
 - ``hr``: A numpy array of the instantaneous heart rate, with the length of the corresponding signal. Contains numpy.nan where heart rate could not be computed.
+
+
+Example Usage:
+
+::
+
+    import wfdb
+    t0 = 10000
+    tf = 20000
+    record = wfdb.rdsamp("sampledata/100", sampfrom=t0, sampto=tf, channels=[0])
+    peak_indices = wfdb.processing.gqrs_detect(record.adc(), fs=record.fs,
+                                               adcgain=record.adcgain[0],
+                                               adczero=record.adczero[0],
+                                               threshold=1.0)
+    hr = wfdb.processing.compute_hr(siglen=tf-t0, peak_indices=peak_indices, fs=record.fs)
+
 
 
 
