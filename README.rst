@@ -309,7 +309,7 @@ Input Arguments:
 - ``fmt`` (default=None): A list of strings giving the WFDB format of each file used to store each channel.
   Accepted formats are: "80","212","16","24", and "32". There are other WFDB formats but this library
   will not write (though it will read) those file types.
-- ``gain`` (default=None): A list of integers specifying the DAC/ADC gain.
+- ``gain`` (default=None): A list of integers specifying the ADC gain.
 - ``baseline`` (default=None): A list of integers specifying the digital baseline.
 - ``comments`` (default-None): A list of string comments to be written to the header file.
 
