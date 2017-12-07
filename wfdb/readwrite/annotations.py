@@ -276,7 +276,12 @@ class Annotation(object):
                         raise ValueError('Subelements of the '+field+' field must not contain tabs or newlines')
         
         elif field == 'sample':
-            sampdiffs = np.concatenate(([self.sample[0]], np.diff(self.sample)))
+            if len(self.sample) == 1:
+                sampdiffs = np.array([self.sample[0]])
+            elif len(self.sample) > 1:
+                sampdiffs = np.concatenate(([self.sample[0]], np.diff(self.sample)))
+            else:
+                raise ValueError("The 'sample' field must be a numpy array with length greater than 0")
             if min(self.sample) < 0 :
                 raise ValueError("The 'sample' field must only contain non-negative integers")
             if min(sampdiffs) < 0 :
@@ -621,7 +626,10 @@ class Annotation(object):
         Convert all used annotation fields into bytes to write
         """
         # The difference sample to write
-        sampdiff = np.concatenate(([self.sample[0]], np.diff(self.sample)))
+        if len(self.sample) == 1:
+            sampdiff = np.array([self.sample[0]])
+        else:
+            sampdiff = np.concatenate(([self.sample[0]], np.diff(self.sample)))
 
         # Create a copy of the annotation object with a
         # compact version of fields to write
