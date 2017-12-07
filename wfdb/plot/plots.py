@@ -5,6 +5,7 @@ from ..readwrite import _headers
 from ..readwrite import _signals
 from ..readwrite import annotations
 
+
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
 def plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='', annstyle='r*', figsize=None, returnfig = False, ecggrids=[]): 
@@ -286,11 +287,11 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
             if timeunits == 'samples':
                 tann[ch] = annplot[ch]
             elif timeunits == 'seconds':
-                tann[ch] = annplot[ch]/record.fs
+                tann[ch] = annplot[ch]/float(record.fs)
             elif timeunits == 'minutes':
-                tann[ch] = annplot[ch]/record.fs/60
+                tann[ch] = annplot[ch]/float(record.fs)/60
             else:
-                tann[ch] = annplot[ch]/record.fs/3600
+                tann[ch] = annplot[ch]/float(record.fs)/3600
     else:
         tann = None
         annplot = [None]*record.nsig
@@ -370,11 +371,11 @@ def checkannplotitems(annotation, title, timeunits):
     if timeunits == 'samples':
         plotvals = annotation.sample
     elif timeunits == 'seconds':
-        plotvals = annotation.sample/annotation.fs
+        plotvals = annotation.sample/float(annotation.fs)
     elif timeunits == 'minutes':
-        plotvals = annotation.sample/(annotation.fs*60)
+        plotvals = annotation.sample/float(annotation.fs*60)
     elif timeunits == 'hours':
-        plotvals = annotation.sample/(annotation.fs*3600)
+        plotvals = annotation.sample/float(annotation.fs*3600)
 
     # title
     if title is not None and not isinstance(title, str):
