@@ -8,7 +8,8 @@ from ..readwrite import annotations
 
 # Plot a WFDB Record's signals
 # Optionally, overlay annotation locations
-def plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='', annstyle='r*', figsize=None, returnfig = False, ecggrids=[]): 
+def plotrec(record=None, title=None, annotation=None, timeunits='samples',
+    sigstyle='', annstyle='r*', plotannsym=False, figsize=None, returnfig=False, ecggrids=[]): 
     """ Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
@@ -32,6 +33,7 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
     - annstyle (default='r*'): String, or list of strings, specifying the styling of the matplotlib plot for the annotations.
       If 'annstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
       correspond to the list element.
+    - plotannsym (default=False): Specifies whether to plot the annotation symbols at their locations.
     - figsize (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
       passed into matplotlib.pyplot's figure() function.
     - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
@@ -87,6 +89,10 @@ def plotrec(record=None, title = None, annotation = None, timeunits='samples', s
         # Plot annotation if specified
         if annplot[ch] is not None:
             ax.plot(tann[ch], record.p_signals[annplot[ch], ch], annstyle[ch])
+            # Plot the annotation symbols if specified
+            if plotannsym:
+                for i, s in enumerate(annotation.symbol):
+                    ax.annotate(s, (tann[ch][i], record.p_signals[annplot[ch], ch][i]))
 
         # Axis Labels
         if timeunits == 'samples':
