@@ -5,3 +5,4 @@ from .readwrite.annotations import Annotation, rdann, wrann, show_ann_labels, an
 from .readwrite.downloads import getdblist
 from .plot.plots import plotrec, plotann
 from . import processing
+from .version import __version__

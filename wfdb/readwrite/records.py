@@ -122,9 +122,9 @@ class BaseRecord(object):
 
                 if field == 'filename':
                     # Check for filename characters
-                    acceptedstring = re.match('[\w]+\.?[\w]+',f)
+                    acceptedstring = re.match('[-\w]+\.?[\w]+',f)
                     if not acceptedstring or acceptedstring.string != f:
-                        raise ValueError('File names should only contain alphanumerics and an extension. eg. record_100.dat')
+                        raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record_100.dat')
                     # Check that dat files are grouped together 
                     if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
                         raise ValueError('filename error: all entries for signals that share a given file must be consecutive')
