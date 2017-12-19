@@ -1,5 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import os
+
 from ..readwrite import records
 from ..readwrite import _headers
 from ..readwrite import _signals
@@ -389,3 +391,18 @@ def checkannplotitems(annotation, title, timeunits):
     
     return plotvals
 
+
+def plot_records(directory=os.getcwd()):
+    """
+    Plot all wfdb records in a directory (by finding header files)
+    """
+    filelist = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
+    filelist = [f for f in filelist if f.endswith('.hea')]
+    recordlist = [f.split('.hea')[0] for f in filelist]
+    recordlist.sort()
+
+    for record_name in recordlist:
+        record = records.rdsamp(record_name)
+
+        plotrec(record, title='Record: %s' % record.recordname)
+        input('Press enter to continue...')
