@@ -278,8 +278,9 @@ The Record class has a **wrsamp** instance method for writing wfdb record files.
 
 ::
 
-    wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None,
-           fmt = None, gain = None, baseline = None, comments = None)
+    wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
+           fmt=None, gain=None, baseline=None, comments=None, basetime=None,
+           basedate=None)
 
 Example Usage:
 
@@ -312,6 +313,8 @@ Input Arguments:
 - ``gain`` (default=None): A list of integers specifying the ADC gain.
 - ``baseline`` (default=None): A list of integers specifying the digital baseline.
 - ``comments`` (default-None): A list of string comments to be written to the header file.
+- ``basetime`` (default=None): A string of the record's start time in 24h HH:MM:SS(.ms) format.
+- ``basedate`` (default=None): A string of the record's start date in DD/MM/YYYY format.
 
 
 Reading Annotations

@@ -1055,8 +1055,9 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
 
 
 # Function for writing single segment records
-def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
-    fmt = None, gain = None, baseline = None, comments= None):
+def wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
+    fmt=None, gain=None, baseline=None, comments=None, basetime=None,
+    basedate=None):
     """Write a single segment WFDB record, creating a WFDB header file and any associated dat files.
 
     Usage:
@@ -1082,7 +1083,9 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
       will not write (though it will read) those file types.
     - gain (default=None): A list of integers specifying the ADC gain.
     - baseline (default=None): A list of integers specifying the digital baseline.
-    - comments (default-None): A list of string comments to be written to the header file.
+    - comments (default=None): A list of string comments to be written to the header file.
+    - basetime (default=None): A string of the record's start time in 24h HH:MM:SS(.ms) format.
+    - basedate (default=None): A string of the record's start date in DD/MM/YYYY format.
 
     Note: This gateway function was written to enable a simple way to write WFDB record files using
           the most frequently used parameters. Therefore not all WFDB fields can be set via this function.
@@ -1108,14 +1111,18 @@ def wrsamp(recordname, fs, units, signames, p_signals = None, d_signals = None,
     # Depending on whether d_signals or p_signals was used, set other required features.
     if p_signals is not None:
         # Create the Record object
-        record = Record(recordname = recordname, p_signals = p_signals, fs = fs, fmt = fmt, units = units,
-                    signame = signames, adcgain = gain, baseline = baseline, comments = comments)
+        record = Record(recordname=recordname, p_signals=p_signals, fs=fs,
+            fmt=fmt, units=units, signame=signames, adcgain = gain,
+            baseline=baseline, comments=comments, basetime=basetime,
+            basedate=basedate)
         # Compute optimal fields to store the digital signal, carry out adc, and set the fields.
         record.set_d_features(do_adc = 1)
     else:
         # Create the Record object
-        record = Record(recordname = recordname, d_signals = d_signals, fs = fs, fmt = fmt, units = units,
-                    signame = signames, adcgain = gain, baseline = baseline, comments = comments)
+        record = Record(recordname=recordname, d_signals=d_signals, fs=fs,
+            fmt=fmt, units=units, signame = signames, adcgain = gain,
+            baseline=baseline, comments=comments, basetime=basetime,
+            basedate=basedate)
         # Use d_signals to set the fields directly
         record.set_d_features()
 
