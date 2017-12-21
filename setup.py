@@ -15,7 +15,8 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Get the version number from the version.py file
-from wfdb.version import __version__
+with open('wfdb/version.py') as f:
+    __version__ = f.read().split()[-1].strip("'")
 
 # Get the requirements
 with open('requirements.txt') as f:
