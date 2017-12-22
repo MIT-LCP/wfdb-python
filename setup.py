@@ -18,10 +18,6 @@ with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
 with open('wfdb/version.py') as f:
     __version__ = f.read().split()[-1].strip("'")
 
-# Get the requirements
-with open('requirements.txt') as f:
-    requirements = f.read().splitlines()
-
 setup(
     name='wfdb',
 
@@ -59,7 +55,14 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=requirements,
+    install_requires=[
+        'nose>=1.3.7',
+        'numpy>=1.11.0',
+        'matplotlib>=1.5.1',
+        'requests>=2.10.0',
+        'pandas>=0.19.1',
+        'scipy>=0.19.0',
+    ],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
