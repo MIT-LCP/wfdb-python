@@ -6,10 +6,10 @@ import requests
 
 
 # Read a header file from physiobank
-def streamheader(recordname, pb_dir):
+def stream_header(record_name, pb_dir):
 
     # Full url of header location
-    url = posixpath.join(db_index_url, pb_dir, recordname+'.hea')
+    url = posixpath.join(db_index_url, pb_dir, record_name+'.hea')
     r = requests.get(url)
 
     # Raise HTTPError if invalid url
@@ -42,10 +42,10 @@ def streamheader(recordname, pb_dir):
 
 
 # Read certain bytes from a dat file from physiobank
-def streamdat(filename, pb_dir, fmt, bytecount, startbyte, datatypes):
+def stream_dat(file_name, pb_dir, fmt, bytecount, startbyte, datatypes):
 
     # Full url of dat file
-    url = posixpath.join(db_index_url, pb_dir, filename)
+    url = posixpath.join(db_index_url, pb_dir, file_name)
 
     # Specify the byte range
     endbyte = startbyte + bytecount-1
@@ -65,10 +65,10 @@ def streamdat(filename, pb_dir, fmt, bytecount, startbyte, datatypes):
     return sigbytes
 
 # Read an entire annotation file from physiobank
-def streamannotation(filename, pb_dir):
+def streamannotation(file_name, pb_dir):
 
     # Full url of annotation file
-    url = posixpath.join(db_index_url, pb_dir, filename)
+    url = posixpath.join(db_index_url, pb_dir, file_name)
 
     # Get the content
     r = requests.get(url)

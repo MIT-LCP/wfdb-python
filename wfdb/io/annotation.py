@@ -4,7 +4,7 @@ import re
 import os
 import copy
 from . import records
-from . import _headers
+from . import _header
 from . import downloads
 
 # Class for WFDB annotations
@@ -17,7 +17,7 @@ class Annotation(object):
 
     The attributes of the Annotation object give information about the annotation as specified
     by https://www.physionet.org/physiotools/wag/annot-5.htm:
-    - recordname: The base file name (without extension) of the record that the annotation
+    - record_name: The base file name (without extension) of the record that the annotation
       is attached to.
     - extension: The file extension of the file the annotation is stored in.
     - sample: The annotation locations in samples relative to the beginning of the record.
@@ -36,7 +36,7 @@ class Annotation(object):
       as custom_labels.
 
     Constructor function:
-    def __init__(self, recordname, extension, sample, symbol=None, subtype=None,
+    def __init__(self, record_name, extension, sample, symbol=None, subtype=None,
                  chan=None, num=None, aux_note=None, fs=None, label_store=None,
                  description=None, custom_labels=None, contained_labels=None)
 
@@ -46,15 +46,15 @@ class Annotation(object):
 
     Example usage:
     import wfdb
-    ann1 = wfdb.Annotation(recordname='rec1', extension='atr', sample=[10,20,400],
+    ann1 = wfdb.Annotation(record_name='rec1', extension='atr', sample=[10,20,400],
                            symbol = ['N','N','['], aux_note=[None, None, 'Serious Vfib'])
     """
 
     
-    def __init__(self, recordname, extension, sample, symbol=None, subtype=None,
+    def __init__(self, record_name, extension, sample, symbol=None, subtype=None,
                  chan=None, num=None, aux_note=None, fs=None, label_store=None,
                  description=None, custom_labels=None, contained_labels=None):
-        self.recordname = recordname
+        self.record_name = record_name
         self.extension = extension
 
         self.sample = sample
@@ -118,7 +118,7 @@ class Annotation(object):
           attribute to the file.
 
         """
-        for field in ['recordname', 'extension']:
+        for field in ['record_name', 'extension']:
             if getattr(self, field) is None:
                 raise Exception('Missing required field for writing annotation file: ',field)
 
@@ -177,13 +177,13 @@ class Annotation(object):
             raise TypeError('The '+field+' field must be one of the following types:', ann_field_types[field])
 
         if field in int_ann_fields:
-            if item.dtype not in _headers.int_dtypes:
+            if item.dtype not in _header.int_dtypes:
                 raise TypeError('The '+field+' field must have an integer-based dtype.')
 
         # Field specific checks
-        if field == 'recordname':
-            if bool(re.search('[^-\w]', self.recordname)):
-                raise ValueError('recordname must only comprise of letters, digits, hyphens, and underscores.')
+        if field == 'record_name':
+            if bool(re.search('[^-\w]', self.record_name)):
+                raise ValueError('record_name must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'extension':
             if bool(re.search('[^a-zA-Z]', self.extension)):
                 raise ValueError('extension must only comprise of letters.')
@@ -299,7 +299,7 @@ class Annotation(object):
             if min(self.subtype) < 0 or max(self.subtype) >127:
                 raise ValueError("The 'subtype' field must only contain non-negative integers up to 127")
         elif field == 'chan':
-            # unsigned character
+            # un_signed character
             if min(self.chan) < 0 or max(self.chan) >255:
                 raise ValueError("The 'chan' field must only contain non-negative integers up to 255")
         elif field == 'num':
@@ -558,7 +558,7 @@ class Annotation(object):
             end_special_bytes = [0, 236, 255, 255, 255, 255, 1, 0]
 
         # Write the file
-        with open(self.recordname+'.'+self.extension, 'wb') as f:
+        with open(self.record_name+'.'+self.extension, 'wb') as f:
             # Combine all bytes to write: fs (if any), custom annotations (if any), main content, file terminator
             np.concatenate((fs_bytes, cl_bytes, end_special_bytes, core_bytes, np.array([0,0]))).astype('u1').tofile(f)
         
@@ -990,13 +990,13 @@ def field2bytes(field, value):
 
 
 # Function for writing annotations
-def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, num=None,
+def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, num=None,
           aux_note=None, label_store=None, fs=None, custom_labels=None):
     """
     Write a WFDB annotation file.
 
     Specify at least the following:
-    - The record name of the WFDB record (recordname)
+    - The record name of the WFDB record (record_name)
     - The annotation file extension (extension)
     - The annotation locations in samples relative to the beginning of the record (sample)
     - Either the numerical values used to store the labels (label_store), or more commonly, 
@@ -1004,11 +1004,11 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
 
 
     Usage:
-    wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, num=None,
+    wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, num=None,
           aux_note=None, label_store=None, fs=None, custom_labels=None):
 
     Input arguments:
-    - recordname (required): The string name of the WFDB record to be written (without any file extensions). 
+    - record_name (required): The string name of the WFDB record to be written (without any file extensions). 
     - extension (required): The string annotation file extension.
     - sample (required): The annotation location in samples relative to the beginning of the record. Numpy array.
     - symbol (default=None): The symbols used to display the annotation labels. List or numpy array. If this field
@@ -1052,7 +1052,7 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
     """
 
     # Create Annotation object
-    annotation = Annotation(recordname=recordname, extension=extension, sample=sample, symbol=symbol,
+    annotation = Annotation(record_name=record_name, extension=extension, sample=sample, symbol=symbol,
                             subtype=subtype, chan=chan, num=num, aux_note=aux_note, label_store=label_store,
                             fs=fs, custom_labels=custom_labels)
 
@@ -1092,18 +1092,18 @@ def show_ann_classes():
 ## ------------- Reading Annotations ------------- ##
 
 # todo: return as df option?
-def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
+def rdann(record_name, extension, sampfrom=0, sampto=None, shiftsamps=False,
           pb_dir=None, return_label_elements=['symbol'], summarize_labels=False):
-    """ Read a WFDB annotation file recordname.extension and return an
+    """ Read a WFDB annotation file record_name.extension and return an
     Annotation object.
 
     Usage: 
-    annotation = rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
+    annotation = rdann(record_name, extension, sampfrom=0, sampto=None, shiftsamps=False,
                  pb_dir=None, return_label_elements=['symbol'], summarize_labels=False)
 
     Input arguments:
-    - recordname (required): The record name of the WFDB annotation file. ie. for 
-      file '100.atr', recordname='100'
+    - record_name (required): The record name of the WFDB annotation file. ie. for 
+      file '100.atr', record_name='100'
     - extension (required): The annotatator extension of the annotation file. ie. for 
       file '100.atr', extension='atr'
     - sampfrom (default=0): The minimum sample number for annotations to be returned.
@@ -1138,7 +1138,7 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
 
     # Read the file in byte pairs
-    filebytes = load_byte_pairs(recordname, extension, pb_dir)
+    filebytes = load_byte_pairs(record_name, extension, pb_dir)
 
     # Get wfdb annotation fields from the file bytes
     sample, label_store, subtype, chan, num, aux_note = proc_ann_bytes(filebytes, sampto)
@@ -1163,13 +1163,13 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     # Try to get fs from the header file if it is not contained in the annotation file
     if fs is None:
         try:
-            rec = records.rdheader(recordname, pb_dir)
+            rec = records.rdheader(record_name, pb_dir)
             fs = rec.fs
         except:
             pass
 
     # Create the annotation object
-    annotation = Annotation(os.path.split(recordname)[1], extension, sample=sample, label_store=label_store,
+    annotation = Annotation(os.path.split(record_name)[1], extension, sample=sample, label_store=label_store,
                             subtype=subtype, chan=chan, num=num, aux_note=aux_note, fs=fs,
                             custom_labels=custom_labels)
 
@@ -1200,14 +1200,14 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
     return return_label_elements
 
 # Load the annotation file 1 byte at a time and arrange in pairs
-def load_byte_pairs(recordname, extension, pb_dir):
+def load_byte_pairs(record_name, extension, pb_dir):
     # local file
     if pb_dir is None:
-        with open(recordname + '.' + extension, 'rb') as f:
+        with open(record_name + '.' + extension, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # physiobank file
     else:
-        filebytes = downloads.streamannotation(recordname+'.'+extension, pb_dir).reshape([-1, 2])
+        filebytes = downloads.streamannotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
 
     return filebytes
 
@@ -1309,7 +1309,7 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
         bpi = bpi + 1
     # CHAN
     elif label_store == 62:
-        # chan is interpreted as unsigned char
+        # chan is interpreted as un_signed char
         chan.append(filebytes[bpi, 0])
         update['chan'] = False
         bpi = bpi + 1
@@ -1465,9 +1465,9 @@ def rm_last(*args):
 ## ------------- /Reading Annotations ------------- ##
 
 # Allowed types of each Annotation object attribute.
-ann_field_types = {'recordname': (str), 'extension': (str), 'sample': (np.ndarray),
+ann_field_types = {'record_name': (str), 'extension': (str), 'sample': (np.ndarray),
                  'symbol': (list, np.ndarray),  'subtype': (np.ndarray), 'chan': (np.ndarray),
-                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': _headers.floattypes,
+                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': _header.float_types,
                  'label_store': (np.ndarray), 'description':(list, np.ndarray), 'custom_labels': (pd.DataFrame, list, tuple),
                  'contained_labels':(pd.DataFrame, list, tuple)}
 

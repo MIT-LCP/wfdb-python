@@ -17,118 +17,118 @@ class SignalMixin(object):
 
     def wrdats(self, expanded):
         # Write all dat files associated with a record
-        # expanded=True to use e_d_signals instead of d_signals
+        # expanded=True to use e_d_signal instead of d_signal
 
-        if not self.nsig:
+        if not self.n_sig:
             return
         
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
-        writefields = self.getwritefields()
+        write_fields = self.get_write_fields()
 
         if expanded:
-            # Using list of arrays e_d_signals
-            self.check_field('e_d_signals', channels = 'all')
+            # Using list of arrays e_d_signal
+            self.check_field('e_d_signal', channels = 'all')
         else:
-            # Check the validity of the d_signals field
-            self.check_field('d_signals')
+            # Check the validity of the d_signal field
+            self.check_field('d_signal')
 
-        # Check the cohesion of the d_signals field against the other fields used to write the header
-        self.checksignalcohesion(writefields, expanded)
+        # Check the cohesion of the d_signal field against the other fields used to write the header
+        self.check_sig_cohesion(write_fields, expanded)
         
         # Write each of the specified dat files
         self.wrdatfiles(expanded)
 
 
 
-    # Check the cohesion of the d_signals/e_d_signals field with the other fields used to write the record
-    def checksignalcohesion(self, writefields, expanded):
+    # Check the cohesion of the d_signal/e_d_signal field with the other fields used to write the record
+    def check_sig_cohesion(self, write_fields, expanded):
 
-        # Using list of arrays e_d_signals
+        # Using list of arrays e_d_signal
         if expanded:
-            # Set default sampsperframe
-            spf = self.sampsperframe
+            # Set default samps_per_frame
+            spf = self.samps_per_frame
             for ch in range(len(spf)):
                 if spf[ch] is None:
                     spf[ch] = 1
 
             # Match the actual signal shape against stated length and number of channels
-            if self.nsig != len(self.e_d_signals):
-                raise ValueError('nsig does not match the length of e_d_signals')
-            for ch in range(self.nsig):
-                if len(self.e_d_signals[ch]) != spf[ch]*self.siglen:
-                    raise ValueError('Length of channel '+str(ch)+'does not match sampsperframe['+str(ch+']*siglen'))
+            if self.n_sig != len(self.e_d_signal):
+                raise ValueError('n_sig does not match the length of e_d_signal')
+            for ch in range(self.n_sig):
+                if len(self.e_d_signal[ch]) != spf[ch]*self.sig_len:
+                    raise ValueError('Length of channel '+str(ch)+'does not match samps_per_frame['+str(ch+']*sig_len'))
 
             # For each channel (if any), make sure the digital format has no values out of bounds
-            for ch in range(0, self.nsig):
+            for ch in range(0, self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
                 
-                chmin = min(self.e_d_signals[ch])
-                chmax = max(self.e_d_signals[ch])
+                chmin = min(self.e_d_signal[ch])
+                chmax = max(self.e_d_signal[ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
             
             # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
-            if self.nsig>0:
-                if 'checksum' in writefields:
+            if self.n_sig>0:
+                if 'checksum' in write_fields:
                     realchecksum = self.calc_checksum(expanded)
                     if self.checksum != realchecksum:
-                        print("The actual checksum of e_d_signals is: ", realchecksum)
-                        raise ValueError("checksum field does not match actual checksum of e_d_signals")
-                if 'initvalue' in writefields:
-                    realinitvalue = [self.e_d_signals[ch][0] for ch in range(self.nsig)]
-                    if self.initvalue != realinitvalue:
-                        print("The actual initvalue of e_d_signals is: ", realinitvalue)
-                        raise ValueError("initvalue field does not match actual initvalue of e_d_signals")
+                        print("The actual checksum of e_d_signal is: ", realchecksum)
+                        raise ValueError("checksum field does not match actual checksum of e_d_signal")
+                if 'init_value' in write_fields:
+                    realinit_value = [self.e_d_signal[ch][0] for ch in range(self.n_sig)]
+                    if self.init_value != realinit_value:
+                        print("The actual init_value of e_d_signal is: ", realinit_value)
+                        raise ValueError("init_value field does not match actual init_value of e_d_signal")
 
-        # Using uniform d_signals
+        # Using uniform d_signal
         else:
             # Match the actual signal shape against stated length and number of channels
-            if (self.siglen, self.nsig) != self.d_signals.shape:
-                print('siglen: ', self.siglen)
-                print('nsig: ', self.nsig)
-                print('d_signals.shape: ', self.d_signals.shape)
-                raise ValueError('siglen and nsig do not match shape of d_signals')
+            if (self.sig_len, self.n_sig) != self.d_signal.shape:
+                print('sig_len: ', self.sig_len)
+                print('n_sig: ', self.n_sig)
+                print('d_signal.shape: ', self.d_signal.shape)
+                raise ValueError('sig_len and n_sig do not match shape of d_signal')
 
             # For each channel (if any), make sure the digital format has no values out of bounds
-            for ch in range(0, self.nsig):
+            for ch in range(0, self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
                 
-                chmin = min(self.d_signals[:,ch])
-                chmax = max(self.d_signals[:,ch])
+                chmin = min(self.d_signal[:,ch])
+                chmax = max(self.d_signal[:,ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
                         
             # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
-            if self.nsig>0:
-                if 'checksum' in writefields:
+            if self.n_sig>0:
+                if 'checksum' in write_fields:
                     realchecksum = self.calc_checksum()
                     if self.checksum != realchecksum:
-                        print("The actual checksum of d_signals is: ", realchecksum)
-                        raise ValueError("checksum field does not match actual checksum of d_signals")
-                if 'initvalue' in writefields:
-                    realinitvalue = list(self.d_signals[0,:])
-                    if self.initvalue != realinitvalue:
-                        print("The actual initvalue of d_signals is: ", realinitvalue)
-                        raise ValueError("initvalue field does not match actual initvalue of d_signals")
+                        print("The actual checksum of d_signal is: ", realchecksum)
+                        raise ValueError("checksum field does not match actual checksum of d_signal")
+                if 'init_value' in write_fields:
+                    realinit_value = list(self.d_signal[0,:])
+                    if self.init_value != realinit_value:
+                        print("The actual init_value of d_signal is: ", realinit_value)
+                        raise ValueError("init_value field does not match actual init_value of d_signal")
 
     
-    def set_p_features(self, do_dac = False, expanded=False):
+    def set_p_features(self, do_dac=False, expanded=False):
         """
-        Use properties of the p_signals (expanded=False) or e_p_signals field to set other fields: 
-          - nsig
-          - siglen
-        If expanded=True, sampsperframe is also required.
+        Use properties of the p_signal (expanded=False) or e_p_signal field to set other fields: 
+          - n_sig
+          - sig_len
+        If expanded=True, samps_per_frame is also required.
 
-        If do_dac == True, the (e_)_d_signals field will be used to perform digital to analogue conversion
-        to set the (e_)p_signals field, before (e_)p_signals is used. 
+        If do_dac == True, the (e_)_d_signal field will be used to perform digital to analogue conversion
+        to set the (e_)p_signal field, before (e_)p_signal is used. 
         Regarding dac conversion:
           - fmt, gain, and baseline must all be set in order to perform dac.
           - Unlike with adc, there is no way to infer these fields.
-          - Using the fmt, gain and baseline fields, dac is performed, and (e_)p_signals is set.
+          - Using the fmt, gain and baseline fields, dac is performed, and (e_)p_signal is set.
 
         *Developer note: Seems this function will be very infrequently used.
          The set_d_features function seems far more useful.
@@ -136,128 +136,128 @@ class SignalMixin(object):
 
         if expanded:
             if do_dac == 1:
-                self.check_field('e_d_signals', channels = 'all')
+                self.check_field('e_d_signal', channels = 'all')
                 self.check_field('fmt', 'all')
-                self.check_field('adcgain', 'all')
+                self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
-                self.check_field('sampsperframe', 'all')
+                self.check_field('samps_per_frame', 'all')
 
                 # All required fields are present and valid. Perform DAC
-                self.e_p_signals = self.dac(expanded)
+                self.e_p_signal = self.dac(expanded)
 
-            # Use e_p_signals to set fields
-            self.check_field('e_p_signals', channels = 'all')
-            self.siglen = int(len(self.e_p_signals[0])/self.sampsperframe[0])
-            self.nsig = len(self.e_p_signals)
+            # Use e_p_signal to set fields
+            self.check_field('e_p_signal', channels = 'all')
+            self.sig_len = int(len(self.e_p_signal[0])/self.samps_per_frame[0])
+            self.n_sig = len(self.e_p_signal)
         else:
             if do_dac == 1:
-                self.check_field('d_signals')
+                self.check_field('d_signal')
                 self.check_field('fmt', 'all')
-                self.check_field('adcgain', 'all')
+                self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform DAC
-                self.p_signals = self.dac()
+                self.p_signal = self.dac()
 
-            # Use p_signals to set fields
-            self.check_field('p_signals')
-            self.siglen = self.p_signals.shape[0]
-            self.nsig = self.p_signals.shape[1]
+            # Use p_signal to set fields
+            self.check_field('p_signal')
+            self.sig_len = self.p_signal.shape[0]
+            self.n_sig = self.p_signal.shape[1]
 
 
-    def set_d_features(self, do_adc = False, singlefmt = 1, expanded=False):
+    def set_d_features(self, do_adc=False, single_fmt=1, expanded=False):
         """
-        Use properties of the (e_)d_signals field to set other fields: nsig, siglen, initvalue, checksum, *(fmt, adcgain, baseline) 
-        If do_adc == True, the (e_)p_signals field will first be used to perform analogue to digital conversion to set the (e_)d_signals 
-        field, before (e_)d_signals is used. 
+        Use properties of the (e_)d_signal field to set other fields: n_sig, sig_len, init_value, checksum, *(fmt, adc_gain, baseline) 
+        If do_adc == True, the (e_)p_signal field will first be used to perform analogue to digital conversion to set the (e_)d_signal 
+        field, before (e_)d_signal is used. 
 
         Regarding adc conversion:
           - If fmt is unset:
-            - Neither adcgain nor baseline may be set. If the digital values used to store the signal are known, then the file
+            - Neither adc_gain nor baseline may be set. If the digital values used to store the signal are known, then the file
               format should also be known. 
             - The most appropriate fmt for the signals will be calculated and the 'fmt' attribute will be set. Given that neither
               gain nor baseline are allowed to be set, optimal values for those fields will then be calculated and set as well.
 
           - If fmt is set:
-            - If both adcgain and baseline are unset, optimal values for those fields will be calculated the fields will be set. 
-            - If both adcgain and baseline are set, the function will continue.
-            - If only one of adcgain and baseline are set, this function will throw an error. It makes no sense to know only
+            - If both adc_gain and baseline are unset, optimal values for those fields will be calculated the fields will be set. 
+            - If both adc_gain and baseline are set, the function will continue.
+            - If only one of adc_gain and baseline are set, this function will throw an error. It makes no sense to know only
               one of those fields.
 
-          ADC will occur after valid values for fmt, adcgain, and baseline are present, using all three fields.  
+          ADC will occur after valid values for fmt, adc_gain, and baseline are present, using all three fields.  
         """
         if expanded:
             # adc is performed.
             if do_adc == True:
-                self.check_field('e_p_signals', channels = 'all')
+                self.check_field('e_p_signal', channels = 'all')
 
                 # If there is no fmt set
                 if self.fmt is None:
-                    # Make sure that neither adcgain nor baseline are set
-                    if self.adcgain is not None or self.baseline is not None:
+                    # Make sure that neither adc_gain nor baseline are set
+                    if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions. 
-                    res = estres(self.e_p_signals)
-                    self.fmt = wfdbfmt(res, singlefmt)
+                    res = estres(self.e_p_signal)
+                    self.fmt = wfdbfmt(res, single_fmt)
                 # If there is a fmt set
                 else:
                     self.check_field('fmt', 'all')
                     # Neither field set
-                    if self.adcgain is None and self.baseline is None:
+                    if self.adc_gain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
-                        self.adcgain, self.baseline = self.calculate_adcparams()
+                        self.adc_gain, self.baseline = self.calculate_adcparams()
                     # Exactly one field set
-                    elif (self.adcgain is None) ^ (self.baseline is None):
+                    elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
                 
-                self.check_field('adcgain', 'all')
+                self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform ADC
-                self.d_signals = self.adc(expanded)
+                self.d_signal = self.adc(expanded)
 
-            # Use e_d_signals to set fields
-            self.check_field('e_d_signals', channels = 'all')
-            self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
-            self.nsig = len(self.e_d_signals)
-            self.initvalue = [sig[0] for sig in self.e_d_signals]
+            # Use e_d_signal to set fields
+            self.check_field('e_d_signal', channels = 'all')
+            self.sig_len = int(len(self.e_d_signal[0])/self.samps_per_frame[0])
+            self.n_sig = len(self.e_d_signal)
+            self.init_value = [sig[0] for sig in self.e_d_signal]
             self.checksum = self.calc_checksum(expanded)
         else:
             # adc is performed.
             if do_adc == True:
-                self.check_field('p_signals')
+                self.check_field('p_signal')
 
                 # If there is no fmt set
                 if self.fmt is None:
-                    # Make sure that neither adcgain nor baseline are set
-                    if self.adcgain is not None or self.baseline is not None:
+                    # Make sure that neither adc_gain nor baseline are set
+                    if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions. 
-                    res = estres(self.p_signals)
-                    self.fmt = wfdbfmt(res, singlefmt)
+                    res = estres(self.p_signal)
+                    self.fmt = wfdbfmt(res, single_fmt)
                 # If there is a fmt set
                 else:
                     
                     self.check_field('fmt', 'all')
                     # Neither field set
-                    if self.adcgain is None and self.baseline is None:
+                    if self.adc_gain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
-                        self.adcgain, self.baseline = self.calculate_adcparams()
+                        self.adc_gain, self.baseline = self.calculate_adcparams()
                     # Exactly one field set
-                    elif (self.adcgain is None) ^ (self.baseline is None):
+                    elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
                 
-                self.check_field('adcgain', 'all')
+                self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform ADC
-                self.d_signals = self.adc()
+                self.d_signal = self.adc()
 
-            # Use d_signals to set fields
-            self.check_field('d_signals')
-            self.siglen = self.d_signals.shape[0]
-            self.nsig = self.d_signals.shape[1]
-            self.initvalue = list(self.d_signals[0,:])
+            # Use d_signal to set fields
+            self.check_field('d_signal')
+            self.sig_len = self.d_signal.shape[0]
+            self.n_sig = self.d_signal.shape[1]
+            self.init_value = list(self.d_signal[0,:])
             self.checksum = self.calc_checksum()
 
 
@@ -265,18 +265,18 @@ class SignalMixin(object):
     def adc(self, expanded=False, inplace=False):
         """
         Performs analogue to digital conversion of the physical signal stored 
-        in p_signals if expanded is False, or e_p_signals if expanded is True.
+        in p_signal if expanded is False, or e_p_signal if expanded is True.
 
-        The p_signals/e_p_signals, fmt, gain, and baseline fields must all be
+        The p_signal/e_p_signal, fmt, gain, and baseline fields must all be
         valid.
 
         If inplace is True, the adc will be performed inplace on the variable,
-        the d_signals/e_d_signals attribute will be set, and the 
-        p_signals/e_p_signals field will be set to None.
+        the d_signal/e_d_signal attribute will be set, and the 
+        p_signal/e_p_signal field will be set to None.
 
         Input arguments:
         - expanded (default=False): Boolean specifying whether to transform the
-          e_p_signals attribute (True) or the p_signals attribute (False).
+          e_p_signal attribute (True) or the p_signal attribute (False).
         - inplace (default=False): Boolean specifying whether to automatically
           set the object's corresponding digital signal attribute and set the
           physical signal attribute to None (True), or to return the converted
@@ -284,7 +284,7 @@ class SignalMixin(object):
           signal attribute (False).
         
         Possible output argument:
-        - d_signals: The digital conversion of the signal. Either a 2d numpy
+        - d_signal: The digital conversion of the signal. Either a 2d numpy
           array or a list of 1d numpy arrays.
 
         Example Usage:
@@ -304,68 +304,68 @@ class SignalMixin(object):
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(0, self.nsig):
+                for ch in range(0, self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = np.isnan(self.e_p_signals[ch])
-                    np.multiply(self.e_p_signals[ch], self.adcgain[ch], self.e_p_signals[ch])
-                    np.add(e_p_signals[ch], self.baseline[ch], self.e_p_signals[ch])
-                    self.e_p_signals[ch] = self.e_p_signals[ch].astype(intdtype, copy=False)
-                    self.e_p_signals[ch][ch_nanlocs] = dnans[ch]
-                self.e_d_signals = self.e_p_signals
-                self.e_p_signals = None
+                    ch_nanlocs = np.isnan(self.e_p_signal[ch])
+                    np.multiply(self.e_p_signal[ch], self.adc_gain[ch], self.e_p_signal[ch])
+                    np.add(e_p_signal[ch], self.baseline[ch], self.e_p_signal[ch])
+                    self.e_p_signal[ch] = self.e_p_signal[ch].astype(intdtype, copy=False)
+                    self.e_p_signal[ch][ch_nanlocs] = dnans[ch]
+                self.e_d_signal = self.e_p_signal
+                self.e_p_signal = None
             else:
-                nanlocs = np.isnan(self.p_signals)
-                np.multiply(self.p_signals, self.adcgain, self.p_signals)
-                np.add(self.p_signals, self.baseline, self.p_signals)
-                self.p_signals = self.p_signals.astype(intdtype, copy=False)
-                self.d_signals = self.p_signals
-                self.p_signals = None
+                nanlocs = np.isnan(self.p_signal)
+                np.multiply(self.p_signal, self.adc_gain, self.p_signal)
+                np.add(self.p_signal, self.baseline, self.p_signal)
+                self.p_signal = self.p_signal.astype(intdtype, copy=False)
+                self.d_signal = self.p_signal
+                self.p_signal = None
 
         # Return the variable
         else:
             if expanded:
-                d_signals = []
-                for ch in range(0, self.nsig):
+                d_signal = []
+                for ch in range(0, self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = np.isnan(self.e_p_signals[ch])
-                    ch_d_signal = self.e_p_signals.copy()
-                    np.multiply(ch_d_signal, self.adcgain[ch], ch_d_signal)
+                    ch_nanlocs = np.isnan(self.e_p_signal[ch])
+                    ch_d_signal = self.e_p_signal.copy()
+                    np.multiply(ch_d_signal, self.adc_gain[ch], ch_d_signal)
                     np.add(ch_d_signal, self.baseline[ch], ch_d_signal)
                     ch_d_signal = ch_d_signal.astype(intdtype, copy=False)
                     ch_d_signal[ch_nanlocs] = dnans[ch]
-                    d_signals.append(ch_d_signal)
+                    d_signal.append(ch_d_signal)
 
             else:
-                nanlocs = np.isnan(self.p_signals)
+                nanlocs = np.isnan(self.p_signal)
                 # Cannot cast dtype to int now because gain is float.
-                d_signals = self.p_signals.copy()
-                np.multiply(d_signals, self.adcgain, d_signals)
-                np.add(d_signals, self.baseline, d_signals)
-                d_signals = d_signals.astype(intdtype, copy=False)
+                d_signal = self.p_signal.copy()
+                np.multiply(d_signal, self.adc_gain, d_signal)
+                np.add(d_signal, self.baseline, d_signal)
+                d_signal = d_signal.astype(intdtype, copy=False)
 
                 if nanlocs.any():
-                    for ch in range(d_signals.shape[1]):
+                    for ch in range(d_signal.shape[1]):
                         if nanlocs[:,ch].any():
-                            d_signals[nanlocs[:,ch],ch] = dnans[ch]
+                            d_signal[nanlocs[:,ch],ch] = dnans[ch]
                 
-            return d_signals
+            return d_signal
 
     
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
         Performs the digital to analogue conversion of the signal stored
-        in d_signals if expanded is False, or e_d_signals if expanded is True.
+        in d_signal if expanded is False, or e_d_signal if expanded is True.
 
-        The d_signals/e_d_signals, fmt, gain, and baseline fields must all be
+        The d_signal/e_d_signal, fmt, gain, and baseline fields must all be
         valid.
 
         If inplace is True, the dac will be performed inplace on the variable,
-        the p_signals/e_p_signals attribute will be set, and the 
-        d_signals/e_d_signals field will be set to None.
+        the p_signal/e_p_signal attribute will be set, and the 
+        d_signal/e_d_signal field will be set to None.
     
         Input arguments:
         - expanded (default=False): Boolean specifying whether to transform the
-          e_d_signals attribute (True) or the d_signals attribute (False).
+          e_d_signal attribute (True) or the d_signal attribute (False).
         - inplace (default=False): Boolean specifying whether to automatically
           set the object's corresponding physical signal attribute and set the
           digital signal attribute to None (True), or to return the converted
@@ -373,7 +373,7 @@ class SignalMixin(object):
           signal attribute (False).
         
         Possible output argument:
-        - p_signals: The physical conversion of the signal. Either a 2d numpy
+        - p_signal: The physical conversion of the signal. Either a 2d numpy
           array or a list of 1d numpy arrays.
 
         Example Usage:
@@ -398,50 +398,50 @@ class SignalMixin(object):
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(0, self.nsig):
+                for ch in range(0, self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = self.e_d_signals[ch] == dnans[ch]
-                    self.e_d_signals[ch] = self.e_d_signals[ch].astype(floatdtype, copy=False)
-                    np.subtract(self.e_d_signals[ch], self.baseline[ch], self.e_d_signals[ch])
-                    np.divide(self.e_d_signals[ch], self.adcgain[ch], self.e_d_signals[ch])
-                    self.e_d_signals[ch][ch_nanlocs] = np.nan
-                self.e_p_signals = self.e_d_signals
-                self.e_d_signals = None
+                    ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
+                    self.e_d_signal[ch] = self.e_d_signal[ch].astype(floatdtype, copy=False)
+                    np.subtract(self.e_d_signal[ch], self.baseline[ch], self.e_d_signal[ch])
+                    np.divide(self.e_d_signal[ch], self.adc_gain[ch], self.e_d_signal[ch])
+                    self.e_d_signal[ch][ch_nanlocs] = np.nan
+                self.e_p_signal = self.e_d_signal
+                self.e_d_signal = None
             else:
-                nanlocs = self.d_signals == dnans
+                nanlocs = self.d_signal == dnans
                 # Do float conversion immediately to avoid potential under/overflow
                 # of efficient int dtype
-                self.d_signals = self.d_signals.astype(floatdtype, copy=False)
-                np.subtract(self.d_signals, self.baseline, self.d_signals)
-                np.divide(self.d_signals, self.adcgain, self.d_signals)
-                self.d_signals[nanlocs] = np.nan
-                self.p_signals = self.d_signals
-                self.d_signals = None
+                self.d_signal = self.d_signal.astype(floatdtype, copy=False)
+                np.subtract(self.d_signal, self.baseline, self.d_signal)
+                np.divide(self.d_signal, self.adc_gain, self.d_signal)
+                self.d_signal[nanlocs] = np.nan
+                self.p_signal = self.d_signal
+                self.d_signal = None
 
         # Return the variable
         else:
             if expanded:
-                p_signals = []
-                for ch in range(0, self.nsig):
+                p_signal = []
+                for ch in range(0, self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = self.e_d_signals[ch] == dnans[ch]
-                    ch_p_signal = self.e_d_signals[ch].astype(floatdtype, copy=False)
+                    ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
+                    ch_p_signal = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
-                    np.divide(ch_p_signal, self.adcgain[ch], ch_p_signal)
+                    np.divide(ch_p_signal, self.adc_gain[ch], ch_p_signal)
                     ch_p_signal[ch_nanlocs] = np.nan
-                    p_signals.append(ch_p_signal)
+                    p_signal.append(ch_p_signal)
             else:
-                nanlocs = self.d_signals == dnans
-                p_signals = self.d_signals.astype(floatdtype, copy=False)
-                np.subtract(p_signals, self.baseline, p_signals)
-                np.divide(p_signals, self.adcgain, p_signals)
-                p_signals[nanlocs] = np.nan
+                nanlocs = self.d_signal == dnans
+                p_signal = self.d_signal.astype(floatdtype, copy=False)
+                np.subtract(p_signal, self.baseline, p_signal)
+                np.divide(p_signal, self.adc_gain, p_signal)
+                p_signal[nanlocs] = np.nan
                     
-            return p_signals
+            return p_signal
 
 
     # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
-    # self.fmt must be a list with length equal to the number of signal channels in self.p_signals 
+    # self.fmt must be a list with length equal to the number of signal channels in self.p_signal 
     def calculate_adcparams(self):
              
         # digital - baseline / gain = physical     
@@ -451,12 +451,12 @@ class SignalMixin(object):
         baselines = []
         
         # min and max ignoring nans, unless whole channel is nan. Should suppress warning message. 
-        minvals = np.nanmin(self.p_signals, axis=0) 
-        maxvals = np.nanmax(self.p_signals, axis=0)
+        minvals = np.nanmin(self.p_signal, axis=0) 
+        maxvals = np.nanmax(self.p_signal, axis=0)
         
         dnans = digi_nan(self.fmt)
         
-        for ch in range(0, np.shape(self.p_signals)[1]):
+        for ch in range(0, np.shape(self.p_signal)[1]):
             dmin, dmax = digi_bounds(self.fmt[ch]) # Get the minimum and maximum (valid) storage values
             dmin = dmin + 1 # add 1 because the lowest value is used to store nans
             dnan = dnans[ch]
@@ -488,7 +488,7 @@ class SignalMixin(object):
             
             # WFDB library limits...     
             if abs(gain)>214748364 or abs(baseline)>2147483648:
-                raise Exception('adcgain and baseline must have magnitudes < 214748364')
+                raise Exception('adc_gain and baseline must have magnitudes < 214748364')
                     
             gains.append(gain)
             baselines.append(baseline)
@@ -500,41 +500,41 @@ class SignalMixin(object):
         if physical is True:
             returndtype = 'float'+str(return_res)
             if smooth_frames is True:
-                currentdtype = self.p_signals.dtype
+                currentdtype = self.p_signal.dtype
                 if currentdtype != returndtype:
-                    self.p_signals = self.p_signals.astype(returndtype, copy=False)
+                    self.p_signal = self.p_signal.astype(returndtype, copy=False)
             else:
-                for ch in range(self.nsig):
-                    if self.e_p_signals[ch].dtype != returndtype:
-                        self.e_p_signals[ch] = self.e_p_signals[ch].astype(returndtype, copy=False)
+                for ch in range(self.n_sig):
+                    if self.e_p_signal[ch].dtype != returndtype:
+                        self.e_p_signal[ch] = self.e_p_signal[ch].astype(returndtype, copy=False)
         else:
             returndtype = 'int'+str(return_res)
             if smooth_frames is True:
-                currentdtype = self.d_signals.dtype
+                currentdtype = self.d_signal.dtype
                 if currentdtype != returndtype:
                     # Do not allow changing integer dtype to lower value due to over/underflow
                     if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
                         raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
-                    self.d_signals = self.d_signals.astype(returndtype, copy=False)
+                    self.d_signal = self.d_signal.astype(returndtype, copy=False)
             else:
-                for ch in range(self.nsig):
-                    currentdtype = self.e_d_signals[ch].dtype
+                for ch in range(self.n_sig):
+                    currentdtype = self.e_d_signal[ch].dtype
                     if currentdtype != returndtype:
                         # Do not allow changing integer dtype to lower value due to over/underflow
                         if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
                             raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
-                        self.e_d_signals[ch] = self.e_d_signals[ch].astype(returndtype, copy=False)
+                        self.e_d_signal[ch] = self.e_d_signal[ch].astype(returndtype, copy=False)
         return
 
     def calc_checksum(self, expanded=False):
         """
-        Calculate the checksum(s) of the d_signals (expanded=False)
-        or e_d_signals field (expanded=True)
+        Calculate the checksum(s) of the d_signal (expanded=False)
+        or e_d_signal field (expanded=True)
         """
         if expanded:
-            cs = [int(np.sum(self.e_d_signals[ch]) % 65536) for ch in range(self.nsig)]
+            cs = [int(np.sum(self.e_d_signal[ch]) % 65536) for ch in range(self.n_sig)]
         else:
-            cs = np.sum(self.d_signals, 0) % 65536
+            cs = np.sum(self.d_signal, 0) % 65536
             cs = [int(c) for c in cs]
         return cs
 
@@ -543,28 +543,28 @@ class SignalMixin(object):
 
         # Get the set of dat files to be written, and
         # the channels to be written to each file. 
-        filenames, datchannels = orderedsetlist(self.filename)
+        file_names, datchannels = orderedsetlist(self.file_name)
 
         # Get the fmt and byte offset corresponding to each dat file
         datfmts={}
         datoffsets={}
-        for fn in filenames:
+        for fn in file_names:
             datfmts[fn] = self.fmt[datchannels[fn][0]]
 
-            # byteoffset may not be present
-            if self.byteoffset is None:
+            # byte_offset may not be present
+            if self.byte_offset is None:
                 datoffsets[fn] = 0
             else:
-                datoffsets[fn] = self.byteoffset[datchannels[fn][0]]
+                datoffsets[fn] = self.byte_offset[datchannels[fn][0]]
 
         # Write the dat files
         if expanded:
-            for fn in filenames:
-                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signals[ch] for ch in datchannels[fn]], self.sampsperframe)
+            for fn in file_names:
+                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signal[ch] for ch in datchannels[fn]], self.samps_per_frame)
         else:
             # Create a copy to prevent overwrite
-            dsig = self.d_signals.copy()
-            for fn in filenames:
+            dsig = self.d_signal.copy()
+            for fn in file_names:
                 wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
@@ -575,10 +575,10 @@ class SignalMixin(object):
         
         Input parameters
         - sigtype (default='physical'): Specifies whether to mooth
-          the e_p_signals field ('physical'), or the e_d_signals
+          the e_p_signal field ('physical'), or the e_d_signal
           field ('digital').
         """
-        spf = self.sampsperframe[:]
+        spf = self.samps_per_frame[:]
         for ch in range(len(spf)):
             if spf[ch] is None:
                 spf[ch] = 1
@@ -587,29 +587,29 @@ class SignalMixin(object):
         tspf = sum(spf)
 
         if sigtype == 'physical':
-            nsig = len(self.e_p_signals)
-            siglen = int(len(self.e_p_signals[0])/spf[0])
-            signal = np.zeros((siglen, nsig), dtype='float64')
+            n_sig = len(self.e_p_signal)
+            sig_len = int(len(self.e_p_signal[0])/spf[0])
+            signal = np.zeros((sig_len, n_sig), dtype='float64')
 
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if spf[ch] == 1:
-                    signal[:, ch] = self.e_p_signals[ch]
+                    signal[:, ch] = self.e_p_signal[ch]
                 else:
                     for frame in range(spf[ch]):
-                        signal[:, ch] += self.e_p_signals[ch][frame::spf[ch]]
+                        signal[:, ch] += self.e_p_signal[ch][frame::spf[ch]]
                     signal[:, ch] = signal[:, ch] / spf[ch]
 
         elif sigtype == 'digital':
-            nsig = len(self.e_d_signals)
-            siglen = int(len(self.e_d_signals[0])/spf[0])
-            signal = np.zeros((siglen, nsig), dtype='int64')
+            n_sig = len(self.e_d_signal)
+            sig_len = int(len(self.e_d_signal[0])/spf[0])
+            signal = np.zeros((sig_len, n_sig), dtype='int64')
 
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if spf[ch] == 1:
-                    signal[:, ch] = self.e_d_signals[ch]
+                    signal[:, ch] = self.e_d_signal[ch]
                 else:
                     for frame in range(spf[ch]):
-                        signal[:, ch] += self.e_d_signals[ch][frame::spf[ch]]
+                        signal[:, ch] += self.e_d_signal[ch][frame::spf[ch]]
                     signal[:, ch] = signal[:, ch] / spf[ch]
         else:
             raise ValueError("sigtype must be 'physical' or 'digital'")
@@ -619,8 +619,8 @@ class SignalMixin(object):
 
 #------------------- Reading Signals -------------------#
 
-def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
-              sampsperframe, skew, sampfrom, sampto, channels,
+def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
+              samps_per_frame, skew, sampfrom, sampto, channels,
               smooth_frames, ignore_skew):
     """
     Read the samples from a single segment record's associated dat file(s)
@@ -630,46 +630,46 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
     """
 
     # Avoid changing outer variables
-    byteoffset = byteoffset[:]
-    sampsperframe = sampsperframe[:]
+    byte_offset = byte_offset[:]
+    samps_per_frame = samps_per_frame[:]
     skew = skew[:]
 
     # Set defaults for empty fields
-    for i in range(0, nsig):
-        if byteoffset[i] == None:
-            byteoffset[i] = 0
-        if sampsperframe[i] == None:
-            sampsperframe[i] = 1
+    for i in range(0, n_sig):
+        if byte_offset[i] == None:
+            byte_offset[i] = 0
+        if samps_per_frame[i] == None:
+            samps_per_frame[i] = 1
         if skew[i] == None:
             skew[i] = 0
 
     # If skew is to be ignored, set all to 0
     if ignore_skew:
-        skew = [0]*nsig
+        skew = [0]*n_sig
 
     # Get the set of dat files, and the
     # channels that belong to each file.
-    filename, datchannel = orderedsetlist(filename)
+    file_name, datchannel = orderedsetlist(file_name)
 
     # Some files will not be read depending on input channels.
     # Get the the wanted fields only.
-    w_filename = [] # one scalar per dat file
+    w_file_name = [] # one scalar per dat file
     w_fmt = {} # one scalar per dat file
-    w_byteoffset = {} # one scalar per dat file
-    w_sampsperframe = {} # one list per dat file
+    w_byte_offset = {} # one scalar per dat file
+    w_samps_per_frame = {} # one list per dat file
     w_skew = {} # one list per dat file
     w_channel = {} # one list per dat file
 
-    for fn in filename:
+    for fn in file_name:
         # intersecting dat channels between the input channels and the channels of the file 
         idc = [c for c in datchannel[fn] if c in channels]
         
         # There is at least one wanted channel in the dat file
         if idc != []:
-            w_filename.append(fn)
+            w_file_name.append(fn)
             w_fmt[fn] = fmt[datchannel[fn][0]]
-            w_byteoffset[fn] = byteoffset[datchannel[fn][0]]
-            w_sampsperframe[fn] = [sampsperframe[c] for c in datchannel[fn]]
+            w_byte_offset[fn] = byte_offset[datchannel[fn][0]]
+            w_samps_per_frame[fn] = [samps_per_frame[c] for c in datchannel[fn]]
             w_skew[fn] = [skew[c] for c in datchannel[fn]]
             w_channel[fn] = idc
         
@@ -683,26 +683,26 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
     
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
-    if smooth_frames or sum(sampsperframe)==nsig:
+    if smooth_frames or sum(samps_per_frame)==n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
         maxdtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
         # Allocate signal array. Minimize dtype
         signals = np.zeros([sampto-sampfrom, len(channels)], dtype = maxdtype)
 
         # Read each wanted dat file and store signals
-        for fn in w_filename:
+        for fn in w_file_name:
             signals[:, out_datchannel[fn]] = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
-                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
+                sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
     
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
     else:
         signals=[None]*len(channels)
 
-        for fn in w_filename:
+        for fn in w_file_name:
             # Get the list of all signals contained in the dat file 
             datsignals = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
-                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
+                sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
 
             # Copy over the wanted signals
             for cn in range(len(out_datchannel[fn])):
@@ -711,8 +711,8 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
     return signals 
 
 
-def rddat(filename, dirname, pb_dir, fmt, nsig,
-        siglen, byteoffset, sampsperframe,
+def rddat(file_name, dirname, pb_dir, fmt, n_sig,
+        sig_len, byte_offset, samps_per_frame,
         skew, sampfrom, sampto, smooth_frames):
     """
     Get samples from a WFDB dat file.
@@ -722,14 +722,14 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
     Returns all channels
 
     Input arguments:
-    - filename: The name of the dat file.
+    - file_name: The name of the dat file.
     - dirname: The full directory where the dat file is located, if the dat file is local.
     - pb_dir: The physiobank directory where the dat file is located, if the dat file is remote.
     - fmt: The format of the dat file
-    - nsig: The number of signals contained in the dat file  
-    - siglen : The signal length (per channel) of the dat file
-    - byteoffset: The byte offsets of the dat file
-    - sampsperframe: The samples/frame for the signals of the dat file
+    - n_sig: The number of signals contained in the dat file  
+    - sig_len : The signal length (per channel) of the dat file
+    - byte_offset: The byte offsets of the dat file
+    - samps_per_frame: The samples/frame for the signals of the dat file
     - skew: The skew for the signals of the dat file
     - sampfrom: The starting sample number to be read from the signals
     - sampto: The final sample number to be read from the signals
@@ -737,13 +737,13 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
     """
 
     # Total number of samples per frame
-    tsampsperframe = sum(sampsperframe)
+    tsamps_per_frame = sum(samps_per_frame)
     # The signal length to read (per channel)
     readlen = sampto - sampfrom
 
     # Calculate parameters used to read and process the dat file
-    startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace = calc_read_params(fmt, siglen, byteoffset,
-                                                                                                skew, tsampsperframe,
+    startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace = calc_read_params(fmt, sig_len, byte_offset,
+                                                                                                skew, tsamps_per_frame,
                                                                                                 sampfrom, sampto)
 
     # Number of bytes to be read from the dat file
@@ -764,13 +764,13 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
 
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples),
+            sigbytes = np.concatenate((getdatbytes(file_name, dirname, pb_dir, fmt, startbyte, nreadsamples),
                                       np.zeros(extrabytenum, dtype = np.dtype(dataloadtypes[fmt]))))
         else:
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples),
+            sigbytes = np.concatenate((getdatbytes(file_name, dirname, pb_dir, fmt, startbyte, nreadsamples),
                                       np.zeros(extraflatsamples, dtype = np.dtype(dataloadtypes[fmt]))))
     else:
-        sigbytes = getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples)
+        sigbytes = getdatbytes(file_name, dirname, pb_dir, fmt, startbyte, nreadsamples)
 
     # Continue to process the read values into proper samples
 
@@ -790,49 +790,49 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
     # final samples.
 
     # No extra samples/frame. Obtain original uniform numpy array
-    if tsampsperframe==nsig:
+    if tsamps_per_frame==n_sig:
         # Reshape into multiple channels
-        sig = sigbytes.reshape(-1, nsig)
+        sig = sigbytes.reshape(-1, n_sig)
         # Skew the signal
-        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
+        sig = skewsig(sig, skew, n_sig, readlen, fmt, nanreplace)
 
     # Extra frames present to be smoothed. Obtain averaged uniform numpy array
     elif smooth_frames:
 
         # Allocate memory for smoothed signal.
-        sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype=sigbytes.dtype)
+        sig = np.zeros((int(len(sigbytes)/tsamps_per_frame) , n_sig), dtype=sigbytes.dtype)
 
         # Transfer and average samples
-        for ch in range(nsig):
-            if sampsperframe[ch] == 1:
-                sig[:, ch] = sigbytes[sum(([0] + sampsperframe)[:ch + 1])::tsampsperframe]
+        for ch in range(n_sig):
+            if samps_per_frame[ch] == 1:
+                sig[:, ch] = sigbytes[sum(([0] + samps_per_frame)[:ch + 1])::tsamps_per_frame]
             else:
                 if ch == 0:
                     startind = 0
                 else:
-                    startind = np.sum(sampsperframe[:ch])
-                sig[:,ch] = [np.average(sigbytes[ind:ind+sampsperframe[ch]]) for ind in range(startind,len(sigbytes),tsampsperframe)]
+                    startind = np.sum(samps_per_frame[:ch])
+                sig[:,ch] = [np.average(sigbytes[ind:ind+samps_per_frame[ch]]) for ind in range(startind,len(sigbytes),tsamps_per_frame)]
         # Skew the signal
-        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
+        sig = skewsig(sig, skew, n_sig, readlen, fmt, nanreplace)
 
     # Extra frames present without wanting smoothing. Return all expanded samples.
     else:
         # List of 1d numpy arrays
         sig=[]
         # Transfer over samples
-        for ch in range(nsig):
+        for ch in range(n_sig):
             # Indices of the flat signal that belong to the channel
-            ch_indices = np.concatenate([np.array(range(sampsperframe[ch])) + sum([0]+sampsperframe[:ch]) + tsampsperframe*framenum for framenum in range(int(len(sigbytes)/tsampsperframe))])
+            ch_indices = np.concatenate([np.array(range(samps_per_frame[ch])) + sum([0]+samps_per_frame[:ch]) + tsamps_per_frame*framenum for framenum in range(int(len(sigbytes)/tsamps_per_frame))])
             sig.append(sigbytes[ch_indices])
         # Skew the signal
-        sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe)
+        sig = skewsig(sig, skew, n_sig, readlen, fmt, nanreplace, samps_per_frame)
 
     # Integrity check of signal shape after reading
-    checksigdims(sig, readlen, nsig, sampsperframe)
+    checksigdims(sig, readlen, n_sig, samps_per_frame)
 
     return sig
 
-def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sampto):
+def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom, sampto):
     """
     Calculate parameters used to read and process the dat file
     
@@ -848,7 +848,7 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
 
 
     Example Parameters:
-    siglen=100, t = 4 (total samples/frame), skew = [0, 2, 4, 5]
+    sig_len=100, t = 4 (total samples/frame), skew = [0, 2, 4, 5]
     sampfrom=0, sampto=100 --> readlen = 100, nsampread = 100*t, extralen = 5, nanreplace = [0, 2, 4, 5]
     sampfrom=50, sampto=100 --> readlen = 50, nsampread = 50*t, extralen = 5, nanreplace = [0, 2, 4, 5]
     sampfrom=0, sampto=50 --> readlen = 50, nsampread = 55*t, extralen = 0, nanreplace = [0, 0, 0, 0]
@@ -856,19 +856,19 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
     """
 
     # First flat sample number to read (if all channels were flattened)
-    startflatsample = sampfrom * tsampsperframe
+    startflatsample = sampfrom * tsamps_per_frame
     
-    #endflatsample = min((sampto + max(skew)-sampfrom), siglen) * tsampsperframe
+    #endflatsample = min((sampto + max(skew)-sampfrom), sig_len) * tsamps_per_frame
 
     # Calculate the last flat sample number to read.
-    # Cannot exceed siglen * tsampsperframe, the number of samples stored in the file.
+    # Cannot exceed sig_len * tsamps_per_frame, the number of samples stored in the file.
     # If extra 'samples' are desired by the skew, keep track.
     # Where was the -sampfrom derived from? Why was it in the formula?
-    if (sampto + max(skew))>siglen:
-        endflatsample = siglen*tsampsperframe
-        extraflatsamples = (sampto + max(skew) - siglen) * tsampsperframe
+    if (sampto + max(skew))>sig_len:
+        endflatsample = sig_len*tsamps_per_frame
+        extraflatsamples = (sampto + max(skew) - sig_len) * tsamps_per_frame
     else:
-        endflatsample = (sampto + max(skew)) * tsampsperframe
+        endflatsample = (sampto + max(skew)) * tsamps_per_frame
         extraflatsamples = 0
 
     # Adjust the starting sample number to read from start of blocks for special fmts.
@@ -885,7 +885,7 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
         blockfloorsamples = 0
 
     # The starting byte to read from
-    startbyte = byteoffset + int(startflatsample * bytespersample[fmt])
+    startbyte = byte_offset + int(startflatsample * bytespersample[fmt])
 
     # The number of samples to read
     nreadsamples = endflatsample - startflatsample
@@ -893,8 +893,8 @@ def calc_read_params(fmt, siglen, byteoffset, skew, tsampsperframe, sampfrom, sa
     # The number of samples to replace with nan at the end of each signal
     # due to skew wanting samples beyond the file
 
-    # Calculate this using the above statement case: if (sampto + max(skew))>siglen:
-    nanreplace = [max(0, sampto + s - siglen) for s in skew]
+    # Calculate this using the above statement case: if (sampto + max(skew))>sig_len:
+    nanreplace = [max(0, sampto + s - sig_len) for s in skew]
 
     return (startbyte, nreadsamples, blockfloorsamples, extraflatsamples, nanreplace)
 
@@ -936,7 +936,7 @@ def requiredbytenum(mode, fmt, nsamp):
     return int(nbytes)
 
 
-def getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nsamp):
+def getdatbytes(file_name, dirname, pb_dir, fmt, startbyte, nsamp):
     """
     Read bytes from a dat file, either local or remote, into a numpy array.
     Slightly misleading function name. Does not return bytes object. 
@@ -968,7 +968,7 @@ def getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nsamp):
 
     # Local dat file
     if pb_dir is None:
-        fp = open(os.path.join(dirname, filename), 'rb')
+        fp = open(os.path.join(dirname, file_name), 'rb')
         fp.seek(startbyte)
 
         # Read file using corresponding dtype
@@ -979,7 +979,7 @@ def getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nsamp):
     # Stream dat file from physiobank
     # Same output as above np.fromfile.
     else:
-        sigbytes = download.streamdat(filename, pb_dir, fmt, bytecount, startbyte, dataloadtypes)
+        sigbytes = download.stream_dat(file_name, pb_dir, fmt, bytecount, startbyte, dataloadtypes)
 
     return sigbytes
 
@@ -1011,7 +1011,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         if addedsamps:
             sig = sig[:-addedsamps]
 
-        # Loaded values as unsigned. Convert to 2's complement form:
+        # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^11-1 are negative.
         sig[sig > 2047] -= 4096
 
@@ -1039,7 +1039,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         if addedsamps:
             sig = sig[:-addedsamps]
 
-        # Loaded values as unsigned. Convert to 2's complement form:
+        # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
     
@@ -1067,47 +1067,47 @@ def bytes2samples(sigbytes, nsamp, fmt):
         if addedsamps:
             sig = sig[:-addedsamps]
 
-        # Loaded values as unsigned. Convert to 2's complement form:
+        # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
     return sig
 
 
-def skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe=None):
+def skewsig(sig, skew, n_sig, readlen, fmt, nanreplace, samps_per_frame=None):
     """
     Skew the signal, insert nans and shave off end of array if needed.
 
     fmt is just for the correct nan value.
-    sampsperframe is only used for skewing expanded signals.
+    samps_per_frame is only used for skewing expanded signals.
     """
     if max(skew)>0:
 
         # Expanded frame samples. List of arrays. 
         if isinstance(sig, list):
             # Shift the channel samples
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if skew[ch]>0:
-                    sig[ch][:readlen*sampsperframe[ch]] = sig[ch][skew[ch]*sampsperframe[ch]:]
+                    sig[ch][:readlen*samps_per_frame[ch]] = sig[ch][skew[ch]*samps_per_frame[ch]:]
 
             # Shave off the extra signal length at the end
-            for ch in range(nsig):
-                sig[ch] = sig[ch][:readlen*sampsperframe[ch]]
+            for ch in range(n_sig):
+                sig[ch] = sig[ch][:readlen*samps_per_frame[ch]]
 
             # Insert nans where skewed signal overran dat file
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if nanreplace[ch]>0:
                     sig[ch][-nanreplace[ch]:] = digi_nan(fmt)
         # Uniform array
         else:
             # Shift the channel samples
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if skew[ch]>0:
                     sig[:readlen, ch] = sig[skew[ch]:, ch]
             # Shave off the extra signal length at the end
             sig = sig[:readlen, :]
 
             # Insert nans where skewed signal overran dat file
-            for ch in range(nsig):
+            for ch in range(n_sig):
                 if nanreplace[ch]>0:
                     sig[-nanreplace[ch]:, ch] = digi_nan(fmt)
 
@@ -1115,15 +1115,15 @@ def skewsig(sig, skew, nsig, readlen, fmt, nanreplace, sampsperframe=None):
 
             
 # Integrity check of signal shape after reading
-def checksigdims(sig, readlen, nsig, sampsperframe):
+def checksigdims(sig, readlen, n_sig, samps_per_frame):
     if isinstance(sig, np.ndarray):
-        if sig.shape != (readlen, nsig):
+        if sig.shape != (readlen, n_sig):
             raise ValueError('Samples were not loaded correctly')
     else:
-        if len(sig) != nsig:
+        if len(sig) != n_sig:
             raise ValueError('Samples were not loaded correctly')
-        for ch in range(nsig):
-            if len(sig[ch]) != sampsperframe[ch] * readlen:
+        for ch in range(n_sig):
+            if len(sig[ch]) != samps_per_frame[ch] * readlen:
                 raise ValueError('Samples were not loaded correctly')
 
 
@@ -1202,16 +1202,16 @@ def estres(signals):
     
     # Expanded sample signals. List of numpy arrays                
     if isinstance(signals, list):
-        nsig = len(signals)
+        n_sig = len(signals)
     # Uniform numpy array
     else:
         if signals.ndim ==1:
-            nsig = 1
+            n_sig = 1
         else:
-            nsig = signals.shape[1]
+            n_sig = signals.shape[1]
     res = []
         
-    for ch in range(nsig):
+    for ch in range(n_sig):
         # Estimate the number of steps as the range divided by the minimum increment. 
         if isinstance(signals, list):
             sortedsig = np.sort(signals[ch])
@@ -1234,12 +1234,12 @@ def estres(signals):
 
 
 # Return the most suitable wfdb format(s) to use given signal resolutions.
-# If singlefmt is True, the format for the maximum resolution will be returned.
-def wfdbfmt(res, singlefmt = True):
+# If single_fmt is True, the format for the maximum resolution will be returned.
+def wfdbfmt(res, single_fmt = True):
 
     if isinstance(res, list):
         # Return a single format
-        if singlefmt is True:
+        if single_fmt is True:
             res = [max(res)]*len(res)
 
         fmts = []
@@ -1301,34 +1301,34 @@ def npdtype(res, discrete):
 # Write a dat file.
 # All bytes are written one at a time
 # to avoid endianness issues.
-def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=None, sampsperframe=None):
-    f=open(filename,'wb')
+def wrdatfile(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signal=None, samps_per_frame=None):
+    f=open(file_name,'wb')
 
     # Combine list of arrays into single array
     if expanded:
-        nsig = len(e_d_signals)
-        siglen = int(len(e_d_signals[0])/sampsperframe[0])
+        n_sig = len(e_d_signal)
+        sig_len = int(len(e_d_signal[0])/samps_per_frame[0])
         # Effectively create MxN signal, with extra frame samples acting like extra channels
-        d_signals = np.zeros((siglen, sum(sampsperframe)), dtype = 'int64')
+        d_signal = np.zeros((sig_len, sum(samps_per_frame)), dtype = 'int64')
         # Counter for channel number
         expand_ch = 0
-        for ch in range(nsig):
-            spf = sampsperframe[ch]
+        for ch in range(n_sig):
+            spf = samps_per_frame[ch]
             for framenum in range(spf):
-                d_signals[:, expand_ch] = e_d_signals[ch][framenum::spf]
+                d_signal[:, expand_ch] = e_d_signal[ch][framenum::spf]
                 expand_ch = expand_ch + 1
     
-    # This nsig is used for making list items.
+    # This n_sig is used for making list items.
     # Does not necessarily represent number of signals (ie. for expanded=True)
-    nsig = d_signals.shape[1]
+    n_sig = d_signal.shape[1]
 
     if fmt == '80':
         # convert to 8 bit offset binary form
-        d_signals = d_signals + 128
+        d_signal = d_signal + 128
         # Concatenate into 1D
-        d_signals = d_signals.reshape(-1)
-        # Convert to unsigned 8 bit dtype to write
-        bwrite = d_signals.astype('uint8')
+        d_signal = d_signal.reshape(-1)
+        # Convert to un_signed 8 bit dtype to write
+        bwrite = d_signal.astype('uint8')
 
     elif fmt == '212':
 
@@ -1339,18 +1339,18 @@ def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=
         # The process is repeated for each successive pair of samples. 
 
         # convert to 12 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 4096
+        d_signal[d_signal<0] = d_signal[d_signal<0] + 4096
         
         # Concatenate into 1D
-        d_signals = d_signals.reshape(-1)
+        d_signal = d_signal.reshape(-1)
 
-        nsamp = len(d_signals)
+        nsamp = len(d_signal)
         # use this for byte processing
         processnsamp = nsamp
 
         # Odd numbered number of samples. Fill in extra blank for following byte calculation. 
         if processnsamp % 2:
-            d_signals = np.concatenate([d_signals, np.array([0])])
+            d_signal = np.concatenate([d_signal, np.array([0])])
             processnsamp +=1
 
         # The individual bytes to write
@@ -1359,11 +1359,11 @@ def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=
         # Fill in the byte triplets
 
         # Triplet 1 from lowest 8 bits of sample 1
-        bwrite[0::3] = d_signals[0::2] & 255 
+        bwrite[0::3] = d_signal[0::2] & 255 
         # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
-        bwrite[1::3] = ((d_signals[0::2] & 3840) >> 8) + ((d_signals[1::2] & 3840) >> 4)
+        bwrite[1::3] = ((d_signal[0::2] & 3840) >> 8) + ((d_signal[1::2] & 3840) >> 4)
         # Triplet 3 from lowest 8 bits of sample 2
-        bwrite[2::3] = d_signals[1::2] & 255
+        bwrite[2::3] = d_signal[1::2] & 255
 
         # If we added an extra sample for byte calculation, remove the last byte (don't write)
         if nsamp % 2:
@@ -1371,41 +1371,41 @@ def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=
 
     elif fmt == '16':
         # convert to 16 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 65536
+        d_signal[d_signal<0] = d_signal[d_signal<0] + 65536
         # Split samples into separate bytes using binary masks
-        b1 = d_signals & [255]*nsig
-        b2 = ( d_signals & [65280]*nsig ) >> 8
+        b1 = d_signal & [255]*n_sig
+        b2 = ( d_signal & [65280]*n_sig ) >> 8
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         bwrite = np.concatenate((b1, b2), axis=1)
         bwrite = bwrite.reshape((1,-1))[0]
-        # Convert to unsigned 8 bit dtype to write
+        # Convert to un_signed 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
     elif fmt == '24':
         # convert to 24 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 16777216
+        d_signal[d_signal<0] = d_signal[d_signal<0] + 16777216
         # Split samples into separate bytes using binary masks
-        b1 = d_signals & [255]*nsig
-        b2 = ( d_signals & [65280]*nsig ) >> 8
-        b3 = ( d_signals & [16711680]*nsig ) >> 16
+        b1 = d_signal & [255]*n_sig
+        b2 = ( d_signal & [65280]*n_sig ) >> 8
+        b3 = ( d_signal & [16711680]*n_sig ) >> 16
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         b3 = b3.reshape((-1, 1))
         bwrite = np.concatenate((b1, b2, b3), axis=1)
         bwrite = bwrite.reshape((1,-1))[0]
-        # Convert to unsigned 8 bit dtype to write
+        # Convert to un_signed 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
     
     elif fmt == '32':
         # convert to 32 bit two's complement 
-        d_signals[d_signals<0] = d_signals[d_signals<0] + 4294967296
+        d_signal[d_signal<0] = d_signal[d_signal<0] + 4294967296
         # Split samples into separate bytes using binary masks
-        b1 = d_signals & [255]*nsig
-        b2 = ( d_signals & [65280]*nsig ) >> 8
-        b3 = ( d_signals & [16711680]*nsig ) >> 16
-        b4 = ( d_signals & [4278190080]*nsig ) >> 24
+        b1 = d_signal & [255]*n_sig
+        b2 = ( d_signal & [65280]*n_sig ) >> 8
+        b3 = ( d_signal & [16711680]*n_sig ) >> 16
+        b4 = ( d_signal & [4278190080]*n_sig ) >> 24
         # Interweave the bytes so that the same samples' bytes are consecutive 
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -1413,15 +1413,15 @@ def wrdatfile(filename, fmt, d_signals, byteoffset, expanded=False, e_d_signals=
         b4 = b4.reshape((-1, 1))
         bwrite = np.concatenate((b1, b2, b3, b4), axis=1)
         bwrite = bwrite.reshape((1,-1))[0]
-        # Convert to unsigned 8 bit dtype to write
+        # Convert to un_signed 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
     else:
         raise ValueError('This library currently only supports writing the following formats: 80, 16, 24, 32')
         
     # Byte offset in the file
-    if byteoffset is not None and byteoffset>0:
-        print('Writing file '+filename+' with '+str(byteoffset)+' empty leading bytes')
-        bwrite = np.append(np.zeros(byteoffset, dtype = 'uint8'), bwrite)
+    if byte_offset is not None and byte_offset>0:
+        print('Writing file '+file_name+' with '+str(byte_offset)+' empty leading bytes')
+        bwrite = np.append(np.zeros(byte_offset, dtype = 'uint8'), bwrite)
 
     # Write the file
     bwrite.tofile(f)
