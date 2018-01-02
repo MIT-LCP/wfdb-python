@@ -2,7 +2,7 @@
 # For wrsamp(), the field to use will be d_signals (which is allowed to be empty for 0 channel records).
 # set_p_features and set_d_features use characteristics of the p_signals or d_signals field to fill in other header fields.
 # These are separate from another method 'setdefaults' which the user may call to set default header fields
-# The checkfieldcohesion() function will be called in wrheader which checks all the header fields.
+# The check_fieldcohesion() function will be called in wrheader which checks all the header fields.
 # The checksignalcohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
 import numpy as np
@@ -18,9 +18,8 @@ from . import _signals
 from . import download
 
 
-# The base WFDB class to extend to create Record and MultiRecord. Contains shared helper functions and fields.
 class BaseRecord(object):
-    # Constructor
+    # The base WFDB class extended by the Record and MultiRecord ckasses.
     def __init__(self, recordname=None, nsig=None,
                  fs=None, counterfreq=None, basecounter = None,
                  siglen = None, basetime = None, basedate = None,
@@ -40,13 +39,13 @@ class BaseRecord(object):
     # ch is only used for signal specification fields, specifying the channels to check. Other channels
     # can be None.
     # Be aware that this function is not just called from wrheader.
-    def checkfield(self, field, channels=None):
+    def check_field(self, field, channels=None):
         # Check that the field is present
         if getattr(self, field) is None:
             raise Exception("Missing field required: "+field)
            
         # Check the type of the field (and of its elements if it should be a list) 
-        self.checkfieldtype(field, channels)
+        self.check_field_type(field, channels)
 
         # Expand to make sure all channels must have present field
         if channels == 'all':
@@ -105,9 +104,9 @@ class BaseRecord(object):
             if self.siglen <0:
                 raise ValueError('siglen must be a non-negative integer')
         elif field == 'basetime':
-            _ = parsetimestring(self.basetime)
+            _ = parse_timestring(self.basetime)
         elif field == 'basedate':
-            _ = parsedatestring(self.basedate)
+            _ = parse_datestring(self.basedate)
 
         # Signal specification fields. Lists of elements to check.
         elif field in _headers.sigfieldspecs:
@@ -198,7 +197,7 @@ class BaseRecord(object):
     # Check the data type of the specified field.
     # ch is used for signal spec fields
     # Some fields are lists. This must be checked, along with their elements.
-    def checkfieldtype(self, field, ch=None):
+    def check_field_type(self, field, ch=None):
 
         item = getattr(self, field)
 
@@ -230,7 +229,7 @@ class BaseRecord(object):
             checkitemtype(item, field, (Record), 'none')
 
     # Ensure that input read parameters are valid for the record
-    def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes, returnres):
+    def checkreadinputs(self, sampfrom, sampto, channels, physical, m2s, smoothframes, return_res):
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
             raise TypeError('sampfrom must be an integer')
@@ -259,10 +258,10 @@ class BaseRecord(object):
             if c>self.nsig-1:
                 raise ValueError('Input channels must all be lower than the total number of channels')
 
-        if returnres not in [64, 32, 16, 8]:
-            raise ValueError("returnres must be one of the following: 64, 32, 16, 8")
-        if physical is True and returnres == 8:
-            raise ValueError("returnres must be one of the following when physical is True: 64, 32, 16")
+        if return_res not in [64, 32, 16, 8]:
+            raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
+        if physical is True and return_res == 8:
+            raise ValueError("return_res must be one of the following when physical is True: 64, 32, 16")
 
         # Cannot expand multiple samples/frame for multi-segment records
         if isinstance(self, MultiRecord):
@@ -277,7 +276,7 @@ class BaseRecord(object):
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
 # Check the item type. Vary the print message regarding whether the item can be None.
-# Helper to checkfieldtype
+# Helper to check_field_type
 # channels is a list of booleans indicating whether the field's channel must be present (1) or may be None (0)
 # and is not just for signal specification fields
 def checkitemtype(item, field, allowedtypes, channels=None):
@@ -317,7 +316,7 @@ def checkitemtype(item, field, allowedtypes, channels=None):
 
 
 
-class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
+class Record(BaseRecord, _headers.HeaderMixin, _signals.SignalMixin):
     """
     The class representing WFDB headers, and single segment WFDB records.
 
@@ -462,7 +461,7 @@ class Record(BaseRecord, _headers.HeadersMixin, _signals.SignalsMixin):
 
 
 # Class for multi segment WFDB records.
-class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
+class MultiRecord(BaseRecord, _headers.MultiHeaderMixin):
     """
     The class representing multi-segment WFDB records.
 
@@ -600,7 +599,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         return (readsegs, readsamps)
 
     # Get the channel numbers to be read from each segment
-    def requiredsignals(self, readsegs, channels, dirname, pbdir):
+    def requiredsignals(self, readsegs, channels, dirname, pb_dir):
 
         # Fixed layout. All channels are the same.
         if self.layout == 'Fixed':
@@ -622,7 +621,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                     readsigs.append(None)
                 else:
                     # Get the signal names of the current segment
-                    s_signames = rdheader(os.path.join(dirname, self.segname[readsegs[i]]), pbdir = pbdir).signame
+                    s_signames = rdheader(os.path.join(dirname, self.segname[readsegs[i]]), pb_dir = pb_dir).signame
                     readsigs.append(wanted_siginds(w_signames, s_signames))
 
         return readsigs
@@ -654,7 +653,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         self.nseg = len(self.segments)
 
     # Convert a MultiRecord object to a Record object
-    def multi_to_single(self, returnres):
+    def multi_to_single(self, return_res):
 
         # The fields to transfer to the new object
         fields = self.__dict__.copy()
@@ -666,9 +665,9 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
         del(fields['nseg'])
 
         # The output physical signals
-        if returnres == 64:
+        if return_res == 64:
             floatdtype = 'float64'
-        elif returnres == 32:
+        elif return_res == 32:
             floatdtype = 'float32'
         else:
             floatdtype = 'float16'
@@ -721,7 +720,7 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
                         # This statement is necessary in case this function is not called
                         # directly from rdsamp with m2s=True.
                         if not hasattr(seg, 'p_signals'):
-                            seg.p_signals = seg.dac(returnres=returnres)
+                            seg.p_signals = seg.dac(return_res=return_res)
                         for ch in range(0, fields['nsig']):
                             if ch not in outchannels:
                                 p_signals[startsamps[i]:endsamps[i],ch] = np.nan
@@ -739,15 +738,12 @@ class MultiRecord(BaseRecord, _headers.MultiHeadersMixin):
 
 #------------------- Reading Records -------------------#
 
-# Read a WFDB single or multi segment record. Return a Record or MultiRecord object
-def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True, pbdir = None,
-           m2s = True, smoothframes = True, ignoreskew=False, returnres=64):
-    """Read a WFDB record and return the signal and record descriptors as attributes in a
+def rdrecord(recordname, sampfrom=0, sampto=None, channels=None,
+             physical=True, pb_dir=None, m2s=True, smoothframes=True,
+             ignore_skew=False, return_res=64):
+    """
+    Read a WFDB record and return the signal and record descriptors as attributes in a
     Record or MultiRecord object.
-
-    Usage:
-    record = rdsamp(recordname, sampfrom=0, sampto=None, channels=None, physical=True, pbdir = None,
-             m2s=True, smoothframes = True, ignoreskew=False)
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -758,9 +754,9 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     - channels (default=all): Indices specifying the channel to be returned.
     - physical (default=True): Flag that specifies whether to return signals in physical units in
       the p_signals field (True), or digital units in the d_signals field (False).
-    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database
+    - pb_dir (default=None): Option used to stream data from Physiobank. The Physiobank database
        directory from which to find the required record files.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb_dir = 'mitdb'.
     - m2s (default=True): Flag used when reading multi-segment records. Specifies whether to
       directly return a wfdb MultiRecord object (False), or to convert it into and return a wfdb
       Record object (True).
@@ -769,10 +765,10 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
       one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals
       field (True), or to return a list of 1d numpy arrays containing every expanded sample as
       the e_d_signals or e_p_signals field (False).
-    - ignoreskew (default=False): Flag used when reading records with at least one skewed signal.
+    - ignore_skew (default=False): Flag used when reading records with at least one skewed signal.
       Specifies whether to apply the skew to align the signals in the output variable (False), or
       to ignore the skew field and load in all values contained in the dat files unaligned (True).
-    - returnres (default=64): The numpy array dtype of the returned signals. Options are: 64, 32,
+    - return_res (default=64): The numpy array dtype of the returned signals. Options are: 64, 32,
        16, and 8, where the value represents the numpy int or float dtype. Note that the value
        cannot be 8 when physical is True since there is no float8 format.
     
@@ -798,7 +794,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
     dirname, baserecordname = os.path.split(recordname)
 
     # Read the header fields into the appropriate record object
-    record = rdheader(recordname, pbdir = pbdir, rdsegments = False)
+    record = rdheader(recordname, pb_dir = pb_dir, rdsegments = False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -807,7 +803,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         channels = list(range(record.nsig))
 
     # Ensure that input fields are valid for the record
-    record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes, returnres)
+    record.checkreadinputs(sampfrom, sampto, channels, physical, m2s, smoothframes, return_res)
 
     # A single segment record
     if isinstance(record, Record):
@@ -815,29 +811,29 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smoothframes or max([record.sampsperframe[c] for c in channels])==1:
             # Read signals from the associated dat files that contain wanted channels
-            record.d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
+            record.d_signals = _signals.rdsegment(record.filename, dirname, pb_dir, record.nsig, record.fmt, record.siglen,
                                                   record.byteoffset, record.sampsperframe, record.skew,
-                                                  sampfrom, sampto, channels, smoothframes, ignoreskew)
+                                                  sampfrom, sampto, channels, smoothframes, ignore_skew)
             
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=False)
 
             if physical is True:
                 # Perform inplace dac to get physical signal
-                record.dac(expanded=False, returnres=returnres, inplace=True)
+                record.dac(expanded=False, return_res=return_res, inplace=True)
                 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signals = _signals.rdsegment(record.filename, dirname, pbdir, record.nsig, record.fmt, record.siglen,
+            record.e_d_signals = _signals.rdsegment(record.filename, dirname, pb_dir, record.nsig, record.fmt, record.siglen,
                                                     record.byteoffset, record.sampsperframe, record.skew,
-                                                    sampfrom, sampto, channels, smoothframes, ignoreskew)
+                                                    sampfrom, sampto, channels, smoothframes, ignore_skew)
 
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrangefields(channels, expanded=True)
 
             if physical is True:
                 # Perform dac to get physical signal
-                record.dac(expanded=True, returnres=returnres, inplace=True)
+                record.dac(expanded=True, return_res=return_res, inplace=True)
                 
 
     # A multi segment record
@@ -864,7 +860,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         if record.seglen[0] == 0:
             record.layout = 'Variable'
             # Read the layout specification header
-            record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]), pbdir=pbdir)
+            record.segments[0] = rdheader(os.path.join(dirname, record.segname[0]), pb_dir=pb_dir)
         # Fixed layout
         else:
             record.layout = 'Fixed'
@@ -872,7 +868,7 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
         # The segment numbers and samples within each segment to read.
         readsegs, segranges  = record.requiredsegments(sampfrom, sampto, channels)
         # The signals within each segment to read
-        segsigs = record.requiredsignals(readsegs, channels, dirname, pbdir)
+        segsigs = record.requiredsignals(readsegs, channels, dirname, pb_dir)
 
         # Read the desired samples in the relevant segments
         for i in range(len(readsegs)):
@@ -883,36 +879,34 @@ def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, physical = True
             else:
                 record.segments[segnum] = rdsamp(os.path.join(dirname, record.segname[segnum]),
                     sampfrom = segranges[i][0], sampto = segranges[i][1],
-                    channels = segsigs[i], physical = True, pbdir=pbdir)
+                    channels = segsigs[i], physical = True, pb_dir=pb_dir)
 
         # Arrange the fields of the overall object to reflect user input
         record.arrangefields(readsegs, segranges, channels)
 
         # Convert object into a single segment Record object
         if m2s:
-            record = record.multi_to_single(returnres=returnres)
+            record = record.multi_to_single(return_res=return_res)
 
     # Perform dtype conversion if necessary
     if isinstance(record, Record) and record.nsig>0:
-        record.convert_dtype(physical, returnres, smoothframes)
+        record.convert_dtype(physical, return_res, smoothframes)
 
     return record
 
 
 # Read a WFDB header. Return a Record object or MultiRecord object
-def rdheader(recordname, pbdir = None, rdsegments = False):
-    """Read a WFDB header file and return the record descriptors as attributes in a Record object
-
-    Usage:
-    record = rdheader(recordname, pbdir = None, rdsegments = False)
+def rdheader(recordname, pb_dir = None, rdsegments = False):
+    """
+    Read a WFDB header file and return the record descriptors as attributes in a Record object
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
       If the argument contains any path delimiter characters, the argument will be interpreted as
       PATH/baserecord and the header file will be searched for in the local path.
-    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database
+    - pb_dir (default=None): Option used to stream data from Physiobank. The Physiobank database
        directory from which to find the required record files.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb_dir = 'mitdb'.
     - rdsegments (default=False): Boolean flag used when reading multi-segment headers. If True,
       segment headers will also be read (into the record object's 'segments' field).
 
@@ -925,7 +919,7 @@ def rdheader(recordname, pbdir = None, rdsegments = False):
     """
 
     # Read the header file. Separate comment and non-comment lines
-    headerlines, commentlines = _headers.getheaderlines(recordname, pbdir)
+    headerlines, commentlines = _headers.getheaderlines(recordname, pb_dir)
 
     # Get fields from record line
     d_rec = _headers.read_rec_line(headerlines[0])
@@ -977,7 +971,7 @@ def rdheader(recordname, pbdir = None, rdsegments = False):
                 if s == '~':
                     record.segments.append(None)
                 else:
-                    record.segments.append(rdheader(os.path.join(dirname,s), pbdir))
+                    record.segments.append(rdheader(os.path.join(dirname,s), pb_dir))
             # Fill in the signame attribute
             record.signame = record.getsignames()
             # Fill in the sigsegments attribute
@@ -1002,13 +996,10 @@ def wanted_siginds(wanted_signames, record_signames):
         return [record_signames.index(s) for s in contained_signals]
 
 
-# A simple version of rdsamp for ease of use
-# Return the physical signals and a few essential fields
-def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
-    """Read a WFDB record and return the physical signal and a few important descriptor fields
-
-    Usage:
-    signals, fields = srdsamp(recordname, sampfrom=0, sampto=None, channels=None, pbdir=None)
+def rdsamp(recordname, sampfrom=0, sampto=None, channels = None, pb_dir = None):
+    """
+    Read a WFDB record, and return the physical signals and a few important
+    descriptor fields.
 
     Input arguments:
     - recordname (required): The name of the WFDB record to be read (without any file extensions).
@@ -1042,7 +1033,7 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
     sig, fields = wfdb.srdsamp('sampledata/test01_00s', sampfrom=800, channels = [1,3])
     """
 
-    record = rdsamp(recordname, sampfrom, sampto, channels, True, pbdir, True)
+    record = rdrecord(recordname, sampfrom, sampto, channels, True, pb_dir, True)
 
     signals = record.p_signals
     fields = {}
@@ -1054,15 +1045,12 @@ def srdsamp(recordname, sampfrom=0, sampto=None, channels = None, pbdir = None):
 #------------------- /Reading Records -------------------#
 
 
-# Function for writing single segment records
 def wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
     fmt=None, gain=None, baseline=None, comments=None, basetime=None,
     basedate=None):
-    """Write a single segment WFDB record, creating a WFDB header file and any associated dat files.
-
-    Usage:
-    wrsamp(recordname, fs, units, signames, p_signals = None, d_signals=None,
-           fmt = None, gain = None, baseline = None, comments = None)
+    """
+    Write a single segment WFDB record, creating a WFDB header file and any
+    associated dat files.
 
     Input arguments:
     - recordname (required): The string name of the WFDB record to be written (without any file extensions).
@@ -1097,9 +1085,11 @@ def wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
     Example Usage (with the most common scenario of input parameters):
     import wfdb
     # Read part of a record from Physiobank
-    sig, fields = wfdb.srdsamp('a103l', sampfrom = 50000, channels = [0,1], pbdir = 'challenge/2015/training')
+    sig, fields = wfdb.rdsamp('a103l', sampfrom=50000, channels=[0,1],
+                              pb_dir='challenge/2015/training')
     # Write a local WFDB record (manually inserting fields)
-    wfdb.wrsamp('ecgrecord', fs = 250, units = ['mV', 'mV'], signames = ['I', 'II'], p_signals = sig, fmt = ['16', '16'])
+    wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
+                signames=['I', 'II'], p_signals=sig, fmt=['16', '16'])
     """
 
     # Check input field combinations
@@ -1133,7 +1123,7 @@ def wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
 
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format.
-def parsetimestring(timestring):
+def parse_timestring(timestring):
     times = re.findall("(?P<hours>\d{1,2}):(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}[.\d+]*)", timestring)
 
     if not times:
@@ -1164,7 +1154,7 @@ def parsetimestring(timestring):
     return (hours, minutes, seconds)
 
 # Date string parser for WFDB header - DD/MM/YYYY
-def parsedatestring(datestring):
+def parse_datestring(datestring):
     dates = re.findall(r"(?P<day>\d{2})/(?P<month>\d{2})/(?P<year>\d{4})", datestring)
 
     if not dates:
@@ -1222,17 +1212,16 @@ def orderednoconseclist(fulllist):
 # Download WFDB files from a physiobank database
 # This function only targets databases with WFDB records (EDF and MIT format).
 # If the database doesn't have a 'RECORDS" file, it will fail.
-def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False):
-    """Download WFDB record (and optionally annotation) files from a Physiobank database. The database
+def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
+                overwrite = False):
+    """
+    Download WFDB record (and optionally annotation) files from a Physiobank database. The database
     must contain a 'RECORDS' file in its base directory which lists its WFDB records.
 
-    Usage:
-    dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
-
     Input arguments:
-    - pbdb (required): The Physiobank database directory to download.
-      eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
-    - dlbasedir (required): The full local directory path in which to download the files.
+    - db (required): The Physiobank database directory to download.
+      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
+    - dl_dir (required): The full local directory path in which to download the files.
     - records (default='all'): Specifier of the WFDB records to download. Is either a list of strings
       which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
       eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
@@ -1241,7 +1230,7 @@ def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdi
       annotation types as specified by the ANNOTATORS file, or a list of strings which each specify an
       annotation extension.
       eg. annotators = ['anI'] for database https://physionet.org/physiobank/database/prcp/
-    - keepsubdirs (default=True): Whether to keep the relative subdirectories of downloaded files
+    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
       as they are organized in Physiobank (True), or to download all files into the same base directory (False).
     - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
       existing files with the same name and relative subdirectory will be checked. If the local file is
@@ -1255,7 +1244,7 @@ def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdi
     """
 
     # Full url physiobank database
-    dburl = posixpath.join(download.dbindexurl, pbdb)
+    dburl = posixpath.join(download.db_index_url, db)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
@@ -1278,7 +1267,7 @@ def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdi
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
             dirname, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pbdir = posixpath.join(pbdb, dirname))
+            record = rdheader(baserecname, pb_dir=posixpath.join(db, dirname))
 
             # Single segment record
             if isinstance(record, Record):
@@ -1298,23 +1287,23 @@ def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdi
                     if seg.endswith('_layout'):
                         continue
                     # Add all dat files of the segment
-                    recseg = rdheader(seg, pbdir = posixpath.join(pbdb, dirname))
+                    recseg = rdheader(seg, pb_dir=posixpath.join(db, dirname))
                     for file in recseg.filename:
                         allfiles.append(posixpath.join(dirname, file))
         # check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = posixpath.join(download.dbindexurl, pbdb, annfile)
+                url = posixpath.join(download.db_index_url, db, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
                     allfiles.append(annfile)
 
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in allfiles]
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in allfiles]
 
     # Make any required local directories
-    download.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+    download.makelocaldirs(dl_dir, dlinputs, keep_subdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
@@ -1325,20 +1314,18 @@ def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdi
 
     return
 
-# Download specific files from a physiobank database
-def dl_databasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
-    """Download specified files from a Physiobank database.
 
-    Usage:
-    dl_databasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
+    """
+    Download specified files from a Physiobank database.
 
     Input arguments:
-    - pbdb (required): The Physiobank database directory to download.
-      eg. For database 'http://physionet.org/physiobank/database/mitdb', pbdb = 'mitdb'.
-    - dlbasedir (required): The full local directory path in which to download the files.
+    - db (required): The Physiobank database directory to download.
+      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
+    - dl_dir (required): The full local directory path in which to download the files.
     - files (required): A list of strings specifying the file names to download relative to the database
       base directory
-    - keepsubdirs (default=True): Whether to keep the relative subdirectories of downloaded files
+    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
       as they are organized in Physiobank (True), or to download all files into the same base directory (False).
     - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
       existing files with the same name and relative subdirectory will be checked. If the local file is
@@ -1348,20 +1335,20 @@ def dl_databasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = Fal
 
     Example Usage:
     import wfdb
-    wfdb.dl_databasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
+    wfdb.dl_files('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
     """
 
     # Full url physiobank database
-    dburl = posixpath.join(download.dbindexurl, pbdb)
+    dburl = posixpath.join(download.db_index_url, db)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
 
     # Construct the urls to download
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in files]
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in files]
 
     # Make any required local directories
-    download.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+    download.makelocaldirs(dl_dir, dlinputs, keep_subdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
@@ -1416,6 +1403,3 @@ sig_classes = [
     SignalClass('TEMP', 'Temperature', ['temp']),
     SignalClass('UNKNOWN', 'Unknown Class', []),
 ]
-
-
-

@@ -6,8 +6,12 @@ from calendar import monthrange
 from . import _signals
 from . import download
 
-# Class of common methods for single and multi-segment headers
-class BaseHeadersMixin(object):
+
+class BaseHeaderMixin(object):
+     """
+    Mixin class with multi-segment header methods. Inherited by Record and
+    MultiRecord classes
+    """
 
     # Helper function for getwritefields
     # specfields is the set of specification fields
@@ -82,10 +86,12 @@ class BaseHeadersMixin(object):
         return writefields
         
         
-# Class with single-segment header methods
-# To be inherited by WFDBrecord from records.py.
-class HeadersMixin(BaseHeadersMixin):
-    
+
+class HeaderMixin(BaseHeaderMixin):
+    """
+    Mixin class with single-segment header methods. Inherited by Record class.
+    """
+
     def setdefaults(self):
         """
         Set defaults for fields needed to write the header if they have defaults.
@@ -112,14 +118,14 @@ class HeadersMixin(BaseHeadersMixin):
 
         # Record specification fields (and comments)
         for f in recwritefields:
-            self.checkfield(f)
+            self.check_field(f)
 
         # Signal specification fields.
         for f in sigwritefields:
-            self.checkfield(f, sigwritefields[f])
+            self.check_field(f, sigwritefields[f])
 
         # Check the cohesion of fields used to write the header
-        self.checkfieldcohesion(recwritefields, list(sigwritefields))
+        self.check_fieldcohesion(recwritefields, list(sigwritefields))
         
         # Write the header file using the specified fields
         self.wrheaderfile(recwritefields, sigwritefields)
@@ -139,7 +145,7 @@ class HeadersMixin(BaseHeadersMixin):
             recwritefields.append('comments')
 
         # Determine whether there are signals. If so, get their required fields.
-        self.checkfield('nsig')
+        self.check_field('nsig')
         if self.nsig>0:
             sigwritefields=self.getwritesubset('signal')
         else:
@@ -182,7 +188,7 @@ class HeadersMixin(BaseHeadersMixin):
             setattr(self, field, [sigfieldspecs[field].write_def]*self.nsig)
 
     # Check the cohesion of fields used to write the header
-    def checkfieldcohesion(self, recwritefields, sigwritefields):
+    def check_fieldcohesion(self, recwritefields, sigwritefields):
 
         # If there are no signal specification fields, there is nothing to check. 
         if self.nsig>0:
@@ -257,11 +263,11 @@ class HeadersMixin(BaseHeadersMixin):
         linestofile(self.recordname+'.hea', headerlines)
 
 
+class MultiHeaderMixin(BaseHeaderMixin):
+    """
+    Mixin class with multi-segment header methods. Inherited by MultiRecord class.
+    """
 
-# Class with multi-segment header methods
-# To be inherited by WFDBmultirecord from records.py.
-class MultiHeadersMixin(BaseHeadersMixin):
-    
     # Set defaults for fields needed to write the header if they have defaults.
     # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
     # It is also not called by wrhea (this may be changed in the future) since 
@@ -281,10 +287,10 @@ class MultiHeadersMixin(BaseHeadersMixin):
 
         # Check the validity of individual fields used to write the header 
         for f in writefields:
-            self.checkfield(f)
+            self.check_field(f)
         
         # Check the cohesion of fields used to write the header
-        self.checkfieldcohesion()
+        self.check_fieldcohesion()
         
         # Write the header file using the specified fields
         self.wrheaderfile(writefields)
@@ -318,7 +324,7 @@ class MultiHeadersMixin(BaseHeadersMixin):
             
 
     # Check the cohesion of fields used to write the header
-    def checkfieldcohesion(self):
+    def check_fieldcohesion(self):
 
         # The length of segname and seglen must match nseg
         for f in ['segname', 'seglen']:
@@ -429,9 +435,9 @@ rxSEGMENT = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
 
 
 # Read header file to get comment and non-comment lines
-def getheaderlines(recordname, pbdir):
+def getheaderlines(recordname, pb_dir):
     # Read local file
-    if pbdir is None:
+    if pb_dir is None:
         with open(recordname + ".hea", 'r') as fp:
             # Record line followed by signal/segment lines if any
             headerlines = [] 
@@ -454,7 +460,7 @@ def getheaderlines(recordname, pbdir):
                         headerlines.append(line)
     # Read online header file
     else:
-        headerlines, commentlines = download.streamheader(recordname, pbdir)
+        headerlines, commentlines = download.streamheader(recordname, pb_dir)
 
     return headerlines, commentlines
 

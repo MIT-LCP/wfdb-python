@@ -127,7 +127,7 @@ class Annotation(object):
             raise Exception('At least one annotation label field is required to write the annotation: ', ann_label_fields)
 
         # Check the validity of individual fields
-        self.checkfields()
+        self.check_fields()
 
         # Standardize the format of the custom_labels field
         self.standardize_custom_labels()
@@ -159,17 +159,17 @@ class Annotation(object):
         return present_label_fields
 
     # Check the set fields of the annotation object
-    def checkfields(self):
+    def check_fields(self):
         # Check all set fields
         for field in ann_field_types:
             if getattr(self, field) is not None:
                 # Check the type of the field's elements
-                self.checkfield(field)
+                self.check_field(field)
         return
 
 
     # Check a particular annotation field
-    def checkfield(self, field):
+    def check_field(self, field):
 
         item = getattr(self, field)
 
@@ -367,7 +367,7 @@ class Annotation(object):
         if custom_labels is None:
             return
 
-        self.checkfield('custom_labels')
+        self.check_field('custom_labels')
 
         # Convert to dataframe if not already
         if not isinstance(custom_labels, pd.DataFrame):
@@ -704,7 +704,7 @@ class Annotation(object):
         
     def sym_to_aux(self):
         # Move non-encoded symbol elements into the aux_note field 
-        self.checkfield('symbol')
+        self.check_field('symbol')
 
         # Non-encoded symbols
         label_table_map = self.create_label_map(inplace=False)
@@ -747,7 +747,7 @@ class Annotation(object):
         to others except rdann.
         """
         if self.custom_labels is not None:
-            self.checkfield('custom_labels')
+            self.check_field('custom_labels')
 
         # Create the label map
         label_map = ann_label_table.copy()
@@ -1046,7 +1046,7 @@ def wrann(recordname, extension, sample, symbol=None, subtype=None, chan=None, n
     Example Usage:
     import wfdb
     # Read an annotation as an Annotation object
-    annotation = wfdb.rdann('b001', 'atr', pbdir='cebsdb')
+    annotation = wfdb.rdann('b001', 'atr', pb_dir='cebsdb')
     # Call the gateway wrann function, manually inserting fields as function input parameters
     wfdb.wrann('b001', 'cpy', annotation.sample, annotation.symbol)
     """
@@ -1093,13 +1093,13 @@ def show_ann_classes():
 
 # todo: return as df option?
 def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
-          pbdir=None, return_label_elements=['symbol'], summarize_labels=False):
+          pb_dir=None, return_label_elements=['symbol'], summarize_labels=False):
     """ Read a WFDB annotation file recordname.extension and return an
     Annotation object.
 
     Usage: 
     annotation = rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
-                 pbdir=None, return_label_elements=['symbol'], summarize_labels=False)
+                 pb_dir=None, return_label_elements=['symbol'], summarize_labels=False)
 
     Input arguments:
     - recordname (required): The record name of the WFDB annotation file. ie. for 
@@ -1111,9 +1111,9 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     - shiftsamps (default=False): Boolean flag that specifies whether to return the
       sample indices relative to 'sampfrom' (True), or sample 0 (False). Annotation files
       store exact sample locations.
-    - pbdir (default=None): Option used to stream data from Physiobank. The Physiobank database 
+    - pb_dir (default=None): Option used to stream data from Physiobank. The Physiobank database 
       directory from which to find the required annotation file.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
+      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb_dir = 'mitdb'.
     - return_label_elements (default=['symbol']): The label elements that are to be returned
       from reading the annotation file. A list with at least one of the following: 'symbol',
       'label_store', 'description'.
@@ -1138,7 +1138,7 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
 
     # Read the file in byte pairs
-    filebytes = load_byte_pairs(recordname, extension, pbdir)
+    filebytes = load_byte_pairs(recordname, extension, pb_dir)
 
     # Get wfdb annotation fields from the file bytes
     sample, label_store, subtype, chan, num, aux_note = proc_ann_bytes(filebytes, sampto)
@@ -1163,7 +1163,7 @@ def rdann(recordname, extension, sampfrom=0, sampto=None, shiftsamps=False,
     # Try to get fs from the header file if it is not contained in the annotation file
     if fs is None:
         try:
-            rec = records.rdheader(recordname, pbdir)
+            rec = records.rdheader(recordname, pb_dir)
             fs = rec.fs
         except:
             pass
@@ -1200,14 +1200,14 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
     return return_label_elements
 
 # Load the annotation file 1 byte at a time and arrange in pairs
-def load_byte_pairs(recordname, extension, pbdir):
+def load_byte_pairs(recordname, extension, pb_dir):
     # local file
-    if pbdir is None:
+    if pb_dir is None:
         with open(recordname + '.' + extension, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # physiobank file
     else:
-        filebytes = downloads.streamannotation(recordname+'.'+extension, pbdir).reshape([-1, 2])
+        filebytes = downloads.streamannotation(recordname+'.'+extension, pb_dir).reshape([-1, 2])
 
     return filebytes
 

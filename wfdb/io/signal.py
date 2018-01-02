@@ -9,9 +9,11 @@ special_fmts = ['212', '310', '311']
 dat_fmts = simple_fmts + special_fmts
 
 
-# Mixin class with signal methods, inherited by Record class
-class SignalsMixin(object):
 
+class SignalMixin(object):
+    """
+    Mixin class with signal methods. Inherited by Record class.
+    """
 
     def wrdats(self, expanded):
         # Write all dat files associated with a record
@@ -27,10 +29,10 @@ class SignalsMixin(object):
 
         if expanded:
             # Using list of arrays e_d_signals
-            self.checkfield('e_d_signals', channels = 'all')
+            self.check_field('e_d_signals', channels = 'all')
         else:
             # Check the validity of the d_signals field
-            self.checkfield('d_signals')
+            self.check_field('d_signals')
 
         # Check the cohesion of the d_signals field against the other fields used to write the header
         self.checksignalcohesion(writefields, expanded)
@@ -134,31 +136,31 @@ class SignalsMixin(object):
 
         if expanded:
             if do_dac == 1:
-                self.checkfield('e_d_signals', channels = 'all')
-                self.checkfield('fmt', 'all')
-                self.checkfield('adcgain', 'all')
-                self.checkfield('baseline', 'all')
-                self.checkfield('sampsperframe', 'all')
+                self.check_field('e_d_signals', channels = 'all')
+                self.check_field('fmt', 'all')
+                self.check_field('adcgain', 'all')
+                self.check_field('baseline', 'all')
+                self.check_field('sampsperframe', 'all')
 
                 # All required fields are present and valid. Perform DAC
                 self.e_p_signals = self.dac(expanded)
 
             # Use e_p_signals to set fields
-            self.checkfield('e_p_signals', channels = 'all')
+            self.check_field('e_p_signals', channels = 'all')
             self.siglen = int(len(self.e_p_signals[0])/self.sampsperframe[0])
             self.nsig = len(self.e_p_signals)
         else:
             if do_dac == 1:
-                self.checkfield('d_signals')
-                self.checkfield('fmt', 'all')
-                self.checkfield('adcgain', 'all')
-                self.checkfield('baseline', 'all')
+                self.check_field('d_signals')
+                self.check_field('fmt', 'all')
+                self.check_field('adcgain', 'all')
+                self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform DAC
                 self.p_signals = self.dac()
 
             # Use p_signals to set fields
-            self.checkfield('p_signals')
+            self.check_field('p_signals')
             self.siglen = self.p_signals.shape[0]
             self.nsig = self.p_signals.shape[1]
 
@@ -187,7 +189,7 @@ class SignalsMixin(object):
         if expanded:
             # adc is performed.
             if do_adc == True:
-                self.checkfield('e_p_signals', channels = 'all')
+                self.check_field('e_p_signals', channels = 'all')
 
                 # If there is no fmt set
                 if self.fmt is None:
@@ -199,7 +201,7 @@ class SignalsMixin(object):
                     self.fmt = wfdbfmt(res, singlefmt)
                 # If there is a fmt set
                 else:
-                    self.checkfield('fmt', 'all')
+                    self.check_field('fmt', 'all')
                     # Neither field set
                     if self.adcgain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
@@ -208,14 +210,14 @@ class SignalsMixin(object):
                     elif (self.adcgain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
                 
-                self.checkfield('adcgain', 'all')
-                self.checkfield('baseline', 'all')
+                self.check_field('adcgain', 'all')
+                self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform ADC
                 self.d_signals = self.adc(expanded)
 
             # Use e_d_signals to set fields
-            self.checkfield('e_d_signals', channels = 'all')
+            self.check_field('e_d_signals', channels = 'all')
             self.siglen = int(len(self.e_d_signals[0])/self.sampsperframe[0])
             self.nsig = len(self.e_d_signals)
             self.initvalue = [sig[0] for sig in self.e_d_signals]
@@ -223,7 +225,7 @@ class SignalsMixin(object):
         else:
             # adc is performed.
             if do_adc == True:
-                self.checkfield('p_signals')
+                self.check_field('p_signals')
 
                 # If there is no fmt set
                 if self.fmt is None:
@@ -236,7 +238,7 @@ class SignalsMixin(object):
                 # If there is a fmt set
                 else:
                     
-                    self.checkfield('fmt', 'all')
+                    self.check_field('fmt', 'all')
                     # Neither field set
                     if self.adcgain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
@@ -245,14 +247,14 @@ class SignalsMixin(object):
                     elif (self.adcgain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
                 
-                self.checkfield('adcgain', 'all')
-                self.checkfield('baseline', 'all')
+                self.check_field('adcgain', 'all')
+                self.check_field('baseline', 'all')
 
                 # All required fields are present and valid. Perform ADC
                 self.d_signals = self.adc()
 
             # Use d_signals to set fields
-            self.checkfield('d_signals')
+            self.check_field('d_signals')
             self.siglen = self.d_signals.shape[0]
             self.nsig = self.d_signals.shape[1]
             self.initvalue = list(self.d_signals[0,:])
@@ -349,7 +351,7 @@ class SignalsMixin(object):
             return d_signals
 
     
-    def dac(self, expanded=False, returnres=64, inplace=False):
+    def dac(self, expanded=False, return_res=64, inplace=False):
         """
         Performs the digital to analogue conversion of the signal stored
         in d_signals if expanded is False, or e_d_signals if expanded is True.
@@ -386,9 +388,9 @@ class SignalsMixin(object):
         dnans = digi_nan(self.fmt)
 
         # Get the appropriate float dtype
-        if returnres == 64:
+        if return_res == 64:
             floatdtype = 'float64'
-        elif returnres == 32:
+        elif return_res == 32:
             floatdtype = 'float32'
         else:
             floatdtype = 'float16'
@@ -494,9 +496,9 @@ class SignalsMixin(object):
         return (gains, baselines)
 
 
-    def convert_dtype(self, physical, returnres, smoothframes):
+    def convert_dtype(self, physical, return_res, smoothframes):
         if physical is True:
-            returndtype = 'float'+str(returnres)
+            returndtype = 'float'+str(return_res)
             if smoothframes is True:
                 currentdtype = self.p_signals.dtype
                 if currentdtype != returndtype:
@@ -506,7 +508,7 @@ class SignalsMixin(object):
                     if self.e_p_signals[ch].dtype != returndtype:
                         self.e_p_signals[ch] = self.e_p_signals[ch].astype(returndtype, copy=False)
         else:
-            returndtype = 'int'+str(returnres)
+            returndtype = 'int'+str(return_res)
             if smoothframes is True:
                 currentdtype = self.d_signals.dtype
                 if currentdtype != returndtype:
@@ -617,12 +619,12 @@ class SignalsMixin(object):
 
 #------------------- Reading Signals -------------------#
 
-def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
+def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
               sampsperframe, skew, sampfrom, sampto, channels,
-              smoothframes, ignoreskew):
+              smoothframes, ignore_skew):
     """
     Read the samples from a single segment record's associated dat file(s)
-    'channels', 'sampfrom', 'sampto', 'smoothframes', and 'ignoreskew' are
+    'channels', 'sampfrom', 'sampto', 'smoothframes', and 'ignore_skew' are
     user desired input fields.
     All other input arguments are specifications of the segment
     """
@@ -642,7 +644,7 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
             skew[i] = 0
 
     # If skew is to be ignored, set all to 0
-    if ignoreskew:
+    if ignore_skew:
         skew = [0]*nsig
 
     # Get the set of dat files, and the
@@ -689,7 +691,7 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
 
         # Read each wanted dat file and store signals
         for fn in w_filename:
-            signals[:, out_datchannel[fn]] = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
+            signals[:, out_datchannel[fn]] = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
                 siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smoothframes)[:, r_w_channel[fn]]
     
     # Return each sample in signals with multiple samples/frame, without smoothing.
@@ -699,7 +701,7 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
 
         for fn in w_filename:
             # Get the list of all signals contained in the dat file 
-            datsignals = rddat(fn, dirname, pbdir, w_fmt[fn], len(datchannel[fn]), 
+            datsignals = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
                 siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smoothframes)
 
             # Copy over the wanted signals
@@ -709,7 +711,7 @@ def rdsegment(filename, dirname, pbdir, nsig, fmt, siglen, byteoffset,
     return signals 
 
 
-def rddat(filename, dirname, pbdir, fmt, nsig,
+def rddat(filename, dirname, pb_dir, fmt, nsig,
         siglen, byteoffset, sampsperframe,
         skew, sampfrom, sampto, smoothframes):
     """
@@ -722,7 +724,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     Input arguments:
     - filename: The name of the dat file.
     - dirname: The full directory where the dat file is located, if the dat file is local.
-    - pbdir: The physiobank directory where the dat file is located, if the dat file is remote.
+    - pb_dir: The physiobank directory where the dat file is located, if the dat file is remote.
     - fmt: The format of the dat file
     - nsig: The number of signals contained in the dat file  
     - siglen : The signal length (per channel) of the dat file
@@ -762,13 +764,13 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
 
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+            sigbytes = np.concatenate((getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples),
                                       np.zeros(extrabytenum, dtype = np.dtype(dataloadtypes[fmt]))))
         else:
-            sigbytes = np.concatenate((getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples),
+            sigbytes = np.concatenate((getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples),
                                       np.zeros(extraflatsamples, dtype = np.dtype(dataloadtypes[fmt]))))
     else:
-        sigbytes = getdatbytes(filename, dirname, pbdir, fmt, startbyte, nreadsamples)
+        sigbytes = getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nreadsamples)
 
     # Continue to process the read values into proper samples
 
@@ -934,7 +936,7 @@ def requiredbytenum(mode, fmt, nsamp):
     return int(nbytes)
 
 
-def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
+def getdatbytes(filename, dirname, pb_dir, fmt, startbyte, nsamp):
     """
     Read bytes from a dat file, either local or remote, into a numpy array.
     Slightly misleading function name. Does not return bytes object. 
@@ -965,7 +967,7 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
         bytecount = nsamp*bytespersample[fmt]
 
     # Local dat file
-    if pbdir is None:
+    if pb_dir is None:
         fp = open(os.path.join(dirname, filename), 'rb')
         fp.seek(startbyte)
 
@@ -977,7 +979,7 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     # Stream dat file from physiobank
     # Same output as above np.fromfile.
     else:
-        sigbytes = download.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
+        sigbytes = download.streamdat(filename, pb_dir, fmt, bytecount, startbyte, dataloadtypes)
 
     return sigbytes
 

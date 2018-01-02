@@ -6,10 +6,10 @@ import requests
 
 
 # Read a header file from physiobank
-def streamheader(recordname, pbdir):
+def streamheader(recordname, pb_dir):
 
     # Full url of header location
-    url = posixpath.join(dbindexurl, pbdir, recordname+'.hea')
+    url = posixpath.join(db_index_url, pb_dir, recordname+'.hea')
     r = requests.get(url)
 
     # Raise HTTPError if invalid url
@@ -42,10 +42,10 @@ def streamheader(recordname, pbdir):
 
 
 # Read certain bytes from a dat file from physiobank
-def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
+def streamdat(filename, pb_dir, fmt, bytecount, startbyte, datatypes):
 
     # Full url of dat file
-    url = posixpath.join(dbindexurl, pbdir, filename)
+    url = posixpath.join(db_index_url, pb_dir, filename)
 
     # Specify the byte range
     endbyte = startbyte + bytecount-1
@@ -65,10 +65,10 @@ def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
     return sigbytes
 
 # Read an entire annotation file from physiobank
-def streamannotation(filename, pbdir):
+def streamannotation(filename, pb_dir):
 
     # Full url of annotation file
-    url = posixpath.join(dbindexurl, pbdir, filename)
+    url = posixpath.join(db_index_url, pb_dir, filename)
 
     # Get the content
     r = requests.get(url)
@@ -90,7 +90,7 @@ def get_dbs():
     Usage:
     dbs = get_dbs()
     """
-    url = posixpath.join(dbindexurl, 'DBS')
+    url = posixpath.join(db_index_url, 'DBS')
     r = requests.get(url)
 
     dbs = r.content.decode('ascii').splitlines()
@@ -146,17 +146,17 @@ def getannotators(dburl, annotators):
     return annotators
 
 # Make any required local directories
-def makelocaldirs(dlbasedir, dlinputs, keepsubdirs):
+def makelocaldirs(dl_dir, dlinputs, keep_subdirs):
 
     # Make the local download dir if it doesn't exist
-    if not os.path.isdir(dlbasedir):
-        os.makedirs(dlbasedir)
-        print("Created local base download directory: ", dlbasedir)
+    if not os.path.isdir(dl_dir):
+        os.makedirs(dl_dir)
+        print("Created local base download directory: ", dl_dir)
     # Create all required local subdirectories
     # This must be out of dlpbfile to
     # avoid clash in multiprocessing
-    if keepsubdirs:
-        dldirs = set([os.path.join(dlbasedir, d[1]) for d in dlinputs])
+    if keep_subdirs:
+        dldirs = set([os.path.join(dl_dir, d[1]) for d in dlinputs])
         for d in dldirs:
             if not os.path.isdir(d):
                 os.makedirs(d)
@@ -167,10 +167,10 @@ def makelocaldirs(dlbasedir, dlinputs, keepsubdirs):
 # The input args are to be unpacked for the use of multiprocessing
 def dlpbfile(inputs):
 
-    basefile, subdir, pbdb, dlbasedir, keepsubdirs, overwrite = inputs
+    basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
     # Full url of file
-    url = posixpath.join(dbindexurl, pbdb, subdir, basefile)
+    url = posixpath.join(db_index_url, db, subdir, basefile)
 
     # Get the request header
     rh = requests.head(url, headers={'Accept-Encoding': 'identity'})
@@ -181,10 +181,10 @@ def dlpbfile(inputs):
     onlinefilesize = int(rh.headers['content-length'])
 
     # Figure out where the file should be locally
-    if keepsubdirs:
-        dldir = os.path.join(dlbasedir, subdir)
+    if keep_subdirs:
+        dldir = os.path.join(dl_dir, subdir)
     else:
-        dldir = dlbasedir
+        dldir = dl_dir
 
     localfile = os.path.join(dldir, basefile)
 
@@ -228,4 +228,4 @@ def dlfullfile(url, localfile):
 
 
 
-dbindexurl = 'http://physionet.org/physiobank/database/'
+db_index_url = 'http://physionet.org/physiobank/database/'
