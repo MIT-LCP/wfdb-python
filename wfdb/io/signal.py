@@ -496,10 +496,10 @@ class SignalMixin(object):
         return (gains, baselines)
 
 
-    def convert_dtype(self, physical, return_res, smoothframes):
+    def convert_dtype(self, physical, return_res, smooth_frames):
         if physical is True:
             returndtype = 'float'+str(return_res)
-            if smoothframes is True:
+            if smooth_frames is True:
                 currentdtype = self.p_signals.dtype
                 if currentdtype != returndtype:
                     self.p_signals = self.p_signals.astype(returndtype, copy=False)
@@ -509,7 +509,7 @@ class SignalMixin(object):
                         self.e_p_signals[ch] = self.e_p_signals[ch].astype(returndtype, copy=False)
         else:
             returndtype = 'int'+str(return_res)
-            if smoothframes is True:
+            if smooth_frames is True:
                 currentdtype = self.d_signals.dtype
                 if currentdtype != returndtype:
                     # Do not allow changing integer dtype to lower value due to over/underflow
@@ -568,7 +568,7 @@ class SignalMixin(object):
                 wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
-    def smoothframes(self, sigtype='physical'):
+    def smooth_frames(self, sigtype='physical'):
         """
         Convert expanded signals with different samples/frame into
         a uniform numpy array. 
@@ -621,10 +621,10 @@ class SignalMixin(object):
 
 def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
               sampsperframe, skew, sampfrom, sampto, channels,
-              smoothframes, ignore_skew):
+              smooth_frames, ignore_skew):
     """
     Read the samples from a single segment record's associated dat file(s)
-    'channels', 'sampfrom', 'sampto', 'smoothframes', and 'ignore_skew' are
+    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew' are
     user desired input fields.
     All other input arguments are specifications of the segment
     """
@@ -683,7 +683,7 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
     
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
-    if smoothframes or sum(sampsperframe)==nsig:
+    if smooth_frames or sum(sampsperframe)==nsig:
         # Figure out the largest required dtype for the segment to minimize memory usage
         maxdtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
         # Allocate signal array. Minimize dtype
@@ -692,7 +692,7 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
         # Read each wanted dat file and store signals
         for fn in w_filename:
             signals[:, out_datchannel[fn]] = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
-                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smoothframes)[:, r_w_channel[fn]]
+                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
     
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
@@ -702,7 +702,7 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
         for fn in w_filename:
             # Get the list of all signals contained in the dat file 
             datsignals = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
-                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smoothframes)
+                siglen, w_byteoffset[fn], w_sampsperframe[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
 
             # Copy over the wanted signals
             for cn in range(len(out_datchannel[fn])):
@@ -713,10 +713,10 @@ def rdsegment(filename, dirname, pb_dir, nsig, fmt, siglen, byteoffset,
 
 def rddat(filename, dirname, pb_dir, fmt, nsig,
         siglen, byteoffset, sampsperframe,
-        skew, sampfrom, sampto, smoothframes):
+        skew, sampfrom, sampto, smooth_frames):
     """
     Get samples from a WFDB dat file.
-    'sampfrom', 'sampto', and smoothframes are user desired
+    'sampfrom', 'sampto', and smooth_frames are user desired
     input fields. All other fields specify the file parameters. 
 
     Returns all channels
@@ -733,7 +733,7 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
     - skew: The skew for the signals of the dat file
     - sampfrom: The starting sample number to be read from the signals
     - sampto: The final sample number to be read from the signals
-    - smoothframes: Whether to smooth channels with multiple samples/frame 
+    - smooth_frames: Whether to smooth channels with multiple samples/frame 
     """
 
     # Total number of samples per frame
@@ -797,7 +797,7 @@ def rddat(filename, dirname, pb_dir, fmt, nsig,
         sig = skewsig(sig, skew, nsig, readlen, fmt, nanreplace)
 
     # Extra frames present to be smoothed. Obtain averaged uniform numpy array
-    elif smoothframes:
+    elif smooth_frames:
 
         # Allocate memory for smoothed signal.
         sig = np.zeros((int(len(sigbytes)/tsampsperframe) , nsig), dtype=sigbytes.dtype)
