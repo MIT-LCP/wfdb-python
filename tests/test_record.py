@@ -13,7 +13,7 @@ class test_rdsamp():
     def test_1a(self):
         record = wfdb.rdsamp('sampledata/test01_00s', physical=False)
         sig = record.d_signals
-        targetsig = np.genfromtxt('tests/targetoutputdata/target1a')
+        targetsig = np.genfromtxt('tests/target-output/target1a')
 
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('test01_00s', physical=False, pbdir = 'macecgdb')
@@ -35,7 +35,7 @@ class test_rdsamp():
         sig, fields = wfdb.srdsamp('sampledata/a103l',
                              sampfrom=12500, sampto=40000, channels=[2, 0])
         siground = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target1b')
+        targetsig = np.genfromtxt('tests/target-output/target1b')
 
         # Compare data streaming from physiobank
         pbsig, pbfields = wfdb.srdsamp('a103l', pbdir = 'challenge/2015/training',
@@ -50,7 +50,7 @@ class test_rdsamp():
         record = wfdb.rdsamp('sampledata/a103l',
                              sampfrom=20000, channels=[0, 1], physical=False)
         sig = record.d_signals
-        targetsig = np.genfromtxt('tests/targetoutputdata/target1c')
+        targetsig = np.genfromtxt('tests/target-output/target1c')
 
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('a103l', pbdir = 'challenge/2015/training',
@@ -71,7 +71,7 @@ class test_rdsamp():
         sig, fields = wfdb.srdsamp('sampledata/3000003_0003',
                              sampfrom=125, sampto=1000, channels=[1])
         siground = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target1d')
+        targetsig = np.genfromtxt('tests/target-output/target1d')
         targetsig = targetsig.reshape(len(targetsig), 1)
 
         # Compare data streaming from physiobank
@@ -90,7 +90,7 @@ class test_rdsamp():
     def test_2a(self):
         sig, fields = wfdb.srdsamp('sampledata/100')
         siground = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target2a')
+        targetsig = np.genfromtxt('tests/target-output/target2a')
 
         # Compare data streaming from physiobank
         pbsig, pbfields = wfdb.srdsamp('100', pbdir = 'mitdb')
@@ -107,7 +107,7 @@ class test_rdsamp():
         record = wfdb.rdsamp('sampledata/100', sampfrom=1,
                              sampto=10800, channels=[1], physical=False)
         sig = record.d_signals
-        targetsig = np.genfromtxt('tests/targetoutputdata/target2b')
+        targetsig = np.genfromtxt('tests/target-output/target2b')
         targetsig = targetsig.reshape(len(targetsig), 1)
 
         # Compare data streaming from physiobank
@@ -130,7 +130,7 @@ class test_rdsamp():
     def test_2c(self):
         record = wfdb.rdsamp('sampledata/100_3chan')
         siground = np.round(record.p_signals, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target2c')
+        targetsig = np.genfromtxt('tests/target-output/target2c')
 
         # Test file writing
         record.d_signals = record.adc()
@@ -148,7 +148,7 @@ class test_rdsamp():
     def test_2d(self):
         record = wfdb.rdsamp('sampledata/310derive', sampfrom=2, physical=False)
         sig = record.d_signals
-        targetsig = np.genfromtxt('tests/targetoutputdata/target2d')
+        targetsig = np.genfromtxt('tests/target-output/target2d')
         assert np.array_equal(sig, targetsig)
 
     # Format 311/Selected Duration/Physical
@@ -157,7 +157,7 @@ class test_rdsamp():
     def test_2e(self):
         sig, fields = wfdb.srdsamp('sampledata/311derive', sampfrom=1, sampto=978)
         sig = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target2e')
+        targetsig = np.genfromtxt('tests/target-output/target2e')
         targetsig = targetsig.reshape([977, 1])
         assert np.array_equal(sig, targetsig)
 
@@ -170,7 +170,7 @@ class test_rdsamp():
     def test_3a(self):
         record= wfdb.rdsamp('sampledata/s0010_re', physical=False)
         sig = record.d_signals
-        targetsig = np.genfromtxt('tests/targetoutputdata/target3a')
+        targetsig = np.genfromtxt('tests/target-output/target3a')
 
         # Compare data streaming from physiobank
         pbrecord= wfdb.rdsamp('s0010_re', physical=False, pbdir = 'ptbdb/patient001')
@@ -190,7 +190,7 @@ class test_rdsamp():
         sig, fields = wfdb.srdsamp('sampledata/s0010_re', sampfrom=5000,
                              sampto=38000, channels=[13, 0, 4, 8, 3])
         siground = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target3b')
+        targetsig = np.genfromtxt('tests/target-output/target3b')
 
         # Compare data streaming from physiobank
         pbsig, pbfields = wfdb.srdsamp('s0010_re', sampfrom=5000, pbdir = 'ptbdb/patient001',
@@ -213,7 +213,7 @@ class test_rdsamp():
         # N samples, filling in NANs for end of skewed channels only.
         sig = sig[:-3, :]
         
-        targetsig = np.genfromtxt('tests/targetoutputdata/target4a')
+        targetsig = np.genfromtxt('tests/target-output/target4a')
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
@@ -237,7 +237,7 @@ class test_rdsamp():
         sig = sig[:-4, :]
         # The WFDB python rdsamp does return the final N samples, filling in
         # NANs for end of skewed channels only.
-        targetsig = np.genfromtxt('tests/targetoutputdata/target4b')
+        targetsig = np.genfromtxt('tests/target-output/target4b')
 
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdsamp('03700181', physical=False, pbdir = 'mimicdb/037')
@@ -261,7 +261,7 @@ class test_rdsamp():
         sig, fields = wfdb.srdsamp('sampledata/03700181',
                              channels=[0, 2], sampfrom=1000, sampto=16000)
         siground = np.round(sig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target4c')
+        targetsig = np.genfromtxt('tests/target-output/target4c')
 
         # Compare data streaming from physiobank
         pbsig, pbfields = wfdb.srdsamp('03700181', pbdir = 'mimicdb/037',
@@ -294,7 +294,7 @@ class test_rdsamp():
         expandsig[:,2] = np.repeat(record.e_p_signals[2][:-3],2)
 
         siground = np.round(expandsig, decimals=8)
-        targetsig = np.genfromtxt('tests/targetoutputdata/target4d')
+        targetsig = np.genfromtxt('tests/target-output/target4d')
 
         assert np.array_equal(siground, targetsig)
 
@@ -308,7 +308,7 @@ class test_rdsamp():
         record=wfdb.rdsamp('sampledata/multisegment/s00001/s00001-2896-10-10-00-31',
                            sampfrom=14428365, sampto=14428375)
         siground=np.round(record.p_signals, decimals=8)
-        targetsig=np.genfromtxt('tests/targetoutputdata/target5a')
+        targetsig=np.genfromtxt('tests/target-output/target5a')
         
         np.testing.assert_equal(siground, targetsig)
 
@@ -319,7 +319,7 @@ class test_rdsamp():
         record=wfdb.rdsamp('sampledata/multisegment/s00001/s00001-2896-10-10-00-31',
                            sampfrom=14428364, sampto=14428375)
         siground=np.round(record.p_signals, decimals=8)
-        targetsig=np.genfromtxt('tests/targetoutputdata/target5b')
+        targetsig=np.genfromtxt('tests/target-output/target5b')
         
         np.testing.assert_equal(siground, targetsig)
 
@@ -328,7 +328,7 @@ class test_rdsamp():
     def test_5c(self):
         record=wfdb.rdsamp('sampledata/multisegment/fixed1/v102s')
         siground=np.round(record.p_signals, decimals=8)
-        targetsig=np.genfromtxt('tests/targetoutputdata/target5c')
+        targetsig=np.genfromtxt('tests/target-output/target5c')
         
         np.testing.assert_equal(siground, targetsig)
 
@@ -337,7 +337,7 @@ class test_rdsamp():
     def test_5d(self):
         record=wfdb.rdsamp('sampledata/multisegment/fixed1/v102s', sampto = 75000)
         siground=np.round(record.p_signals, decimals=8)
-        targetsig=np.genfromtxt('tests/targetoutputdata/target5d')
+        targetsig=np.genfromtxt('tests/target-output/target5d')
         
         np.testing.assert_equal(siground, targetsig)
 
@@ -346,7 +346,7 @@ class test_rdsamp():
     # def test_11(self):
         #sig, fields=rdsamp('sampledata/matched/s25047/s25047-2704-05-04-10-44')
         #sig=np.round(sig, decimals=8)
-        # targetsig=np.genfromtxt('tests/targetoutputdata/target11')
+        # targetsig=np.genfromtxt('tests/target-output/target11')
         #assert np.array_equal(sig, targetsig)
 
     # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical
@@ -354,7 +354,7 @@ class test_rdsamp():
     #def test_12(self):
     #    record=rdsamp('sampledata/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000)
     #    siground=np.round(record.p_signals, decimals=8)
-    #    targetsig=np.genfromtxt('tests/targetoutputdata/target12')
+    #    targetsig=np.genfromtxt('tests/target-output/target12')
     #    
     #    assert np.array_equal(sig, targetsig)
 

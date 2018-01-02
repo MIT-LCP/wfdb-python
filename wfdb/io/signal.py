@@ -1,15 +1,15 @@
 import numpy as np
 import os
 import math
-from . import downloads
+from . import download
 
-# All defined WFDB dat formats
-datformats = ["80","212","16","24","32"]
+# WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
+simple_fmts = ['80', '16', '24', '32']
+special_fmts = ['212', '310', '311']
+dat_fmts = simple_fmts + special_fmts
 
-specialfmts = ['212','310','311']
 
-# Class with signal methods
-# To be inherited by Record from records.py.
+# Mixin class with signal methods, inherited by Record class
 class SignalsMixin(object):
 
 
@@ -758,7 +758,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
 
     # Read values from dat file, and append bytes/samples if needed.
     if extraflatsamples:
-        if fmt in specialfmts:
+        if fmt in special_fmts:
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
 
@@ -773,7 +773,7 @@ def rddat(filename, dirname, pbdir, fmt, nsig,
     # Continue to process the read values into proper samples
 
     # For special fmts, Turn the bytes into actual samples
-    if fmt in specialfmts:
+    if fmt in special_fmts:
         sigbytes = bytes2samples(sigbytes, totalprocesssamples, fmt)
         # Remove extra leading sample read within the byte block if any
         if blockfloorsamples:
@@ -977,7 +977,7 @@ def getdatbytes(filename, dirname, pbdir, fmt, startbyte, nsamp):
     # Stream dat file from physiobank
     # Same output as above np.fromfile.
     else:
-        sigbytes = downloads.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
+        sigbytes = download.streamdat(filename, pbdir, fmt, bytecount, startbyte, dataloadtypes)
 
     return sigbytes
 

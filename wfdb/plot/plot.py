@@ -2,10 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from ..readwrite import records
-from ..readwrite import _headers
-from ..readwrite import _signals
-from ..readwrite import annotations
+from ..io import records
+from ..io import _headers
+from ..io import _signals
+from ..io import annotations
 
 
 # Plot a WFDB Record's signals

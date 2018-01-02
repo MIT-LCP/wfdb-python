@@ -15,7 +15,7 @@ import requests
 import multiprocessing
 from . import _headers
 from . import _signals
-from . import downloads
+from . import download
 
 
 # The base WFDB class to extend to create Record and MultiRecord. Contains shared helper functions and fields.
@@ -129,8 +129,8 @@ class BaseRecord(object):
                     if orderedsetlist(self.filename)[0] != orderednoconseclist(self.filename):
                         raise ValueError('filename error: all entries for signals that share a given file must be consecutive')
                 elif field == 'fmt':
-                    if f not in _signals.datformats:
-                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signals.datformats))    
+                    if f not in _signals.dat_fmts:
+                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signals.dat_fmts))    
                 elif field == 'sampsperframe':
                     if f < 1:
                         raise ValueError('sampsperframe values must be positive integers')
@@ -1216,18 +1216,18 @@ def orderednoconseclist(fulllist):
 
 
 # *These downloading files gateway function rely on the Record/MultiRecord objects.
-# They are placed here rather than in downloads.py in order to avoid circular imports
+# They are placed here rather than in download.py in order to avoid circular imports
 
 
 # Download WFDB files from a physiobank database
 # This function only targets databases with WFDB records (EDF and MIT format).
 # If the database doesn't have a 'RECORDS" file, it will fail.
-def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False):
+def dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False):
     """Download WFDB record (and optionally annotation) files from a Physiobank database. The database
     must contain a 'RECORDS' file in its base directory which lists its WFDB records.
 
     Usage:
-    dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
+    dl_database(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdirs = True, overwrite = False)
 
     Input arguments:
     - pbdb (required): The Physiobank database directory to download.
@@ -1251,20 +1251,20 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
 
     Example Usage:
     import wfdb
-    wfdb.dldatabase('ahadb', os.getcwd())
+    wfdb.dl_database('ahadb', os.getcwd())
     """
 
     # Full url physiobank database
-    dburl = posixpath.join(downloads.dbindexurl, pbdb)
+    dburl = posixpath.join(download.dbindexurl, pbdb)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
 
 
     # Get the list of records
-    recordlist = downloads.getrecordlist(dburl, records)
+    recordlist = download.getrecordlist(dburl, records)
     # Get the annotator extensions
-    annotators = downloads.getannotators(dburl, annotators)
+    annotators = download.getannotators(dburl, annotators)
 
     # All files to download (relative to the database's home directory)
     allfiles = []
@@ -1305,7 +1305,7 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = posixpath.join(downloads.dbindexurl, pbdb, annfile)
+                url = posixpath.join(download.dbindexurl, pbdb, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
@@ -1314,23 +1314,23 @@ def dldatabase(pbdb, dlbasedir, records = 'all', annotators = 'all' , keepsubdir
     dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in allfiles]
 
     # Make any required local directories
-    downloads.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+    download.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
-    pool.map(downloads.dlpbfile, dlinputs)
+    pool.map(download.dlpbfile, dlinputs)
     print('Finished downloading files')
 
     return
 
 # Download specific files from a physiobank database
-def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+def dl_databasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
     """Download specified files from a Physiobank database.
 
     Usage:
-    dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
+    dl_databasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = False):
 
     Input arguments:
     - pbdb (required): The Physiobank database directory to download.
@@ -1348,11 +1348,11 @@ def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = Fals
 
     Example Usage:
     import wfdb
-    wfdb.dldatabasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
+    wfdb.dl_databasefiles('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
     """
 
     # Full url physiobank database
-    dburl = posixpath.join(downloads.dbindexurl, pbdb)
+    dburl = posixpath.join(download.dbindexurl, pbdb)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
@@ -1361,13 +1361,61 @@ def dldatabasefiles(pbdb, dlbasedir, files, keepsubdirs = True, overwrite = Fals
     dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], pbdb, dlbasedir, keepsubdirs, overwrite) for file in files]
 
     # Make any required local directories
-    downloads.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
+    download.makelocaldirs(dlbasedir, dlinputs, keepsubdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
-    pool.map(downloads.dlpbfile, dlinputs)
+    pool.map(download.dlpbfile, dlinputs)
     print('Finished downloading files')
 
     return
+
+
+# ---------- For storing WFDB Signal definitions ---------- #
+
+
+# Unit scales used for default display scales.
+unit_scale = {
+    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
+    'Temperature': ['C'],
+    'Pressure': ['mmHg'],
+}
+
+
+
+# Signal class with all its parameters
+class SignalClass(object):
+    def __init__(self, abbreviation, description, signalnames):
+        self.abbreviation = abbreviation
+        self.description = description
+        # names that are assigned to this signal type
+        self.signalnames = signalnames
+    
+    def __str__(self):
+        return self.abbreviation
+
+# All signal types. Make sure signal names are in lower case.
+sig_classes = [
+    SignalClass('BP', 'Blood Pressure', ['bp','abp','pap','cvp',]),
+    SignalClass('CO2', 'Carbon Dioxide', ['co2']),
+    SignalClass('CO', 'Carbon Monoxide', ['co']),
+    SignalClass('ECG', 'Electrocardiogram', ['i','ii','iii','iv','v','avr']),
+    SignalClass('EEG', 'Electroencephalogram',['eeg']),
+    SignalClass('EMG', 'Electromyograph', ['emg']),
+    SignalClass('EOG', 'Electrooculograph', ['eog']),
+    SignalClass('HR', 'Heart Rate', ['hr']),
+    SignalClass('MMG', 'Magnetomyograph', ['mmg']),
+    SignalClass('O2', 'Oxygen', ['o2','sp02']),
+    SignalClass('PLETH', 'Plethysmograph', ['pleth']),
+    SignalClass('RESP', 'Respiration', ['resp']),
+    SignalClass('SCG', 'Seismocardiogram', ['scg']),
+    SignalClass('STAT', 'Status', ['stat','status']), # small integers indicating status
+    SignalClass('ST', 'ECG ST Segment', ['st']),
+    SignalClass('TEMP', 'Temperature', ['temp']),
+    SignalClass('UNKNOWN', 'Unknown Class', []),
+]
+
+
+

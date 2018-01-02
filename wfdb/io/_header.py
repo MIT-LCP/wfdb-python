@@ -4,7 +4,7 @@ import os
 from collections import OrderedDict
 from calendar import monthrange
 from . import _signals
-from . import downloads
+from . import download
 
 # Class of common methods for single and multi-segment headers
 class BaseHeadersMixin(object):
@@ -454,7 +454,7 @@ def getheaderlines(recordname, pbdir):
                         headerlines.append(line)
     # Read online header file
     else:
-        headerlines, commentlines = downloads.streamheader(recordname, pbdir)
+        headerlines, commentlines = download.streamheader(recordname, pbdir)
 
     return headerlines, commentlines
 
@@ -628,51 +628,3 @@ sigfieldspecs = OrderedDict([('filename', WFDBheaderspecs((str), '', None, True,
 # Segment specification fields.
 segfieldspecs = OrderedDict([('segname', WFDBheaderspecs((str), '', None, True, None, None)),
                          ('seglen', WFDBheaderspecs(inttypes, ' ', 'segname', True, None, None))])
-
-
-
-# ---------- For storing WFDB Signal definitions ---------- #
-
-
-# Unit scales used for default display scales.
-unitscale = {
-    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
-    'Temperature': ['C'],
-    'Pressure': ['mmHg'],
-}
-
-
-
-# Signal class with all its parameters
-class SignalClass(object):
-    def __init__(self, abbreviation, description, signalnames):
-        self.abbreviation = abbreviation
-        self.description = description
-        # names that are assigned to this signal type
-        self.signalnames = signalnames
-    
-    def __str__(self):
-        return self.abbreviation
-
-# All signal types. Make sure signal names are in lower case.
-sig_classes = [
-    SignalClass('BP', 'Blood Pressure', ['bp','abp','pap','cvp',]),
-    SignalClass('CO2', 'Carbon Dioxide', ['co2']),
-    SignalClass('CO', 'Carbon Monoxide', ['co']),
-    SignalClass('ECG', 'Electrocardiogram', ['i','ii','iii','iv','v','avr']),
-    SignalClass('EEG', 'Electroencephalogram',['eeg']),
-    SignalClass('EMG', 'Electromyograph', ['emg']),
-    SignalClass('EOG', 'Electrooculograph', ['eog']),
-    SignalClass('HR', 'Heart Rate', ['hr']),
-    SignalClass('MMG', 'Magnetomyograph', ['mmg']),
-    SignalClass('O2', 'Oxygen', ['o2','sp02']),
-    SignalClass('PLETH', 'Plethysmograph', ['pleth']),
-    SignalClass('RESP', 'Respiration', ['resp']),
-    SignalClass('SCG', 'Seismocardiogram', ['scg']),
-    SignalClass('STAT', 'Status', ['stat','status']), # small integers indicating status
-    SignalClass('ST', 'ECG ST Segment', ['st']),
-    SignalClass('TEMP', 'Temperature', ['temp']),
-    SignalClass('UNKNOWN', 'Unknown Class', []),
-]
-
-

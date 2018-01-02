@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # wfdb documentation build configuration file, created by
-# sphinx-quickstart on Mon Jan  1 17:10:57 2018.
+# sphinx-quickstart on Tue Jan  2 13:19:02 2018.
 #
 # This file is execfile()d with the current directory set to its
 # containing dir.
@@ -47,8 +47,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'wfdb'
-copyright = '2018, Chen Xie'
-author = 'Chen Xie'
+copyright = '2018, Chen Xie, Julien Dubiel'
+author = 'Chen Xie, Julien Dubiel'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -140,7 +140,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'wfdb.tex', 'wfdb Documentation',
-     'Chen Xie', 'manual'),
+     'Chen Xie, Julien Dubiel', 'manual'),
 ]
 
 

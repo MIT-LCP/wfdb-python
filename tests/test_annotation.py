@@ -20,7 +20,7 @@ class test_rdann():
         # no null to detect in the output text file of rdann.
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget1', 'r'))
+        lines = tuple(open('tests/target-output/anntarget1', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -74,7 +74,7 @@ class test_rdann():
         annotation = wfdb.rdann('sampledata/12726', 'anI')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget2', 'r'))
+        lines = tuple(open('tests/target-output/anntarget2', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -126,7 +126,7 @@ class test_rdann():
         annotation = wfdb.rdann('sampledata/1003', 'atr')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget3', 'r'))
+        lines = tuple(open('tests/target-output/anntarget3', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot

@@ -4,6 +4,7 @@ import os
 import posixpath
 import requests
 
+
 # Read a header file from physiobank
 def streamheader(recordname, pbdir):
 
@@ -38,6 +39,7 @@ def streamheader(recordname, pbdir):
                 headerlines.append(line)
 
     return (headerlines, commentlines)
+
 
 # Read certain bytes from a dat file from physiobank
 def streamdat(filename, pbdir, fmt, bytecount, startbyte, datatypes):
@@ -81,21 +83,20 @@ def streamannotation(filename, pbdir):
     return annbytes
 
 
-
-def getdblist():
-    """Return a list of all the physiobank databases available.
+def get_dbs():
+    """
+    Return a list of all the physiobank databases available.
 
     Usage:
-    dblist = getdblist()
+    dbs = get_dbs()
     """
     url = posixpath.join(dbindexurl, 'DBS')
     r = requests.get(url)
 
-    dblist = r.content.decode('ascii').splitlines()
-    dblist = [re.sub('\t{2,}', '\t', line).split('\t') for line in dblist]
+    dbs = r.content.decode('ascii').splitlines()
+    dbs = [re.sub('\t{2,}', '\t', line).split('\t') for line in dbs]
 
-    return dblist
-
+    return dbs
 
 
 # ---- Helper functions for downloading physiobank files ------- #
