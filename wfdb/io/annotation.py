@@ -1127,7 +1127,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shiftsamps=False,
 
     Example usage:
     import wfdb
-    ann = wfdb.rdann('sampledata/100', 'atr', sampto = 300000)
+    ann = wfdb.rdann('sample-data/100', 'atr', sampto = 300000)
     """
 
     return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)

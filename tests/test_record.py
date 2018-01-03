@@ -20,7 +20,7 @@ class test_record():
 
         # Test file writing
         record2 = wfdb.rdrecord('sample-data/test01_00s', physical=False)
-        record2.signame = ['ECG_1', 'ECG_2', 'ECG_3', 'ECG_4']
+        record2.sig_name = ['ECG_1', 'ECG_2', 'ECG_3', 'ECG_4']
         record2.wrsamp()
         recordwrite = wfdb.rdrecord('test01_00s', physical=False)
 

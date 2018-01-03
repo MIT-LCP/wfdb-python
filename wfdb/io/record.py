@@ -335,9 +335,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     In addition, the d_signal and p_signal attributes store the digital and
     physical signals of WFDB records with at least one channel.
 
-    Example Usage:
-    import wfdb
-    record = wfdb.Record(record_name='r1', fs=250, n_sig=2, sig_len=1000,
+    Examples
+    --------
+    >>> record = wfdb.Record(record_name='r1', fs=250, n_sig=2, sig_len=1000,
                          file_name=['r1.dat','r1.dat'])
 
     """
@@ -475,14 +475,18 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     to return a single segment representation of the record as a Record object.
     The resulting Record object will have its 'p_signal' field set.
 
-    Example Usage:
-    import wfdb
-    record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=8, sig_len=9999,
-                               seg_name=['rm_1', '~', rm_2'],
-                               seg_len=[800, 200, 900])
+    Examples
+    --------
+    >>> record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=8,
+                                    sig_len=9999, seg_name=['rm_1', '~', rm_2'],
+                                    seg_len=[800, 200, 900])
 
-    record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
-    record_s = record_s.multi_to_single()
+    >>> record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
+    >>> record_s = record_s.multi_to_single()
+
+    record_s initially stores a `MultiRecord` object, and is then converted into
+    a `Record` object.
+
     """
     def __init__(self, segments=None, layout=None,
                  record_name=None, n_sig=None, fs=None,
@@ -726,59 +730,183 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 #------------------- Reading Records -------------------#
 
+def rdheader(record_name, pb_dir=None, rd_segments=False):
+    """
+    Read a WFDB header file and return the record descriptors as attributes
+    in a Record object.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read (without any file extensions).
+        If the argument contains any path delimiter characters, the argument
+        will be interpreted as PATH/baserecord and the header file will be
+        searched for in the local path.
+    pb_dir : str, optional
+        Option used to stream data from Physiobank. The Physiobank database
+        directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.
+    
+    rd_segments : bool, optional
+        Used when reading multi-segment headers. If True, segment headers will
+        also be read (into the record object's `segments` field).
+
+    Returns
+    -------
+    record : Record or MultiRecord
+        The wfdb Record or MultiRecord object representing the contents of the
+        header read.
+
+    Examples
+    --------
+    >>> ecg_record = wfdb.rdheader('sample-data/test01_00s', sampfrom=800,
+                                   channels = [1,3])
+    
+    """
+
+    # Read the header file. Separate comment and non-comment lines
+    header_lines, comment_lines = _header.get_header_lines(record_name, pb_dir)
+
+    # Get fields from record line
+    d_rec = _header.read_rec_line(header_lines[0])
+
+    # Processing according to whether the header is single or multi segment
+
+    # Single segment header - Process signal specification lines
+    if d_rec['n_seg'] is None:
+        # Create a single-segment WFDB record object
+        record = Record()
+
+        # There is at least one channel
+        if len(header_lines)>1:
+            # Read the fields from the signal lines
+            d_sig = _header.read_sig_lines(header_lines[1:])
+            # Set the object's signal line fields
+            for field in _header.sig_field_specs:
+                setattr(record, field, d_sig[field])
+
+        # Set the object's record line fields
+        for field in _header.rec_field_specs:
+            if field == 'n_seg':
+                continue
+            setattr(record, field, d_rec[field])
+    # Multi segment header - Process segment specification lines
+    else:
+        # Create a multi-segment WFDB record object
+        record = MultiRecord()
+        # Read the fields from the segment lines
+        d_seg = _header.read_seg_lines(header_lines[1:])
+        # Set the object's segment line fields
+        for field in _header.seg_field_specs:
+            setattr(record, field, d_seg[field])
+        # Set the objects' record line fields
+        for field in _header.rec_field_specs:
+            setattr(record, field, d_rec[field])
+        # Determine whether the record is fixed or variable
+        if record.seg_len[0] == 0:
+            record.layout = 'Variable'
+        else:
+            record.layout = 'Fixed'
+
+        # If specified, read the segment headers
+        if rd_segments:
+            record.segments = []
+            # Get the base record name (could be empty)
+            dirname = os.path.split(record_name)[0]
+            for s in record.seg_name:
+                if s == '~':
+                    record.segments.append(None)
+                else:
+                    record.segments.append(rdheader(os.path.join(dirname,s), pb_dir))
+            # Fill in the sig_name attribute
+            record.sig_name = record.get_sig_name()
+            # Fill in the sig_segments attribute
+            record.sig_segments = record.get_sig_segments()
+
+    # Set the comments field
+    record.comments = []
+    for line in comment_lines:
+        record.comments.append(line.strip(' \t#'))
+
+    return record
+
+
 def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
              physical=True, pb_dir=None, m2s=True, smooth_frames=True,
              ignore_skew=False, return_res=64):
     """
-    Read a WFDB record and return the signal and record descriptors as attributes in a
-    Record or MultiRecord object.
+    Read a WFDB record and return the signal and record descriptors as
+    attributes in a Record or MultiRecord object.
 
-    Input arguments:
-    - record_name: The name of the WFDB record to be read (without any file extensions).
-      If the argument contains any path delimiter characters, the argument will be interpreted as
-      PATH/baserecord and the data files will be searched for in the local path.
-    - sampfrom: The starting sample number to read for each channel.
-    - sampto: The sample number at which to stop reading for each channel.
-    - channels: Indices specifying the channel to be returned.
-    - physical: Flag that specifies whether to return signals in physical units in
-      the p_signal field (True), or digital units in the d_signal field (False).
-    - pb_dir: Option used to stream data from Physiobank. The Physiobank database
-       directory from which to find the required record files.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb_dir = 'mitdb'.
-    - m2s: Flag used when reading multi-segment records. Specifies whether to
-      directly return a wfdb MultiRecord object (False), or to convert it into and return a wfdb
-      Record object (True).
-    - smooth_frames: Flag used when reading records with signals having multiple
-      samples per frame. Specifies whether to smooth the samples in signals with more than
-      one sample per frame and return an mxn uniform numpy array as the d_signal or p_signal
-      field (True), or to return a list of 1d numpy arrays containing every expanded sample as
-      the e_d_signal or e_p_signal field (False).
-    - ignore_skew: Flag used when reading records with at least one skewed signal.
-      Specifies whether to apply the skew to align the signals in the output variable (False), or
-      to ignore the skew field and load in all values contained in the dat files unaligned (True).
-    - return_res: The numpy array dtype of the returned signals. Options are: 64, 32,
-       16, and 8, where the value represents the numpy int or float dtype. Note that the value
-       cannot be 8 when physical is True since there is no float8 format.
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read (without any file extensions).
+        If the argument contains any path delimiter characters, the argument
+        will be interpreted as PATH/baserecord and the data files will be
+        searched for in the local path.
+    sampfrom : int, optional
+        The starting sample number to read for each channel.
+    sampto : int, optional
+        The sample number at which to stop reading for each channel. Leave as
+        'end' to read the entire duration.
+    channels : list, optional
+        List of integer indices specifying the channels to be read. Leave as
+        'all' to read all channels.
+    physical : bool, optional
+        Specifies whether to return signals in physical units in the p_signal
+        field (True), or digital units in the d_signal field (False).
+    pb_dir : str, optional
+        Option used to stream data from Physiobank. The Physiobank database
+        directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.
+    m2s : bool, optional
+        Used when reading multi-segment records. Specifies whether to directly
+        return a wfdb MultiRecord object (False), or to convert it into and
+        return a wfdb Record object (True).
+    smooth_frames : bool, optional
+        Used when reading records with signals having multiple samples per
+        frame. Specifies whether to smooth the samples in signals with more than
+        one sample per frame and return an m x n uniform numpy array as the
+        `d_signal` or `p_signal` field (True), or to return a list of 1d numpy
+        arrays containing every expanded sample as the `e_d_signal` or
+        `e_p_signal` field (False).
+    ignore_skew : bool, optional
+        Used when reading records with at least one skewed signal. Specifies
+        whether to apply the skew to align the signals in the output variable
+        (False), or to ignore the skew field and load in all values contained in
+        the dat files unaligned (True).
+    return_res : int, optional
+        The numpy array dtype of the returned signals. Options are: 64, 32,
+        16, and 8, where the value represents the numpy int or float dtype.
+        Note that the value cannot be 8 when physical is True since there is no
+        float8 format.
     
-    Output argument:
-    - record: The wfdb Record or MultiRecord object representing the contents of the record read.
+    Returns
+    -------
+    record : Record or MultiRecord
+        The wfdb Record or MultiRecord object representing the contents of the
+        record read.
+    
+    Notes
+    -----
+    If a signal range or channel selection is specified when calling this
+    function, the resulting attributes of the returned object will be set to
+    reflect the section of the record that is actually read, rather than
+    necessarily the entire record. For example, if channels=[0, 1, 2] is
+    specified when reading a 12 channel record, the 'n_sig' attribute will be 3,
+    not 12.
 
-    Note: If a signal range or channel selection is specified when calling this function, the
-          the resulting attributes of the returned object will be set to reflect the section
-          of the record that is actually read, rather than necessarily the entire record.
-          For example, if channels = [0, 1, 2] is specified when reading a 12 channel record, the
-          'n_sig' attribute will be 3, not 12.
+    The `rdsamp` function exists as a simple alternative to `rdrecord` for
+    the common purpose of extracting the physical signals and a few important
+    descriptor fields. `rdsamp` returns two arguments:
 
-    Note: The 'rdsamp' function exists as a simple alternative to 'rdrec' for
-          the common purpose of extracting the physical signals and a few
-          important descriptor fields. `rdsamp` returns two arguments:
-            1. The physical signals array
-            2. A dictionary of a few select fields, a subset of the original wfdb Record attributes.
-
-    Example Usage:
-    import wfdb
-    record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
-                           channels = [1,3])
+    Examples
+    --------
+    >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
+                               channels = [1,3])
     """
 
     dirname, base_record_name = os.path.split(record_name)
@@ -859,7 +987,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Read the desired samples in the relevant segments
         for i in range(len(readsegs)):
-            segnum = readsegs[i]
+            segnum = readsegs[i]d
             # Empty segment or segment with no relevant channels
             if record.seg_name[segnum] == '~' or segsigs[i] is None:
                 record.segments[segnum] = None
@@ -881,110 +1009,6 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         record.convert_dtype(physical, return_res, smooth_frames)
 
     return record
-
-
-# Read a WFDB header. Return a Record object or MultiRecord object
-def rdheader(record_name, pb_dir = None, rd_segments=False):
-    """
-    Read a WFDB header file and return the record descriptors as attributes in a Record object
-
-    Input arguments:
-    - record_name: The name of the WFDB record to be read (without any file extensions).
-      If the argument contains any path delimiter characters, the argument will be interpreted as
-      PATH/baserecord and the header file will be searched for in the local path.
-    - pb_dir: Option used to stream data from Physiobank. The Physiobank database
-       directory from which to find the required record files.
-      eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pb_dir = 'mitdb'.
-    - rd_segments: Boolean flag used when reading multi-segment headers. If True,
-      segment headers will also be read (into the record object's 'segments' field).
-
-    Output argument:
-    - record: The wfdb Record or MultiRecord object representing the contents of the header read.
-
-    Example Usage:
-    import wfdb
-    ecgrecord = wfdb.rdheader('sampledata/test01_00s', sampfrom=800, channels = [1,3])
-    """
-
-    # Read the header file. Separate comment and non-comment lines
-    header_lines, comment_lines = _header.get_header_lines(record_name, pb_dir)
-
-    # Get fields from record line
-    d_rec = _header.read_rec_line(header_lines[0])
-
-    # Processing according to whether the header is single or multi segment
-
-    # Single segment header - Process signal specification lines
-    if d_rec['n_seg'] is None:
-        # Create a single-segment WFDB record object
-        record = Record()
-
-        # There is at least one channel
-        if len(header_lines)>1:
-            # Read the fields from the signal lines
-            d_sig = _header.read_sig_lines(header_lines[1:])
-            # Set the object's signal line fields
-            for field in _header.sig_field_specs:
-                setattr(record, field, d_sig[field])
-
-        # Set the object's record line fields
-        for field in _header.rec_field_specs:
-            if field == 'n_seg':
-                continue
-            setattr(record, field, d_rec[field])
-    # Multi segment header - Process segment specification lines
-    else:
-        # Create a multi-segment WFDB record object
-        record = MultiRecord()
-        # Read the fields from the segment lines
-        d_seg = _header.read_seg_lines(header_lines[1:])
-        # Set the object's segment line fields
-        for field in _header.seg_field_specs:
-            setattr(record, field, d_seg[field])
-        # Set the objects' record line fields
-        for field in _header.rec_field_specs:
-            setattr(record, field, d_rec[field])
-        # Determine whether the record is fixed or variable
-        if record.seg_len[0] == 0:
-            record.layout = 'Variable'
-        else:
-            record.layout = 'Fixed'
-
-        # If specified, read the segment headers
-        if rd_segments:
-            record.segments = []
-            # Get the base record name (could be empty)
-            dirname = os.path.split(record_name)[0]
-            for s in record.seg_name:
-                if s == '~':
-                    record.segments.append(None)
-                else:
-                    record.segments.append(rdheader(os.path.join(dirname,s), pb_dir))
-            # Fill in the sig_name attribute
-            record.sig_name = record.get_sig_name()
-            # Fill in the sig_segments attribute
-            record.sig_segments = record.get_sig_segments()
-
-    # Set the comments field
-    record.comments = []
-    for line in comment_lines:
-        record.comments.append(line.strip(' \t#'))
-
-    return record
-
-
-
-def wanted_siginds(wanted_sig_names, record_sig_names):
-    """
-    Given some wanted signal names, and the signal names contained
-    in a record, return the indices of the record channels that intersect.
-    Remember that the wanted signal names are already in order specified in user input channels.
-    """
-    contained_signal = [s for s in wanted_sig_names if s in record_sig_names]
-    if contained_signal == []:
-        return None
-    else:
-        return [record_sig_names.index(s) for s in contained_signal]
 
 
 def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
@@ -1021,7 +1045,7 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
 
     Example Usage:
     import wfdb
-    sig, fields = wfdb.rdsamp('sampledata/test01_00s', sampfrom=800, channel =[1,3])
+    sig, fields = wfdb.rdsamp('sample-data/test01_00s', sampfrom=800, channel =[1,3])
     """
 
     record = rdrecord(record_name, sampfrom, sampto, channels, True, pb_dir, True)
@@ -1032,6 +1056,22 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
         fields[field] = getattr(record, field)
 
     return signals, fields
+
+
+def wanted_siginds(wanted_sig_names, record_sig_names):
+    """
+    Given some wanted signal names, and the signal names contained
+    in a record, return the indices of the record channels that intersect.
+    Remember that the wanted signal names are already in order specified in user input channels.
+    """
+    contained_signal = [s for s in wanted_sig_names if s in record_sig_names]
+    if contained_signal == []:
+        return None
+    else:
+        return [record_sig_names.index(s) for s in contained_signal]
+
+
+
 
 #------------------- /Reading Records -------------------#
 

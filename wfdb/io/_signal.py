@@ -290,7 +290,7 @@ class SignalMixin(object):
 
         Example Usage:
         import wfdb
-        record = wfdb.rdsamp('sampledata/100')
+        record = wfdb.rdsamp('sample-data/100')
         d_signal = record.adc()
         record.adc(inplace=True)
         record.dac(inplace=True)
@@ -379,7 +379,7 @@ class SignalMixin(object):
 
         Example Usage:
         import wfdb
-        record = wfdb.rdsamp('sampledata/100', physical=False)
+        record = wfdb.rdsamp('sample-data/100', physical=False)
         p_signal = record.dac()
         record.dac(inplace=True)
         record.adc(inplace=True)
