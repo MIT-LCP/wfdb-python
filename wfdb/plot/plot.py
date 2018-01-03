@@ -3,11 +3,11 @@ import numpy as np
 import os
 
 from ..io.record import Record, rdrecord
-from ..io.header import float_types
+from ..io._header import float_types
 from ..io._signal import downround, upround
 
 
-def plotrec(record=None, title=None, annotation=None, time_units='samples',
+def plot_record(record=None, title=None, annotation=None, time_units='samples',
             sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
             return_fig=False, ecg_grids=[]): 
     """ 
@@ -46,7 +46,7 @@ def plotrec(record=None, title=None, annotation=None, time_units='samples',
     record = wfdb.rdrecord('sampledata/100', sampto=3000)
     annotation = wfdb.rdann('sampledata/100', 'atr', sampto=3000)
 
-    wfdb.plotrec(record, annotation=annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
+    wfdb.plot_record(record, annotation=annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
                  time_units='seconds', figsize=(10,4), ecg_grids='all')
     """
 
@@ -181,10 +181,13 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, time_units):
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
-# Check the validity of items used to make the plot
-# Return the x axis time values to plot for the record (and time and values for annotation if any)
+
 def check_plot_items(record, title, annotation, time_units, sig_style, ann_style):
-    
+    """
+    Check the validity of items used to make the plot
+    Return the x axis time values to plot for the record (and time and values for annotation if any)
+    """
+
     # signals
     if not isinstance(record, Record):
         raise TypeError("The 'record' argument must be a valid wfdb.Record object")
@@ -305,10 +308,10 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
 
 
 # Plot the sample locations of a WFDB annotation on a new figure
-def plotann(annotation, title = None, time_units = 'samples', return_fig = False): 
+def plot_annotation(annotation, title = None, time_units = 'samples', return_fig = False): 
     """ Plot sample locations of an Annotation object.
     
-    Usage: plotann(annotation, title = None, time_units = 'samples', return_fig = False)
+    Usage: plot_annotation(annotation, title = None, time_units = 'samples', return_fig = False)
     
     Input arguments:
     - annotation (required): An Annotation object. The sample attribute locations will be overlaid on the signal.
@@ -320,13 +323,13 @@ def plotann(annotation, title = None, time_units = 'samples', return_fig = False
     Output argument:
     - figure: The matplotlib figure generated. Only returned if the 'return_fig' option is set to True.
 
-    Note: The plotrec function is useful for plotting annotations on top of signal waveforms.
+    Note: The plot_record function is useful for plotting annotations on top of signal waveforms.
 
     Example Usage:
     import wfdb
     annotation = wfdb.rdann('sampledata/100', 'atr', sampfrom = 100000, sampto = 110000)
     annotation.fs = 360
-    wfdb.plotann(annotation, time_units = 'minutes')
+    wfdb.plot_annotation(annotation, time_units = 'minutes')
     """
 
     # Check the validity of items used to make the plot
@@ -387,9 +390,10 @@ def checkannplotitems(annotation, title, time_units):
     return plotvals
 
 
-def plot_records(directory=os.getcwd()):
+def plot_all_records(directory=os.getcwd()):
     """
-    Plot all wfdb records in a directory (by finding header files)
+    Plot all wfdb records in a directory (by finding header files), one at
+    a time, until the 'enter' key is pressed.
     """
     filelist = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
     filelist = [f for f in filelist if f.endswith('.hea')]
@@ -399,5 +403,5 @@ def plot_records(directory=os.getcwd()):
     for record_name in recordlist:
         record = records.rdrecord(record_name)
 
-        plotrec(record, title='Record: %s' % record.recordname)
+        plot_record(record, title='Record: %s' % record.recordname)
         input('Press enter to continue...')

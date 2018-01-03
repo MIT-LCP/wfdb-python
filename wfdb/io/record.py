@@ -987,7 +987,7 @@ def wanted_siginds(wanted_sig_names, record_sig_names):
         return [record_sig_names.index(s) for s in contained_signal]
 
 
-def rdsamp(record_name, sampfrom=0, sampto=None, channels='all', pb_dir=None):
+def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     """
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.

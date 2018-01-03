@@ -1,1 +1,1 @@
-from .plot import plot_rec, plot_ann, plot_records
+from .plot import plot_record, plot_annotation, plot_all_records

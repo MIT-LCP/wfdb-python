@@ -6,7 +6,7 @@ import re
 
 from . import download
 from . import _header
-from . import records
+from . import record
 
 
 # Class for WFDB annotations
@@ -1158,7 +1158,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shiftsamps=False,
     # Try to get fs from the header file if it is not contained in the annotation file
     if fs is None:
         try:
-            rec = records.rdheader(record_name, pb_dir)
+            rec = record.rdheader(record_name, pb_dir)
             fs = rec.fs
         except:
             pass

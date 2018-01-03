@@ -1,11 +1,12 @@
-import wfdb
 import numpy
+import wfdb
+
 
 class test_processing():
 
     def test_1(self):
-        sig, fields = wfdb.srdsamp('sampledata/100')
-        ann = wfdb.rdann('sampledata/100', 'atr')
+        sig, fields = wfdb.rdsamp('sample-data/100')
+        ann = wfdb.rdann('sample-data/100', 'atr')
 
         fs = fields['fs']
         fs_target = 50
@@ -17,8 +18,8 @@ class test_processing():
         assert new_sig.shape[0] == expected_length
 
     def test_2(self):
-        sig, fields = wfdb.srdsamp('sampledata/100')
-        ann = wfdb.rdann('sampledata/100', 'atr')
+        sig, fields = wfdb.rdsamp('sample-data/100')
+        ann = wfdb.rdann('sample-data/100', 'atr')
 
         fs = fields['fs']
         fs_target = 50
@@ -31,7 +32,7 @@ class test_processing():
         assert new_sig.shape[1] == sig.shape[1]
 
     def test_3(self):
-        sig, _ = wfdb.srdsamp('sampledata/100')
+        sig, _ = wfdb.rdsamp('sample-data/100')
         lb = -5
         ub = 15
 
@@ -64,8 +65,8 @@ class test_processing():
         assert numpy.array_equal(peaks, expecting)
 
     def test_7(self):
-        sig, fields = wfdb.srdsamp('sampledata/100', channels = [0, 1])
-        ann = wfdb.rdann('sampledata/100', 'atr')
+        sig, fields = wfdb.rdsamp('sample-data/100', channels = [0, 1])
+        ann = wfdb.rdann('sample-data/100', 'atr')
         fs = fields['fs']
         min_bpm = 10
         max_bpm = 350

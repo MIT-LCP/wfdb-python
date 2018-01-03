@@ -100,7 +100,7 @@ rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 class BaseHeaderMixin(object):
-     """
+    """
     Mixin class with multi-segment header methods. Inherited by Record and
     MultiRecord classes
     """
