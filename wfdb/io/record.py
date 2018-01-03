@@ -950,15 +950,10 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrange_fields(channels, expanded=True)
 
-            if physical:    pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
-        directory from which to find the required record files.
-        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
-        pb_dir='mitdb'.
+            if physical is True:
                 # Perform dac to get physical signal
                 record.dac(expanded=True, return_res=return_res, inplace=True)
                 
-
     # A multi segment record
     else:
         # Strategy:
@@ -969,11 +964,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # 3. Update the parameters of the overall MultiRecord
         # object to reflect the state of the individual segments.
         # 4. If specified, convert the MultiRecord object
-        # into a single Recor    pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
-        directory from which to find the required record files.
-        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
-        pb_dir='mitdb'.d object.
+        # into a single Record object.
 
         # Segments field is a list of Record objects
         # Empty segments store None.
@@ -996,7 +987,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Read the desired samples in the relevant segments
         for i in range(len(readsegs)):
-            segnum = readsegs[i]d
+            segnum = readsegs[i]
             # Empty segment or segment with no relevant channels
             if record.seg_name[segnum] == '~' or segsigs[i] is None:
                 record.segments[segnum] = None
@@ -1332,7 +1323,7 @@ def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
     Examples
     --------
     >>> wfdb.dl_database('ahadb', os.getcwd())
-    
+
     """
 
     # Full url physiobank database
