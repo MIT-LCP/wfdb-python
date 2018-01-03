@@ -1,8 +1,12 @@
+import multiprocessing
 import numpy as np
 import re
 import os
 import posixpath
 import requests
+
+
+db_index_url = 'http://physionet.org/physiobank/database/'
 
 
 # Read a header file from physiobank
@@ -65,7 +69,7 @@ def stream_dat(file_name, pb_dir, fmt, bytecount, startbyte, datatypes):
     return sigbytes
 
 # Read an entire annotation file from physiobank
-def streamannotation(file_name, pb_dir):
+def stream_annotation(file_name, pb_dir):
 
     # Full url of annotation file
     url = posixpath.join(db_index_url, pb_dir, file_name)
@@ -101,7 +105,7 @@ def get_dbs():
 
 # ---- Helper functions for downloading physiobank files ------- #
 
-def getrecordlist(dburl, records):
+def get_record_list(dburl, records):
     # Check for a RECORDS file
     if records == 'all':
         r = requests.get(posixpath.join(dburl, 'RECORDS'))
@@ -116,7 +120,8 @@ def getrecordlist(dburl, records):
 
     return recordlist
 
-def getannotators(dburl, annotators):
+
+def get_annotators(dburl, annotators):
 
     if annotators is not None:
         # Check for an ANNOTATORS file
@@ -145,15 +150,16 @@ def getannotators(dburl, annotators):
 
     return annotators
 
+
 # Make any required local directories
-def makelocaldirs(dl_dir, dlinputs, keep_subdirs):
+def make_local_dirs(dl_dir, dlinputs, keep_subdirs):
 
     # Make the local download dir if it doesn't exist
     if not os.path.isdir(dl_dir):
         os.makedirs(dl_dir)
         print("Created local base download directory: ", dl_dir)
     # Create all required local subdirectories
-    # This must be out of dlpbfile to
+    # This must be out of dl_pb_file to
     # avoid clash in multiprocessing
     if keep_subdirs:
         dldirs = set([os.path.join(dl_dir, d[1]) for d in dlinputs])
@@ -163,9 +169,9 @@ def makelocaldirs(dl_dir, dlinputs, keep_subdirs):
     return
 
 
-# Download a file from physiobank
-# The input args are to be unpacked for the use of multiprocessing
-def dlpbfile(inputs):
+def dl_pb_file(inputs):
+    # Download a file from physiobank
+    # The input args are to be unpacked for the use of multiprocessing
 
     basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
@@ -192,7 +198,7 @@ def dlpbfile(inputs):
     if os.path.isfile(localfile):
         # Redownload regardless
         if overwrite:
-            dlfullfile(url, localfile)
+            dl_full_file(url, localfile)
         # Process accordingly.
         else:
             localfilesize = os.path.getsize(localfile)
@@ -208,17 +214,18 @@ def dlpbfile(inputs):
                 print('Done appending.')
             # Local file is larger than it should be. Redownload.
             elif localfilesize > onlinefilesize:
-                dlfullfile(url, localfile)
+                dl_full_file(url, localfile)
             # If they're the same size, do nothing.
 
     # The file doesn't exist. Download it.
     else:
-        dlfullfile(url, localfile)
+        dl_full_file(url, localfile)
 
     return
 
-# Download a file. No checks.
-def dlfullfile(url, localfile):
+
+def dl_full_file(url, localfile):
+    # Download a file. No checks.
     r = requests.get(url)
     with open(localfile, "wb") as writefile:
         writefile.write(r.content)
@@ -226,6 +233,47 @@ def dlfullfile(url, localfile):
     return
 
 
+def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
+    """
+    Download specified files from a Physiobank database.
 
+    Input arguments:
+    - db (required): The Physiobank database directory to download.
+      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
+    - dl_dir (required): The full local directory path in which to download the files.
+    - files (required): A list of strings specifying the file names to download relative to the database
+      base directory
+    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
+      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
+    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
+      existing files with the same name and relative subdirectory will be checked. If the local file is
+      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
+      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be
+      partially downloaded and the remaining bytes will be downloaded and appended.
 
-db_index_url = 'http://physionet.org/physiobank/database/'
+    Example Usage:
+    import wfdb
+    wfdb.dl_files('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf',
+                  'data/001a.hea', 'data/001a.dat'])
+    """
+
+    # Full url physiobank database
+    dburl = posixpath.join(db_index_url, db)
+    # Check if the database is valid
+    r = requests.get(dburl)
+    r.raise_for_status()
+
+    # Construct the urls to download
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in files]
+
+    # Make any required local directories
+    make_local_dirs(dl_dir, dlinputs, keep_subdirs)
+
+    print('Downloading files...')
+    # Create multiple processes to download files.
+    # Limit to 2 connections to avoid overloading the server
+    pool = multiprocessing.Pool(processes=2)
+    pool.map(dl_pb_file, dlinputs)
+    print('Finished downloading files')
+
+    return

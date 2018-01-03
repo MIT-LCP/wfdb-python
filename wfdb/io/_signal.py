@@ -1,6 +1,7 @@
+import math
 import numpy as np
 import os
-import math
+
 from . import download
 
 # WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm

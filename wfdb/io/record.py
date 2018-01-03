@@ -5,14 +5,15 @@
 # The check_field_cohesion() function will be called in wrheader which checks all the header fields.
 # The check_sig_cohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
+from calendar import monthrange
+from collections import OrderedDict
+import multiprocessing
 import numpy as np
-import re
 import os
 import posixpath
-from collections import OrderedDict
-from calendar import monthrange
+import re
 import requests
-import multiprocessing
+
 from . import _header
 from . import _signal
 from . import download
@@ -1242,9 +1243,9 @@ def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
 
 
     # Get the list of records
-    recordlist = download.getrecordlist(dburl, records)
+    recordlist = download.get_record_list(dburl, records)
     # Get the annotator extensions
-    annotators = download.getannotators(dburl, annotators)
+    annotators = download.get_annotators(dburl, annotators)
 
     # All files to download (relative to the database's home directory)
     allfiles = []
@@ -1253,7 +1254,6 @@ def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
         # Check out whether each record is in MIT or EDF format
         if rec.endswith('.edf'):
             allfiles.append(rec)
-
         else:
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
@@ -1294,58 +1294,13 @@ def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
     dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in allfiles]
 
     # Make any required local directories
-    download.makelocaldirs(dl_dir, dlinputs, keep_subdirs)
+    download.make_local_dirs(dl_dir, dlinputs, keep_subdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
-    pool.map(download.dlpbfile, dlinputs)
-    print('Finished downloading files')
-
-    return
-
-
-def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
-    """
-    Download specified files from a Physiobank database.
-
-    Input arguments:
-    - db (required): The Physiobank database directory to download.
-      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
-    - dl_dir (required): The full local directory path in which to download the files.
-    - files (required): A list of strings specifying the file names to download relative to the database
-      base directory
-    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
-      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
-    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
-      existing files with the same name and relative subdirectory will be checked. If the local file is
-      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
-      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be
-      partially downloaded and the remaining bytes will be downloaded and appended.
-
-    Example Usage:
-    import wfdb
-    wfdb.dl_files('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea', 'data/001a.dat'])
-    """
-
-    # Full url physiobank database
-    dburl = posixpath.join(download.db_index_url, db)
-    # Check if the database is valid
-    r = requests.get(dburl)
-    r.raise_for_status()
-
-    # Construct the urls to download
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in files]
-
-    # Make any required local directories
-    download.makelocaldirs(dl_dir, dlinputs, keep_subdirs)
-
-    print('Downloading files...')
-    # Create multiple processes to download files.
-    # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.Pool(processes=2)
-    pool.map(download.dlpbfile, dlinputs)
+    pool.map(download.dl_pb_file, dlinputs)
     print('Finished downloading files')
 
     return

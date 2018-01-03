@@ -1,10 +1,102 @@
-import numpy as np
-import re
-import os
-from collections import OrderedDict
 from calendar import monthrange
-from . import _signal
+from collections import OrderedDict
+import numpy as np
+import os
+import re
+
 from . import download
+from . import _signal
+
+
+class FieldSpecification(object):
+    """
+    Class for storing specifications for wfdb record fields
+    """
+    def __init__(self, allowed_types, delimiter, dependency, write_req,
+                 read_def, write_def):
+        # Data types the field (or its elements) can be
+        self.allowed_types = allowed_types
+        # The text delimiter that preceeds the field if it is a field that gets written to header files.
+        self.delimiter = delimiter
+        # The required/dependent field which must also be present
+        self.dependency = dependency
+        # Whether the field is always required for writing a header (more stringent than origin WFDB library)
+        self.write_req = write_req
+        # The default value for the field when read if any
+        self.read_def = read_def
+        # The default value for the field to fill in before writing if any
+        self.write_def = write_def
+
+        # The read vs write default values are different for 2 reasons:
+        # 1. We want to force the user to be explicit with certain important
+        #    fields when writing WFDB records fields, without affecting 
+        #    existing WFDB headers when reading.
+        # 2. Certain unimportant fields may be dependencies of other
+        #    important fields. When writing, we want to fill in defaults
+        #    so that the user doesn't need to. But when reading, it should
+        #    be clear that the fields are missing.
+
+int_types = (int, np.int64, np.int32, np.int16, np.int8)
+float_types = int_types + (float, np.float64, np.float32)
+int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
+
+# Record specification fields            
+rec_field_specs = OrderedDict([('record_name', FieldSpecification((str), '', None, True, None, None)),
+                         ('n_seg', FieldSpecification(int_types, '/', 'record_name', True, None, None)), 
+                         ('n_sig', FieldSpecification(int_types, ' ', 'record_name', True, None, None)),
+                         ('fs', FieldSpecification(float_types, ' ', 'n_sig', True, 250, None)),
+                         ('counter_freq', FieldSpecification(float_types, '/', 'fs', False, None, None)),
+                         ('base_counter', FieldSpecification(float_types, '(', 'counter_freq', False, None, None)),
+                         ('sig_len', FieldSpecification(int_types, ' ', 'fs', True, None, None)),
+                         ('base_time', FieldSpecification((str), ' ', 'sig_len', False, None, '00:00:00')),
+                         ('base_date', FieldSpecification((str), ' ', 'base_time', False, None, None))])
+
+# Signal specification fields.
+sig_field_specs = OrderedDict([('file_name', FieldSpecification((str), '', None, True, None, None)),
+                         ('fmt', FieldSpecification((str), ' ', 'file_name', True, None, None)),
+                         ('samps_per_frame', FieldSpecification(int_types, 'x', 'fmt', False, 1, None)),
+                         ('skew', FieldSpecification(int_types, ':', 'fmt', False, None, None)),
+                         ('byte_offset', FieldSpecification(int_types, '+', 'fmt', False, None, None)),
+                         ('adc_gain', FieldSpecification(float_types, ' ', 'fmt', True, 200., None)),
+                         ('baseline', FieldSpecification(int_types, '(', 'adc_gain', True, 0, None)),
+                         ('units', FieldSpecification((str), '/', 'adc_gain', True, 'mV', None)),
+                         ('adc_res', FieldSpecification(int_types, ' ', 'adc_gain', False, None, 0)),
+                         ('adc_zero', FieldSpecification(int_types, ' ', 'adc_res', False, None, 0)),
+                         ('init_value', FieldSpecification(int_types, ' ', 'adc_zero', False, None, None)),
+                         ('checksum', FieldSpecification(int_types, ' ', 'init_value', False, None, None)),
+                         ('block_size', FieldSpecification(int_types, ' ', 'checksum', False, None, 0)),
+                         ('sig_name', FieldSpecification((str), ' ', 'block_size', False, None, None))])
+    
+# Segment specification fields.
+seg_field_specs = OrderedDict([('seg_name', FieldSpecification((str), '', None, True, None, None)),
+                         ('seg_len', FieldSpecification(int_types, ' ', 'seg_name', True, None, None))])
+
+
+# Regexp objects for reading headers
+
+# Record Line Fields
+rx_record = re.compile(
+    ''.join(
+        [
+            "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
+            "(?P<n_sig>\d+)[ \t]*",
+            "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
+            "(?P<sig_len>\d*)[ \t]*",
+            "(?P<base_time>\d*:?\d{,2}:?\d{,2}\.?\d*)[ \t]*",
+            "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"]))
+
+# Signal Line Fields
+rx_signal = re.compile(
+    ''.join(
+        [
+            "(?P<file_name>[-\w]+\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
+            "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
+            "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
+            "(?P<adc_res>\d*)[ \t]*(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*",
+            "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"]))
+
+# Segment Line Fields
+rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 class BaseHeaderMixin(object):
@@ -85,10 +177,8 @@ class BaseHeaderMixin(object):
 
             write_fields = dictwrite_fields
 
-        
         return write_fields
-        
-        
+
 
 class HeaderMixin(BaseHeaderMixin):
     """
@@ -413,33 +503,6 @@ class MultiHeaderMixin(BaseHeaderMixin):
         return sig_name
 
 
-# Regexp objects for reading headers
-
-# Record Line Fields
-rx_record = re.compile(
-    ''.join(
-        [
-            "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
-            "(?P<n_sig>\d+)[ \t]*",
-            "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
-            "(?P<sig_len>\d*)[ \t]*",
-            "(?P<base_time>\d*:?\d{,2}:?\d{,2}\.?\d*)[ \t]*",
-            "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"]))
-
-# Signal Line Fields
-rx_signal = re.compile(
-    ''.join(
-        [
-            "(?P<file_name>[-\w]+\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
-            "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
-            "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
-            "(?P<adc_res>\d*)[ \t]*(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*",
-            "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"]))
-
-# Segment Line Fields
-rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
-
-
 # Read header file to get comment and non-comment lines
 def get_header_lines(record_name, pb_dir):
     # Read local file
@@ -572,73 +635,10 @@ def read_seg_lines(seg_lines):
                                  
     return d_seg
 
+
 # Write each line in a list of strings to a text file
 def lines_to_file(file_name, lines):
     f = open(file_name,'w')
     for l in lines:
         f.write("%s\n" % l)
     f.close()              
-
-
-class FieldSpecification(object):
-    """
-    Class for storing specifications for wfdb record fields
-    """
-    def __init__(self, allowed_types, delimiter, dependency, write_req,
-                 read_def, write_def):
-        # Data types the field (or its elements) can be
-        self.allowed_types = allowed_types
-        # The text delimiter that preceeds the field if it is a field that gets written to header files.
-        self.delimiter = delimiter
-        # The required/dependent field which must also be present
-        self.dependency = dependency
-        # Whether the field is always required for writing a header (more stringent than origin WFDB library)
-        self.write_req = write_req
-        # The default value for the field when read if any
-        self.read_def = read_def
-        # The default value for the field to fill in before writing if any
-        self.write_def = write_def
-
-        # The read vs write default values are different for 2 reasons:
-        # 1. We want to force the user to be explicit with certain important
-        #    fields when writing WFDB records fields, without affecting 
-        #    existing WFDB headers when reading.
-        # 2. Certain unimportant fields may be dependencies of other
-        #    important fields. When writing, we want to fill in defaults
-        #    so that the user doesn't need to. But when reading, it should
-        #    be clear that the fields are missing.
-
-int_types = (int, np.int64, np.int32, np.int16, np.int8)
-float_types = int_types + (float, np.float64, np.float32)
-int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
-
-# Record specification fields            
-rec_field_specs = OrderedDict([('record_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('n_seg', FieldSpecification(int_types, '/', 'record_name', True, None, None)), 
-                         ('n_sig', FieldSpecification(int_types, ' ', 'record_name', True, None, None)),
-                         ('fs', FieldSpecification(float_types, ' ', 'n_sig', True, 250, None)),
-                         ('counter_freq', FieldSpecification(float_types, '/', 'fs', False, None, None)),
-                         ('base_counter', FieldSpecification(float_types, '(', 'counter_freq', False, None, None)),
-                         ('sig_len', FieldSpecification(int_types, ' ', 'fs', True, None, None)),
-                         ('base_time', FieldSpecification((str), ' ', 'sig_len', False, None, '00:00:00')),
-                         ('base_date', FieldSpecification((str), ' ', 'base_time', False, None, None))])
-
-# Signal specification fields.
-sig_field_specs = OrderedDict([('file_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('fmt', FieldSpecification((str), ' ', 'file_name', True, None, None)),
-                         ('samps_per_frame', FieldSpecification(int_types, 'x', 'fmt', False, 1, None)),
-                         ('skew', FieldSpecification(int_types, ':', 'fmt', False, None, None)),
-                         ('byte_offset', FieldSpecification(int_types, '+', 'fmt', False, None, None)),
-                         ('adc_gain', FieldSpecification(float_types, ' ', 'fmt', True, 200., None)),
-                         ('baseline', FieldSpecification(int_types, '(', 'adc_gain', True, 0, None)),
-                         ('units', FieldSpecification((str), '/', 'adc_gain', True, 'mV', None)),
-                         ('adc_res', FieldSpecification(int_types, ' ', 'adc_gain', False, None, 0)),
-                         ('adc_zero', FieldSpecification(int_types, ' ', 'adc_res', False, None, 0)),
-                         ('init_value', FieldSpecification(int_types, ' ', 'adc_zero', False, None, None)),
-                         ('checksum', FieldSpecification(int_types, ' ', 'init_value', False, None, None)),
-                         ('block_size', FieldSpecification(int_types, ' ', 'checksum', False, None, 0)),
-                         ('sig_name', FieldSpecification((str), ' ', 'block_size', False, None, None))])
-    
-# Segment specification fields.
-seg_field_specs = OrderedDict([('seg_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('seg_len', FieldSpecification(int_types, ' ', 'seg_name', True, None, None))])

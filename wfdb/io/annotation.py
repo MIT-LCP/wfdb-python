@@ -1,11 +1,13 @@
+import copy
 import numpy as np
+import os
 import pandas as pd
 import re
-import os
-import copy
-from . import records
+
+from . import download
 from . import _header
-from . import downloads
+from . import records
+
 
 # Class for WFDB annotations
 class Annotation(object):
@@ -35,19 +37,15 @@ class Annotation(object):
     - contained_labels: The unique labels contained in this annotation. Same structure
       as custom_labels.
 
-    Constructor function:
-    def __init__(self, record_name, extension, sample, symbol=None, subtype=None,
-                 chan=None, num=None, aux_note=None, fs=None, label_store=None,
-                 description=None, custom_labels=None, contained_labels=None)
-
-    Call 'show_ann_labels()' to see the list of standard annotation codes. Any text used to label 
-    annotations that are not one of these codes should go in the 'aux_note' field rather than the 
-    'sym' field.
+    Call `show_ann_labels()` to see the list of standard annotation codes. Any
+    text used to label annotations that are not one of these codes should go in
+    the 'aux_note' field rather than the 'sym' field.
 
     Example usage:
     import wfdb
-    ann1 = wfdb.Annotation(record_name='rec1', extension='atr', sample=[10,20,400],
-                           symbol = ['N','N','['], aux_note=[None, None, 'Serious Vfib'])
+    ann1 = wfdb.Annotation(record_name='rec1', extension='atr',
+                           sample=[10,20,400], symbol=['N','N','['],
+                           aux_note=[None, None, 'Serious Vfib'])
     """
 
     
@@ -107,16 +105,13 @@ class Annotation(object):
         return True
 
     # Write an annotation file
-    def wrann(self, writefs=False):
+    def wrann(self, write_fs=False):
         """
         Instance method to write a WFDB annotation file from an Annotation object.
         
-        def wrann(self, writefs=False)
-        
         Input Parameters:
-        - writefs (default=False): Flag specifying whether to write the fs
+        - write_fs (default=False): Flag specifying whether to write the fs
           attribute to the file.
-
         """
         for field in ['record_name', 'extension']:
             if getattr(self, field) is None:
@@ -143,7 +138,7 @@ class Annotation(object):
             self.convert_label_attribute(source_field=present_label_fields[0], target_field='label_store')
 
         # Write the header file using the specified fields
-        self.wrannfile(writefs=writefs)
+        self.wrannfile(write_fs=write_fs)
 
         return
     
@@ -412,7 +407,7 @@ class Annotation(object):
         return list(set(range(50)) - set(ann_label_table['label_store']))
 
 
-    def get_available_label_stores(self, usefield = 'tryall'):
+    def get_available_label_stores(self, usefield='tryall'):
         """
         Get the label store values that may be used
         for writing this annotation.
@@ -535,14 +530,14 @@ class Annotation(object):
             return label_map
 
 
-    def wrannfile(self, writefs):
+    def wrannfile(self, write_fs):
         """
         Calculate the bytes used to encode an annotation set and
         write them to an annotation file
         """
 
         # Calculate the fs bytes to write if present and desired to write
-        if writefs:
+        if write_fs:
             fs_bytes = self.calc_fs_bytes()
         else:
             fs_bytes = []
@@ -1067,7 +1062,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, 
             raise Exception("Only one of the 'symbol' and 'label_store' fields may be input, for describing annotation labels")
 
     # Perform field checks and write the annotation file
-    annotation.wrann(writefs = True)
+    annotation.wrann(write_fs = True)
 
 
 def show_ann_labels():
@@ -1207,7 +1202,7 @@ def load_byte_pairs(record_name, extension, pb_dir):
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # physiobank file
     else:
-        filebytes = downloads.streamannotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
+        filebytes = download.stream_annotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
 
     return filebytes
 
