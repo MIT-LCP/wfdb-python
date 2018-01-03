@@ -28,8 +28,8 @@ class BaseHeaderMixin(object):
             write_fields=[]
             fieldspecs = OrderedDict(reversed(list(rec_field_specs.items())))
             # Remove this requirement for single segs
-            if not hasattr(self, 'nseg'): 
-                del(fieldspecs['nseg'])
+            if not hasattr(self, 'n_seg'): 
+                del(fieldspecs['n_seg'])
 
             for f in fieldspecs:
                 if f in write_fields:
@@ -227,7 +227,7 @@ class HeaderMixin(BaseHeaderMixin):
     # Write a header file using the specified fields
     def wr_header_file(self, recwrite_fields, sigwrite_fields):
 
-        headerlines=[]
+        header_lines=[]
 
         # Create record specification line
         recordline = ''
@@ -241,7 +241,7 @@ class HeaderMixin(BaseHeaderMixin):
                     if round(self.fs, 8) == float(int(self.fs)):
                         stringfield = str(int(self.fs))
                 recordline = recordline + rec_field_specs[field].delimiter + stringfield
-        headerlines.append(recordline)
+        header_lines.append(recordline)
 
         # Create signal specification lines (if any) one channel at a time
         if self.n_sig>0:
@@ -256,14 +256,14 @@ class HeaderMixin(BaseHeaderMixin):
                     if field== 'baseline':
                         signallines[ch]=signallines[ch] +')'
 
-            headerlines = headerlines + signallines
+            header_lines = header_lines + signallines
 
         # Create comment lines (if any)
         if 'comments' in recwrite_fields:
-            commentlines = ['# '+comment for comment in self.comments]
-            headerlines = headerlines + commentlines
+            comment_lines = ['# '+comment for comment in self.comments]
+            header_lines = header_lines + comment_lines
 
-        lines_to_file(self.record_name+'.hea', headerlines)
+        lines_to_file(self.record_name+'.hea', header_lines)
 
 
 class MultiHeaderMixin(BaseHeaderMixin):
@@ -307,7 +307,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         write_fields=self.get_write_subset('record')
 
         # Segment specification fields are all mandatory
-        write_fields = write_fields + ['segname', 'seglen']
+        write_fields = write_fields + ['seg_name', 'seg_len']
 
         # Comments
         if self.comments !=None:
@@ -329,20 +329,20 @@ class MultiHeaderMixin(BaseHeaderMixin):
     # Check the cohesion of fields used to write the header
     def check_field_cohesion(self):
 
-        # The length of segname and seglen must match nseg
-        for f in ['segname', 'seglen']:
-            if len(getattr(self, f)) != self.nseg:
-                raise ValueError('The length of field: '+f+' does not match field nseg.')
+        # The length of seg_name and seg_len must match n_seg
+        for f in ['seg_name', 'seg_len']:
+            if len(getattr(self, f)) != self.n_seg:
+                raise ValueError('The length of field: '+f+' does not match field n_seg.')
 
-        # Check the sum of the 'seglen' fields against 'sig_len'
-        if np.sum(self.seglen) != self.sig_len:
-            raise ValueError("The sum of the 'seglen' fields do not match the 'sig_len' field")
+        # Check the sum of the 'seg_len' fields against 'sig_len'
+        if np.sum(self.seg_len) != self.sig_len:
+            raise ValueError("The sum of the 'seg_len' fields do not match the 'sig_len' field")
 
 
     # Write a header file using the specified fields
     def wr_header_file(self, write_fields):
 
-        headerlines=[]
+        header_lines=[]
 
         # Create record specification line
         recordline = ''
@@ -351,63 +351,66 @@ class MultiHeaderMixin(BaseHeaderMixin):
             # If the field is being used, add it with its delimiter
             if field in write_fields:
                 recordline = recordline + rec_field_specs[field].delimiter + str(getattr(self, field))
-        headerlines.append(recordline)
+        header_lines.append(recordline)
 
         # Create segment specification lines
-        segmentlines = self.nseg*['']
+        segmentlines = self.n_seg*['']
         # For both fields, add each of its elements with the delimiter to the appropriate line 
-        for field in ['segname', 'segname']:
-            for segnum in range(0, self.nseg):
+        for field in ['seg_name', 'seg_name']:
+            for segnum in range(0, self.n_seg):
                 segmentlines[segnum] = segmentlines[segnum] + seg_field_specs[field].delimiter + str(getattr(self, field)[segnum])
 
-        headerlines = headerlines + segmentlines
+        header_lines = header_lines + segmentlines
 
         # Create comment lines (if any)
         if 'comments' in write_fields:
-            commentlines = ['# '+comment for comment in self.comments]
-            headerlines = headerlines + commentlines
+            comment_lines = ['# '+comment for comment in self.comments]
+            header_lines = header_lines + comment_lines
 
-        lines_to_file(self.record_name+'.hea', headerlines)
+        lines_to_file(self.record_name+'.hea', header_lines)
 
-    # Get a list of the segment numbers that contain a particular signal
-    # (or a dictionary of segment numbers for a list of signals)
-    # Only works if information about the segments has been read in
-    def get_sig_segments(self, sig_names=None):
+
+    def get_sig_segments(self, sig_name=None):
+        """
+        Get a list of the segment numbers that contain a particular signal
+        (or a dictionary of segment numbers for a list of signals)
+        Only works if information about the segments has been read in
+        """
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True")
         
         # Default value = all signal names.
-        if sig_names is None:
-            sig_names = self.get_sig_names()
+        if sig_name is None:
+            sig_name = self.get_sig_name()
 
-        if isinstance(sig_names, list):
+        if isinstance(sig_name, list):
             sigdict = {}
-            for sig in sig_names:
+            for sig in sig_name:
                 sigdict[sig] = self.get_sig_segments(sig)
             return sigdict
-        elif isinstance(sig_names, str):
+        elif isinstance(sig_name, str):
             sigsegs = []
-            for i in range(self.nseg):
-                if self.segname[i] != '~' and sig_names in self.segments[i].sig_names:
+            for i in range(self.n_seg):
+                if self.seg_name[i] != '~' and sig_name in self.segments[i].sig_name:
                     sigsegs.append(i)
             return sigsegs
         else:
-            raise TypeError('sig_names must be a string or a list of strings')
+            raise TypeError('sig_name must be a string or a list of strings')
 
     # Get the signal names for the entire record
-    def get_sig_names(self):
+    def get_sig_name(self):
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True")
         
         if self.layout == 'Fixed':
-            for i in range(self.nseg):
-                if self.segname[i] != '~':
-                    sig_names = self.segments[i].sig_names
+            for i in range(self.n_seg):
+                if self.seg_name[i] != '~':
+                    sig_name = self.segments[i].sig_name
                     break
         else:
-            sig_names = self.segments[0].sig_names
+            sig_name = self.segments[0].sig_name
         
-        return sig_names
+        return sig_name
 
 
 # Regexp objects for reading headers
@@ -416,7 +419,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 rx_record = re.compile(
     ''.join(
         [
-            "(?P<record_name>[-\w]+)/?(?P<nseg>\d*)[ \t]+",
+            "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
             "(?P<n_sig>\d+)[ \t]*",
             "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
             "(?P<sig_len>\d*)[ \t]*",
@@ -431,10 +434,10 @@ rx_signal = re.compile(
             "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
             "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
             "(?P<adc_res>\d*)[ \t]*(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*",
-            "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_names>[\S]?[^\t\n\r\f\v]*)"]))
+            "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"]))
 
 # Segment Line Fields
-rx_segment = re.compile('(?P<segname>\w*~?)[ \t]+(?P<seglen>\d+)')
+rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 # Read header file to get comment and non-comment lines
@@ -443,29 +446,29 @@ def get_header_lines(record_name, pb_dir):
     if pb_dir is None:
         with open(record_name + ".hea", 'r') as fp:
             # Record line followed by signal/segment lines if any
-            headerlines = [] 
+            header_lines = [] 
             # Comment lines
-            commentlines = []
+            comment_lines = []
             for line in fp:
                 line = line.strip()
                 # Comment line
                 if line.startswith('#'):
-                    commentlines.append(line)
+                    comment_lines.append(line)
                 # Non-empty non-comment line = header line.
                 elif line:  
                     # Look for a comment in the line
                     ci = line.find('#')
                     if ci > 0:
-                        headerlines.append(line[:ci])
+                        header_lines.append(line[:ci])
                         # comment on same line as header line
-                        commentlines.append(line[ci:])
+                        comment_lines.append(line[ci:])
                     else:
-                        headerlines.append(line)
+                        header_lines.append(line)
     # Read online header file
     else:
-        headerlines, commentlines = download.stream_header(record_name, pb_dir)
+        header_lines, comment_lines = download.stream_header(record_name, pb_dir)
 
-    return headerlines, commentlines
+    return header_lines, comment_lines
 
 
 # Extract fields from a record line string into a dictionary
@@ -475,7 +478,7 @@ def read_rec_line(rec_line):
     d_rec = {}
 
     # Read string fields from record line
-    (d_rec['record_name'], d_rec['nseg'], d_rec['n_sig'], d_rec['fs'], 
+    (d_rec['record_name'], d_rec['n_seg'], d_rec['n_sig'], d_rec['fs'], 
     d_rec['counter_freq'], d_rec['base_counter'], d_rec['sig_len'],
     d_rec['base_time'], d_rec['base_date']) = re.findall(rx_record, rec_line)[0]
 
@@ -519,7 +522,7 @@ def read_sig_lines(sig_lines):
             d_sig['init_value'][i],
             d_sig['checksum'][i],
             d_sig['block_size'][i],
-            d_sig['sig_names'][i]) = rx_signal.findall(sig_lines[i])[0]
+            d_sig['sig_name'][i]) = rx_signal.findall(sig_lines[i])[0]
 
         for field in sig_field_specs:
             # Replace empty strings with their read defaults (which are mostly None)
@@ -556,7 +559,7 @@ def read_seg_lines(seg_lines):
 
     # Read string fields from signal line
     for i in range(0, len(seg_lines)):
-        (d_seg['segname'][i], d_seg['seglen'][i]) = rx_segment.findall(seg_lines[i])[0]
+        (d_seg['seg_name'][i], d_seg['seg_len'][i]) = rx_segment.findall(seg_lines[i])[0]
 
         for field in seg_field_specs:
             # Replace empty strings with their read defaults (which are mostly None)
@@ -564,7 +567,7 @@ def read_seg_lines(seg_lines):
                 d_seg[field][i] = seg_field_specs[field].read_def
             # Typecast non-empty strings for numerical field
             else:
-                if field == 'seglen':
+                if field == 'seg_len':
                     d_seg[field][i] = int(d_seg[field][i])
                                  
     return d_seg
@@ -611,7 +614,7 @@ int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
 
 # Record specification fields            
 rec_field_specs = OrderedDict([('record_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('nseg', FieldSpecification(int_types, '/', 'record_name', True, None, None)), 
+                         ('n_seg', FieldSpecification(int_types, '/', 'record_name', True, None, None)), 
                          ('n_sig', FieldSpecification(int_types, ' ', 'record_name', True, None, None)),
                          ('fs', FieldSpecification(float_types, ' ', 'n_sig', True, 250, None)),
                          ('counter_freq', FieldSpecification(float_types, '/', 'fs', False, None, None)),
@@ -634,8 +637,8 @@ sig_field_specs = OrderedDict([('file_name', FieldSpecification((str), '', None,
                          ('init_value', FieldSpecification(int_types, ' ', 'adc_zero', False, None, None)),
                          ('checksum', FieldSpecification(int_types, ' ', 'init_value', False, None, None)),
                          ('block_size', FieldSpecification(int_types, ' ', 'checksum', False, None, 0)),
-                         ('sig_names', FieldSpecification((str), ' ', 'block_size', False, None, None))])
+                         ('sig_name', FieldSpecification((str), ' ', 'block_size', False, None, None))])
     
 # Segment specification fields.
-seg_field_specs = OrderedDict([('segname', FieldSpecification((str), '', None, True, None, None)),
-                         ('seglen', FieldSpecification(int_types, ' ', 'segname', True, None, None))])
+seg_field_specs = OrderedDict([('seg_name', FieldSpecification((str), '', None, True, None, None)),
+                         ('seg_len', FieldSpecification(int_types, ' ', 'seg_name', True, None, None))])

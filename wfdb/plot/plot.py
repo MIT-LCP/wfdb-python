@@ -2,80 +2,75 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-from ..io import records
-from ..io import _headers
-from ..io import _signals
-from ..io import annotations
+from ..io.record import Record, rdrecord
+from ..io.header import float_types
+from ..io._signal import downround, upround
 
 
-# Plot a WFDB Record's signals
-# Optionally, overlay annotation locations
-def plotrec(record=None, title=None, annotation=None, timeunits='samples',
-    sigstyle='', annstyle='r*', plotannsym=False, figsize=None, returnfig=False, ecggrids=[]): 
-    """ Subplot and label each channel of a WFDB Record.
+def plotrec(record=None, title=None, annotation=None, time_units='samples',
+            sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
+            return_fig=False, ecg_grids=[]): 
+    """ 
+    Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
-    Usage: 
-    plotrec(record=None, title = None, annotation = None, timeunits='samples', sigstyle='',
-            annstyle='r*', figsize=None, returnfig = False, ecggrids=[])
-    
     Input arguments:
-    - record (required): A wfdb Record object. The p_signals attribute will be plotted.
-    - title (default=None): A string containing the title of the graph.
-    - annotation (default=None): A list of Annotation objects or numpy arrays. The locations of the Annotation
+    - record: A wfdb Record object. The p_signal attribute will be plotted.
+    - title: A string containing the title of the graph.
+    - annotation: A list of Annotation objects or numpy arrays. The locations of the Annotation
       objects' 'sample' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals.
       The list index of the annotation item corresponds to the signal channel that each annotation set will be
       plotted on. For channels without annotations to plot, put None in the list. This argument may also be just
       an Annotation object or numpy array, which will be plotted over channel 0.
-    - timeunits (default='samples'): String specifying the x axis unit. 
+    - time_units: String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
-    - sigstyle (default='r*'): String, or list of strings, specifying the styling of the matplotlib plot for the signals.
-      If 'sigstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
-      correspond to the list element. ie. sigtype=['r','b','k']
-    - annstyle (default='r*'): String, or list of strings, specifying the styling of the matplotlib plot for the annotations.
-      If 'annstyle' is a string, each channel will have the same style. If it is a list, each channel's style will 
+    - sig_style: String, or list of strings, specifying the styling of the matplotlib plot for the signals.
+      If 'sig_style' is a string, each channel will have the same style. If it is a list, each channel's style will 
+      correspond to the list element. ie. sig_style = ['r','b','k']
+    - ann_style: String, or list of strings, specifying the styling of the matplotlib plot for the annotations.
+      If 'ann_style' is a string, each channel will have the same style. If it is a list, each channel's style will 
       correspond to the list element.
-    - plotannsym (default=False): Specifies whether to plot the annotation symbols at their locations.
-    - figsize (default=None): Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
+    - plot_ann_sym: Specifies whether to plot the annotation symbols at their locations.
+    - figsize: Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
       passed into matplotlib.pyplot's figure() function.
-    - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
-    - ecggrids (default=[]): List of integers specifying channels in which to plot ecg grids. May be set to [] for
+    - return_fig: Specifies whether the figure is to be returned as an output argument
+    - ecg_grids: List of integers specifying channels in which to plot ecg grids. May be set to [] for
       no channels, or 'all' for all channels. Major grids at 0.5mV, and minor grids at 0.125mV. All channels to be 
       plotted with grids must have units equal to 'uV', 'mV', or 'V'.
     
     Output argument:
-    - figure: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.
+    - figure: The matplotlib figure generated. Only returned if the 'return_fig' option is set to True.
 
     Example Usage:
     import wfdb
-    record = wfdb.rdsamp('sampledata/100', sampto = 3000)
-    annotation = wfdb.rdann('sampledata/100', 'atr', sampto = 3000)
+    record = wfdb.rdrecord('sampledata/100', sampto=3000)
+    annotation = wfdb.rdann('sampledata/100', 'atr', sampto=3000)
 
-    wfdb.plotrec(record, annotation = annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
-                 timeunits = 'seconds', figsize = (10,4), ecggrids = 'all')
+    wfdb.plotrec(record, annotation=annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
+                 time_units='seconds', figsize=(10,4), ecg_grids='all')
     """
 
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)
-    t, tann, annplot = checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle)
+    t, tann, annplot = check_plot_items(record, title, annotation, time_units, sig_style, ann_style)
 
-    siglen, nsig = record.p_signals.shape
+    siglen, nsig = record.p_signal.shape
     
     # Expand list styles
-    if isinstance(sigstyle, str):
-        sigstyle = [sigstyle]*record.nsig
+    if isinstance(sig_style, str):
+        sig_style = [sig_style]*record.nsig
     else:
-        if len(sigstyle) < record.nsig:
-            sigstyle = sigstyle+['']*(record.nsig-len(sigstyle))
-    if isinstance(annstyle, str):
-        annstyle = [annstyle]*record.nsig
+        if len(sig_style) < record.nsig:
+            sig_style = sig_style+['']*(record.nsig-len(sig_style))
+    if isinstance(ann_style, str):
+        ann_style = [ann_style]*record.nsig
     else:
-        if len(annstyle) < record.nsig:
-            annstyle = annstyle+['r*']*(record.nsig-len(annstyle))
+        if len(ann_style) < record.nsig:
+            ann_style = ann_style+['r*']*(record.nsig-len(ann_style))
 
     # Expand ecg grid channels
-    if ecggrids == 'all':
-        ecggrids = range(0, record.nsig)
+    if ecg_grids == 'all':
+        ecg_grids = range(0, record.nsig)
 
     # Create the plot  
     fig=plt.figure(figsize=figsize)
@@ -83,24 +78,24 @@ def plotrec(record=None, title=None, annotation=None, timeunits='samples',
     for ch in range(nsig):
         # Plot signal channel
         ax = fig.add_subplot(nsig, 1, ch+1)
-        ax.plot(t, record.p_signals[:,ch], sigstyle[ch], zorder=3) 
+        ax.plot(t, record.p_signal[:,ch], sig_style[ch], zorder=3) 
         
         if (title is not None) and (ch==0):
             plt.title(title)
             
         # Plot annotation if specified
         if annplot[ch] is not None:
-            ax.plot(tann[ch], record.p_signals[annplot[ch], ch], annstyle[ch])
+            ax.plot(tann[ch], record.p_signal[annplot[ch], ch], ann_style[ch])
             # Plot the annotation symbols if specified
-            if plotannsym:
+            if plot_ann_sym:
                 for i, s in enumerate(annotation.symbol):
-                    ax.annotate(s, (tann[ch][i], record.p_signals[annplot[ch], ch][i]))
+                    ax.annotate(s, (tann[ch][i], record.p_signal[annplot[ch], ch][i]))
 
         # Axis Labels
-        if timeunits == 'samples':
+        if time_units == 'samples':
             plt.xlabel('index/sample')
         else:
-            plt.xlabel('time/'+timeunits[:-1])
+            plt.xlabel('time/'+time_units[:-1])
             
         if record.signame[ch] is not None:
             chanlabel=record.signame[ch]
@@ -113,13 +108,13 @@ def plotrec(record=None, title=None, annotation=None, timeunits='samples',
         plt.ylabel(chanlabel+"/"+unitlabel)
 
         # Show standard ecg grids if specified.
-        if ch in ecggrids:
+        if ch in ecg_grids:
             
             auto_xlims = ax.get_xlim()
             auto_ylims= ax.get_ylim()
 
             major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y = calc_ecg_grids(
-                auto_ylims[0], auto_ylims[1], record.units[ch], record.fs, auto_xlims[1], timeunits)
+                auto_ylims[0], auto_ylims[1], record.units[ch], record.fs, auto_xlims[1], time_units)
 
             min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
             min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
@@ -140,27 +135,27 @@ def plotrec(record=None, title=None, annotation=None, timeunits='samples',
     plt.show(fig)
     
     # Return the figure if requested
-    if returnfig:
+    if return_fig:
         return fig
 
 # Calculate tick intervals for ecg grids
-def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
+def calc_ecg_grids(minsig, maxsig, units, fs, maxt, time_units):
 
     # 5mm 0.2s major grids, 0.04s minor grids
     # 0.5mV major grids, 0.125 minor grids 
     # 10 mm is equal to 1mV in voltage.
     
     # Get the grid interval of the x axis
-    if timeunits == 'samples':
+    if time_units == 'samples':
         majorx = 0.2*fs
         minorx = 0.04*fs
-    elif timeunits == 'seconds':
+    elif time_units == 'seconds':
         majorx = 0.2
         minorx = 0.04
-    elif timeunits == 'minutes':
+    elif time_units == 'minutes':
         majorx = 0.2/60
         minorx = 0.04/60
-    elif timeunits == 'hours':
+    elif time_units == 'hours':
         majorx = 0.2/3600
         minorx = 0.04/3600
 
@@ -178,40 +173,40 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, timeunits):
         raise ValueError('Signal units must be uV, mV, or V to plot the ECG grid.')
 
 
-    major_ticks_x = np.arange(0, _signals.upround(maxt, majorx)+0.0001, majorx)
-    minor_ticks_x = np.arange(0, _signals.upround(maxt, majorx)+0.0001, minorx)
+    major_ticks_x = np.arange(0, _upround(maxt, majorx)+0.0001, majorx)
+    minor_ticks_x = np.arange(0, _upround(maxt, majorx)+0.0001, minorx)
 
-    major_ticks_y = np.arange(_signals.downround(minsig, majory), _signals.upround(maxsig, majory)+0.0001, majory)
-    minor_ticks_y = np.arange(_signals.downround(minsig, majory), _signals.upround(maxsig, majory)+0.0001, minory)
+    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, majory)
+    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, minory)
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 # Check the validity of items used to make the plot
 # Return the x axis time values to plot for the record (and time and values for annotation if any)
-def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
+def check_plot_items(record, title, annotation, time_units, sig_style, ann_style):
     
     # signals
-    if not isinstance(record, records.Record):
+    if not isinstance(record, Record):
         raise TypeError("The 'record' argument must be a valid wfdb.Record object")
-    if not isinstance(record.p_signals, np.ndarray) or record.p_signals.ndim != 2:
-        raise TypeError("The plotted signal 'record.p_signals' must be a 2d numpy array")
+    if not isinstance(record.p_signal, np.ndarray) or record.p_signal.ndim != 2:
+        raise TypeError("The plotted signal 'record.p_signal' must be a 2d numpy array")
     
-    siglen, nsig = record.p_signals.shape
+    siglen, nsig = record.p_signal.shape
 
-    # fs and timeunits
+    # fs and time_units
     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
-    if timeunits not in allowedtimes:
-        raise ValueError("The 'timeunits' field must be one of the following: ", allowedtimes)
+    if time_units not in allowedtimes:
+        raise ValueError("The 'time_units' field must be one of the following: ", allowedtimes)
     # Get x axis values. fs must be valid when plotting time
-    if timeunits == 'samples':
+    if time_units == 'samples':
         t = np.linspace(0, siglen-1, siglen)
     else:
-        if not isinstance(record.fs, _headers.floattypes):
+        if not isinstance(record.fs, float_types):
             raise TypeError("The 'fs' field must be a number")
         
-        if timeunits == 'seconds':
+        if time_units == 'seconds':
             t = np.linspace(0, siglen-1, siglen)/record.fs
-        elif timeunits == 'minutes':
+        elif time_units == 'minutes':
             t = np.linspace(0, siglen-1, siglen)/record.fs/60
         else:
             t = np.linspace(0, siglen-1, siglen)/record.fs/3600
@@ -238,22 +233,22 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
         raise TypeError("The 'title' field must be a string")
     
     # signal line style
-    if isinstance(sigstyle, str):
+    if isinstance(sig_style, str):
         pass
-    elif isinstance(sigstyle, list):
-        if len(sigstyle) > record.nsig:
-            raise ValueError("The 'sigstyle' list cannot have more elements than the number of record channels")
+    elif isinstance(sig_style, list):
+        if len(sig_style) > record.nsig:
+            raise ValueError("The 'sig_style' list cannot have more elements than the number of record channels")
     else:
-        raise TypeError("The 'sigstyle' field must be a string or a list of strings")
+        raise TypeError("The 'sig_style' field must be a string or a list of strings")
 
     # annotation plot style
-    if isinstance(annstyle, str):
+    if isinstance(ann_style, str):
         pass
-    elif isinstance(annstyle, list):
-        if len(annstyle) > record.nsig:
-            raise ValueError("The 'annstyle' list cannot have more elements than the number of record channels")
+    elif isinstance(ann_style, list):
+        if len(ann_style) > record.nsig:
+            raise ValueError("The 'ann_style' list cannot have more elements than the number of record channels")
     else:
-        raise TypeError("The 'annstyle' field must be a string or a list of strings")
+        raise TypeError("The 'ann_style' field must be a string or a list of strings")
 
 
     # Annotations if any
@@ -292,11 +287,11 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
         for ch in range(record.nsig):
             if annplot[ch] is None:
                 continue
-            if timeunits == 'samples':
+            if time_units == 'samples':
                 tann[ch] = annplot[ch]
-            elif timeunits == 'seconds':
+            elif time_units == 'seconds':
                 tann[ch] = annplot[ch]/float(record.fs)
-            elif timeunits == 'minutes':
+            elif time_units == 'minutes':
                 tann[ch] = annplot[ch]/float(record.fs)/60
             else:
                 tann[ch] = annplot[ch]/float(record.fs)/3600
@@ -310,20 +305,20 @@ def checkplotitems(record, title, annotation, timeunits, sigstyle, annstyle):
 
 
 # Plot the sample locations of a WFDB annotation on a new figure
-def plotann(annotation, title = None, timeunits = 'samples', returnfig = False): 
+def plotann(annotation, title = None, time_units = 'samples', return_fig = False): 
     """ Plot sample locations of an Annotation object.
     
-    Usage: plotann(annotation, title = None, timeunits = 'samples', returnfig = False)
+    Usage: plotann(annotation, title = None, time_units = 'samples', return_fig = False)
     
     Input arguments:
     - annotation (required): An Annotation object. The sample attribute locations will be overlaid on the signal.
     - title (default=None): A string containing the title of the graph.
-    - timeunits (default='samples'): String specifying the x axis unit. 
+    - time_units (default='samples'): String specifying the x axis unit. 
       Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
-    - returnfig (default=False): Specifies whether the figure is to be returned as an output argument
+    - return_fig (default=False): Specifies whether the figure is to be returned as an output argument
     
     Output argument:
-    - figure: The matplotlib figure generated. Only returned if the 'returnfig' option is set to True.
+    - figure: The matplotlib figure generated. Only returned if the 'return_fig' option is set to True.
 
     Note: The plotrec function is useful for plotting annotations on top of signal waveforms.
 
@@ -331,12 +326,12 @@ def plotann(annotation, title = None, timeunits = 'samples', returnfig = False):
     import wfdb
     annotation = wfdb.rdann('sampledata/100', 'atr', sampfrom = 100000, sampto = 110000)
     annotation.fs = 360
-    wfdb.plotann(annotation, timeunits = 'minutes')
+    wfdb.plotann(annotation, time_units = 'minutes')
     """
 
     # Check the validity of items used to make the plot
     # Get the x axis annotation values to plot
-    plotvals = checkannplotitems(annotation, title, timeunits)
+    plotvals = checkannplotitems(annotation, title, time_units)
     
     # Create the plot
     fig=plt.figure()
@@ -347,42 +342,42 @@ def plotann(annotation, title = None, timeunits = 'samples', returnfig = False):
         plt.title(title)
         
     # Axis Labels
-    if timeunits == 'samples':
+    if time_units == 'samples':
         plt.xlabel('index/sample')
     else:
-        plt.xlabel('time/'+timeunits[:-1])
+        plt.xlabel('time/'+time_units[:-1])
 
     plt.show(fig)
     
     # Return the figure if requested
-    if returnfig:
+    if return_fig:
         return fig
 
 # Check the validity of items used to make the annotation plot
-def checkannplotitems(annotation, title, timeunits):
+def checkannplotitems(annotation, title, time_units):
     
     # signals
     if not isinstance(annotation, annotations.Annotation):
         raise TypeError("The 'annotation' field must be a 'wfdb.Annotation' object")
 
-    # fs and timeunits
+    # fs and time_units
     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
-    if timeunits not in allowedtimes:
-        raise ValueError("The 'timeunits' field must be one of the following: ", allowedtimes)
+    if time_units not in allowedtimes:
+        raise ValueError("The 'time_units' field must be one of the following: ", allowedtimes)
 
     # fs must be valid when plotting time
-    if timeunits != 'samples':
-        if not isinstance(annotation.fs, _headers.floattypes):
+    if time_units != 'samples':
+        if not isinstance(annotation.fs, float_types):
             raise Exception("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
 
     # Get x axis values to plot
-    if timeunits == 'samples':
+    if time_units == 'samples':
         plotvals = annotation.sample
-    elif timeunits == 'seconds':
+    elif time_units == 'seconds':
         plotvals = annotation.sample/float(annotation.fs)
-    elif timeunits == 'minutes':
+    elif time_units == 'minutes':
         plotvals = annotation.sample/float(annotation.fs*60)
-    elif timeunits == 'hours':
+    elif time_units == 'hours':
         plotvals = annotation.sample/float(annotation.fs*3600)
 
     # title
@@ -402,7 +397,7 @@ def plot_records(directory=os.getcwd()):
     recordlist.sort()
 
     for record_name in recordlist:
-        record = records.rdsamp(record_name)
+        record = records.rdrecord(record_name)
 
         plotrec(record, title='Record: %s' % record.recordname)
         input('Press enter to continue...')

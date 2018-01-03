@@ -19,26 +19,26 @@ def stream_header(record_name, pb_dir):
     filelines = r.content.decode('iso-8859-1').splitlines()
 
     # Separate content into header and comment lines
-    headerlines = []
-    commentlines = []
+    header_lines = []
+    comment_lines = []
 
     for line in filelines:
         line = str(line.strip())
         # Comment line
         if line.startswith('#'):
-            commentlines.append(line)
+            comment_lines.append(line)
         # Non-empty non-comment line = header line.
         elif line:
             # Look for a comment in the line
             ci = line.find('#')
             if ci > 0:
-                headerlines.append(line[:ci])
+                header_lines.append(line[:ci])
                 # comment on same line as header line
-                commentlines.append(line[ci:])
+                comment_lines.append(line[ci:])
             else:
-                headerlines.append(line)
+                header_lines.append(line)
 
-    return (headerlines, commentlines)
+    return (header_lines, comment_lines)
 
 
 # Read certain bytes from a dat file from physiobank

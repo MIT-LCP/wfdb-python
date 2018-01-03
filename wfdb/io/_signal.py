@@ -15,7 +15,7 @@ class SignalMixin(object):
     Mixin class with signal methods. Inherited by Record class.
     """
 
-    def wrdats(self, expanded):
+    def wr_dats(self, expanded):
         # Write all dat files associated with a record
         # expanded=True to use e_d_signal instead of d_signal
 
@@ -38,7 +38,7 @@ class SignalMixin(object):
         self.check_sig_cohesion(write_fields, expanded)
         
         # Write each of the specified dat files
-        self.wrdatfiles(expanded)
+        self.wr_dat_files(expanded)
 
 
 
@@ -189,7 +189,7 @@ class SignalMixin(object):
         if expanded:
             # adc is performed.
             if do_adc == True:
-                self.check_field('e_p_signal', channels = 'all')
+                self.check_field('e_p_signal', channels='all')
 
                 # If there is no fmt set
                 if self.fmt is None:
@@ -197,7 +197,7 @@ class SignalMixin(object):
                     if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions. 
-                    res = estres(self.e_p_signal)
+                    res = est_res(self.e_p_signal)
                     self.fmt = wfdbfmt(res, single_fmt)
                 # If there is a fmt set
                 else:
@@ -205,7 +205,7 @@ class SignalMixin(object):
                     # Neither field set
                     if self.adc_gain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
-                        self.adc_gain, self.baseline = self.calculate_adcparams()
+                        self.adc_gain, self.baseline = self.calc_adc_params()
                     # Exactly one field set
                     elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
@@ -217,7 +217,7 @@ class SignalMixin(object):
                 self.d_signal = self.adc(expanded)
 
             # Use e_d_signal to set fields
-            self.check_field('e_d_signal', channels = 'all')
+            self.check_field('e_d_signal', channels='all')
             self.sig_len = int(len(self.e_d_signal[0])/self.samps_per_frame[0])
             self.n_sig = len(self.e_d_signal)
             self.init_value = [sig[0] for sig in self.e_d_signal]
@@ -233,7 +233,7 @@ class SignalMixin(object):
                     if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions. 
-                    res = estres(self.p_signal)
+                    res = est_res(self.p_signal)
                     self.fmt = wfdbfmt(res, single_fmt)
                 # If there is a fmt set
                 else:
@@ -242,7 +242,7 @@ class SignalMixin(object):
                     # Neither field set
                     if self.adc_gain is None and self.baseline is None:
                         # Calculate and set optimal gain and baseline values to convert physical signals
-                        self.adc_gain, self.baseline = self.calculate_adcparams()
+                        self.adc_gain, self.baseline = self.calc_adc_params()
                     # Exactly one field set
                     elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
@@ -364,9 +364,9 @@ class SignalMixin(object):
         d_signal/e_d_signal field will be set to None.
     
         Input arguments:
-        - expanded (default=False): Boolean specifying whether to transform the
+        - expanded: Boolean specifying whether to transform the
           e_d_signal attribute (True) or the d_signal attribute (False).
-        - inplace (default=False): Boolean specifying whether to automatically
+        - inplace: Boolean specifying whether to automatically
           set the object's corresponding physical signal attribute and set the
           digital signal attribute to None (True), or to return the converted
           signal as a separate variable without changing the original digital 
@@ -442,7 +442,7 @@ class SignalMixin(object):
 
     # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
     # self.fmt must be a list with length equal to the number of signal channels in self.p_signal 
-    def calculate_adcparams(self):
+    def calc_adc_params(self):
              
         # digital - baseline / gain = physical     
         # physical * gain + baseline = digital
@@ -539,7 +539,7 @@ class SignalMixin(object):
         return cs
 
     # Write each of the specified dat files
-    def wrdatfiles(self, expanded=False):
+    def wr_dat_files(self, expanded=False):
 
         # Get the set of dat files to be written, and
         # the channels to be written to each file. 
@@ -560,12 +560,12 @@ class SignalMixin(object):
         # Write the dat files
         if expanded:
             for fn in file_names:
-                wrdatfile(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signal[ch] for ch in datchannels[fn]], self.samps_per_frame)
+                wr_dat_file(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signal[ch] for ch in datchannels[fn]], self.samps_per_frame)
         else:
             # Create a copy to prevent overwrite
             dsig = self.d_signal.copy()
             for fn in file_names:
-                wrdatfile(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
+                wr_dat_file(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
 
 
     def smooth_frames(self, sigtype='physical'):
@@ -712,8 +712,8 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
 
 def rddat(file_name, dirname, pb_dir, fmt, n_sig,
-        sig_len, byte_offset, samps_per_frame,
-        skew, sampfrom, sampto, smooth_frames):
+          sig_len, byte_offset, samps_per_frame,
+          skew, sampfrom, sampto, smooth_frames):
     """
     Get samples from a WFDB dat file.
     'sampfrom', 'sampto', and smooth_frames are user desired
@@ -1190,9 +1190,9 @@ def digi_nan(fmt):
 
 
 reslevels = np.power(2, np.arange(0,33))
-def estres(signals):
+def est_res(signals):
     """
-    def estres(signals):
+    def est_res(signals):
 
     Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits.
     Input arguments:
@@ -1301,7 +1301,7 @@ def npdtype(res, discrete):
 # Write a dat file.
 # All bytes are written one at a time
 # to avoid endianness issues.
-def wrdatfile(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signal=None, samps_per_frame=None):
+def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signal=None, samps_per_frame=None):
     f=open(file_name,'wb')
 
     # Combine list of arrays into single array
@@ -1428,9 +1428,12 @@ def wrdatfile(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signal=
 
     f.close()
 
-# Returns the unique elements in a list in the order that they appear. 
-# Also returns the indices of the original list that correspond to each output element. 
+
 def orderedsetlist(fulllist):
+    """
+    Returns the unique elements in a list in the order that they appear. 
+    Also returns the indices of the original list that correspond to each output element. 
+    """
     uniquelist = []
     original_inds = {}
 
@@ -1446,10 +1449,16 @@ def orderedsetlist(fulllist):
     return uniquelist, original_inds
 
 
-# Round down to nearest <base>
+
 def downround(x, base):
+    """
+    Round <x> down to nearest <base>
+    """
     return base * math.floor(float(x)/base)
 
-# Round up to nearest <base>
+
 def upround(x, base):
+    """
+    Round <x> up to nearest <base>
+    """
     return base * math.ceil(float(x)/base)

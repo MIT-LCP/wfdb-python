@@ -42,13 +42,13 @@ or 'srdsamp'.
 The attributes of the Record object give information about the record as specified
 by https://www.physionet.org/physiotools/wag/header-5.htm
 
-In addition, the d_signals and p_signals attributes store the digital and physical
+In addition, the d_signal and p_signals attributes store the digital and physical
 signals of WFDB records with at least one channel.
 
 Contructor function:
 ::
 
-    def __init__(self, p_signals=None, d_signals=None,
+    def __init__(self, p_signals=None, d_signal=None,
                  recordname=None, nsig=None,
                  fs=None, counterfreq=None, basecounter=None,
                  siglen=None, basetime=None, basedate=None,
@@ -170,7 +170,7 @@ Input Arguments:
 -  ``physical`` (default=True): Flag that specifies whether to return  signals in physical (True) or digital (False) units.
 -  ``pbdir`` (default=None): Option used to stream data from Physiobank. The Physiobank database directory from which to find the required record files. eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb', pbdir = 'mitdb'.
 -  ``m2s`` (default=True): Flag used only for multi-segment records. Specifies whether to convert the returned wfdb.MultiRecord object into a wfdb.Record object (True) or not (False).
--  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signals or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_sign.als or e_p_signals field (False).
+-  ``smoothframes`` (default=True): Flag used when reading records with signals having multiple samples per frame. Specifies whether to smooth the samples in signals with more than one sample per frame and return an mxn uniform numpy array as the d_signal or p_signals field (True), or to return a list of 1d numpy arrays containing every expanded sample as the e_d_sign.als or e_p_signals field (False).
 -  ``ignoreskew`` (default=False): Flag used when reading records with at least one skewed signal. Specifies whether to apply the skew to align the signals in the output variable (False), or to ignore the skew field and load in all values contained in the dat files unaligned (True).
 -  ``returnres`` (default=64): The numpy array dtype of the returned signals. Options are: 64, 32, 16, and 8, where the value represents the numpy int or float dtype. Note that the value cannot be 8 when physical is True since there is no float8 format.
 
@@ -211,12 +211,12 @@ Output arguments:
 Converting between Analog and Digital Values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When reading signal sample values into ``record`` objects using ``rdsamp``, the samples are stored in either the ``p_signals`` or the ``d_signals`` field depending on the specified return type (``physical`` = ``True`` or ``False`` respectively).
+When reading signal sample values into ``record`` objects using ``rdsamp``, the samples are stored in either the ``p_signals`` or the ``d_signal`` field depending on the specified return type (``physical`` = ``True`` or ``False`` respectively).
 
 One can also use existing objects to obtain physical values from digital values and vice versa, without having to re-read the wfdb file with a different set of options. The two following instance methods perform the conversions.
 
 
-**adc** - Performs analogue to digital conversion of the physical signal stored in p_signals if expanded is False, or e_p_signals if expanded is True. The p_signals/e_p_signals, fmt, gain, and baseline fields must all be valid. If inplace is True, the adc will be performed inplace on the variable, the d_signals/e_d_signals attribute will be set, and the p_signals/e_p_signals field will be set to None.
+**adc** - Performs analogue to digital conversion of the physical signal stored in p_signals if expanded is False, or e_p_signals if expanded is True. The p_signals/e_p_signals, fmt, gain, and baseline fields must all be valid. If inplace is True, the adc will be performed inplace on the variable, the d_signal/e_d_signal attribute will be set, and the p_signals/e_p_signals field will be set to None.
 
 ::
 
@@ -229,7 +229,7 @@ Input arguments:
 
 Possible output argument:
 
-- ``d_signals``: The digital conversion of the signal. Either a 2d numpy array or a list of 1d numpy arrays.
+- ``d_signal``: The digital conversion of the signal. Either a 2d numpy array or a list of 1d numpy arrays.
 
 Example Usage:
         
@@ -242,7 +242,7 @@ Example Usage:
   record.dac(inplace=True)
 
 
-**dac** - Performs digital to analogue conversion of the digital signal stored in d_signals if expanded is False, or e_d_signals if expanded is True. The d_signals/e_d_signals, fmt, gain, and baseline fields must all be valid. If inplace is True, the dac will be performed inplace on the variable, the p_signals/e_p_signals attribute will be set, and the d_signals/e_d_signals field will be set to None.
+**dac** - Performs digital to analogue conversion of the digital signal stored in d_signal if expanded is False, or e_d_signal if expanded is True. The d_signal/e_d_signal, fmt, gain, and baseline fields must all be valid. If inplace is True, the dac will be performed inplace on the variable, the p_signals/e_p_signals attribute will be set, and the d_signal/e_d_signal field will be set to None.
 
 ::
 
@@ -250,7 +250,7 @@ Example Usage:
 
 Input arguments:
 
-- ``expanded`` (default=False): Boolean specifying whether to transform the e_d_signals attribute (True) or the d_signals attribute (False).
+- ``expanded`` (default=False): Boolean specifying whether to transform the e_d_signal attribute (True) or the d_signal attribute (False).
 - ``inplace`` (default=False): Boolean specifying whether to automatically set the object's corresponding physical signal attribute and set the digital signal attribute to None (True), or to return the converted signal as a separate variable without changing the original digital signal attribute (False).
 
 Possible output argument:
@@ -278,7 +278,7 @@ The Record class has a **wrsamp** instance method for writing wfdb record files.
 
 ::
 
-    wrsamp(recordname, fs, units, signames, p_signals=None, d_signals=None,
+    wrsamp(recordname, fs, units, signames, p_signals=None, d_signal=None,
            fmt=None, gain=None, baseline=None, comments=None, basetime=None,
            basedate=None)
 
@@ -299,13 +299,13 @@ Input Arguments:
 - ``units`` (required): A list of strings giving the units of each signal channel.
 - ``signames`` (required): A list of strings giving the signal name of each signal channel.
 - ``p_signals`` (default=None): An MxN 2d numpy array, where M is the signal length. Gives the physical signal
-  values intended to be written. Either p_signals or d_signals must be set, but not both. If p_signals
+  values intended to be written. Either p_signals or d_signal must be set, but not both. If p_signals
   is set, this method will use it to perform analogue-digital conversion, writing the resultant digital
   values to the dat file(s). If fmt is set, gain and baseline must be set or unset together. If fmt is
   unset, gain and baseline must both be unset.
-- ``d_signals`` (default=None): An MxN 2d numpy array, where M is the signal length. Gives the digital signal
+- ``d_signal`` (default=None): An MxN 2d numpy array, where M is the signal length. Gives the digital signal
   values intended to be directly written to the dat file(s). The dtype must be an integer type. Either
-  p_signals or d_signals must be set, but not both. In addition, if d_signals is set, fmt, gain and baseline
+  p_signals or d_signal must be set, but not both. In addition, if d_signal is set, fmt, gain and baseline
   must also all be set.
 - ``fmt`` (default=None): A list of strings giving the WFDB format of each file used to store each channel.
   Accepted formats are: "80","212","16","24", and "32". There are other WFDB formats but this library
