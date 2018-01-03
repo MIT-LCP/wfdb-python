@@ -10,7 +10,6 @@ special_fmts = ['212', '310', '311']
 dat_fmts = simple_fmts + special_fmts
 
 
-
 class SignalMixin(object):
     """
     Mixin class with signal methods. Inherited by Record class.

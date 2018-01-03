@@ -1135,15 +1135,15 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
         be unset.
     d_signal : numpy array, optional 
         An (MxN) 2d numpy array, where M is the signal length. Gives the
-        digital signal values intended to be directly written to the dat file(s).
-        The dtype must be an integer type. Either p_signal or d_signal must be
-        set, but not both. In addition, if d_signal is set, fmt, gain and
-        baseline must also all be set.
+        digital signal values intended to be directly written to the dat
+        file(s). The dtype must be an integer type. Either p_signal or d_signal
+        must be set, but not both. In addition, if d_signal is set, fmt, gain
+        and baseline must also all be set.
     fmt : list, optional
         A list of strings giving the WFDB format of each file used to store each
         channel. Accepted formats are: '80','212",'16','24', and '32'. There are
         other WFDB formats as specified by:
-          https://www.physionet.org/physiotools/wag/signal-5.htm
+        https://www.physionet.org/physiotools/wag/signal-5.htm
         but this library will not write (though it will read) those file types.
     gain : list, optional
         A list of integers specifying the ADC gain.
@@ -1175,6 +1175,7 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
                     sig_names=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+    
     """
 
     # Check input field combinations
@@ -1288,15 +1289,6 @@ def orderednoconseclist(fulllist):
     return noconseclist
 
 
-
-
-# *These downloading files gateway function rely on the Record/MultiRecord objects.
-# They are placed here rather than in download.py in order to avoid circular imports
-
-
-# Download WFDB files from a physiobank database
-# This function only targets databases with WFDB records (EDF and MIT format).
-# If the database doesn't have a 'RECORDS" file, it will fail.
 def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
                 overwrite = False):
     """
@@ -1304,29 +1296,43 @@ def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
     database. The database must contain a 'RECORDS' file in its base directory
     which lists its WFDB records.
 
-    Input arguments:
-    - db (required): The Physiobank database directory to download.
-      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
-    - dl_dir (required): The full local directory path in which to download the files.
-    - records (default='all'): Specifier of the WFDB records to download. Is either a list of strings
-      which each specify a record, or 'all' to download all records listed in the database's RECORDS file.
-      eg. records = ['test01_00s', test02_45s] for database https://physionet.org/physiobank/database/macecgdb/
-    - annotators (default='all'): Specifier of the WFDB annotation file types to download along with
-      the record files. Is either None to skip downloading any annotations, 'all' to download all
-      annotation types as specified by the ANNOTATORS file, or a list of strings which each specify an
-      annotation extension.
-      eg. annotators = ['anI'] for database https://physionet.org/physiobank/database/prcp/
-    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
-      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
-    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
-      existing files with the same name and relative subdirectory will be checked. If the local file is
-      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
-      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be
-      partially downloaded and the remaining bytes will be downloaded and appended.
+    Parameters
+    ----------
+    db : str 
+        The Physiobank database directory to download. eg. For database:
+        'http://physionet.org/physiobank/database/mitdb', db='mitdb'.
+    dl_dir : str
+        The full local directory path in which to download the files.
+    records : list, or 'all', optional
+        A list of strings specifying the WFDB records to download. Leave as
+        'all' to download all records listed in the database's RECORDS file.
+        eg. records=['test01_00s', test02_45s] for database:
+        https://physionet.org/physiobank/database/macecgdb/
+    annotators : list, 'all', or None, optional
+        A list of strings specifying the WFDB annotation file types to download
+        along with the record files. Is either None to skip downloading any
+        annotations, 'all' to download all annotation types as specified by the
+        ANNOTATORS file, or a list of strings which each specify an annotation
+        extension.
+        eg. annotators = ['anI'] for database:
+        https://physionet.org/physiobank/database/prcp/
+    keep_subdirs : bool, optional
+        Whether to keep the relative subdirectories of downloaded files as they
+        are organized in Physiobank (True), or to download all files into the
+        same base directory (False).
+    overwrite : bool, optional
+        If True, all files will be redownloaded regardless. If False, existing
+        files with the same name and relative subdirectory will be checked.
+        If the local file is the same size as the online file, the download is
+        skipped. If the local file is larger, it will be deleted and the file
+        will be redownloaded. If the local file is smaller, the file will be
+        assumed to be partially downloaded and the remaining bytes will be
+        downloaded and appended.
 
-    Example Usage:
-    import wfdb
-    wfdb.dl_database('ahadb', os.getcwd())
+    Examples
+    --------
+    >>> wfdb.dl_database('ahadb', os.getcwd())
+    
     """
 
     # Full url physiobank database

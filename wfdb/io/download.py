@@ -89,10 +89,12 @@ def stream_annotation(file_name, pb_dir):
 
 def get_dbs():
     """
-    Return a list of all the physiobank databases available.
+    Get a list of all the Physiobank databases available.
 
-    Usage:
-    dbs = get_dbs()
+    Examples
+    --------
+    >>> dbs = get_dbs()
+
     """
     url = posixpath.join(db_index_url, 'DBS')
     r = requests.get(url)
@@ -237,24 +239,35 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
     Download specified files from a Physiobank database.
 
-    Input arguments:
-    - db (required): The Physiobank database directory to download.
-      eg. For database 'http://physionet.org/physiobank/database/mitdb', db = 'mitdb'.
-    - dl_dir (required): The full local directory path in which to download the files.
-    - files (required): A list of strings specifying the file names to download relative to the database
-      base directory
-    - keep_subdirs (default=True): Whether to keep the relative subdirectories of downloaded files
-      as they are organized in Physiobank (True), or to download all files into the same base directory (False).
-    - overwrite (default=False): If set to True, all files will be redownloaded regardless. If set to False,
-      existing files with the same name and relative subdirectory will be checked. If the local file is
-      the same size as the online file, the download is skipped. If the local file is larger, it will be deleted
-      and the file will be redownloaded. If the local file is smaller, the file will be assumed to be
-      partially downloaded and the remaining bytes will be downloaded and appended.
+    Parameters
+    ----------
+    db : str 
+        The Physiobank database directory to download. eg. For database:
+        'http://physionet.org/physiobank/database/mitdb', db='mitdb'.
+    dl_dir : str
+        The full local directory path in which to download the files.
+    files : list
+        A list of strings specifying the file names to download relative to the
+        database base directory.
+    keep_subdirs : bool, optional
+        Whether to keep the relative subdirectories of downloaded files as they
+        are organized in Physiobank (True), or to download all files into the
+        same base directory (False).
+    overwrite : bool, optional
+        If True, all files will be redownloaded regardless. If False, existing
+        files with the same name and relative subdirectory will be checked.
+        If the local file is the same size as the online file, the download is
+        skipped. If the local file is larger, it will be deleted and the file
+        will be redownloaded. If the local file is smaller, the file will be
+        assumed to be partially downloaded and the remaining bytes will be
+        downloaded and appended.
 
-    Example Usage:
-    import wfdb
-    wfdb.dl_files('ahadb', os.getcwd(), ['STAFF-Studies-bibliography-2016.pdf',
-                  'data/001a.hea', 'data/001a.dat'])
+    Examples
+    --------
+    >>> wfdb.dl_files('ahadb', os.getcwd(),
+                      ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea',
+                      'data/001a.dat'])
+
     """
 
     # Full url physiobank database
