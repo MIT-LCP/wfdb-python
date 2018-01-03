@@ -762,7 +762,7 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     --------
     >>> ecg_record = wfdb.rdheader('sample-data/test01_00s', sampfrom=800,
                                    channels = [1,3])
-    
+
     """
 
     # Read the header file. Separate comment and non-comment lines
@@ -848,10 +848,10 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         searched for in the local path.
     sampfrom : int, optional
         The starting sample number to read for each channel.
-    sampto : int, optional
+    sampto : int, or 'end', optional
         The sample number at which to stop reading for each channel. Leave as
         'end' to read the entire duration.
-    channels : list, optional
+    channels : list, or 'all', optional
         List of integer indices specifying the channels to be read. Leave as
         'all' to read all channels.
     physical : bool, optional
@@ -869,7 +869,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     smooth_frames : bool, optional
         Used when reading records with signals having multiple samples per
         frame. Specifies whether to smooth the samples in signals with more than
-        one sample per frame and return an m x n uniform numpy array as the
+        one sample per frame and return an (MxN) uniform numpy array as the
         `d_signal` or `p_signal` field (True), or to return a list of 1d numpy
         arrays containing every expanded sample as the `e_d_signal` or
         `e_p_signal` field (False).
@@ -907,6 +907,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
                                channels = [1,3])
+
     """
 
     dirname, base_record_name = os.path.split(record_name)
@@ -949,7 +950,11 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrange_fields(channels, expanded=True)
 
-            if physical:
+            if physical:    pb_dir : str, optional
+        Option used to stream data from Physiobank. The Physiobank database
+        directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.
                 # Perform dac to get physical signal
                 record.dac(expanded=True, return_res=return_res, inplace=True)
                 
@@ -964,7 +969,11 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # 3. Update the parameters of the overall MultiRecord
         # object to reflect the state of the individual segments.
         # 4. If specified, convert the MultiRecord object
-        # into a single Record object.
+        # into a single Recor    pb_dir : str, optional
+        Option used to stream data from Physiobank. The Physiobank database
+        directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.d object.
 
         # Segments field is a list of Record objects
         # Empty segments store None.
@@ -1016,36 +1025,58 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.
 
-    Input arguments:
-    - record_name: The name of the WFDB record to be read (without any file extensions).
-      If the argument contains any path delimiter characters, the argument will be interpreted as
-      PATH/baserecord and the data files will be searched for in the local path.
-    - sampfrom: The starting sample number to read for each channel.
-    - sampto: The sample number at which to stop reading for each channel.
-    - channels: Indices specifying the channel to be returned.
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read (without any file extensions).
+        If the argument contains any path delimiter characters, the argument
+        will be interpreted as PATH/baserecord and the data files will be
+        searched for in the local path.
+    sampfrom : int, optional
+        The starting sample number to read for each channel.
+    sampto : int, or 'end', optional
+        The sample number at which to stop reading for each channel. Leave as
+        'end' to read the entire duration.
+    channels : list, or 'all', optional
+        List of integer indices specifying the channels to be read. Leave as
+        'all' to read all channels.
+    pb_dir : str, optional
+        Option used to stream data from Physiobank. The Physiobank database
+        directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.
 
-    Output arguments:
-    - signals: A 2d numpy array storing the physical signals from the record.
-    - fields: A dictionary containing several key attributes of the read record:
-        - fs: The sampling frequency of the record
-        - units: The units for each channel
-        - sig_name: The signal name for each channel
-        - comments: Any comments written in the header
+    Returns
+    -------
+    signals : numpy array
+        A 2d numpy array storing the physical signals from the record.
+    fields : dict
+        A dictionary containing several key attributes of the read record:
+          - fs: The sampling frequency of the record
+          - units: The units for each channel
+          - sig_name: The signal name for each channel
+          - comments: Any comments written in the header
 
-    Note: If a signal range or channel selection is specified when calling this function, the
-          the resulting attributes of the returned object will be set to reflect the section
-          of the record that is actually read, rather than necessarily the entire record.
-          For example, if channels = [0, 1, 2] is specified when reading a 12 channel record, the
-          'n_sig' attribute will be 3, not 12.
+    Notes
+    -----
+    If a signal range or channel selection is specified when calling this
+    function, the resulting attributes of the returned object will be set to
+    reflect the section of the record that is actually read, rather than
+    necessarily the entire record. For example, if channels=[0, 1, 2] is
+    specified when reading a 12 channel record, the 'n_sig' attribute will be 3,
+    not 12.
 
-    Note: The `rdrecord` function is the base function upon which this one is built. It returns
-          all attributes present, along with the signals, as attributes in a wfdb.Record object.
-          The function, along with the returned data type, has more options than `rdsamp` for
-          users who wish to more directly manipulate WFDB files.
+    The `rdrecord` function is the base function upon which this one is built.
+    It returns all attributes present, along with the signals, as attributes in
+    a `Record` object. The function, along with the returned data type, has more
+    options than `rdsamp` for users who wish to more directly manipulate WFDB
+    content.
 
-    Example Usage:
-    import wfdb
-    sig, fields = wfdb.rdsamp('sample-data/test01_00s', sampfrom=800, channel =[1,3])
+    Examples
+    --------
+    >>> signals, fields = wfdb.rdsamp('sample-data/test01_00s', sampfrom=800,
+                                      channel =[1,3])
+
     """
 
     record = rdrecord(record_name, sampfrom, sampto, channels, True, pb_dir, True)
@@ -1083,44 +1114,67 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
     Write a single segment WFDB record, creating a WFDB header file and any
     associated dat files.
 
-    Input arguments:
-    - record_name (required): The string name of the WFDB record to be written (without any file extensions).
-    - fs (required): The numerical sampling frequency of the record.
-    - units (required): A list of strings giving the units of each signal channel.
-    - sig_names (required): A list of strings giving the signal name of each signal channel.
-    - p_signal (default=None): An MxN 2d numpy array, where M is the signal length. Gives the physical signal
-      values intended to be written. Either p_signal or d_signal must be set, but not both. If p_signal
-      is set, this method will use it to perform analogue-digital conversion, writing the resultant digital
-      values to the dat file(s). If fmt is set, gain and baseline must be set or unset together. If fmt is
-      unset, gain and baseline must both be unset.
-    - d_signal (default=None): An MxN 2d numpy array, where M is the signal length. Gives the digital signal
-      values intended to be directly written to the dat file(s). The dtype must be an integer type. Either
-      p_signal or d_signal must be set, but not both. In addition, if d_signal is set, fmt, gain and baseline
-      must also all be set.
-    - fmt (default=None): A list of strings giving the WFDB format of each file used to store each channel.
-      Accepted formats are: "80","212","16","24", and "32". There are other WFDB formats but this library
-      will not write (though it will read) those file types.
-    - gain (default=None): A list of integers specifying the ADC gain.
-    - baseline (default=None): A list of integers specifying the digital baseline.
-    - comments (default=None): A list of string comments to be written to the header file.
-    - base_time (default=None): A string of the record's start time in 24h HH:MM:SS(.ms) format.
-    - base_date (default=None): A string of the record's start date in DD/MM/YYYY format.
+    Parameters
+    ----------
+    record_name : str
+        The string name of the WFDB record to be written (without any file
+        extensions).
+    fs : int, or float
+        The sampling frequency of the record.
+    units : list
+        A list of strings giving the units of each signal channel.
+    sig_names : 
+        A list of strings giving the signal name of each signal channel.
+    p_signal : numpy array, optional 
+        An (MxN) 2d numpy array, where M is the signal length. Gives the
+        physical signal values intended to be written. Either p_signal or
+        d_signal must be set, but not both. If p_signal is set, this method will
+        use it to perform analogue-digital conversion, writing the resultant
+        digital values to the dat file(s). If fmt is set, gain and baseline must
+        be set or unset together. If fmt is unset, gain and baseline must both
+        be unset.
+    d_signal : numpy array, optional 
+        An (MxN) 2d numpy array, where M is the signal length. Gives the
+        digital signal values intended to be directly written to the dat file(s).
+        The dtype must be an integer type. Either p_signal or d_signal must be
+        set, but not both. In addition, if d_signal is set, fmt, gain and
+        baseline must also all be set.
+    fmt : list, optional
+        A list of strings giving the WFDB format of each file used to store each
+        channel. Accepted formats are: '80','212",'16','24', and '32'. There are
+        other WFDB formats as specified by:
+          https://www.physionet.org/physiotools/wag/signal-5.htm
+        but this library will not write (though it will read) those file types.
+    gain : list, optional
+        A list of integers specifying the ADC gain.
+    baseline : list, optional
+        A list of integers specifying the digital baseline.
+    comments : list, optional
+        A list of string comments to be written to the header file.
+    base_time : str, optional
+        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
+    base_date : str, optional
+        A string of the record's start date in 'DD/MM/YYYY' format.
 
-    Note: This gateway function was written to enable a simple way to write WFDB record files using
-          the most frequently used parameters. Therefore not all WFDB fields can be set via this function.
+    Notes
+    -----
+    This is a gateway function, written as a simple method to write WFDB record
+    files using the most common parameters. Therefore not all WFDB fields can be
+    set via this function.
 
-          For more control over attributes, create a wfdb.Record object, manually set its attributes, and
-          call its wrsamp() instance method. If you choose this more advanced method, see also the set_defaults,
-          set_d_features, and set_p_features instance methods to help populate attributes.
+    For more control over attributes, create a `Record` object, manually set its
+    attributes, and call its `wrsamp` instance method. If you choose this more
+    advanced method, see also the `set_defaults`, `set_d_features`, and
+    `set_p_features` instance methods to help populate attributes.
 
-    Example Usage (with the most common scenario of input parameters):
-    import wfdb
-    # Read part of a record from Physiobank
-    sig, fields = wfdb.rdsamp('a103l', sampfrom=50000, channels=[0,1],
-                              pb_dir='challenge/2015/training')
-    # Write a local WFDB record (manually inserting fields)
-    wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
-                sig_names=['I', 'II'], p_signal=sig, fmt=['16', '16'])
+    Examples
+    --------
+    >>> # Read part of a record from Physiobank
+    >>> signals, fields = wfdb.rdsamp('a103l', sampfrom=50000, channels=[0,1],
+                                   pb_dir='challenge/2015/training')
+    >>> # Write a local WFDB record (manually inserting fields)
+    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
+                    sig_names=['I', 'II'], p_signal=signals, fmt=['16', '16'])
     """
 
     # Check input field combinations
