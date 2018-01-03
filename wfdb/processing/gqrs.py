@@ -463,7 +463,8 @@ def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
     Functionally, a direct port of the gqrs algorithm from the original
     wfdb package. Therefore written to accept wfdb record fields.
     
-    Input arguments:
+    Parameters
+    ----------
     - x (required): The digital signal as a numpy array
     - fs (required): The sampling frequency of the signal
     - adcgain: The gain of the signal (the number of adus (q.v.) per physical unit)
@@ -481,7 +482,10 @@ def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
     - QRSa (default=750): Typical QRS peak-to-peak amplitude, in microvolts
     - QRSamin (default=130): Minimum QRS peak-to-peak amplitude, in microvolts
 
-    Note: This function should not be used for signals with fs <= 50Hz
+    Notes
+    -----
+    This function should not be used for signals with fs <= 50Hz
+    
     """
     conf = Conf(freq=fs, gain=adcgain, hr=hr,
                 RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,

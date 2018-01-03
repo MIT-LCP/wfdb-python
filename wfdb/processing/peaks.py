@@ -1,17 +1,30 @@
 import copy
 import numpy
-from .gqrs import time_to_sample_number, Conf, Peak, Annotation
+
 from .basic import smooth
+from .gqrs import time_to_sample_number, Conf, Peak, Annotation
+
 
 def find_peaks(x):
-    # Definitions:
-    # * Hard peak: a peak that is either /\ or \/
-    # * Soft peak: a peak that is either /-*\ or \-*/ (In that cas we define the middle of it as the peak)
+    """
+    Find hard peaks and soft peaks in a signal, defined as follows:
+    - Hard peak: a peak that is either /\ or \/
+    - Soft peak: a peak that is either /-*\ or \-*/ (In that case we define the
+      middle of it as the peak)
+    
+    Parameters
+    ----------
+    x : numpy array
+        The signal array
 
-    # Returns two numpy arrays:
-    # * hard_peaks contains the indices of the Hard peaks
-    # * soft_peaks contains the indices of the Soft peaks
-
+    Returns
+    -------
+    hard_peaks : numpy array
+        Array containing the indices of the hard peaks: 
+    soft_peaks : numpy array
+        Array containing the indices of the soft peaks
+    
+    """
     if len(x) == 0:
         return numpy.empty([0]), numpy.empty([0])
 
@@ -41,6 +54,8 @@ def find_peaks(x):
 
 
 def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
+    """
+    """
     N = x.shape[0]
 
     rpeaks = numpy.zeros(N)
