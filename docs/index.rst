@@ -10,6 +10,7 @@ Welcome to wfdb's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   installation
    io
    plot
    processing

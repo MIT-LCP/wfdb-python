@@ -425,6 +425,12 @@ def plot_all_records(directory=os.getcwd()):
     """
     Plot all wfdb records in a directory (by finding header files), one at
     a time, until the 'enter' key is pressed.
+
+    Parameters
+    ----------
+    directory : str, optional
+        The directory in which to search for WFDB records.
+    
     """
     filelist = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
     filelist = [f for f in filelist if f.endswith('.hea')]
