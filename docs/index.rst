@@ -10,6 +10,9 @@ Welcome to wfdb's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   io
+   plot
+   processing
 
 
 Indices and tables
@@ -18,7 +21,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-
-.. automodule:: wfdb.readwrite.records
-   :members: rdsamp, wrsamp, dldatabase

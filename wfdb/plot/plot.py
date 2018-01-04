@@ -14,40 +14,60 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
     Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
     
-    Input arguments:
-    - record: A wfdb Record object. The p_signal attribute will be plotted.
-    - title: A string containing the title of the graph.
-    - annotation: A list of Annotation objects or numpy arrays. The locations of the Annotation
-      objects' 'sample' attribute, or the locations of the numpy arrays' values, will be overlaid on the signals.
-      The list index of the annotation item corresponds to the signal channel that each annotation set will be
-      plotted on. For channels without annotations to plot, put None in the list. This argument may also be just
-      an Annotation object or numpy array, which will be plotted over channel 0.
-    - time_units: String specifying the x axis unit. 
-      Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
-    - sig_style: String, or list of strings, specifying the styling of the matplotlib plot for the signals.
-      If 'sig_style' is a string, each channel will have the same style. If it is a list, each channel's style will 
-      correspond to the list element. ie. sig_style = ['r','b','k']
-    - ann_style: String, or list of strings, specifying the styling of the matplotlib plot for the annotations.
-      If 'ann_style' is a string, each channel will have the same style. If it is a list, each channel's style will 
-      correspond to the list element.
-    - plot_ann_sym: Specifies whether to plot the annotation symbols at their locations.
-    - figsize: Tuple pair specifying the width, and height of the figure. Same as the 'figsize' argument
-      passed into matplotlib.pyplot's figure() function.
-    - return_fig: Specifies whether the figure is to be returned as an output argument
-    - ecg_grids: List of integers specifying channels in which to plot ecg grids. May be set to [] for
-      no channels, or 'all' for all channels. Major grids at 0.5mV, and minor grids at 0.125mV. All channels to be 
-      plotted with grids must have units equal to 'uV', 'mV', or 'V'.
+    Parameters
+    ----------
+    record : wfdb Record
+        The Record object, whose p_signal attribute is to be plotted.
+    title : str, optional
+        The title of the graph.
+    annotation : list, wfdb Annotation, or numpy array, optional
+        A list containing wfdb Annotation objects, numpy arrays, or None. The
+        locations of the Annotation objects' `sample` attribute, or the
+        locations of the numpy arrays' values, will be overlaid on the signals.
+        The list index of each item corresponds to the signal channel that each
+        annotation set will be plotted on. For channels without annotations to
+        plot, put None in the list. This argument may also be just an Annotation
+        object or numpy array, which will be plotted over channel 0.
+    time_units : str, optional
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    sig_style : str, or list, optional
+        String, or list of strings, specifying the styling of the matplotlib
+        plot for the signals. If it is a string, each channel will have the same
+        style. If it is a list, each channel's style will correspond to the list
+        element. ie. sig_style=['r','b','k']
+    ann_style : str, or list, optional
+        String, or list of strings, specifying the styling of the matplotlib
+        plot for the annotations. If it is a string, each channel will have the
+        same style. If it is a list, each channel's style will correspond to the
+        list element.
+    plot_ann_sym : bool, optional
+        Whether to plot the annotation symbols at their locations.
+    figsize : tuple, optional
+        Tuple pair specifying the width, and height of the figure. It is the
+        'figsize' argument passed into matplotlib.pyplot's `figure` function.
+    return_fig : bool, optional
+        Whether the figure is to be returned as an output argument.
+    ecg_grids : list, optional
+        List of integers specifying channels in which to plot ecg grids. May be
+        set to [] for no channels, or 'all' for all channels. Major grids at
+        0.5mV, and minor grids at 0.125mV. All channels to be plotted with grids
+        must have units equal to 'uV', 'mV', or 'V'.
     
-    Output argument:
-    - figure: The matplotlib figure generated. Only returned if the 'return_fig' option is set to True.
+    Returns
+    -------
+    figure : matplotlib figure, optional
+        The matplotlib figure generated. Only returned if the 'return_fig'
+        option is set to True.
 
-    Example Usage:
-    import wfdb
-    record = wfdb.rdrecord('sampledata/100', sampto=3000)
-    annotation = wfdb.rdann('sampledata/100', 'atr', sampto=3000)
+    Examples
+    --------
+    >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
+    >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
 
     wfdb.plot_record(record, annotation=annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
                  time_units='seconds', figsize=(10,4), ecg_grids='all')
+
     """
 
     # Check the validity of items used to make the plot
@@ -306,32 +326,42 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     return (t, tann, annplot)
 
 
-
-# Plot the sample locations of a WFDB annotation on a new figure
-def plot_annotation(annotation, title = None, time_units = 'samples', return_fig = False): 
-    """ Plot sample locations of an Annotation object.
-    
-    Usage: plot_annotation(annotation, title = None, time_units = 'samples', return_fig = False)
-    
-    Input arguments:
-    - annotation (required): An Annotation object. The sample attribute locations will be overlaid on the signal.
-    - title (default=None): A string containing the title of the graph.
-    - time_units (default='samples'): String specifying the x axis unit. 
-      Allowed options are: 'samples', 'seconds', 'minutes', and 'hours'.
-    - return_fig (default=False): Specifies whether the figure is to be returned as an output argument
-    
-    Output argument:
-    - figure: The matplotlib figure generated. Only returned if the 'return_fig' option is set to True.
-
-    Note: The plot_record function is useful for plotting annotations on top of signal waveforms.
-
-    Example Usage:
-    import wfdb
-    annotation = wfdb.rdann('sampledata/100', 'atr', sampfrom = 100000, sampto = 110000)
-    annotation.fs = 360
-    wfdb.plot_annotation(annotation, time_units = 'minutes')
+def plot_annotation(annotation, title=None, time_units='samples',
+                    return_fig=False): 
     """
+    Plot sample locations of an Annotation object.
+    
+    Parameters
+    ----------
+    annotation : wfdb Annotation 
+        Annotation object. The sample attribute locations will be plotted.
+    title : str, optional
+        The title of the graph.
+    time_units : str, optional
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    return_fig : bool, optional
+        Whether the figure is to be returned as an output argument.
+    
+    Returns
+    -------
+    figure : matplotlib figure, optional
+        The matplotlib figure generated. Only returned if the 'return_fig'
+        option is set to True.
 
+    Notes
+    -----
+    The `plot_record` function has more features, and is useful for plotting
+    annotations on top of signal waveforms.
+
+    Examples
+    --------
+    >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampfrom=100000,
+                                sampto=110000)
+    >>> annotation.fs = 360
+    >>> wfdb.plot_annotation(annotation, time_units='minutes')
+
+    """
     # Check the validity of items used to make the plot
     # Get the x axis annotation values to plot
     plotvals = checkannplotitems(annotation, title, time_units)
@@ -355,6 +385,7 @@ def plot_annotation(annotation, title = None, time_units = 'samples', return_fig
     # Return the figure if requested
     if return_fig:
         return fig
+
 
 # Check the validity of items used to make the annotation plot
 def checkannplotitems(annotation, title, time_units):

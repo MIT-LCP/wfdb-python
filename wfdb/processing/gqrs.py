@@ -462,7 +462,7 @@ def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
 
     Functionally, a direct port of the gqrs algorithm from the original
     wfdb package. Therefore written to accept wfdb record fields.
-    
+
     Parameters
     ----------
     - x (required): The digital signal as a numpy array
@@ -485,7 +485,7 @@ def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
     Notes
     -----
     This function should not be used for signals with fs <= 50Hz
-    
+
     """
     conf = Conf(freq=fs, gain=adcgain, hr=hr,
                 RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,
