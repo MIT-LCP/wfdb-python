@@ -12,15 +12,27 @@ Introduction
 
 The native Python waveform-database (WFDB) package. A library of tools for reading, writing, and processing WFDB signals and annotations.
 
-Core components of this package are based on the original WFDB specifications:
+Core components of this package are based on the original WFDB specifications. This package does not contain the exact same functionality as the original WFDB package. It aims to implement as many of its core features as possible, with user-friendly APIs. Additional useful physiological signal-processing tools are added over time.
 
-| `WFDB Software Package`_
-| `WFDB Applications Guide`_
-| `WFDB Header Specifications`_
-| `WFDB Signal Specifications`_
-| `WFDB Annotation Specifications`_
 
-This package does not contain the exact same functionality as the original WFDB package. It aims to implement as many of its core features as possible, with user-friendly APIs. Additional useful physiological signal-processing tools are added over time.
+Documentation and Usage
+-----------------------
+
+See the documentation site for the public APIs.
+
+See the `demo.ipynb`_ notebook file for more example use cases.
+
+
+Installation
+------------
+
+The distribution is hosted on pypi at: https://pypi.python.org/pypi/wfdb/. To directly install the package from pypi without needing to explicitly download content, run from your terminal::
+
+    $ pip install wfdb
+
+The development version is hosted at: https://github.com/MIT-LCP/wfdb-python. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run::
+
+    $ pip install .
 
 
 Development
@@ -41,41 +53,16 @@ We welcome community contributions in the form of pull requests. When contributi
 * Unit tests are written for new features that are not covered by `existing tests`_.
 
 
-Installation
-------------
-
-The distribution is hosted on pypi at: https://pypi.python.org/pypi/wfdb/. To directly install the package from pypi without needing to explicitly download content, run from your terminal::
-
-    $ pip install wfdb
-
-The development version is hosted at: https://github.com/MIT-LCP/wfdb-python. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run::
-
-    $ pip install .
-
-
-Documentation and Usage
------------------------
-
-See the documentation site for public classes and functions.
-
-See the `demo.ipynb`_ notebook file for more example use cases.
-
-
 Authors
 -------
 
-- `Chen Xie`_
-- `Julien Dubiel`_
+`Chen Xie`_
+
+`Julien Dubiel`_
 
 
 .. |Build Status| image:: https://travis-ci.org/MIT-LCP/wfdb-python.svg?branch=master
    :target: https://travis-ci.org/MIT-LCP/wfdb-python
-
-.. _WFDB Software Package: http://physionet.org/physiotools/wfdb.shtml
-.. _WFDB Applications Guide: http://physionet.org/physiotools/wag/
-.. _WFDB Header Specifications: https://physionet.org/physiotools/wag/header-5.htm
-.. _WFDB Signal Specifications: https://physionet.org/physiotools/wag/signal-5.htm
-.. _WFDB Annotation Specifications: https://physionet.org/physiotools/wag/annot-5.htm
 
 .. _PEP8: https://www.python.org/dev/peps/pep-0008/
 .. _docstrings: https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt

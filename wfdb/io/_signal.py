@@ -261,7 +261,6 @@ class SignalMixin(object):
             self.checksum = self.calc_checksum()
 
 
-    
     def adc(self, expanded=False, inplace=False):
         """
         Performs analogue to digital conversion of the physical signal stored 

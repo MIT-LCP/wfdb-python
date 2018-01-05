@@ -1,6 +1,8 @@
 io
 ---
 
+Input/Output
+
 .. autoclass:: wfdb.io.record.Record
     :members: adc, dac
 
