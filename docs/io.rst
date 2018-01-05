@@ -8,13 +8,14 @@ Classes
 ~~~~~~~
 
 .. autoclass:: wfdb.io.Record
-    :members: adc, dac
+    :members: wrsamp, adc, dac
 
 .. autoclass:: wfdb.io.MultiRecord
     :members: multi_to_single
 
-.. autoclass:: wfdb.io.MultiRafeecord
-    :members: multi_to_single
+.. autoclass:: wfdb.io.Annotation
+    :members: wrann
+
 
 Functions
 ~~~~~~~~~
