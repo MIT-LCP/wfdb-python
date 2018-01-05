@@ -14,7 +14,7 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
     """ 
     Subplot and label each channel of a WFDB Record.
     Optionally, subplot annotation locations over selected channels.
-    
+
     Parameters
     ----------
     record : wfdb Record

@@ -47,7 +47,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'wfdb'
-copyright = '2018, Chen Xie, Julien Dubiel'
+copyright = '2018, MIT Lab for Computational Physiology'
 author = 'Chen Xie, Julien Dubiel'
 
 import wfdb
