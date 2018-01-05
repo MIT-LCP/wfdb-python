@@ -5,6 +5,7 @@ import os
 from ..io.record import Record, rdrecord
 from ..io._header import float_types
 from ..io._signal import downround, upround
+from ..io.annotation import Annotation
 
 
 def plot_record(record=None, title=None, annotation=None, time_units='samples',
@@ -25,7 +26,7 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
         locations of the Annotation objects' `sample` attribute, or the
         locations of the numpy arrays' values, will be overlaid on the signals.
         The list index of each item corresponds to the signal channel that each
-        annotation set will be plotted on. For channels without annotations to
+        annotation set will be plotted on. For channels without annotation.to
         plot, put None in the list. This argument may also be just an Annotation
         object or numpy array, which will be plotted over channel 0.
     time_units : str, optional
@@ -38,7 +39,7 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
         element. ie. sig_style=['r','b','k']
     ann_style : str, or list, optional
         String, or list of strings, specifying the styling of the matplotlib
-        plot for the annotations. If it is a string, each channel will have the
+        plot for the annotation. If it is a string, each channel will have the
         same style. If it is a list, each channel's style will correspond to the
         list element.
     plot_ann_sym : bool, optional
@@ -74,30 +75,30 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
     # Return the x axis time values to plot for the record (and annotation if any)
     t, tann, annplot = check_plot_items(record, title, annotation, time_units, sig_style, ann_style)
 
-    siglen, nsig = record.p_signal.shape
+    siglen, n_sig = record.p_signal.shape
     
     # Expand list styles
     if isinstance(sig_style, str):
-        sig_style = [sig_style]*record.nsig
+        sig_style = [sig_style]*record.n_sig
     else:
-        if len(sig_style) < record.nsig:
-            sig_style = sig_style+['']*(record.nsig-len(sig_style))
+        if len(sig_style) < record.n_sig:
+            sig_style = sig_style+['']*(record.n_sig-len(sig_style))
     if isinstance(ann_style, str):
-        ann_style = [ann_style]*record.nsig
+        ann_style = [ann_style]*record.n_sig
     else:
-        if len(ann_style) < record.nsig:
-            ann_style = ann_style+['r*']*(record.nsig-len(ann_style))
+        if len(ann_style) < record.n_sig:
+            ann_style = ann_style+['r*']*(record.n_sig-len(ann_style))
 
     # Expand ecg grid channels
     if ecg_grids == 'all':
-        ecg_grids = range(0, record.nsig)
+        ecg_grids = range(0, record.n_sig)
 
     # Create the plot  
     fig=plt.figure(figsize=figsize)
     
-    for ch in range(nsig):
+    for ch in range(n_sig):
         # Plot signal channel
-        ax = fig.add_subplot(nsig, 1, ch+1)
+        ax = fig.add_subplot(n_sig, 1, ch+1)
         ax.plot(t, record.p_signal[:,ch], sig_style[ch], zorder=3) 
         
         if (title is not None) and (ch==0):
@@ -117,8 +118,8 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
         else:
             plt.xlabel('time/'+time_units[:-1])
             
-        if record.signame[ch] is not None:
-            chanlabel=record.signame[ch]
+        if record.sig_name[ch] is not None:
+            chanlabel=record.sig_name[ch]
         else:
             chanlabel='channel'
         if record.units[ch] is not None:
@@ -214,7 +215,7 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     if not isinstance(record.p_signal, np.ndarray) or record.p_signal.ndim != 2:
         raise TypeError("The plotted signal 'record.p_signal' must be a 2d numpy array")
     
-    siglen, nsig = record.p_signal.shape
+    siglen, n_sig = record.p_signal.shape
 
     # fs and time_units
     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
@@ -236,20 +237,20 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     
     # units
     if record.units is None:
-        record.units = ['NU']*nsig
+        record.units = ['NU']*n_sig
     else:
-        if not isinstance(record.units, list) or len(record.units)!= nsig:
+        if not isinstance(record.units, list) or len(record.units)!= n_sig:
             raise ValueError("The 'units' parameter must be a list of strings with length equal to the number of signal channels")
-        for ch in range(nsig):
+        for ch in range(n_sig):
             if record.units[ch] is None:
                 record.units[ch] = 'NU'
 
-    # signame
-    if record.signame is None:
-        record.signame = ['ch'+str(ch) for ch in range(1, nsig+1)] 
+    # sig_name
+    if record.sig_name is None:
+        record.sig_name = ['ch'+str(ch) for ch in range(1, n_sig+1)] 
     else:
-        if not isinstance(record.signame, list) or len(record.signame)!= nsig:
-            raise ValueError("The 'signame' parameter must be a list of strings, with length equal to the number of signal channels")
+        if not isinstance(record.sig_name, list) or len(record.sig_name)!= n_sig:
+            raise ValueError("The 'sig_name' parameter must be a list of strings, with length equal to the number of signal channels")
     
     # title
     if title is not None and not isinstance(title, str):
@@ -259,7 +260,7 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     if isinstance(sig_style, str):
         pass
     elif isinstance(sig_style, list):
-        if len(sig_style) > record.nsig:
+        if len(sig_style) > record.n_sig:
             raise ValueError("The 'sig_style' list cannot have more elements than the number of record channels")
     else:
         raise TypeError("The 'sig_style' field must be a string or a list of strings")
@@ -268,7 +269,7 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     if isinstance(ann_style, str):
         pass
     elif isinstance(ann_style, list):
-        if len(ann_style) > record.nsig:
+        if len(ann_style) > record.n_sig:
             raise ValueError("The 'ann_style' list cannot have more elements than the number of record channels")
     else:
         raise TypeError("The 'ann_style' field must be a string or a list of strings")
@@ -278,22 +279,22 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     if annotation is not None:
 
         # The output list of numpy arrays (or Nones) to plot
-        annplot = [None]*record.nsig
+        annplot = [None]*record.n_sig
 
-        # Move single channel annotations to channel 0
-        if isinstance(annotation, annotations.Annotation):
+        # Move single channel annotation.to channel 0
+        if isinstance(annotation, Annotation):
             annplot[0] = annotation.sample
         elif isinstance(annotation, np.ndarray):
             annplot[0] = annotation
         # Ready list.
         elif isinstance(annotation, list):
-            if len(annotation) > record.nsig:
+            if len(annotation) > record.n_sig:
                 raise ValueError("The number of annotation series to plot cannot be more than the number of channels")
-            if len(annotation) < record.nsig:
-                annotation = annotation+[None]*(record.nsig-len(annotation))
+            if len(annotation) < record.n_sig:
+                annotation = annotation+[None]*(record.n_sig-len(annotation))
             # Check elements. Copy over to new list.
-            for ch in range(record.nsig):
-                if isinstance(annotation[ch], annotations.Annotation):
+            for ch in range(record.n_sig):
+                if isinstance(annotation[ch], Annotation):
                     annplot[ch] = annotation[ch].sample
                 elif isinstance(annotation[ch], np.ndarray):
                     annplot[ch] = annotation[ch]
@@ -305,9 +306,9 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
             raise TypeError("The 'annotation' argument must be a wfdb.Annotation object, a numpy array, None, or a list of these data types")
         
         # The annotation locations to plot
-        tann = [None]*record.nsig
+        tann = [None]*record.n_sig
 
-        for ch in range(record.nsig):
+        for ch in range(record.n_sig):
             if annplot[ch] is None:
                 continue
             if time_units == 'samples':
@@ -320,7 +321,7 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
                 tann[ch] = annplot[ch]/float(record.fs)/3600
     else:
         tann = None
-        annplot = [None]*record.nsig
+        annplot = [None]*record.n_sig
 
     # tann is the sample values to plot for each annotation series
     return (t, tann, annplot)
@@ -352,7 +353,7 @@ def plot_annotation(annotation, title=None, time_units='samples',
     Notes
     -----
     The `plot_record` function has more features, and is useful for plotting
-    annotations on top of signal waveforms.
+    annotation.on top of signal waveforms.
 
     Examples
     --------
@@ -391,7 +392,7 @@ def plot_annotation(annotation, title=None, time_units='samples',
 def checkannplotitems(annotation, title, time_units):
     
     # signals
-    if not isinstance(annotation, annotations.Annotation):
+    if not isinstance(annotation, Annotation):
         raise TypeError("The 'annotation' field must be a 'wfdb.Annotation' object")
 
     # fs and time_units

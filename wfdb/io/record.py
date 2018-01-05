@@ -480,8 +480,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     >>> record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=8,
                                     sig_len=9999, seg_name=['rm_1', '~', rm_2'],
                                     seg_len=[800, 200, 900])
-
+    >>> # Get a MultiRecord object
     >>> record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
+    >>> # Turn it into a 
     >>> record_s = record_s.multi_to_single()
 
     record_s initially stores a `MultiRecord` object, and is then converted into
@@ -644,8 +645,19 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Update number of segments
         self.n_seg = len(self.segments)
 
-    # Convert a MultiRecord object to a Record object
-    def multi_to_single(self, return_res):
+
+    def multi_to_single(self, return_res=64):
+        """
+        Create a Record object from the MultiRecord object. All signal segments
+        will be combined into the new object's `p_signal` field.
+
+        Parameters
+        ----------
+        return_res : int
+            The return resolution of the `p_signal` field. Options are 64, 32,
+            and 16.
+
+        """
 
         # The fields to transfer to the new object
         fields = self.__dict__.copy()
@@ -1098,7 +1110,7 @@ def wanted_siginds(wanted_sig_names, record_sig_names):
 #------------------- /Reading Records -------------------#
 
 
-def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
+def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     fmt=None, gain=None, baseline=None, comments=None, base_time=None,
     base_date=None):
     """
@@ -1114,7 +1126,7 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
         The sampling frequency of the record.
     units : list
         A list of strings giving the units of each signal channel.
-    sig_names : 
+    sig_name : 
         A list of strings giving the signal name of each signal channel.
     p_signal : numpy array, optional 
         An (MxN) 2d numpy array, where M is the signal length. Gives the
@@ -1165,7 +1177,7 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
                                    pb_dir='challenge/2015/training')
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
-                    sig_names=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
     
     """
 
@@ -1179,7 +1191,7 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
     if p_signal is not None:
         # Create the Record object
         record = Record(record_name=record_name, p_signal=p_signal, fs=fs,
-            fmt=fmt, units=units, sig_name=sig_names, adc_gain = gain,
+            fmt=fmt, units=units, sig_name=sig_name, adc_gain = gain,
             baseline=baseline, comments=comments, base_time=base_time,
             base_date=base_date)
         # Compute optimal fields to store the digital signal, carry out adc, and set the fields.
@@ -1187,7 +1199,7 @@ def wrsamp(record_name, fs, units, sig_names, p_signal=None, d_signal=None,
     else:
         # Create the Record object
         record = Record(record_name=record_name, d_signal=d_signal, fs=fs,
-            fmt=fmt, units=units, sig_name = sig_names, adc_gain = gain,
+            fmt=fmt, units=units, sig_name = sig_name, adc_gain = gain,
             baseline=baseline, comments=comments, base_time=base_time,
             base_date=base_date)
         # Use d_signal to set the fields directly

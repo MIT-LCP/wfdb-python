@@ -3,8 +3,21 @@ io
 
 Input/Output
 
-.. autoclass:: wfdb.io.record.Record
+
+Classes
+~~~~~~~
+
+.. autoclass:: wfdb.io.Record
     :members: adc, dac
 
-.. automodule:: wfdb.io.record
-    :members: rdrecord, rdsamp, wrsamp, dl_database
+.. autoclass:: wfdb.io.MultiRecord
+    :members: multi_to_single
+
+.. autoclass:: wfdb.io.MultiRafeecord
+    :members: multi_to_single
+
+Functions
+~~~~~~~~~
+
+.. automodule:: wfdb.io
+    :members: rdrecord, rdsamp, wrsamp, get_dbs, dl_database, dl_files

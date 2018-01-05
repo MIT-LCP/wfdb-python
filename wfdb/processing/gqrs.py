@@ -96,7 +96,7 @@ class GQRS(object):
     def putann(self, annotation):
         self.annotations.append(copy.deepcopy(annotation))
 
-    def detect(self, x, conf, adczero):
+    def detect(self, x, conf, adc_zero):
         self.c = conf
         self.annotations = []
         self.sample_valid = False
@@ -105,7 +105,7 @@ class GQRS(object):
             return []
 
         self.x = x
-        self.adczero = adczero
+        self.adc_zero = adc_zero
 
         self.qfv = numpy.zeros((self.c._BUFLN), dtype="int64")
         self.smv = numpy.zeros((self.c._BUFLN), dtype="int64")
@@ -211,7 +211,7 @@ class GQRS(object):
                     smtlj = self.at(smt - j)
                     v += int(smtpj + smtlj)
                 self.smv_put(smt, (v << 1) + self.at(smt + j+1) + self.at(smt - j-1) - \
-                             self.adczero * (smdt << 2))
+                             self.adc_zero * (smdt << 2))
         self.c.smt = smt
         return self.smv_at(at_t)
 
@@ -453,7 +453,7 @@ class GQRS(object):
             p = p.next_peak
 
 
-def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
+def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
                 hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4,
                 QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
                 QRSa=750, QRSamin=130):
@@ -465,34 +465,55 @@ def gqrs_detect(x, fs, adcgain, adczero, threshold=1.0,
 
     Parameters
     ----------
-    - x (required): The digital signal as a numpy array
-    - fs (required): The sampling frequency of the signal
-    - adcgain: The gain of the signal (the number of adus (q.v.) per physical unit)
-    - adczero (required): The value produced by the ADC given a 0 volt input.
-    - threshold (default=1.0): The threshold for detection
-    - hr (default=75): Typical heart rate, in beats per minute
-    - RRdelta (default=0.2): Typical difference between successive RR intervals in seconds
-    - RRmin (default=0.28): Minimum RR interval ("refractory period"), in seconds
-    - RRmax (default=2.4): Maximum RR interval, in seconds; thresholds will be adjusted 
-      if no peaks are detected within this interval
-    - QS (default=0.07): Typical QRS duration, in seconds
-    - QT (default=0.35): Typical QT interval, in seconds
-    - RTmin (default=0.25): Minimum interval between R and T peaks, in seconds
-    - RTmax (default=0.33): Maximum interval between R and T peaks, in seconds
-    - QRSa (default=750): Typical QRS peak-to-peak amplitude, in microvolts
-    - QRSamin (default=130): Minimum QRS peak-to-peak amplitude, in microvolts
+    x : numpy array
+        The digital signal.
+    fs : int, or float
+        The sampling frequency of the signal.
+    adc_gain : int 
+        The gain of the signal (the number of adus (q.v.) per physical unit).
+    adc_zero: int
+        The value produced by the ADC given a 0 volt input.
+    threshold : int, or float, optional
+        The threshold for detection.
+    hr : int, or float, optional
+        Typical heart rate, in beats per minute.
+    RRdelta : int or float, optional
+        Typical difference between successive RR intervals in seconds.
+    RRmin : int or float, optional
+        Minimum RR interval ("refractory period"), in seconds.
+    RRmax : int or float, optional
+        Maximum RR interval, in seconds. Thresholds will be adjusted if no peaks
+        are detected within this interval.
+    QS : int or float, optional
+        Typical QRS duration, in seconds.
+    QT : int or float, optional
+        Typical QT interval, in seconds.
+    RTmin : int or float, optional
+        Minimum interval between R and T peaks, in seconds.
+    RTmax : int or float, optional
+        Maximum interval between R and T peaks, in seconds.
+    QRSa : int or float, optional
+        Typical QRS peak-to-peak amplitude, in microvolts.
+    QRSamin : int or float, optional
+        Minimum QRS peak-to-peak amplitude, in microvolts.
+    
+    Returns
+    -------
+    qrs_locs : numpy array
+        Detected qrs locations
+
 
     Notes
     -----
     This function should not be used for signals with fs <= 50Hz
 
     """
-    conf = Conf(freq=fs, gain=adcgain, hr=hr,
+    conf = Conf(freq=fs, gain=adc_gain, hr=hr,
                 RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,
                 QS=QS, QT=QT,
                 RTmin=RTmin, RTmax=RTmax,
                 QRSa=QRSa, QRSamin=QRSamin,
                 thresh=threshold)
     gqrs = GQRS()
-    annotations = gqrs.detect(x=x, conf=conf, adczero=adczero)
-    return [a.time for a in annotations]
+    annotations = gqrs.detect(x=x, conf=conf, adc_zero=adc_zero)
+    return numpy.array([a.time for a in annotations])
