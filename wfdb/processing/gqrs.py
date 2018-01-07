@@ -1,6 +1,23 @@
 import numpy as np
 import copy
 """
+Process:
+
+- Initialize variables
+- Determine signal length for learning
+
+Initialization:
+    self.smooth_sampnum = 0
+    self.smooth_sampfrom = 0 + self.dt
+
+
+
+
+
+signal.c:FSAMPLE sample(WFDB_Signal s, WFDB_Time t)
+sample(signum, sampnum) returns sig[sampnum] or sig[0] if sampnum<0. Sets
+valid flag to true or false. 
+
 
 """
 
@@ -174,7 +191,7 @@ class GQRS(object):
         self.rt_mean = int(0.75 * conf.qt * self.samps_per_sec)
         self.rt_max = int(self.rt_max * self.samps_per_sec)
 
-        # What is this?
+        # What is this? increment is 1/1000 of minimum amplitude
         self.dv = gain * self.qrs_amp_min * 0.001
 
         # Peak detection threshold
@@ -200,13 +217,13 @@ class GQRS(object):
         self.dt3 = 3 * self.dt
         self.dt4 = 4 * self.dt
 
-        self.smooth_dt = self.dt
+        self.dt = self.dt
         # v1 is integral of dv in qrs_filter. v1norm is normalization for v1
-        self.v1norm = self.smooth_dt * self.dt * 64
+        self.v1norm = self.dt * self.dt * 64
 
         # sample number for smoothed output
-        self.smooth_samp = 0
-        self.smooth_samp0 = 0 + self.smooth_dt
+        self.smooth_sampnum = 0
+        self.smooth_sampfrom = 0 + self.dt
 
 
 
@@ -351,52 +368,65 @@ class GQRS(object):
         self.sample_valid = True
         return self.x[t]
 
-    # Get the smoothed filter value
-    def smv_at(self, t):
-        return self.smv[t & (self.c._BUFLN - 1)]
+    # # Get the smoothed filter value
+    # def smv_at(self, t):
+    #     return self.smv[t & (self.c._BUFLN - 1)]
 
-    def smv_put(self, t, v):
-        self.smv[t & (self.c._BUFLN - 1)] = v
+    # def smv_put(self, t, v):
+    #     self.smv[t & (self.c._BUFLN - 1)] = v
 
-    # Get the qrs filtered value
-    def qfv_at(self, t):
-        return self.qfv[t & (self.c._BUFLN - 1)]
+    # # Get the qrs filtered value
+    # def qfv_at(self, t):
+    #     return self.qfv[t & (self.c._BUFLN - 1)]
 
-    def qfv_put(self, t, v):
-        self.qfv[t & (self.c._BUFLN - 1)] = v
+    # def qfv_put(self, t, v):
+    #     self.qfv[t & (self.c._BUFLN - 1)] = v
 
 
     # smooth_filter is applied first, then qrs_filter
-    def smooth_filter(self, at_t):
+    def smooth_filter(self, sampnum):
         """
         Implements a trapezoidal low pass (smoothing) filter (with a gain of
-        4*smooth_dt) applied to input signal sig before the QRS matched filter
+        4*dt) applied to input signal sig before the QRS matched filter
         qrs_filter().
         
-        Before attempting to 'rewind' by more than BUFLN-smooth_dt
-        samples, reset smooth_samp and smooth_samp0.
-        """
-        smooth_samp = self.c.smooth_samp
-        smooth_dt = int(self.c.smooth_dt)
+        Before attempting to 'rewind' by more than BUFLN-dt
+        samples, reset smooth_sampnum and smooth_sampfrom.
 
+        This function calculates the output of the smooth filter from
+        self.smooth_sampnum to sampnum.
+        """
         v = 0
-        while at_t > smooth_samp:
-            smooth_samp += 1
-            if smooth_samp > int(self.c.smooth_samp0):
-                tmp = int(self.smv_at(smooth_samp - 1) + \
-                             self.at(smooth_samp + smooth_dt) + self.at(smooth_samp + smooth_dt - 1) - \
-                             self.at(smooth_samp - smooth_dt) - self.at(smooth_samp - smooth_dt - 1))
-                self.smv_put(smooth_samp, tmp)
+
+        # Fill in values from smooth_sampnum to sampnum
+        while self.smooth_sampnum < sampnum:
+            self.smooth_sampnum += 1
+
+            # This is the expected case.
+            if self.smooth_sampnum > self.smooth_sampfrom:
+                v = (self.smv_at(self.smooth_sampnum - 1)
+                    + self.at(self.smooth_sampnum + self.dt)
+                    + self.at(self.smooth_sampnum + self.dt - 1)
+                    - self.at(self.smooth_sampnum - self.dt)
+                    - self.at(self.smooth_sampnum - self.dt - 1))
+                
+                sig_smoothed[self.smooth_sampnum] = v
+            
+            # smooth_sampnum < smooth_sampfrom?
+            # smooth_sampfrom is initialized as t0+dt and never changes.
+            # smooth_sampnum is initialized at t0. So first few loops go here.
             else:
-                v = int(self.at(smooth_samp))
-                for j in range(1, smooth_dt):
-                    smooth_samppj = self.at(smooth_samp + j)
-                    smooth_samplj = self.at(smooth_samp - j)
+                v = int(self.at(self.smooth_sampnum))
+                for j in range(1, self.dt):
+                    smooth_samppj = self.at(self.smooth_sampnum + j)
+                    smooth_samplj = self.at(self.smooth_sampnum - j)
                     v += int(smooth_samppj + smooth_samplj)
-                self.smv_put(smooth_samp, (v << 1) + self.at(smooth_samp + j+1) + self.at(smooth_samp - j-1) - \
-                             self.adc_zero * (smooth_dt << 2))
-        self.c.smooth_samp = smooth_samp
-        return self.smv_at(at_t)
+                
+                self.smv_put(self.smooth_sampnum, (v << 1) + self.at(self.smooth_sampnum + j+1) + self.at(smooth_sampnum - j-1) - \
+                             self.adc_zero * (self.dt << 2))
+        
+        # I don't think this function should return anything
+        #return self.smv_at(sampnum)
 
 
     def qrs_filter(self):
@@ -405,17 +435,23 @@ class GQRS(object):
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
         dv2 = self.smooth_filter(self.sampnum + self.dt4)
         dv2 -= self.smv_at(self.sampnum - self.dt4)
+
+
         dv1 = int(self.smv_at(self.sampnum + self.dt) - self.smv_at(self.sampnum - self.dt))
-        dv = dv1 << 1
+        
+        dv = dv1 ** 2
         dv -= int(self.smv_at(self.sampnum + self.dt2) - self.smv_at(self.sampnum - self.dt2))
-        dv = dv << 1
+        dv = dv ** 2
         dv += dv1
         dv -= int(self.smv_at(self.sampnum + self.dt3) - self.smv_at(self.sampnum - self.dt3))
-        dv = dv << 1
+        dv = dv ** 2
         dv += dv2
+
         self.v1 += dv
+
         v0 = int(self.v1 / self.c.v1norm)
-        self.qfv_put(self.sampnum, v0 * v0)
+
+        self.qfv_put(self.sampnum, v0**2)
 
 
     def add_peak(peak_time, peak_amp, type):
@@ -494,11 +530,15 @@ class GQRS(object):
                 if self.countdown < 0:
                     break
 
+
+            # Last filter output, and -1 and -2.
             q0 = self.qfv_at(self.sampnum)
             q1 = self.qfv_at(self.sampnum - 1)
             q2 = self.qfv_at(self.sampnum - 2)
 
-            # state == RUNNING only
+
+
+
             if q1 > self.c.peak_thresh and q2 < q1 and q1 >= q0 and self.sampnum > self.dt4:
                 add_peak(self.sampnum - 1, q1, 0)
                 last_peak = self.sampnum - 1
