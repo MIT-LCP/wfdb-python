@@ -25,9 +25,10 @@ def seconds_to_samples(seconds, fs):
 
 class Conf(object):
     """
-    Configuration object
+    ecg Configuration object. Stores static ish information about the input
+    ecg.
     """
-    def __init__(self, fs,
+    def __init__(self,
 
                  hr=75,
 
@@ -68,10 +69,6 @@ class Conf(object):
         """
 
         # Static ish parameters
-        self.fs = fs
-
-        self.samps_per_sec = seconds_to_samples(1, fs)
-        self.samps_per_min = 60 * self.samps_per_sec
 
         self.hr = hr
         # Typical r-r interval in seconds
@@ -87,50 +84,7 @@ class Conf(object):
         self.qrs_amp_min = qrs_amp_min
         self.thresh = thresh
 
-        # Adaptive parameters
-        # These are updated on the fly, tracking latest r-r stats
-        self.rr_mean = int(self.rr * self.samps_per_sec)
-        self.rr_dev = int(self.rr_delta * self.samps_per_sec)
-        self.rr_min = int(self.rr_min * self.samps_per_sec)
-        self.rr_max = int(self.rr_max * self.samps_per_sec)
 
-        self.rr_inc = int(self.rr_mean / 40)
-
-        if self.rr_inc < 1:
-            self.rr_inc = 1
-
-        self.dt = int(self.qs * self.samps_per_sec / 4)
-        if self.dt < 1:
-            self.dt = 1
-            print("Warning: sampling rate may be too low!")
-
-
-
-
-        self.rt_min = int(self.rt_min * self.samps_per_sec)
-        self.rt_mean = int(0.75 * self.qt * self.samps_per_sec)
-        self.rt_max = int(self.rt_max * self.samps_per_sec)
-
-
-
-
-        dv = gain * self.qrs_amp_min * 0.001
-        self.pthr = int((self.thresh * dv * dv) / 6)
-        self.qthr = self.pthr << 1
-        self.pthmin = self.pthr >> 2
-        self.qthmin = int((self.pthmin << 2) / 3)
-        self.tamean = self.qthr  # initial value for mean T-wave amp
-
-        # Filter constants and thresholds.
-        self.dt2 = 2 * self.dt
-        self.dt3 = 3 * self.dt
-        self.dt4 = 4 * self.dt
-
-        self.smdt = self.dt
-        self.v1norm = self.smdt * self.dt * 64
-
-        self.smt = 0
-        self.smt0 = 0 + self.smdt
 
 
 class Peak(object):
@@ -166,7 +120,8 @@ class Annotation(object):
 
 class GQRS(object):
     """
-    Detector class
+    Detector class. Stores updating information about the signal and its
+    detections.
     """
 
     def __init__(self, sig, fs, conf):
@@ -180,17 +135,80 @@ class GQRS(object):
         """
         self.sig = sig
         self.fs = fs
-
+        self.samps_per_sec = seconds_to_samples(1, fs)
+        self.samps_per_min = 60 * self.samps_per_sec
         self.conf = conf
+
+        if self.fs < 50:
+            raise Warning('Sampling rate is lower than 50Hz recommended limit.')
 
         # List of annotations made
         self.annotations = []
         self.valid_sample = False
 
-        # Smoothed value
-        self.smv = np.zeros(_BUFFER_LENGTH, dtype='int64')
-        # The qrs filtered value
-        self.qfv = np.zeros(_BUFFER_LENGTH, dtype='int64')
+        # Smoothed signal
+        self.sig_smoothed = np.zeros(_BUFFER_LENGTH, dtype='int64')
+        # The qrs filtered signal
+        self.sig_filtered = np.zeros(_BUFFER_LENGTH, dtype='int64')
+
+
+        # Initialize adaptive parameters using a-priori parameters
+
+        # Recent average r-r interval, in samples
+        self.rr_mean = int(conf.rr * self.samps_per_sec)
+        # Latest r-r interval, in samples
+        self.rr_dev = int(conf.rr_delta * self.samps_per_sec)
+        # Recent minimum r-r interval, in samples
+        self.rr_min = int(conf.rr_min * self.samps_per_sec)
+        # Recent maximum r-r interval, in samples
+        self.rr_max = int(conf.rr_max * self.samps_per_sec)
+        # Maximum incremental change in rr_mean
+        self.rr_inc = int(self.rr_mean / 40)
+
+        if self.rr_inc < 1:
+            self.rr_inc = 1
+
+
+
+        self.rt_min = int(conf.rt_min * self.samps_per_sec)
+        self.rt_mean = int(0.75 * conf.qt * self.samps_per_sec)
+        self.rt_max = int(self.rt_max * self.samps_per_sec)
+
+        # What is this?
+        self.dv = gain * self.qrs_amp_min * 0.001
+
+        # Peak detection threshold
+        self.peak_thresh = int((conf.thresh * self.dv**2) / 6)
+        # QRS detection threshold
+        self.qrs_thresh = self.peak_thresh << 1
+        # Minimum peak detection threshold
+        self.peak_thresh_min = self.peak_thresh >> 2
+        # Minimum QRS detection threshold
+        self.qrs_thresh_min = int((self.peak_thresh_min << 2) / 3)
+        
+        # T-wave amplitude
+        self.t_amp_mean = self.qrs_thresh  
+
+
+        # Filter constants and thresholds.
+        # dt variables are measured in sample ntervals
+        self.dt = int(self.qs * self.samps_per_sec / 4)
+        if self.dt < 1:
+            self.dt = 1
+
+        self.dt2 = 2 * self.dt
+        self.dt3 = 3 * self.dt
+        self.dt4 = 4 * self.dt
+
+        self.smooth_dt = self.dt
+        # v1 is integral of dv in qrs_filter. v1norm is normalization for v1
+        self.v1norm = self.smooth_dt * self.dt * 64
+
+        # sample number for smoothed output
+        self.smooth_samp = 0
+        self.smooth_samp0 = 0 + self.smooth_dt
+
+
 
 
 
@@ -245,62 +263,69 @@ class GQRS(object):
             p.type = 1
             return p.type
 
+
+
     def detect(self):
         """
-        Detect all qrs complexes
+        Detect all qrs complexes. This is like void main.
+
+        Can add sampfrom and sampto as input arguments
         """
 
         # Check shape of input array
-        if len(self.sig) < 1:
-            return []
-
-        if self.conf.fs < 50:
-            raise Warning('Sampling rate is lower than 50Hz recommended threshold.')
+        # Return if necessary
 
 
 
 
+        # Integral of dv in qrs_filter
         self.v1 = 0
 
         sampfrom = 0
-        self.sampto = len(x) - 1
-        self.t = 0 - self.c.dt4
+        sampto = len(self.sig) - 1
 
-        self.annot = Annotation(0, "NOTE", 0, 0)
 
-        # Cicular buffer of Peaks
-        first_peak = Peak(0, 0, 0)
-        tmp = first_peak
-        for _ in range(1, _N_PEAKS_BUFFERED):
-            tmp.next_peak = Peak(0, 0, 0)
-            tmp.next_peak.prev_peak = tmp
-            tmp = tmp.next_peak
-        tmp.next_peak = first_peak
-        first_peak.prev_peak = tmp
-        self.current_peak = first_peak
 
-        if self.c.samps_per_min > self.c._BUFLN:
-            if self.sampto - sampfrom > self.c._BUFLN:
-                tf_learn = sampfrom + self.c._BUFLN - self.c.dt4
+        self.t = 0 - self.dt4
+
+
+
+        # Initialize the circular peak of buffers
+        self.peak_buffer = [Peak(0, 0, 0)] * _N_PEAKS_BUFFERED
+        
+
+        # Determine the length of the signal to learn from
+  
+        # If buffer can't store 1 min of samples (high fs)
+        if self.samps_per_min > self.c._BUFLN:
+            # Signal length is greater than buffer length. Use buffln samples.
+            if sampto - sampfrom > self.c._BUFLN:
+                sampto_learn = sampfrom + self.c._BUFLN - self.c.dt4
             else:
-                tf_learn = self.sampto - self.c.dt4
+                # Use all samples to learn
+                sampto_learn = sampto - self.c.dt4
+        # 1 min fits into buffer (normal/low fs)
         else:
-            if self.sampto - sampfrom > self.c.samps_per_min:
-                tf_learn = sampfrom + self.c.samps_per_min - self.c.dt4
+            # Signal is longer than a minute. Use a minute.
+            if sampto - sampfrom > self.samps_per_min:
+                sampto_learn = sampfrom + self.samps_per_min - self.c.dt4
+            # Signal shorter than a minute. Use whole signal.
             else:
-                tf_learn = self.sampto - self.c.dt4
+                sampto_learn = sampto - self.c.dt4
 
-        self.countdown = -1
-        self.state = "LEARNING"
-        self.gqrs(sampfrom, tf_learn)
 
+        # Learning
+        self.gqrs_detect(sampfrom, sampto_learn)
+        # Rewind
         self.rewind_gqrs()
 
-        self.state = "RUNNING"
+
+        # Do detection
         self.t = sampfrom - self.c.dt4
-        self.gqrs(sampfrom, self.sampto)
+        self.gqrs_detect(sampfrom, self.sampto)
 
         return self.annotations
+
 
     def rewind_gqrs(self):
         self.countdown = -1
@@ -339,40 +364,44 @@ class GQRS(object):
         self.qfv[t & (self.c._BUFLN - 1)] = v
 
 
-    # sm is applied first, then qf
-    def sm(self, at_t):
-        # implements a trapezoidal low pass (smoothing) filter
-        # (with a gain of 4*smdt) applied to input signal sig
-        # before the QRS matched filter qf().
-        # Before attempting to 'rewind' by more than BUFLN-smdt
-        # samples, reset smt and smt0.
-        smt = self.c.smt
-        smdt = int(self.c.smdt)
+    # smooth_filter is applied first, then qrs_filter
+    def smooth_filter(self, at_t):
+        """
+        Implements a trapezoidal low pass (smoothing) filter (with a gain of
+        4*smooth_dt) applied to input signal sig before the QRS matched filter
+        qrs_filter().
+        
+        Before attempting to 'rewind' by more than BUFLN-smooth_dt
+        samples, reset smooth_samp and smooth_samp0.
+        """
+        smooth_samp = self.c.smooth_samp
+        smooth_dt = int(self.c.smooth_dt)
 
         v = 0
-        while at_t > smt:
-            smt += 1
-            if smt > int(self.c.smt0):
-                tmp = int(self.smv_at(smt - 1) + \
-                             self.at(smt + smdt) + self.at(smt + smdt - 1) - \
-                             self.at(smt - smdt) - self.at(smt - smdt - 1))
-                self.smv_put(smt, tmp)
+        while at_t > smooth_samp:
+            smooth_samp += 1
+            if smooth_samp > int(self.c.smooth_samp0):
+                tmp = int(self.smv_at(smooth_samp - 1) + \
+                             self.at(smooth_samp + smooth_dt) + self.at(smooth_samp + smooth_dt - 1) - \
+                             self.at(smooth_samp - smooth_dt) - self.at(smooth_samp - smooth_dt - 1))
+                self.smv_put(smooth_samp, tmp)
             else:
-                v = int(self.at(smt))
-                for j in range(1, smdt):
-                    smtpj = self.at(smt + j)
-                    smtlj = self.at(smt - j)
-                    v += int(smtpj + smtlj)
-                self.smv_put(smt, (v << 1) + self.at(smt + j+1) + self.at(smt - j-1) - \
-                             self.adc_zero * (smdt << 2))
-        self.c.smt = smt
+                v = int(self.at(smooth_samp))
+                for j in range(1, smooth_dt):
+                    smooth_samppj = self.at(smooth_samp + j)
+                    smooth_samplj = self.at(smooth_samp - j)
+                    v += int(smooth_samppj + smooth_samplj)
+                self.smv_put(smooth_samp, (v << 1) + self.at(smooth_samp + j+1) + self.at(smooth_samp - j-1) - \
+                             self.adc_zero * (smooth_dt << 2))
+        self.c.smooth_samp = smooth_samp
         return self.smv_at(at_t)
 
-    def qf(self):
+
+    def qrs_filter(self):
         # evaluate the QRS detector filter for the next sample
 
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
-        dv2 = self.sm(self.t + self.c.dt4)
+        dv2 = self.smooth_filter(self.t + self.c.dt4)
         dv2 -= self.smv_at(self.t - self.c.dt4)
         dv1 = int(self.smv_at(self.t + self.c.dt) - self.smv_at(self.t - self.c.dt))
         dv = dv1 << 1
@@ -387,8 +416,41 @@ class GQRS(object):
         self.qfv_put(self.t, v0 * v0)
 
 
+    def add_peak(peak_time, peak_amp, type):
+        p = self.current_peak.next_peak
+        p.time = peak_time
+        p.amp = peak_amp
+        p.type = type
+        self.current_peak = p
+        p.next_peak.amp = 0
 
-    def gqrs(self, sampfrom, sampto):
+
+    def find_missing(r, p):
+        if r is None or p is None:
+            return None
+
+        minrrerr = p.time - r.time
+
+        s = None
+        q = r.next_peak
+        while q.time < p.time:
+            if peaktype(q) == 1:
+                rrtmp = q.time - r.time
+                rrerr = rrtmp - self.c.rr_mean
+                if rrerr < 0:
+                    rrerr = -rrerr
+                if rrerr < minrrerr:
+                    minrrerr = rrerr
+                    s = q
+            # end:
+            q = q.next_peak
+
+        return s
+
+
+    def gqrs_detect(self, sampfrom, sampto):
+        
+        # What is this?
         q0 = None
         q1 = 0
         q2 = 0
@@ -406,37 +468,7 @@ class GQRS(object):
         last_peak = sampfrom
         last_qrs = sampfrom
 
-        def add_peak(peak_time, peak_amp, type):
-            p = self.current_peak.next_peak
-            p.time = peak_time
-            p.amp = peak_amp
-            p.type = type
-            self.current_peak = p
-            p.next_peak.amp = 0
 
-
-
-        def find_missing(r, p):
-            if r is None or p is None:
-                return None
-
-            minrrerr = p.time - r.time
-
-            s = None
-            q = r.next_peak
-            while q.time < p.time:
-                if peaktype(q) == 1:
-                    rrtmp = q.time - r.time
-                    rrerr = rrtmp - self.c.rr_mean
-                    if rrerr < 0:
-                        rrerr = -rrerr
-                    if rrerr < minrrerr:
-                        minrrerr = rrerr
-                        s = q
-                # end:
-                q = q.next_peak
-
-            return s
 
         r = None
         next_minute = 0
@@ -444,7 +476,7 @@ class GQRS(object):
         while self.t <= sampto + self.c.samps_per_sec:
             if self.countdown < 0:
                 if self.sample_valid:
-                    self.qf()
+                    self.qrs_filter()
                 else:
                     self.countdown = int(seconds_to_samples(1, self.c.fs))
                     self.state = "CLEANUP"
@@ -458,13 +490,13 @@ class GQRS(object):
             q2 = self.qfv_at(self.t - 2)
 
             # state == RUNNING only
-            if q1 > self.c.pthr and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
+            if q1 > self.c.peak_thresh and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
                 add_peak(self.t - 1, q1, 0)
                 last_peak = self.t - 1
                 p = self.current_peak.next_peak
                 while p.time < self.t - self.c.rt_max:
                     if p.time >= self.annot.time + self.c.rr_min and peaktype(p) == 1:
-                        if p.amp > self.c.qthr:
+                        if p.amp > self.c.qrs_thresh:
                             rr = p.time - self.annot.time
                             q = find_missing(r, p)
                             if rr > self.c.rr_mean + 2 * self.c.rr_dev and \
@@ -483,18 +515,18 @@ class GQRS(object):
                                 self.c.rr_mean += rrd
                             else:
                                 self.c.rr_mean -= rrd
-                            if p.amp > self.c.qthr * 4:
-                                self.c.qthr += 1
-                            elif p.amp < self.c.qthr:
-                                self.c.qthr -= 1
-                            if self.c.qthr > self.c.pthr * 20:
-                                self.c.qthr = self.c.pthr * 20
+                            if p.amp > self.c.qrs_thresh * 4:
+                                self.c.qrs_thresh += 1
+                            elif p.amp < self.c.qrs_thresh:
+                                self.c.qrs_thresh -= 1
+                            if self.c.qrs_thresh > self.c.peak_thresh * 20:
+                                self.c.qrs_thresh = self.c.peak_thresh * 20
                             last_qrs = p.time
 
                             if self.state == "RUNNING":
                                 self.annot.time = p.time - self.c.dt2
                                 self.annot.type = "NORMAL"
-                                qsize = int(p.amp * 10.0 / self.c.qthr)
+                                qsize = int(p.amp * 10.0 / self.c.qrs_thresh)
                                 if qsize > 127:
                                     qsize = 127
                                 self.annot.num = qsize
@@ -537,12 +569,12 @@ class GQRS(object):
                             r = p
                             q = None
                             self.annot.subtype = 0
-                        elif self.t - last_qrs > self.c.rr_max and self.c.qthr > self.c.qthmin:
-                            self.c.qthr -= (self.c.qthr >> 4)
+                        elif self.t - last_qrs > self.c.rr_max and self.c.qrs_thresh > self.c.qrs_thresh_min:
+                            self.c.qrs_thresh -= (self.c.qrs_thresh >> 4)
                     # end:
                     p = p.next_peak
-            elif self.t - last_peak > self.c.rr_max and self.c.pthr > self.c.pthmin:
-                self.c.pthr -= (self.c.pthr >> 4)
+            elif self.t - last_peak > self.c.rr_max and self.c.peak_thresh > self.c.peak_thresh_min:
+                self.c.peak_thresh -= (self.c.peak_thresh >> 4)
 
             self.t += 1
             if self.t >= next_minute:
@@ -565,7 +597,11 @@ class GQRS(object):
             p = p.next_peak
 
 
-def gqrs_detect(sig, fs, conf=Conf(fs)):
+
+
+
+# The gateway function
+def gqrs_detect(sig, fs, conf=Conf()):
     """
     Detect qrs locations in a single channel ecg.
 
@@ -591,13 +627,8 @@ def gqrs_detect(sig, fs, conf=Conf(fs)):
     This function should not be used for signals with fs <= 50Hz
 
     """
-    conf = Conf(fs=fs, hr=hr,
-                rr_delta=rr_delta, rr_min=rr_min, rr_max=rr_max,
-                qs=qs, qt=qt,
-                rt_min=rt_min, rt_max=rt_max,
-                qrs_amp=qrs_amp, qrs_amp_min=qrs_amp_min,
-                thresh=threshold)
 
-    gqrs = GQRS()
-    annotations = gqrs.detect(sig=sig, conf=conf, adc_zero=adc_zero)
+    gqrs = GQRS(sig, fs, conf)
+    annotations = gqrs.detect()
+
     return np.array([a.sample for a in annotations])
