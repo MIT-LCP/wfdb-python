@@ -265,7 +265,7 @@ class GQRS(object):
 
 
 
-    def detect(self):
+    def detect(self, sampfrom=0, sampto='end'):
         """
         Detect all qrs complexes. This is like void main.
 
@@ -281,12 +281,11 @@ class GQRS(object):
         # Integral of dv in qrs_filter
         self.v1 = 0
 
-        sampfrom = 0
-        sampto = len(self.sig) - 1
+        if sampto == 'end':
+            sampto = len(self.sig) - 1
 
-
-
-        self.t = 0 - self.dt4
+        # The current sample number being analyzed
+        self.sampnum = 0 - self.dt4
 
 
 
@@ -300,18 +299,18 @@ class GQRS(object):
         if self.samps_per_min > self.c._BUFLN:
             # Signal length is greater than buffer length. Use buffln samples.
             if sampto - sampfrom > self.c._BUFLN:
-                sampto_learn = sampfrom + self.c._BUFLN - self.c.dt4
+                sampto_learn = sampfrom + self.c._BUFLN - self.dt4
             else:
                 # Use all samples to learn
-                sampto_learn = sampto - self.c.dt4
+                sampto_learn = sampto - self.dt4
         # 1 min fits into buffer (normal/low fs)
         else:
             # Signal is longer than a minute. Use a minute.
             if sampto - sampfrom > self.samps_per_min:
-                sampto_learn = sampfrom + self.samps_per_min - self.c.dt4
+                sampto_learn = sampfrom + self.samps_per_min - self.dt4
             # Signal shorter than a minute. Use whole signal.
             else:
-                sampto_learn = sampto - self.c.dt4
+                sampto_learn = sampto - self.dt4
 
 
         # Learning
@@ -321,7 +320,8 @@ class GQRS(object):
 
 
         # Do detection
-        self.t = sampfrom - self.c.dt4
+        # Reset sample number
+        self.sampnum = sampfrom - self.dt4
         self.gqrs_detect(sampfrom, self.sampto)
 
         return self.annotations
@@ -329,7 +329,7 @@ class GQRS(object):
 
     def rewind_gqrs(self):
         self.countdown = -1
-        self.at(self.t)
+        self.at(self.sampnum)
         self.annot.time = 0
         self.annot.type = "NORMAL"
         self.annot.subtype = 0
@@ -351,12 +351,14 @@ class GQRS(object):
         self.sample_valid = True
         return self.x[t]
 
+    # Get the smoothed filter value
     def smv_at(self, t):
         return self.smv[t & (self.c._BUFLN - 1)]
 
     def smv_put(self, t, v):
         self.smv[t & (self.c._BUFLN - 1)] = v
 
+    # Get the qrs filtered value
     def qfv_at(self, t):
         return self.qfv[t & (self.c._BUFLN - 1)]
 
@@ -401,19 +403,19 @@ class GQRS(object):
         # evaluate the QRS detector filter for the next sample
 
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
-        dv2 = self.smooth_filter(self.t + self.c.dt4)
-        dv2 -= self.smv_at(self.t - self.c.dt4)
-        dv1 = int(self.smv_at(self.t + self.c.dt) - self.smv_at(self.t - self.c.dt))
+        dv2 = self.smooth_filter(self.sampnum + self.dt4)
+        dv2 -= self.smv_at(self.sampnum - self.dt4)
+        dv1 = int(self.smv_at(self.sampnum + self.dt) - self.smv_at(self.sampnum - self.dt))
         dv = dv1 << 1
-        dv -= int(self.smv_at(self.t + self.c.dt2) - self.smv_at(self.t - self.c.dt2))
+        dv -= int(self.smv_at(self.sampnum + self.dt2) - self.smv_at(self.sampnum - self.dt2))
         dv = dv << 1
         dv += dv1
-        dv -= int(self.smv_at(self.t + self.c.dt3) - self.smv_at(self.t - self.c.dt3))
+        dv -= int(self.smv_at(self.sampnum + self.dt3) - self.smv_at(self.sampnum - self.dt3))
         dv = dv << 1
         dv += dv2
         self.v1 += dv
         v0 = int(self.v1 / self.c.v1norm)
-        self.qfv_put(self.t, v0 * v0)
+        self.qfv_put(self.sampnum, v0 * v0)
 
 
     def add_peak(peak_time, peak_amp, type):
@@ -449,7 +451,10 @@ class GQRS(object):
 
 
     def gqrs_detect(self, sampfrom, sampto):
-        
+        """
+        The big function
+        """
+
         # What is this?
         q0 = None
         q1 = 0
@@ -471,9 +476,13 @@ class GQRS(object):
 
 
         r = None
+
         next_minute = 0
+
         minutes = 0
-        while self.t <= sampto + self.c.samps_per_sec:
+
+
+        while self.sampnum <= sampto + self.samps_per_sec:
             if self.countdown < 0:
                 if self.sample_valid:
                     self.qrs_filter()
@@ -485,16 +494,16 @@ class GQRS(object):
                 if self.countdown < 0:
                     break
 
-            q0 = self.qfv_at(self.t)
-            q1 = self.qfv_at(self.t - 1)
-            q2 = self.qfv_at(self.t - 2)
+            q0 = self.qfv_at(self.sampnum)
+            q1 = self.qfv_at(self.sampnum - 1)
+            q2 = self.qfv_at(self.sampnum - 2)
 
             # state == RUNNING only
-            if q1 > self.c.peak_thresh and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
-                add_peak(self.t - 1, q1, 0)
-                last_peak = self.t - 1
+            if q1 > self.c.peak_thresh and q2 < q1 and q1 >= q0 and self.sampnum > self.dt4:
+                add_peak(self.sampnum - 1, q1, 0)
+                last_peak = self.sampnum - 1
                 p = self.current_peak.next_peak
-                while p.time < self.t - self.c.rt_max:
+                while p.time < self.sampnum - self.c.rt_max:
                     if p.time >= self.annot.time + self.c.rr_min and peaktype(p) == 1:
                         if p.amp > self.c.qrs_thresh:
                             rr = p.time - self.annot.time
@@ -524,21 +533,21 @@ class GQRS(object):
                             last_qrs = p.time
 
                             if self.state == "RUNNING":
-                                self.annot.time = p.time - self.c.dt2
+                                self.annot.time = p.time - self.dt2
                                 self.annot.type = "NORMAL"
                                 qsize = int(p.amp * 10.0 / self.c.qrs_thresh)
                                 if qsize > 127:
                                     qsize = 127
                                 self.annot.num = qsize
                                 self.add_ann(self.annot)
-                                self.annot.time += self.c.dt2
+                                self.annot.time += self.dt2
 
                             # look for this beat's T-wave
                             tw = None
                             rtdmin = self.c.rt_mean
                             q = p.next_peak
                             while q.time > self.annot.time:
-                                rt = q.time - self.annot.time - self.c.dt2
+                                rt = q.time - self.annot.time - self.dt2
                                 if rt < self.c.rt_min:
                                     # end:
                                     q = q.next_peak
@@ -554,7 +563,7 @@ class GQRS(object):
                                 # end:
                                 q = q.next_peak
                             if tw is not None:
-                                tmp_time = tw.time - self.c.dt2
+                                tmp_time = tw.time - self.dt2
                                 tann = Annotation(tmp_time, "TWAVE",
                                                   1 if tmp_time > self.annot.time + self.c.rt_mean else 0, rtdmin)
                                 # if self.state == "RUNNING":
@@ -569,15 +578,15 @@ class GQRS(object):
                             r = p
                             q = None
                             self.annot.subtype = 0
-                        elif self.t - last_qrs > self.c.rr_max and self.c.qrs_thresh > self.c.qrs_thresh_min:
+                        elif self.sampnum - last_qrs > self.c.rr_max and self.c.qrs_thresh > self.c.qrs_thresh_min:
                             self.c.qrs_thresh -= (self.c.qrs_thresh >> 4)
                     # end:
                     p = p.next_peak
-            elif self.t - last_peak > self.c.rr_max and self.c.peak_thresh > self.c.peak_thresh_min:
+            elif self.sampnum - last_peak > self.c.rr_max and self.c.peak_thresh > self.c.peak_thresh_min:
                 self.c.peak_thresh -= (self.c.peak_thresh >> 4)
 
-            self.t += 1
-            if self.t >= next_minute:
+            self.sampnum += 1
+            if self.sampnum >= next_minute:
                 next_minute += self.c.samps_per_min
                 minutes += 1
                 if minutes >= 60:
