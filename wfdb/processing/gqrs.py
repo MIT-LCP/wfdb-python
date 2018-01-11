@@ -11,6 +11,35 @@ Initialization:
     self.smooth_sampfrom = 0 + self.dt
 
 
+# Workflow:
+
+conf = Conf()
+gqrs = GQRS(sig, fs, conf)
+annotations = gqrs.detect()
+
+
+class GQRS():
+    def __init__(sig, fs, conf):
+        
+
+    def detect(sampfrom, sampto):
+
+        # Learning
+        self.gqrs_detect(sampfrom, sampto_learn)
+        # Rewind
+        self.rewind_gqrs()
+
+        # Do detection
+        # Reset sample number
+        self.sampnum = sampfrom - self.dt4
+        self.gqrs_detect(sampfrom, self.sampto)
+
+        return self.annotations
+
+
+
+    def gqrs_detect(sampfrom, sampto):
+        
 
 
 
@@ -294,7 +323,6 @@ class GQRS(object):
 
 
 
-
         # Integral of dv in qrs_filter
         self.v1 = 0
 
@@ -332,8 +360,6 @@ class GQRS(object):
 
         # Learning
         self.gqrs_detect(sampfrom, sampto_learn)
-        # Rewind
-        self.rewind_gqrs()
 
 
         # Do detection
@@ -343,30 +369,6 @@ class GQRS(object):
 
         return self.annotations
 
-
-    def rewind_gqrs(self):
-        self.countdown = -1
-        self.at(self.sampnum)
-        self.annot.time = 0
-        self.annot.type = "NORMAL"
-        self.annot.subtype = 0
-        self.annot.num = 0
-        p = self.current_peak
-        for _ in range(_N_PEAKS_BUFFERED):
-            p.time = 0
-            p.type = 0
-            p.amp = 0
-            p = p.next_peak
-
-    def at(self, t):
-        if t < 0:
-            self.sample_valid = True
-            return self.x[0]
-        if t > len(self.x) - 1:
-            self.sample_valid = False
-            return self.x[-1]
-        self.sample_valid = True
-        return self.x[t]
 
     # # Get the smoothed filter value
     # def smv_at(self, t):
@@ -384,15 +386,12 @@ class GQRS(object):
 
 
     # smooth_filter is applied first, then qrs_filter
-    def smooth_filter(self, sampnum):
+    def smooth_filter(self, sampfrom, sampto):
         """
         Implements a trapezoidal low pass (smoothing) filter (with a gain of
         4*dt) applied to input signal sig before the QRS matched filter
         qrs_filter().
-        
-        Before attempting to 'rewind' by more than BUFLN-dt
-        samples, reset smooth_sampnum and smooth_sampfrom.
-
+ 
         This function calculates the output of the smooth filter from
         self.smooth_sampnum to sampnum.
         """
@@ -413,8 +412,8 @@ class GQRS(object):
                 sig_smoothed[self.smooth_sampnum] = v
             
             # smooth_sampnum < smooth_sampfrom?
-            # smooth_sampfrom is initialized as t0+dt and never changes.
-            # smooth_sampnum is initialized at t0. So first few loops go here.
+            # smooth_sampfrom is initialized as t0+dt
+
             else:
                 v = int(self.at(self.smooth_sampnum))
                 for j in range(1, self.dt):
@@ -429,7 +428,7 @@ class GQRS(object):
         #return self.smv_at(sampnum)
 
 
-    def qrs_filter(self):
+    def qrs_filter(self, sampfrom, sampto):
         # evaluate the QRS detector filter for the next sample
 
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
@@ -454,13 +453,12 @@ class GQRS(object):
         self.qfv_put(self.sampnum, v0**2)
 
 
-    def add_peak(peak_time, peak_amp, type):
-        p = self.current_peak.next_peak
+    def add_peak(peak_time, peak_amp, peak_type):
+
         p.time = peak_time
         p.amp = peak_amp
-        p.type = type
-        self.current_peak = p
-        p.next_peak.amp = 0
+        p.peak_type = peak_type
+
 
 
     def find_missing(r, p):
@@ -508,14 +506,6 @@ class GQRS(object):
 
         last_peak = sampfrom
         last_qrs = sampfrom
-
-
-
-        r = None
-
-        next_minute = 0
-
-        minutes = 0
 
 
         while self.sampnum <= sampto + self.samps_per_sec:
