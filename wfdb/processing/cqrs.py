@@ -34,7 +34,7 @@ class Conf(object):
 class CQRS(object):
 
 
-    def __init__(self, sig, fs, conf):
+    def __init__(self, sig, fs, conf=Conf()):
         self.sig = sig
         self.fs = fs
 
@@ -111,16 +111,7 @@ class CQRS(object):
         self.learn_params()
 
 
-        # plt.plot(self.sig_f, 'b')
-        # plt.plot(self.sig_i, 'r')
-        # #plt.plot(self.dominant_peak_inds, self.sig_i[self.dominant_peak_inds], 'k*')
-        # plt.plot(self.qrs_peak_inds, self.sig_i[self.qrs_peak_inds], 'g*')
-        # plt.title('Derived ECG signals')
-        # plt.legend(['Badpass filtered','Moving wave integration'])
-        # plt.show()
 
-        plt.plot(self.sig, 'b')
-        plt.plot(self.qrs_peak_inds, self.sig[self.qrs_peak_inds], 'r*')
 
         return
 
