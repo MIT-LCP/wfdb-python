@@ -32,6 +32,15 @@ class Conf(object):
 
 
 class CQRS(object):
+    """
+    Challenges to overcome:
+    - Must be able to return zero annotations when there are none
+    - Must be able to detect few beats
+    - Not classify large t-waves as qrs
+    - Inverted qrs
+
+    Record 117 is a good challenge. Big twave, weird qrs
+    """
 
 
     def __init__(self, sig, fs, conf=Conf()):
@@ -50,12 +59,17 @@ class CQRS(object):
 
 
 
-    def bandpass(self):
+    def bandpass(self, fc_low=5, fc_high=20):
         """
         Apply a bandpass filter onto the signal, and save the filtered signal.
         """
-        b, a = signal.butter(2, [5*2/self.fs, 20*2/self.fs], 'pass')
+        b, a = signal.butter(2, [fc_low * 2 / self.fs, fc_high * 2 / self.fs],
+                             'pass')
         self.sig_f = signal.filtfilt(b, a, self.sig, axis=0)
+
+        # Save the passband gain
+        self.filter_gain = get_filter_gain(b, a, np.mean(fc_low, fc_high), fs)
+
 
 
     def mwi(self):
@@ -68,28 +82,42 @@ class CQRS(object):
         b = signal.ricker(self.qrs_width, 4)
         self.sig_i = signal.filtfilt(b, [1], self.sig_f, axis=0) ** 2
 
+        # Save the mwi gain
+        self.mwi_gain = get_filter_gain(b, [1], np.mean(fc_low, fc_high), fs)
 
-    def learn_params(self):
+    def learn_params(self, n_calib_beats=8):
         """
+        Find a number of beats using cross correlation to determine qrs
+        detection thresholds.
+
+        Parameters
+        ----------
+        n_calib_beats : int, optional
+            Number of calibration beats to detect for learning
+
         Learn the following:
         - qrs threshold
 
         """
+
         # Find the dominant peaks of the signal. Store indices.
         self.dominant_peak_inds = find_dominant_peaks(self.sig_i,
                                                   int(self.qrs_width / 2))
-        dominant_peaks = self.sig_i[self.dominant_peak_inds]
+        #dominant_peaks = self.sig_i[self.dominant_peak_inds]
 
-        # Cluster the peaks. The peaks in the largest amplitude cluster are
-        # treated as qrs peaks. Use these to determine qrs detection thresholds
-        kmeans = KMeans(n_clusters=2, random_state=0).fit(dominant_peaks)
-        top_cluster_ind = np.argmax(kmeans.cluster_centers_)
-        
-        self.qrs_peak_inds = self.dominant_peak_inds[np.where(kmeans.labels_ == top_cluster_ind)]
-        qrs_peaks = self.sig_i[self.qrs_peak_inds]
+        # Find n qrs peaks and store their amplitudes
+        qrs_peak_amps = []
 
-        self.qrs_thresh = np.mean(qrs_peaks) / 3
-        self.qrs_thresh_min = self.qrs_thresh / 3
+        peak_num = 0
+        while len(qrs_peak_amps) < n_calib_beats
+            i = dominant_peak_inds[peak_num]
+            peak_num += 1
+
+
+
+        self.qrs_thresh = np.mean(qrs_peak_amps)
+
+
 
         return
         
@@ -159,6 +187,20 @@ def find_dominant_peaks(sig, radius):
             i += 1
 
     return(np.array(peak_inds))
+
+
+def get_filter_gain(b, a, f_gain, fs):
+    """
+    Given filter coefficients, return the gain at a particular frequency
+    """
+    # Save the passband gain
+    w, h = signal.freqz(b, a)
+    w_gain = f_gain * 2 * np.pi / fs
+    ind = np.where(h >= w_band)[0][0]
+    gain = abs(h[ind])
+    return gain
+
+
 
 
 
