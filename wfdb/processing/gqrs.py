@@ -200,7 +200,7 @@ class GQRS(object):
         smdt = int(self.c.smdt)
 
 
-        print('in sm: smt == %d, at_t == %d' % (smt, at_t))
+        #print('in sm: smt == %d, at_t == %d' % (smt, at_t))
 
         v = 0
         while at_t > smt:
@@ -364,7 +364,7 @@ class GQRS(object):
             q0 = self.qfv_at(self.t)
             q1 = self.qfv_at(self.t - 1)
             q2 = self.qfv_at(self.t - 2)
-
+            print(self.c.qthr)
             # state == RUNNING only
             if q1 > self.c.pthr and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
                 add_peak(self.t - 1, q1, 0)

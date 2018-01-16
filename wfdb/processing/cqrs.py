@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import signal
 from sklearn.cluster import KMeans
-
+from sklearn.preprocessing import normalize
 
 import matplotlib.pyplot as plt
 import pdb
@@ -58,6 +58,8 @@ class CQRS(object):
     - Must be able to detect few beats
     - Not classify large t-waves as qrs
     - Inverted qrs
+    - rr history must be cleansed when there is a large gap? or keep rr history
+      but discard recent qrs history.
 
     Record 117 is a good challenge. Big twave, weird qrs
     
@@ -76,6 +78,10 @@ class CQRS(object):
           2. Set limit from peaks detected while learning. Else 0.
         During learning beat detection, confirm the set is roughly the same size.
         Reject 'beats' detected that are too far off in amplitude.
+
+
+    - Detection
+        - found qrs. 
     """
 
 
@@ -93,7 +99,7 @@ class CQRS(object):
 
         Time values are in samples, amplitude values are in mV.
         """
-        self.rr = 60 * self.fs / self.conf.hr
+        self.rr_init = 60 * self.fs / self.conf.hr_init
         self.rr_max = 60 * self.fs / self.conf.hr_min
         self.rr_min = 60 * self.fs / self.conf.hr_max
         self.qrs_width = self.conf.qrs_width * self.fs
@@ -138,6 +144,9 @@ class CQRS(object):
         If the system fails to find enough beats, the default parameters will be
         used instead.
 
+        Beats are classified as 
+
+
         Parameters
         ----------
         n_calib_beats : int, optional
@@ -148,43 +157,95 @@ class CQRS(object):
 
         """
 
-        # Find the dominant peaks of the signal. Store indices.
-        self.dominant_peak_inds = find_dominant_peaks(self.sig_i,
-                                                  int(self.qrs_width / 2))
-        #dominant_peaks = self.sig_i[self.dominant_peak_inds]
+        # Find the dominant peaks of the signal.
+        self.peak_inds = find_dominant_peaks(self.sig_f,
+                                             int(self.qrs_width / 2))
 
-        # Go through the dominant peaks and find the qrs peaks
-        qrs_peak_amps = []
+        # Go through the peaks and find qrs peaks and noise peaks.
+        qrs_inds = []
+        qrs_amps = []
+        noise_amps = []
 
-        for peak_num in range(len(self.dominant_peak_inds)):
-            i = self.dominant_peak_inds[peak_num]
+        qrs_radius = int(self.qrs_width / 2)
+        ricker_wavelet = signal.ricker(qrs_width, 4).reshape(-1,1)
 
+        for peak_num in range(
+                np.where(self.peak_inds > self.qrs_width)[0][0],
+                len(self.peak_inds)):
+            
+            i = self.peak_inds[peak_num]
 
-            if len(qrs_peak_amps) == n_calib_beats:
+            # Calculate cross-correlation between the filtered signal segment
+            # and a ricker wavelet.
+
+            sig_segment = normalize((self.sig_f[i - qrs_radius:i + qrs_radius,
+                                     0]**2).reshape(-1, 1), axis=0)
+
+            xcorr = np.correlate(sig_segment[:, 0], b[:,0])
+
+            if xcorr > 0.6:
+                qrs_inds.append(i)
+                qrs_amps.append(sig_i[i])
+            else:
+                noise_amps.append(sig_i[i])
+
+            if len(qrs_nds) == n_calib_beats:
                 break
 
-        
-        if len(qrs_peak_amps) == n_calib_beats:
-            self.qrs_thr = max(np.mean(qrs_peak_amps) / 2, self.qrs_thr_min)
+        # Found enough calibration beats to initialize parameters.
+        if len(qrs_inds) == n_calib_beats:
+
+            if len(noise_amps) == 0:
+                # Essentially impossible to find 8 qrs peaks and 0 others.
+                raise ValueError("Raise github issue if you see this.")
+
+            self.set_init_params(qrs_amp_recent=np.mean(qrs_amps),
+                                 noise_amp_recent=np.mean(noise_amps),
+                                 rr_recent=np.mean(np.diff(qrs_inds)))
 
         # Failed to find enough calibration beats. Use default values.
         else:
-            self.set_init_params
+            print('Failed to find %d consecutive beats during learning.' % n_calib_beats
+                  + ' Initializing using default parameters')
+            
+            
+            self.set_init_params()
 
-
-        
-
-
+        self.last_qrs_ind = 0
 
         return
 
-    def set_init_params(self):
-        self.qrs_thr = self.qrs_thr_init
-        self.recent_qrs_inds = 
+    def set_init_params(self, qrs_amp_recent, noise_amp_recent, rr_recent):
+        """
+        Set initial online parameters
+        """
+        self.qrs_amp_recent = qrs_amp_recent
+        self.noise_amp_recent = noise_amp_recent
+        self.qrs_thr = max(0.25*self.qrs_amp_recent
+                               + 0.75*self.noise_amp_recent, self.qrs_thr_min)
+        self.rr_recent = self.rr_recent
 
-        self.recent_rr = 
+
         
+    
+    def set_default_init_params(self):
+        """
+        Set initial online parameters using default values
+
+        Steady state equation is qrs_thr = 0.25*qrs_amp + 0.75*noise_amp
         
+        Estimate that qrs amp is 10x noise amp, which is equivalent to 
+        qrs_thr = 0.325*qrs_amp which seems reasonable.
+        """
+        self.set_init_params(qrs_amp_recent=self.qrs_thr_init / 0.325,
+                             noise_amp_recent=self.qrs_thr_init / 3.25,
+                             rr_recent=self.rr_init)
+
+        # Multiply the specified ecg thresholds by the filter and mwi gain
+        # factors 
+        self.qrs_thr_init = self.conf.qrs_thr_init
+        self.qrs_thr_min = self.conf.qrs_thr_min
+
 
     def detect(self, sampfrom=0, sampto='end', learn=True):
         """
@@ -222,17 +283,93 @@ class CQRS(object):
 
         return
 
-        for i in range(self.sig_len):
+        # Jump through the prominent peaks instead of every sample
+        
+        for peak_num in range(len(self.peak_inds)):
 
 
-            if self.is_peak(i):
-                pass
+            i = self.peak_inds[peak_num]
+
+            # Compare to refractory period.
+
+            # What should we do about the peak threshold? Noise threshold?
+            # Is noise thresh == peak_thresh? 
+
+            # It should be adjusted if...
+
+            # In pantompkins, there is no noise peak threshold.
+            # In gqrs, there is a peak threshold.
+
+
+
+            if self.sig[i] > self.peak_thr:
+                
+                # Found a qrs peak
+                if  is_qrs(i):
+
+
+
+
+
+                    self.qrs_inds.append(i)
+                    self.qrs_amp_recent = (0.875*self.qrs_amp_recent
+                                           + 0.125*self.sig_i[i])
+                    self.qrs_thr = max((0.25*self.qrs_amp_recent
+                                        + 0.75*self.noise_amp_recent), self.qrs_thr_min)
+
+
+                    # Update the qrs threshold. The threshold should be
+                    # based on recent 8 amplitudes. 
+
+
+                    # What do we want to keep it between?
+
+                    self.qrs_thr = 
+
+
+
+
+                            # gqrs threshold updating.
+                            # if p.amp > self.c.qthr * 4:
+                            #     self.c.qthr += 1
+                            # # Wait... how is this even possible?
+                            # elif p.amp < self.c.qthr:
+                            #     self.c.qthr -= 1
+
+
+
+                    # If there was a large gap, reset the recent peaks
+                    if i - self.recent_qrs_inds[-1] > rr_max:
+                        self.recent_qrs_inds = [i]
+                    # Otherwise, update the rr as normal
+                    else:
+                        update_buffer(self.recent_qrs_inds, i)
+                        update_buffer(self.recent_rrs,
+                                      recent_qrs_inds[-1] - recent_qrs_inds[-2])
+
+                        # Can't you think of a better name?
+                        self.rr_recent = np.mean(self.recent_rrs)
+
+            # Found a non-qrs peak
+            else:
+
+            if i >= self.sig_len:
+                break
 
 
 
         self.qrs_inds = np.array(self.qrs_inds)
 
+        return # Should this return self.qrs_inds?
 
+
+
+def update_buffer(buffer, value):
+    """
+    Append a value to the end of a buffer, and remove its first element.
+    """
+    buffer.append(value)
+    del(buffer[0])
 
 
 def find_dominant_peaks(sig, radius):
