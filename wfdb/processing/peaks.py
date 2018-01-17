@@ -53,6 +53,43 @@ def find_peaks(x):
     return hard_peaks, soft_peaks
 
 
+def find_local_peaks(sig, radius):
+    """
+    Find all local peaks in a signal. A sample is a local peak if it is
+    the largest value within the <radius> samples on its left and right.
+
+    In cases where it shares the max value with nearby samples, the middle
+    sample is classified as the local peak.
+
+    TODO: Fix flat mountain scenarios.
+    """
+    peak_inds = []
+
+    i = 0
+    while i < radius + 1:
+        if sig[i] == max(sig[:i + radius]):
+            peak_inds.append(i)
+            i += radius
+        else:
+            i += 1
+
+    while i < len(sig):
+        if sig[i] == max(sig[i - radius:i + radius]):
+            peak_inds.append(i)
+            i += radius
+        else:
+            i += 1
+
+    while i < len(sig):
+        if sig[i] == max(sig[i - radius:]):
+            peak_inds.append(i)
+            i += radius
+        else:
+            i += 1
+
+    return(np.array(peak_inds))
+
+
 def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
     """
     """
