@@ -200,5 +200,7 @@ def normalize(x, lb=0, ub=1):
 
 
 def smooth(x, window_size):
+    """
+    """
     box = numpy.ones(window_size)/window_size
     return numpy.convolve(x, box, mode='same')

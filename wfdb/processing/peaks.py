@@ -1,9 +1,10 @@
 import copy
-import numpy
+import numpy as np
 
 from .basic import smooth
-from .gqrs import time_to_sample_number, Conf, Peak, Annotation
 
+
+import pdb
 
 def find_peaks(x):
     """
@@ -14,32 +15,32 @@ def find_peaks(x):
     
     Parameters
     ----------
-    x : numpy array
+    x : np array
         The signal array
 
     Returns
     -------
-    hard_peaks : numpy array
+    hard_peaks : np array
         Array containing the indices of the hard peaks: 
-    soft_peaks : numpy array
+    soft_peaks : np array
         Array containing the indices of the soft peaks
     
     """
     if len(x) == 0:
-        return numpy.empty([0]), numpy.empty([0])
+        return np.empty([0]), np.empty([0])
 
     tmp = x[1:]
-    tmp = numpy.append(tmp, [x[-1]])
+    tmp = np.append(tmp, [x[-1]])
     tmp = x-tmp
-    tmp[numpy.where(tmp>0)] = +1
-    tmp[numpy.where(tmp==0)] = 0
-    tmp[numpy.where(tmp<0)] = -1
+    tmp[np.where(tmp>0)] = +1
+    tmp[np.where(tmp==0)] = 0
+    tmp[np.where(tmp<0)] = -1
     tmp2 = tmp[1:]
-    tmp2 = numpy.append(tmp2, [0])
+    tmp2 = np.append(tmp2, [0])
     tmp = tmp-tmp2
-    hard_peaks = numpy.where(numpy.logical_or(tmp==-2,tmp==+2))[0]+1
+    hard_peaks = np.where(np.logical_or(tmp==-2,tmp==+2))[0]+1
     soft_peaks = []
-    for iv in numpy.where(numpy.logical_or(tmp==-1,tmp==+1))[0]:
+    for iv in np.where(np.logical_or(tmp==-1,tmp==+1))[0]:
         t = tmp[iv]
         i = iv+1
         while True:
@@ -49,7 +50,7 @@ def find_peaks(x):
                 soft_peaks.append(int(iv+(i-iv)/2))
                 break
             i += 1
-    soft_peaks = numpy.asarray(soft_peaks)+1
+    soft_peaks = np.asarray(soft_peaks)+1
     return hard_peaks, soft_peaks
 
 
@@ -87,7 +88,7 @@ def find_local_peaks(sig, radius):
         else:
             i += 1
 
-    return(np.array(peak_inds))
+    return (np.array(peak_inds))
 
 
 def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
@@ -95,7 +96,7 @@ def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
     """
     N = x.shape[0]
 
-    rpeaks = numpy.zeros(N)
+    rpeaks = np.zeros(N)
     rpeaks[peak_indices] = 1.0
 
     rpeaks = rpeaks.astype('int32')
@@ -115,43 +116,43 @@ def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
 
     # Compute signal's peaks
     hard_peaks, soft_peaks = find_peaks(x=x)
-    all_peak_idxs = numpy.concatenate((hard_peaks, soft_peaks)).astype('int64')
+    all_peak_idxs = np.concatenate((hard_peaks, soft_peaks)).astype('int64')
 
     # Replace each range of ones by the index of the best value in it
     tmp = set()
     for rp_range in rpeaks_ranges:
-        r = numpy.arange(rp_range[0], rp_range[1]+1, dtype='int64')
+        r = np.arange(rp_range[0], rp_range[1]+1, dtype='int64')
         vals = x[r]
         smoothed_vals = smoothed[r]
-        p = r[numpy.argmax(numpy.absolute(numpy.asarray(vals)-smoothed_vals))]
+        p = r[np.argmax(np.absolute(np.asarray(vals)-smoothed_vals))]
         tmp.add(p)
 
     # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have the bigget distance from smooth curve
-    dist = numpy.absolute(x-smoothed) # Peak distance from the smoothed mean
+    dist = np.absolute(x-smoothed) # Peak distance from the smoothed mean
     rpeak_indices = set()
     for p in tmp:
         a = max(0, p-max_gap)
         b = min(N, p+max_gap)
-        r = numpy.arange(a, b, dtype='int64')
-        idx_best = r[numpy.argmax(dist[r])]
+        r = np.arange(a, b, dtype='int64')
+        idx_best = r[np.argmax(dist[r])]
         rpeak_indices.add(idx_best)
 
     rpeak_indices = list(rpeak_indices)
 
     # Prevent multiple peaks to appear in the max bpm range (max_gap)
     # If we found more than one peak in this interval, then we choose the peak with the maximum amplitude compared to the mean of the signal
-    tmp = numpy.asarray(rpeak_indices)
+    tmp = np.asarray(rpeak_indices)
     to_remove = {}
     for idx in rpeak_indices:
         if idx in to_remove:
             continue
-        r = tmp[numpy.where(numpy.absolute(tmp-idx)<=max_gap)[0]]
+        r = tmp[np.where(np.absolute(tmp-idx)<=max_gap)[0]]
         if len(r) == 1:
             continue
         rr = r.astype('int64')
         vals = x[rr]
         smoo = smoothed[rr]
-        the_one = r[numpy.argmax(numpy.absolute(vals-smoo))]
+        the_one = r[np.argmax(np.absolute(vals-smoo))]
         for i in r:
             if i != the_one:
                 to_remove[i] = True
