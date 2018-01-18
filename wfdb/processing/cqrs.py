@@ -14,7 +14,7 @@ class Conf(object):
     Initial signal configuration object
     """
     def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
-                 qrs_thr_init=0.13, qrs_thr_min=0, ):
+                 qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2):
         """
         Parameters
         ----------
@@ -33,8 +33,8 @@ class Conf(object):
         qrs_thr_min : int or float or string, optional
             Hard minimum detection threshold of qrs wave. Leave as 0 for no
             minimum.
-
-        refractory_period=0.2
+        ref_period : int or float, optional
+            The qrs refractory period. The minimum . Why not just use hr_min?
 
 
         
@@ -130,7 +130,7 @@ class CQRS(object):
 
 
 
-    def bandpass(self, sampfrom, sampto, fc_low=5, fc_high=20):
+    def bandpass(self, fc_low=5, fc_high=20):
         """
         Apply a bandpass filter onto the signal, and save the filtered signal.
         """
@@ -148,6 +148,8 @@ class CQRS(object):
         the filtered signal, and save the square of the integrated signal.
         
         The width of the hat is equal to the qrs width
+
+        Also find all local peaks in the mwi signal.
         """
         b = signal.ricker(self.qrs_width, 4)
         self.sig_i = signal.filtfilt(b, [1], self.sig_f, axis=0) ** 2
@@ -158,8 +160,10 @@ class CQRS(object):
                          * 2)
         self.transform_gain = self.filter_gain * self.mwi_gain
 
+        self.peak_inds_i = find_local_peaks(self.sig_i)
 
-    def learn_init_params(self, sampfrom, sampto, n_calib_beats=8):
+
+    def learn_init_params(self, n_calib_beats=8):
         """
         Find a number of consecutive beats using cross correlation to determine
         qrs detection thresholds.
@@ -183,7 +187,7 @@ class CQRS(object):
             print('Learning initial signal parameters...')
 
         # Find the local peaks of the signal.
-        self.peak_inds = find_local_peaks(self.sig_f,
+        peak_inds_f = find_local_peaks(self.sig_f,
                                              int(self.qrs_width / 2))
 
         last_qrs_ind = -self.rr_max
@@ -196,10 +200,10 @@ class CQRS(object):
 
         # Go through the peaks and find qrs peaks and noise peaks.
         for peak_num in range(
-                np.where(self.peak_inds > self.qrs_width)[0][0],
-                len(self.peak_inds)):
+                np.where(peak_inds_f > self.qrs_width)[0][0],
+                len(peak_inds_f)):
 
-            i = self.peak_inds[peak_num]
+            i = peak_inds_f[peak_num]
 
             # Calculate cross-correlation between the filtered signal segment
             # and a ricker wavelet
@@ -246,7 +250,7 @@ class CQRS(object):
 
             # If an early qrs was detected, set last_qrs_ind so that it can be
             # picked up.
-            last_qrs_ind = min(sampfrom, sampfrom - rr_recent)
+            last_qrs_ind = min(0, rr_recent)
 
             self.set_init_params(qrs_amp_recent=qrs_amp,
                                  noise_amp_recent=noise_amp,
@@ -299,20 +303,81 @@ class CQRS(object):
 
 
         qrs_amp_recent = MATH
+        noise_amp = MATH
+        rr_recent = STUFF
+        last_qrs_ind = 0
 
-        self.last_qrs_ind = 
+        self.set_init_params(qrs_amp_recent=qrs_amp,
+                             noise_amp_recent=noise_amp,
+                             rr_recent=rr_recent,
+                             last_qrs_ind=last_qrs_ind)
+
+    def is_qrs(self, peak_num, backsearch=False):
+        """
+        Check whether a peak is a qrs complex.
+
+        - Must come after refractory period
+        - Must pass qrs threshold
+        - Must not be a t-wave. Check if close to previous qrs.
+        """
+        i = self.peak_inds_i[peak_num]
+        if backsearch:
+            qrs_thr = self.qrs_thr / 2
+        else:
+            qrs_thr = self.qrs_thr
+        
+        if (i-self.last_qrs_ind > self.ref_period
+           and self.sig_i[i] > qrs_thr):
+            if i-self.last_qrs_ind < self.t_check_interval:
+                if self.is_twave(peak_num):
+                    return False
+            return True
+        
+        return False
 
 
-    def is_twave(self, i):
+    def update_qrs(self, peak_num, backsearch=False):
+        """
+        Update live qrs parameters
+
+        Parameters
+        ----------
+        peak_num : int
+            
+        """
+
+        i = self.peak_inds_i[peak_num]
+
+        self.qrs_inds.append(i)
+        self.last_qrs_ind = i
+        self.last_qrs_peak_num = self.peak_num
+
+        self.qrs_amp_recent = (0.875*self.qrs_amp_recent
+                               + 0.125*self.sig_i[i])
+        self.qrs_thr = max((0.25*self.qrs_amp_recent
+                            + 0.75*self.noise_amp_recent), self.qrs_thr_min)
+
+        rr_new = self.i - self.last_qrs_ind
+        # Update recent rr if the beat is consecutive
+        if rr_new < rr_max:
+            self.rr_recent = 0.875*self.rr_recent + 0.125*rr_new
+
+        if backsearch:
+            self.backsearch_qrs_inds.append(i)
+
+    def is_twave(self, peak_num):
         """
         Check whether a segment is a t-wave
 
         Compare the maximum gradient of the filtered signal segment with that
         of the previous qrs segment
         """
+        i = self.peak_inds_i[peak_num]
+
         # Get half the qrs width of the signal to the left
         sig_segment = normalize((self.sig_f[i - qrs_radius:
-                                            i, 0]**2).reshape(-1, 1), axis=0)
+                                            i, 0]**2).reshape(-1, 1),
+                                axis=0)
 
         last_qrs_segment = self.sig_f[self.last_qrs_ind - self.qrs_radius:
                                       self.last_qrs_ind]
@@ -326,48 +391,36 @@ class CQRS(object):
         else:
             return False
 
-
-    def update_qrs_params(self, i):
-        """
-        Update live qrs parameters
-        """
-        self.qrs_inds.append(i)
-        self.last_qrs_ind = i
-        self.qrs_amp_recent = (0.875*self.qrs_amp_recent + 0.125*self.sig_i[i])
-        self.qrs_thr = max((0.25*self.qrs_amp_recent
-                            + 0.75*self.noise_amp_recent), self.qrs_thr_min)
-
-        rr_newest = i - self.last_qrs_ind
-        # Update recent rr if the beat is consecutive
-        if rr_newest < rr_max:
-            self.rr_recent = 0.875*self.rr_recent + 0.125*rr_newest
-
-
-    def update_noise_params(self, i):
+    def update_noise(self, peak_num):
         """
         Update live noise parameters
         """
+        i = self.peak_inds_i[peak_num]
         self.noise_amp_recent = 0.875*self.noise_amp_recent
                                 + 0.125*self.sig_i[i]
 
 
-    def get_next_ind(self, current_ind):
+    def require_backsearch(self):
         """
-        Get the next index to inspect. It will either be the next peak, or the
-        index at which backsearch is to be performed.
+        Determine whether a backsearch should be performed on prior peaks
         """
-
-        if (self.peak_inds[self.peak_num + 1]-self.last_qrs_ind 
-            > self.recent_rr*1.66):
-
-            self.do_backsearch = True
-
+        next_peak_ind = self.peak_inds_i[self.peak_num + 1]
+        
+        if next_peak_ind-self.last_qrs_ind > self.rr_recent*1.66:
+            return True
         else:
-            self.do_backsearch = False
+            return False
 
+    def backsearch(self):
+        """
+        Inspect previous peaks for qrs using a lower threshold
+        """
+        for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
+            if self.is_qrs(peak_num=peak_num, backsearch=True):
+                self.update_qrs_params(peak_num=peak_num, backsearch=True)
 
-
-        return next_ind
+            # No need to update noise parameters if it was classified as noise.
+            # It would have already been updated.
 
 
     def detect(self, sampfrom=0, sampto='end', learn=True, verbose=True):
@@ -376,26 +429,27 @@ class CQRS(object):
         """
         if sampfrom < 0:
             raise ValueError("'sampfrom' cannot be negative")
+        self.sampfrom = sampfrom
         if sampto == 'end':
-            sampto = self.sig_len
+            self.sampto = self.sig_len
         elif sampto > self.sig_len:
             raise ValueError("'sampto' cannot exceed the signal length")
 
         # Length of the signal to perform detection on
-        detect_len = sampto - sampfrom
+        detect_len = self.sampto - self.sampfrom
 
         self.verbose = verbose
 
         # Get/set signal configuration fields from Conf object
         self.set_conf()
         # Bandpass filter the signal
-        self.bandpass(sampfrom, sampto)
+        self.bandpass()
         # Compute moving wave integration of filtered signal
         self.mwi()
 
         # Learn parameters
         if learn:
-            self.learn_initial_params(sampfrom, sampto)
+            self.learn_initial_params()
         else:
             self.set_initial_params()
 
@@ -406,42 +460,22 @@ class CQRS(object):
         self.qrs_inds = []
         # qrs indices found via backsearch
         self.backsearch_qrs_inds = []
-        # The current peak number being inspected
-        self.peak_num = 0
+        
+        # Iterate through mwi signal peak indices
+        for self.peak_num in range(len(self.peak_inds_i)):
 
-        i = peak_inds[peak_num]
+            if self.is_qrs(self.peak_num):
+                self.update_qrs(self.peak_num)
+            else:
+                self.update_noise(self.peak_num)
 
-        # Iterate through the prominent peaks
-        # for peak_num in range(len(self.peak_inds)):
-
-
-        while i < detect_len # minus something?
-            
-            if something:
+            # Before continuing to the next peak, do backsearch if necessary
+            while self.require_backsearch():
                 self.backsearch()
 
-            i = self.peak_inds[peak_num]
-
-
-            # Found a prominent peak.
-            if self.sig[i] > self.qrs_thr and i-self.last_qrs_ind > rr_min:
-                
-                # Check for t-wave if the previous peak was very recent
-                if i-self.last_qrs_ind < twave_thresh and self.is_twave(i):
-                    self.update_noise(i)
-                # Found a qrs peak
-                else:
-                    self.update_qrs(i)
-
-            # Found a non-qrs peak
-            else:
-                self.update_noise(i)
-
-
-            i = self.get_next_ind(i)
-
         # Detected indices are relative to starting sample
-        self.qrs_inds = np.array(self.qrs_inds) + sampfrom
+        if self.qrs_inds:
+            self.qrs_inds = np.array(self.qrs_inds) + sampfrom
 
         if self.verbose:
             print('QRS detection complete.')
@@ -458,9 +492,6 @@ def update_buffer(buffer, value):
     del(buffer[0])
 
 
-
-
-
 def get_filter_gain(b, a, f_gain, fs):
     """
     Given filter coefficients, return the gain at a particular frequency
@@ -474,15 +505,11 @@ def get_filter_gain(b, a, f_gain, fs):
 
 
 
-
-
-
 def cqrs_detect(sig, fs, conf=Conf(), learn=True, verbose=True):
 
     cqrs = CQRS(sig, fs, conf)
 
     cqrs.detect()
-
 
 
     return cqrs.qrs_inds
