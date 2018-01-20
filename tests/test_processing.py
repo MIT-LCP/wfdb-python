@@ -1,6 +1,6 @@
 import numpy
 import wfdb
-
+from wfdb import processing
 
 class test_processing():
 
@@ -11,7 +11,7 @@ class test_processing():
         fs = fields['fs']
         fs_target = 50
 
-        new_sig, new_ann = wfdb.processing.resample_singlechan(sig[:, 0], ann, fs, fs_target)
+        new_sig, new_ann = processing.resample_singlechan(sig[:, 0], ann, fs, fs_target)
 
         expected_length = int(sig.shape[0]*fs_target/fs)
 
@@ -24,7 +24,7 @@ class test_processing():
         fs = fields['fs']
         fs_target = 50
 
-        new_sig, new_ann = wfdb.processing.resample_multichan(sig, ann, fs, fs_target)
+        new_sig, new_ann = processing.resample_multichan(sig, ann, fs, fs_target)
 
         expected_length = int(sig.shape[0]*fs_target/fs)
 
@@ -36,20 +36,20 @@ class test_processing():
         lb = -5
         ub = 15
 
-        x = wfdb.processing.normalize(sig[:, 0], lb, ub)
+        x = processing.normalize(sig[:, 0], lb, ub)
         assert x.shape[0] == sig.shape[0]
         assert numpy.min(x) >= lb
         assert numpy.max(x) <= ub
 
     def test_4(self):
         x = []
-        hp, sp = wfdb.processing.find_peaks(x)
+        hp, sp = processing.find_peaks(x)
         assert hp.shape == (0,)
         assert sp.shape == (0,)
 
     def test_5(self):
         x = [0, 2, 1, 0, -10, -15, -15, -15, 9, 8, 0, 0, 1, 2, 10]
-        hp, sp = wfdb.processing.find_peaks(x)
+        hp, sp = processing.find_peaks(x)
         assert numpy.array_equal(hp, [1, 8])
         assert numpy.array_equal(sp, [6, 10])
 
@@ -59,7 +59,7 @@ class test_processing():
         frequency = 360.0
         adcgain = 200.0
         adczero = 1024
-        peaks = wfdb.processing.gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0)
+        peaks = processing.gqrs_detect(x, frequency, adcgain, adczero, threshold=1.0)
         print(peaks)
         print(expecting)
         assert numpy.array_equal(peaks, expecting)
@@ -73,10 +73,25 @@ class test_processing():
         min_gap = fs*60/min_bpm
         max_gap = fs*60/max_bpm
 
-        y_idxs = wfdb.processing.correct_peaks(sig[:,0], ann.sample, min_gap, max_gap, smooth_window=150)
+        y_idxs = processing.correct_peaks(sig[:,0], ann.sample, min_gap, max_gap, smooth_window=150)
 
         yz = numpy.zeros(sig.shape[0])
         yz[y_idxs] = 1
         yz = numpy.where(yz[:10000]==1)[0]
 
         assert numpy.array_equal(yz, [77, 370, 663, 947, 1231, 1515, 1809, 2045, 2403, 2706, 2998, 3283, 3560, 3863, 4171, 4466, 4765, 5061, 5347, 5634, 5919, 6215, 6527, 6824, 7106, 7393, 7670, 7953, 8246, 8539, 8837, 9142, 9432, 9710, 9998])
+
+
+class test_qrs():
+    """
+    Testing qrs detectors
+    """
+    def test_xqrs_1(self):
+        sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
+        ann_reference = wfdb.rdann('sample-data/100','atr')
+        conf = Conf()
+        xqrs = XQRS(sig=sig[:,0], fs=fields['fs'], conf=conf)
+        xqrs.detect()
+
+
+        
