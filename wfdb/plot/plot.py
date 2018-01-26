@@ -8,30 +8,164 @@ from ..io._signal import downround, upround
 from ..io.annotation import Annotation
 
 
-def plot_record(record=None, title=None, annotation=None, time_units='samples',
-            sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
-            return_fig=False, ecg_grids=[]): 
+def plot_items(signal=None, annotation=None, fs=None, sig_units=None,
+               time_units='samples', chan_name=None, title=None,
+               sig_style=[''], ann_style=['r*'], ecg_grids=[], figsize=None,
+               return_fig=False):
     """ 
-    Subplot and label each channel of a WFDB Record.
-    Optionally, subplot annotation locations over selected channels.
+    Subplot individual channels of signals and/or annotations.
+
+    Parameters
+    ----------
+    signal : 1d or 2d numpy array, optional
+        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
+        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
+        represent time and channel number respectively.
+    annotation: list, optional
+        A list of annotation locations to plot, with each list item
+        corresponding to a different channel. List items may be:
+        - 1d numpy array, with values representing sample indices
+        - list, with values representing sample indices
+        - None. For channels in which nothing is to be plotted.
+        If `signal` is defined, the annotation locations will be overlaid on
+        the signals, with the list index corresponding to the signal channel.
+        The length of `annotation` does not have to match the number of
+        channels of `signal`.
+    fs : int or float, optional
+        The sampling frequency of the signals and/or annotations. Used to
+        calculate time intervals if `time_units` is not 'samples'.
+    sig_units : list, optional
+        List of strings specifying the units of each signal channel.
+    time_units : str, optional
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    chan_name : list, optional
+        A list of strings, representing the channel names. This 
+    title : str, optional
+        The title of the graph.
+    sig_style : list, optional
+        A list of strings, specifying the style of the matplotlib plot for each
+        signal channel. If the list has a length of 1, the style will be used
+        for all channels.
+    ann_style : list, optional
+        A list of strings, specifying the style of the matplotlib plot for each
+        annotation channel. If the list has a length of 1, the style will be
+        used for all channels.
+    ecg_grids : list, optional
+        List of integers specifying channels in which to plot ecg grids. May be
+        set to [] for no channels, or 'all' for all channels. Major grids at
+        0.5mV, and minor grids at 0.125mV. All channels to be plotted with
+        grids must have units equal to 'uV', 'mV', or 'V'.
+    figsize : tuple, optional
+        Tuple pair specifying the width, and height of the figure. It is the
+        'figsize' argument passed into matplotlib.pyplot's `figure` function.
+    return_fig : bool, optional
+        Whether the figure is to be returned as an output argument.
+
+    Returns
+    -------
+    figure : matplotlib figure, optional
+        The matplotlib figure generated. Only returned if the 'return_fig'
+        option is set to True.
+    
+    Notes
+    -----
+    At least one of `signal` or `annotation` must be defined, or there will be
+    nothing to plot.
+    
+    Examples
+    --------
+    >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
+    >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
+
+    wfdb.plot_record(record, annotation=annotation, title='Record 100 from MIT-BIH Arrhythmia Database', 
+                 time_units='seconds', figsize=(10,4), ecg_grids='all')
+
+
+    Add ann_sym option?
+
+    """
+
+
+    # Create figure
+    ax, fig = create_figure()
+
+    if signal:
+        plot_signal(signal, ax, fig)
+
+    if annotation:
+        plot_annotation(annotation, ax, fig)
+
+    if ecg_grids:
+        plot_ecg_grids()
+
+    # Add title and axis labels.
+    label_figure()
+
+
+
+    if return_fig:
+        return figure
+
+
+
+
+def check_plot_inputs():
+    if signal is None and annotation is None:
+        raise Exception('Nothing to plot.')
+
+
+
+
+
+
+def plot_items(signal=None, annotation=None, fs=None, time_units='samples',
+               chan_name=None, title=None, sig_style=[''], ann_style=['r*'],
+               figsize=None, return_fig=False, ecg_grids=[]):
+
+
+def plot_wfdb(record=None, annotation=None, time_units='samples',
+              plot_physical=True, plot_ann_sym=False, 
+
+
+    title=None, sig_style=[''], ann_style=['r*'],
+    
+
+
+
+            figsize=None,
+            return_fig=False, ecg_grids=[]):
+    """ 
+    Subplot individual channels of a wfdb record and/or annotation.
+    
+    This function implements the base functionality of the `plot_items`
+    function, while allowing direct input of wfdb objects.
 
     Parameters
     ----------
     record : wfdb Record
-        The Record object, whose p_signal attribute is to be plotted.
+        The Record object, whose p_signal or d_signal attribute is to be
+        plotted.
     title : str, optional
         The title of the graph.
-    annotation : list, wfdb Annotation, or numpy array, optional
-        A list containing wfdb Annotation objects, numpy arrays, or None. The
-        locations of the Annotation objects' `sample` attribute, or the
-        locations of the numpy arrays' values, will be overlaid on the signals.
-        The list index of each item corresponds to the signal channel that each
-        annotation set will be plotted on. For channels without annotation.to
-        plot, put None in the list. This argument may also be just an Annotation
-        object or numpy array, which will be plotted over channel 0.
+    annotation : list, or wfdb Annotation, optional
+        One of the following:
+        1. Same as the `annotation` argument of the `plot_items` function. A
+           list of annotation locations to plot, with each list item
+           corresponding to a different channel. List items may be:
+           - 1d numpy array, with values representing sample indices
+           - list, with values representing sample indices
+           - None. For channels in which nothing is to be plotted.
+           If `signal` is defined, the annotation locations will be overlaid on
+           the signals, with the list index corresponding to the signal
+           channel. The length of `annotation` does not have to match the
+           number of channels of `signal`.
+        2. A wfdb Annotation object. The `chan` attribute decides the channel
+           number of each sample.
     time_units : str, optional
         The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
-        and 'hours'.
+        and 'hours'. If this option is not 'samples', either the `record` or
+        `annotation` argument must be a valid `fs` attribute.
     sig_style : str, or list, optional
         String, or list of strings, specifying the styling of the matplotlib
         plot for the signals. If it is a string, each channel will have the same
@@ -70,6 +204,9 @@ def plot_record(record=None, title=None, annotation=None, time_units='samples',
                  time_units='seconds', figsize=(10,4), ecg_grids='all')
 
     """
+
+
+    a, b, c = extract_wfdb_items()
 
     # Check the validity of items used to make the plot
     # Return the x axis time values to plot for the record (and annotation if any)

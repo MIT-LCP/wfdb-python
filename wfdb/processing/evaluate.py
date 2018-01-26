@@ -164,8 +164,10 @@ def compare_annotations(ref_sample, test_sample, window_width):
 
     return comparitor
 
-
-def plot_comparitor(comparitor, sig=None):
+# def plot_record(record=None, title=None, annotation=None, time_units='samples',
+#             sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
+#             return_fig=False, ecg_grids=[]): 
+def plot_comparitor(comparitor, sig=None, sig_style='', title=None, figsize=None, return_fig=False):
     """
     Plot two sets of annotations
 
@@ -176,4 +178,11 @@ def plot_comparitor(comparitor, sig=None):
     sig : numpy array, optional
         The underlying signal of the two sets of annotations to plot.
     """
-    return
+    
+    
+    fig=plt.figure(figsize=figsize)
+
+
+
+    if return_fig:
+        return fig
