@@ -86,43 +86,197 @@ def plot_items(signal=None, annotation=None, fs=None, sig_units=None,
 
     """
 
+    # Figure out number of subplots required
 
     # Create figure
-    ax, fig = create_figure()
+    
+    n_sig, n_annot, n_subplots = get_plot_dims(signal, annotation)
+    
+    fig, axes = create_figure(n_subplots, figsize)
 
     if signal:
-        plot_signal(signal, ax, fig)
+        plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
 
     if annotation:
-        plot_annotation(annotation, ax, fig)
+        plot_annotation(annotation, n_annot, signal, n_sig, fs, time_units, ann_style, axes)
 
     if ecg_grids:
-        plot_ecg_grids()
+        plot_ecg_grids(ecg_grids, fs, units, time_units, axes)
 
     # Add title and axis labels.
     label_figure()
-
-
+    
+    plt.show(fig)
 
     if return_fig:
         return figure
 
+def get_plot_dims(signal, annotation):
+    "Figure out the number of signal/annotation channels"
+    if signal is not None:
+        if sig.ndim == 1:
+            sig_len = len(signal)
+            n_sig = 1
+        else:
+            sig_len = signal.shape[0]
+            n_sig = signal.shape[1]
+    else:
+        sig_len = 0
+        n_sig = 0
+        
+    if annotation:
+        n_annot = len(annotation)
+    else:
+        n_annot = 0
+
+    return sig_len, n_sig, n_annot, max(n_sig, n_annot)
 
 
+def create_figure(n_subplots, figsize)
+    "Create the plot figure and subplot axes"
+    axes = []
 
-def check_plot_inputs():
-    if signal is None and annotation is None:
-        raise Exception('Nothing to plot.')
+    for i in range(n_subplots):
+        ax.append(fig.add_subplot(n_subplots, 1, i+1))
+    
+    return fig, axes
 
 
+def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
+    "Plot signal channels"
+    
+    # Extend signal style if necesary
+    if len(sig_style) == 1:
+        sig_style = n_sig * sig_style
+    
+    # Figure out time indices
+    if time_units == 'samples':
+        t = np.linspace(0, sig_len-1, sig_len)
+    else:
+        downsample_factor = {'seconds':fs, 'minutes':fs*60, 'hours':fs*3600}
+        t = np.linspace(0, sig_len-1, sig_len) / downsample_factor[time_units]
+    
+    # Plot the signals
+    if signal.ndim == 1:
+        axes[0].plot(t, signal, sig_style[ch], zorder=3)
+    else:
+        for ch in range(n_sig):
+            axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3) 
+    
+    
+def plot_annotation(annotation, n_annot, signal, n_sig, fs, time_units, ann_style, axes):
+    "Plot annotations, possibly overlaid on signals"
+    
+    # Figure out downsample factor for time indices
+    if time_units == 'samples':
+        downsample_factor = 1
+    else:
+        downsample_factor = {'seconds':float(fs), 'minutes':float(fs)*60, 'hours':float(fs)*3600}[time_units]
+    
+    # Plot the annotations    
+    for ch in range(n_annot):
+        if annotation[ch] is not None: 
+            # Figure out the y values to plot on a channel basis
+            if n_sig > ch:
+                y = signal[annotation[ch], ch]
+            else:
+                y = np.zeros(len(annotation[ch]))
+            
+            axes[ch].plot(annotation[ch] / downsample_factor, ann_style[ch])
 
 
+def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
+    "Add ecg grids to the axes"
+    if ecg_grids == 'all':
+        ecg_grids = range(0, len(axes))
+    
+    
+    for ch in ecg_grids:
+        # Get the initial plot limits
+        auto_xlims = axes[ch].get_xlim()
+        auto_ylims= axes[ch].get_ylim()
+        
+        major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y = calc_ecg_grids(
+                auto_ylims[0], auto_ylims[1], units[ch], fs, auto_xlims[1], time_units)
+        
+        min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
+        min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
+            
+        for tick in minor_ticks_x:
+            axes[ch].plot([tick, tick], [min_y,  max_y], c='#ededed', marker='|', zorder=1)
+        for tick in major_ticks_x:
+            axes[ch].plot([tick, tick], [min_y, max_y], c='#bababa', marker='|', zorder=2)
+        for tick in minor_ticks_y:
+            axes[ch].plot([min_x, max_x], [tick, tick], c='#ededed', marker='_', zorder=1)
+        for tick in major_ticks_y:
+            axes[ch].plot([min_x, max_x], [tick, tick], c='#bababa', marker='_', zorder=2)
+
+        # Plotting the lines changes the graph. Set the limits back
+        axes[ch].set_xlim(auto_xlims)
+        axes[ch].set_ylim(auto_ylims)
+
+def calc_ecg_grids(minsig, maxsig, units, fs, maxt, time_units):
+    """
+    Calculate tick intervals for ecg grids
+    
+    - 5mm 0.2s major grids, 0.04s minor grids
+    - 0.5mV major grids, 0.125 minor grids 
+    
+    10 mm is equal to 1mV in voltage.
+    """
+    # Get the grid interval of the x axis
+    if time_units == 'samples':
+        majorx = 0.2*fs
+        minorx = 0.04*fs
+    elif time_units == 'seconds':
+        majorx = 0.2
+        minorx = 0.04
+    elif time_units == 'minutes':
+        majorx = 0.2/60
+        minorx = 0.04/60
+    elif time_units == 'hours':
+        majorx = 0.2/3600
+        minorx = 0.04/3600
+
+    # Get the grid interval of the y axis
+    if units.lower()=='uv':
+        majory = 500
+        minory = 125
+    elif units.lower()=='mv':
+        majory = 0.5
+        minory = 0.125
+    elif units.lower()=='v':
+        majory = 0.0005
+        minory = 0.000125
+    else:
+        raise ValueError('Signal units must be uV, mV, or V to plot ECG grids.')
+
+    major_ticks_x = np.arange(0, _upround(maxt, majorx)+0.0001, majorx)
+    minor_ticks_x = np.arange(0, _upround(maxt, majorx)+0.0001, minorx)
+
+    major_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, majory)
+    minor_ticks_y = np.arange(downround(minsig, majory), upround(maxsig, majory)+0.0001, minory)
+
+    return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def plot_items(signal=None, annotation=None, fs=None, time_units='samples',
-               chan_name=None, title=None, sig_style=[''], ann_style=['r*'],
-               figsize=None, return_fig=False, ecg_grids=[]):
-
+def label_figure(n_subplots, sig_units, time_units, chan_name, title):
+    
+    if title:
+        axes[0].set_title(title)
+    
+    if not chan_name:
+        chan_name = ['ch_'+str(i) for i in range(n_subplots)]
+    
+    if not sig_units:
+        sig_units = n_subplots * ['NU']
+    
+    for ch in range(n_subplots):
+        
+        pass
+        
+        
+    
 
 def plot_wfdb(record=None, annotation=None, time_units='samples',
               plot_physical=True, plot_ann_sym=False, 
