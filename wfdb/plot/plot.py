@@ -87,24 +87,22 @@ def plot_items(signal=None, annotation=None, fs=None, sig_units=None,
     """
 
     # Figure out number of subplots required
-
+    sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, annotation)
+    
     # Create figure
-    
-    n_sig, n_annot, n_subplots = get_plot_dims(signal, annotation)
-    
     fig, axes = create_figure(n_subplots, figsize)
 
-    if signal:
+    if signal is not None:
         plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
 
-    if annotation:
+    if annotation is not None:
         plot_annotation(annotation, n_annot, signal, n_sig, fs, time_units, ann_style, axes)
 
     if ecg_grids:
         plot_ecg_grids(ecg_grids, fs, units, time_units, axes)
 
     # Add title and axis labels.
-    label_figure()
+    label_figure(axes, n_subplots, sig_units, time_units, chan_name, title)
     
     plt.show(fig)
 
@@ -114,7 +112,7 @@ def plot_items(signal=None, annotation=None, fs=None, sig_units=None,
 def get_plot_dims(signal, annotation):
     "Figure out the number of signal/annotation channels"
     if signal is not None:
-        if sig.ndim == 1:
+        if signal.ndim == 1:
             sig_len = len(signal)
             n_sig = 1
         else:
@@ -132,12 +130,13 @@ def get_plot_dims(signal, annotation):
     return sig_len, n_sig, n_annot, max(n_sig, n_annot)
 
 
-def create_figure(n_subplots, figsize)
+def create_figure(n_subplots, figsize):
     "Create the plot figure and subplot axes"
+    fig = plt.figure(figsize=figsize)
     axes = []
 
     for i in range(n_subplots):
-        ax.append(fig.add_subplot(n_subplots, 1, i+1))
+        axes.append(fig.add_subplot(n_subplots, 1, i+1))
     
     return fig, axes
 
@@ -260,22 +259,22 @@ def calc_ecg_grids(minsig, maxsig, units, fs, maxt, time_units):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(n_subplots, sig_units, time_units, chan_name, title):
-    
+def label_figure(axes, n_subplots, sig_units, time_units, chan_name, title):
+    "Add title, and axes labels"
     if title:
         axes[0].set_title(title)
     
+    # Set default channel and signal names if needed
     if not chan_name:
         chan_name = ['ch_'+str(i) for i in range(n_subplots)]
-    
     if not sig_units:
         sig_units = n_subplots * ['NU']
     
     for ch in range(n_subplots):
-        
-        pass
-        
-        
+        axes[ch].set_ylabel('/'.join([chan_name[ch], sig_units[ch]]))
+    
+    axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+    
     
 
 def plot_wfdb(record=None, annotation=None, time_units='samples',
@@ -618,99 +617,99 @@ def check_plot_items(record, title, annotation, time_units, sig_style, ann_style
     return (t, tann, annplot)
 
 
-def plot_annotation(annotation, title=None, time_units='samples',
-                    return_fig=False): 
-    """
-    Plot sample locations of an Annotation object.
+# def plot_annotation(annotation, title=None, time_units='samples',
+#                     return_fig=False): 
+#     """
+#     Plot sample locations of an Annotation object.
     
-    Parameters
-    ----------
-    annotation : wfdb Annotation 
-        Annotation object. The sample attribute locations will be plotted.
-    title : str, optional
-        The title of the graph.
-    time_units : str, optional
-        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
-        and 'hours'.
-    return_fig : bool, optional
-        Whether the figure is to be returned as an output argument.
+#     Parameters
+#     ----------
+#     annotation : wfdb Annotation 
+#         Annotation object. The sample attribute locations will be plotted.
+#     title : str, optional
+#         The title of the graph.
+#     time_units : str, optional
+#         The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+#         and 'hours'.
+#     return_fig : bool, optional
+#         Whether the figure is to be returned as an output argument.
     
-    Returns
-    -------
-    figure : matplotlib figure, optional
-        The matplotlib figure generated. Only returned if the 'return_fig'
-        option is set to True.
+#     Returns
+#     -------
+#     figure : matplotlib figure, optional
+#         The matplotlib figure generated. Only returned if the 'return_fig'
+#         option is set to True.
 
-    Notes
-    -----
-    The `plot_record` function has more features, and is useful for plotting
-    annotation.on top of signal waveforms.
+#     Notes
+#     -----
+#     The `plot_record` function has more features, and is useful for plotting
+#     annotation.on top of signal waveforms.
 
-    Examples
-    --------
-    >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampfrom=100000,
-                                sampto=110000)
-    >>> annotation.fs = 360
-    >>> wfdb.plot_annotation(annotation, time_units='minutes')
+#     Examples
+#     --------
+#     >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampfrom=100000,
+#                                 sampto=110000)
+#     >>> annotation.fs = 360
+#     >>> wfdb.plot_annotation(annotation, time_units='minutes')
 
-    """
-    # Check the validity of items used to make the plot
-    # Get the x axis annotation values to plot
-    plotvals = checkannplotitems(annotation, title, time_units)
+#     """
+#     # Check the validity of items used to make the plot
+#     # Get the x axis annotation values to plot
+#     plotvals = checkannplotitems(annotation, title, time_units)
     
-    # Create the plot
-    fig=plt.figure()
+#     # Create the plot
+#     fig=plt.figure()
     
-    plt.plot(plotvals, np.zeros(len(plotvals)), 'r+')
+#     plt.plot(plotvals, np.zeros(len(plotvals)), 'r+')
     
-    if title is not None:
-        plt.title(title)
+#     if title is not None:
+#         plt.title(title)
         
-    # Axis Labels
-    if time_units == 'samples':
-        plt.xlabel('index/sample')
-    else:
-        plt.xlabel('time/'+time_units[:-1])
+#     # Axis Labels
+#     if time_units == 'samples':
+#         plt.xlabel('index/sample')
+#     else:
+#         plt.xlabel('time/'+time_units[:-1])
 
-    plt.show(fig)
+#     plt.show(fig)
     
-    # Return the figure if requested
-    if return_fig:
-        return fig
+#     # Return the figure if requested
+#     if return_fig:
+#         return fig
 
 
-# Check the validity of items used to make the annotation plot
-def checkannplotitems(annotation, title, time_units):
+# # Check the validity of items used to make the annotation plot
+# def checkannplotitems(annotation, title, time_units):
     
-    # signals
-    if not isinstance(annotation, Annotation):
-        raise TypeError("The 'annotation' field must be a 'wfdb.Annotation' object")
+#     # signals
+#     if not isinstance(annotation, Annotation):
+#         raise TypeError("The 'annotation' field must be a 'wfdb.Annotation' object")
 
-    # fs and time_units
-    allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
-    if time_units not in allowedtimes:
-        raise ValueError("The 'time_units' field must be one of the following: ", allowedtimes)
+#     # fs and time_units
+#     allowedtimes = ['samples', 'seconds', 'minutes', 'hours']
+#     if time_units not in allowedtimes:
+#         raise ValueError("The 'time_units' field must be one of the following: ", allowedtimes)
 
-    # fs must be valid when plotting time
-    if time_units != 'samples':
-        if not isinstance(annotation.fs, float_types):
-            raise Exception("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
+#     # fs must be valid when plotting time
+#     if time_units != 'samples':
+#         if not isinstance(annotation.fs, float_types):
+#             raise Exception("In order to plot time units, the Annotation object must have a valid 'fs' attribute")
 
-    # Get x axis values to plot
-    if time_units == 'samples':
-        plotvals = annotation.sample
-    elif time_units == 'seconds':
-        plotvals = annotation.sample/float(annotation.fs)
-    elif time_units == 'minutes':
-        plotvals = annotation.sample/float(annotation.fs*60)
-    elif time_units == 'hours':
-        plotvals = annotation.sample/float(annotation.fs*3600)
+#     # Get x axis values to plot
+#     if time_units == 'samples':
+#         plotvals = annotation.sample
+#     elif time_units == 'seconds':
+#         plotvals = annotation.sample/float(annotation.fs)
+#     elif time_units == 'minutes':
+#         plotvals = annotation.sample/float(annotation.fs*60)
+#     elif time_units == 'hours':
+#         plotvals = annotation.sample/float(annotation.fs*3600)
 
-    # title
-    if title is not None and not isinstance(title, str):
-        raise TypeError("The 'title' field must be a string")
+#     # title
+#     if title is not None and not isinstance(title, str):
+#         raise TypeError("The 'title' field must be a string")
     
-    return plotvals
+#     return plotvals
 
 
 def plot_all_records(directory=os.getcwd()):
