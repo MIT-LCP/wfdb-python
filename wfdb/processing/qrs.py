@@ -3,9 +3,6 @@ from scipy import signal
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import normalize
 
-import matplotlib.pyplot as plt
-import pdb
-
 from .peaks import find_local_peaks
 
 

@@ -1,6 +1,6 @@
 import numpy
 import copy
-import matplotlib.pyplot as plt
+
 
 def time_to_sample_number(seconds, frequency):
     return seconds * frequency + 0.5
@@ -188,7 +188,7 @@ class GQRS(object):
     def qfv_put(self, t, v):
         self.qfv[t & (self.c._BUFLN - 1)] = v
 
-    def sm(self, at_t):  # CHECKED!
+    def sm(self, at_t):
         # implements a trapezoidal low pass (smoothing) filter
         # (with a gain of 4*smdt) applied to input signal sig
         # before the QRS matched filter qf().
@@ -198,9 +198,6 @@ class GQRS(object):
         # Calculate samp values from self.smt to at_t.
         smt = self.c.smt
         smdt = int(self.c.smdt)
-
-
-        #print('in sm: smt == %d, at_t == %d' % (smt, at_t))
 
         v = 0
         while at_t > smt:
@@ -248,9 +245,6 @@ class GQRS(object):
         self.SIG_QRS.append(v0 ** 2)
 
     def gqrs(self, from_sample, to_sample):
-
-        print('gqrs in state: %s' % self.state)
-        print('dt == smt0 == %d' % self.c.dt)
         q0 = None
         q1 = 0
         q2 = 0
@@ -364,7 +358,6 @@ class GQRS(object):
             q0 = self.qfv_at(self.t)
             q1 = self.qfv_at(self.t - 1)
             q2 = self.qfv_at(self.t - 2)
-            print(self.c.qthr)
             # state == RUNNING only
             if q1 > self.c.pthr and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
                 add_peak(self.t - 1, q1, 0)
@@ -536,14 +529,5 @@ def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
                 thresh=threshold)
     gqrs = GQRS()
     annotations = gqrs.detect(x=x, conf=conf, adc_zero=adc_zero)
-    fig = plt.plot(numpy.array(gqrs.SIG_SMOOTH), 'b')
-    plt.show()
-    
-    fig2 = plt.plot(numpy.array(gqrs.SIG_QRS), 'r')
-    
-    fig3 = plt.plot(x, 'k')
 
-    print('\nSmoothed signal head and tail:')
-    print(gqrs.SIG_SMOOTH[:12])
-    print(gqrs.SIG_SMOOTH[-12:])
     return numpy.array([a.time for a in annotations])

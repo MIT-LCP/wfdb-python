@@ -1,7 +1,7 @@
 import numpy
 from scipy import signal
 
-from wfdb import Annotation
+from ..io.annotation import Annotation
 
 
 def resample_ann(resampled_t, ann_sample):

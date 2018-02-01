@@ -1,6 +1,8 @@
 import numpy
+
 import wfdb
 from wfdb import processing
+
 
 class test_processing():
 
@@ -65,7 +67,7 @@ class test_processing():
         assert numpy.array_equal(peaks, expecting)
 
     def test_7(self):
-        sig, fields = wfdb.rdsamp('sample-data/100', channels = [0, 1])
+        sig, fields = wfdb.rdsamp('sample-data/100')
         ann = wfdb.rdann('sample-data/100', 'atr')
         fs = fields['fs']
         min_bpm = 10
@@ -89,9 +91,6 @@ class test_qrs():
     def test_xqrs_1(self):
         sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
         ann_reference = wfdb.rdann('sample-data/100','atr')
-        conf = Conf()
-        xqrs = XQRS(sig=sig[:,0], fs=fields['fs'], conf=conf)
+        conf = processing.Conf()
+        xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'], conf=conf)
         xqrs.detect()
-
-
-        

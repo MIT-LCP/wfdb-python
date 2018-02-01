@@ -297,10 +297,7 @@ def label_figure(axes, n_subplots, sig_units, time_units, chan_name, title):
     
 
 def plot_wfdb(record=None, annotation=None, time_units='samples',
-              plot_physical=True, plot_ann_sym=False, 
-
-
-    title=None, sig_style=[''], ann_style=['r*'],
+              plot_physical=True, plot_ann_sym=False,  title=None, sig_style=[''], ann_style=['r*'],
     
 
 
