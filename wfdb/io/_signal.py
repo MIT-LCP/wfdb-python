@@ -439,25 +439,30 @@ class SignalMixin(object):
             return p_signal
 
 
-    # Compute appropriate gain and baseline parameters given the physical signal and the fmts 
-    # self.fmt must be a list with length equal to the number of signal channels in self.p_signal 
+    
     def calc_adc_params(self):
-             
-        # digital - baseline / gain = physical     
-        # physical * gain + baseline = digital
+        """
+        Compute appropriate gain and baseline parameters given the physical
+        signal and the fmts.
 
+        digital - baseline / gain = physical
+        physical * gain + baseline = digital
+        """
         gains = []
         baselines = []
         
-        # min and max ignoring nans, unless whole channel is nan. Should suppress warning message. 
+        # min and max ignoring nans, unless whole channel is nan.
+        # Should suppress warning message. 
         minvals = np.nanmin(self.p_signal, axis=0) 
         maxvals = np.nanmax(self.p_signal, axis=0)
         
         dnans = digi_nan(self.fmt)
         
         for ch in range(0, np.shape(self.p_signal)[1]):
-            dmin, dmax = digi_bounds(self.fmt[ch]) # Get the minimum and maximum (valid) storage values
-            dmin = dmin + 1 # add 1 because the lowest value is used to store nans
+            # Get the minimum and maximum (valid) storage values
+            dmin, dmax = digi_bounds(self.fmt[ch])
+            # add 1 because the lowest value is used to store nans
+            dmin = dmin + 1
             dnan = dnans[ch]
             
             pmin = minvals[ch]
@@ -471,21 +476,23 @@ class SignalMixin(object):
                 baseline = 1
             # If the signal is just one value, store all values as digital 1. 
             elif pmin == pmax:
-                if minval ==0:
+                if pmin == 0:
                     gain = 1
                     baseline = 1
                 else:
-                    gain = 1/minval # wait.. what if minval is 0... 
+                    gain = 1 / pmin
                     baseline = 0 
+            # Regular mixed signal case
+            # Todo: 
             else:
-                
-                gain = (dmax-dmin) / (pmax - pmin)
-                baseline = dmin - gain * pmin
+                gain = (dmax-dmin) / (pmax-pmin)
+                baseline = dmin - gain*pmin
 
-            # What about roundoff error? Make sure values don't map to beyond range. 
+            # What about roundoff error? Make sure values don't map to beyond
+            # range. 
             baseline = int(baseline) 
             
-            # WFDB library limits...     
+            # WFDB library limits...
             if abs(gain)>214748364 or abs(baseline)>2147483648:
                 raise Exception('adc_gain and baseline must have magnitudes < 214748364')
                     
