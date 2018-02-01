@@ -438,7 +438,6 @@ class SignalMixin(object):
                     
             return p_signal
 
-
     
     def calc_adc_params(self):
         """
