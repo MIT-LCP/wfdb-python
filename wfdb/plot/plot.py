@@ -8,9 +8,6 @@ from ..io._signal import downround, upround
 from ..io.annotation import Annotation
 
 
-import pdb
-
-
 def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
@@ -296,7 +293,7 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
 
 
 def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
-                 title)
+                 title):
     "Add title, and axes labels"
     if title:
         axes[0].set_title(title)
@@ -391,8 +388,8 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     """
     (signal, ann_samp, ann_sym, fs, sig_name,
-        sig_units) = get_wfdb_plot_items(record, annotation)
-
+        sig_units) = get_wfdb_plot_items(record=record, annotation=annotation,
+                                         plot_sym=plot_sym)
 
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
                       time_units=time_units, sig_name=sig_name,
@@ -424,18 +421,33 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     if annotation:
         # Get channels
         all_chans = set(annotation.chan)
+
+        n_chans = max(all_chans) + 1
         
         # Just one channel. Place content in one list index.
-        if len(all_chans) == 1:
-            ann_samp = annotation.chan[0]*[None] + [annotation.sample]
-            if plot_sym:
-                ann_sym = annotation.chan[0]*[None] + [annotation.symbol]
-            else:
-                ann_sym = None
-        # Split annotations by channel
+        # if len(all_chans) == 1:
+        #     ann_samp = annotation.chan[0]*[None] + [annotation.sample]
+        #     if plot_sym:
+        #         ann_sym = annotation.chan[0]*[None] + [annotation.symbol]
+        #     else:
+        #         ann_sym = None
+        # # Split annotations by channel
+        # else:
+
+        # Indices for each channel
+        chan_inds = n_chans * [np.empty(0)]
+
+        for chan in all_chans:
+            chan_inds[chan] = np.where(annotation.chan == chan)[0]
+
+        ann_samp = [annotation.sample[ci] for ci in chan_inds]
+
+        if plot_sym:
+            ann_sym = n_chans * [None]
+            for ch in all_chans:
+                ann_sym[ch] = [annotation.symbol[ci] for ci in chan_inds[ch]]
         else:
-            for chan in all_chans:
-                pass
+            ann_sym = None
 
         # Try to get fs from annotation if not already in record
         if fs is None:
@@ -466,7 +478,7 @@ def plot_all_records(directory=os.getcwd()):
     records.sort()
 
     for record_name in records:
-        record = rdrecord(record_name)
+        record = rdrecord(os.path.join(directory, record_name))
 
-        plot_wfdb(record, title='Record - %s' % record.recordname)
+        plot_wfdb(record, title='Record - %s' % record.record_name)
         input('Press enter to continue...')

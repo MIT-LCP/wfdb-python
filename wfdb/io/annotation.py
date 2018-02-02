@@ -1198,26 +1198,34 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
 
     """
 
-    return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
+    return_label_elements = check_read_inputs(sampfrom, sampto,
+                                              return_label_elements)
 
     # Read the file in byte pairs
     filebytes = load_byte_pairs(record_name, extension, pb_dir)
 
     # Get wfdb annotation fields from the file bytes
-    sample, label_store, subtype, chan, num, aux_note = proc_ann_bytes(filebytes, sampto)
+    (sample, label_store, subtype,
+     chan, num, aux_note) = proc_ann_bytes(filebytes, sampto)
 
     # Get the indices of annotations that hold definition information about
     # the entire annotation file, and other empty annotations to be removed.
-    potential_definition_inds, rm_inds = get_special_inds(sample, label_store, aux_note)
+    potential_definition_inds, rm_inds = get_special_inds(sample, label_store,
+                                                          aux_note)
 
     # Try to extract information describing the annotation file
-    fs, custom_labels = interpret_defintion_annotations(potential_definition_inds, aux_note)
+    (fs,
+     custom_labels) = interpret_defintion_annotations(potential_definition_inds,
+                                                      aux_note)
 
     # Remove annotations that do not store actual sample and label information
-    sample, label_store, subtype, chan, num, aux_note = rm_empty_indices(rm_inds, sample, label_store, subtype, chan, num, aux_note)
+    (sample, label_store, subtype,
+     chan, num, aux_note) = rm_empty_indices(rm_inds, sample, label_store,
+                                             subtype, chan, num, aux_note)
 
-    # Convert lists to numpy arrays
-    sample, label_store, subtype, chan, num= lists_to_arrays(sample, label_store, subtype, chan, num)
+    # Convert lists to numpy arrays dtype='int'
+    (sample, label_store, subtype,
+     chan, num) = lists_to_int_arrays(sample, label_store, subtype, chan, num)
 
     # Obtain annotation sample relative to the starting signal index
     if shift_samps and len(sample) > 0 and sampfrom:
@@ -1232,10 +1240,11 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
             pass
 
     # Create the annotation object
-    annotation = Annotation(os.path.split(record_name)[1], extension, sample=sample, label_store=label_store,
-                            subtype=subtype, chan=chan, num=num, aux_note=aux_note, fs=fs,
+    annotation = Annotation(record_name=os.path.split(record_name)[1],
+                            extension=extension, sample=sample,
+                            label_store=label_store,  subtype=subtype,
+                            chan=chan, num=num, aux_note=aux_note, fs=fs,
                             custom_labels=custom_labels)
-
 
     # Get the set of unique label definitions contained in this annotation
     if summarize_labels:
@@ -1509,9 +1518,9 @@ def rm_empty_indices(*args):
 
     return [[a[i] for i in keep_inds] for a in args[1:]]
 
-def lists_to_arrays(*args):
+def lists_to_int_arrays(*args):
     """
-    Convert lists to numpy arrays
+    Convert lists to numpy int arrays
     """
     return [np.array(a, dtype='int') for a in args]
 
