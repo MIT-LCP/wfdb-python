@@ -122,7 +122,7 @@ def resample_singlechan(x, ann, fs, fs_target):
     assert ann.sample.shape == new_sample.shape
 
     resampled_ann = Annotation(ann.record_name, ann.extension, new_sample,
-        ann.symbol, ann.num, ann.subtype, ann.chan, ann.aux_note, ann.fs)
+        ann.symbol, ann.num, ann.subtype, ann.chan, ann.aux_note, fs_target)
 
     return resampled_x, resampled_ann
 
@@ -166,7 +166,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     assert ann.sample.shape == new_sample.shape
 
     resampled_ann = Annotation(ann.record_name, ann.extension, new_sample, ann.symbol,
-        ann.num, ann.subtype, ann.chan, ann.aux_note, ann.fs)
+        ann.num, ann.subtype, ann.chan, ann.aux_note, fs_target)
 
     return numpy.column_stack(lx), resampled_ann
 
