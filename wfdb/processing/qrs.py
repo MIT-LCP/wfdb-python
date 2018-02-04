@@ -108,8 +108,8 @@ class XQRS(object):
         self.fc_low = fc_low
         self.fc_high = fc_high
 
-        b, a = signal.butter(2, [fc_low * 2 / self.fs, fc_high * 2 / self.fs],
-                             'pass')
+        b, a = signal.butter(2, [float(fc_low) * 2 / self.fs, 
+                                 float(fc_high) * 2 / self.fs], 'pass')
         self.sig_f = signal.filtfilt(b, a, self.sig[self.sampfrom:self.sampto],
                                      axis=0)
         # Save the passband gain (x2 due to double filtering)

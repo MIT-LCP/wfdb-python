@@ -334,7 +334,7 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     If the annotation object is input, the function will extract from it:
       - sample locations, from the `sample` attribute
-      - symbols, from the `sym` attribute
+      - symbols, from the `symbol` attribute
       - the annotation channels, from the `chan` attribute
       - the sampling frequency, from the `fs` attribute if present, and if fs
         was not already extracted from the `record` argument.
@@ -383,8 +383,9 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
     >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
 
-    wfdb.plot_wfdb(record=record, annotation=annotation, time_units='seconds',
-                   title='MIT-BIH Record 100', figsize=(10,4), ecg_grids='all')
+    >>> wfdb.plot_wfdb(record=record, annotation=annotation, plot_sym=True
+                       time_units='seconds', title='MIT-BIH Record 100',
+                       figsize=(10,4), ecg_grids='all')
 
     """
     (signal, ann_samp, ann_sym, fs, sig_name,

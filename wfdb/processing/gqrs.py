@@ -7,8 +7,7 @@ def time_to_sample_number(seconds, frequency):
 
 
 class Conf(object):
-    def __init__(self, freq, gain,
-                 hr=75,
+    def __init__(self, freq, gain, hr=75,
                  RRdelta=0.2, RRmin=0.28, RRmax=2.4,
                  QS=0.07, QT=0.35,
                  RTmin=0.25, RTmax=0.33,
@@ -225,7 +224,7 @@ class GQRS(object):
 
         return self.smv_at(at_t)
 
-    def qf(self):  # CHECKED!
+    def qf(self):
         # evaluate the QRS detector filter for the next sample
 
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
@@ -471,10 +470,12 @@ def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
                 QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
                 QRSa=750, QRSamin=130):
     """
-    Detect qrs locations in a single channel ecg.
+    Detect qrs locations in a single channel ecg. Functionally, a direct port
+    of the gqrs algorithm from the original wfdb package. See the notes below
+    for a summary of the program.
 
-    Functionally, a direct port of the gqrs algorithm from the original
-    wfdb package. Therefore written to accept wfdb record fields.
+    This algorithm is not being developed/supported. Use another algorithm
+    such as `xqrs_detect` for a supported qrs detector.
 
     Parameters
     ----------
@@ -518,7 +519,19 @@ def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
 
     Notes
     -----
+    The algorithm works as follows:
+    - Apply trapezoid low-pass filtering to the signal
+    - Convolve a QRS matched filter with the filtered signal
+    - Run the learning phase: 
+    - Run the detection:
+      - 
+
     This function should not be used for signals with fs <= 50Hz
+
+    A list of issues from the original c code and hence this python
+    implementationcan be found here: https://github.com/bemoody/wfdb/issues/17
+    
+    gqrs will not be developed in this library.
 
     """
     conf = Conf(freq=fs, gain=adc_gain, hr=hr,
