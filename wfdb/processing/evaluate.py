@@ -20,10 +20,11 @@ class Comparitor(object):
         self.ref_sample = ref_sample
         self.test_sample = test_sample
         self.n_ref = len(ref_sample)
-        self.n_comp = len(test_sample)
+        self.n_test = len(test_sample)
+        self.window_width = window_width
 
         # The matching test sample numbers. -1 for indices with no match
-        self.matching_sample_nums = -1 * np.ones(n_ref)
+        self.matching_sample_nums = -1 * np.ones(self.n_ref)
 
         # TODO: rdann return annotations.where
 
@@ -72,8 +73,7 @@ class Comparitor(object):
         test_samp_num = 0
         ref_samp_num = 0
         
-        # Why can't this just be a for loop of ref_samp_num?
-        while ref_samp_num < n_ref and test_samp_num < n_test:
+        while ref_samp_num < self.n_ref-1 and test_samp_num < self.n_test-1:
 
             closest_samp_num, smallest_samp_diff = (
                 self.get_closest_samp_num(ref_samp_num, test_samp_num,
@@ -101,7 +101,7 @@ class Comparitor(object):
             # If no clash, it is straightforward.
             
             # Assign the reference-test pair if close enough
-            if smallest_sample_diff < self.window_width:
+            if smallest_samp_diff < self.window_width:
                 self.matching_sample_nums[ref_samp_num] = closest_samp_num
 
             ref_samp_num += 1
@@ -110,41 +110,41 @@ class Comparitor(object):
         self.calc_stats()
 
             
-        def get_closest_samp_num(self, ref_samp_num, start_test_samp_num,
-                                 stop_test_samp_num):
-            """
-            Return the closest testing sample number for the given reference
-            sample number. Limit the search between start_test_samp_num and
-            stop_test_samp_num.
-            """
+    def get_closest_samp_num(self, ref_samp_num, start_test_samp_num,
+                             stop_test_samp_num):
+        """
+        Return the closest testing sample number for the given reference
+        sample number. Limit the search between start_test_samp_num and
+        stop_test_samp_num.
+        """
 
-            if start_test_samp_num >= self.n_test:
-                raise ValueError('Invalid starting test sample number.')
-            
-            ref_samp = self.ref_sample[ref_samp_num]
-            test_samp = self.test_sample[start_test_samp_num]
+        if start_test_samp_num >= self.n_test:
+            raise ValueError('Invalid starting test sample number.')
+        
+        ref_samp = self.ref_sample[ref_samp_num]
+        test_samp = self.test_sample[start_test_samp_num]
+        samp_diff = ref_samp - test_samp
+
+        # Initialize running parameters
+        closest_samp_num = start_test_samp_num
+        smallest_samp_diff = abs(samp_diff)
+
+        # Iterate through the testing samples
+        for test_samp_num in range(start_test_samp_num, stop_test_samp_num):
+            test_samp = self.test_sample[test_samp_num]
             samp_diff = ref_samp - test_samp
+            abs_samp_diff = abs(samp_diff)
 
-            # Initialize running parameters
-            closest_samp_num = start_test_samp_num
-            smallest_samp_diff = abs(samp_diff)
+            # Found a better match
+            if abs(samp_diff) < smallest_samp_diff:
+                closest_samp_num = test_samp_num
+                smallest_samp_diff = abs_samp_diff
 
-            # Iterate through the testing samples
-            for test_samp_num in range(start_test_samp_num, stop_test_samp_num):
-                test_samp = self.test_sample[test_samp_num]
-                samp_diff = ref_samp - test_samp
-                abs_samp_diff = abs(samp_diff)
+            # Stop iterating when the ref sample is first passed or reached
+            if samp_diff <= 0:
+                break
 
-                # Found a better match
-                if abs(samp_diff) < smallest_samp_diff:
-                    closest_samp_num = test_samp_num
-                    smallest_samp_diff = abs_samp_diff
-
-                # Stop iterating when the ref sample is first passed or reached
-                if samp_diff <= 0:
-                    break
-
-            return closest_samp_num, smallest_samp_diff
+        return closest_samp_num, smallest_samp_diff
 
 
 def compare_annotations(ref_sample, test_sample, window_width):

@@ -1,22 +1,25 @@
+"""This module is not supported. Use functions from qrs.py"""
 import numpy
 import copy
 
+
+from ..io.record import Record
 
 def time_to_sample_number(seconds, frequency):
     return seconds * frequency + 0.5
 
 
 class Conf(object):
-    def __init__(self, freq, gain, hr=75,
+    def __init__(self, fs, adc_gain, hr=75,
                  RRdelta=0.2, RRmin=0.28, RRmax=2.4,
                  QS=0.07, QT=0.35,
                  RTmin=0.25, RTmax=0.33,
                  QRSa=750, QRSamin=130,
                  thresh=1.0):
-        self.freq = freq
+        self.fs = fs
 
-        self.sps = int(time_to_sample_number(1, freq))
-        self.spm = int(time_to_sample_number(60, freq))
+        self.sps = int(time_to_sample_number(1, fs))
+        self.spm = int(time_to_sample_number(60, fs))
 
         self.hr = hr
         self.RR = 60.0 / self.hr
@@ -56,7 +59,7 @@ class Conf(object):
         self.rtmean = int(0.75 * self.QT * self.sps)
         self.rtmax = int(self.RTmax * self.sps)
 
-        dv = gain * self.QRSamin * 0.001
+        dv = adc_gain * self.QRSamin * 0.001
         self.pthr = int((self.thresh * dv * dv) / 6)
         self.qthr = self.pthr << 1
         self.pthmin = self.pthr >> 2
@@ -97,6 +100,9 @@ class GQRS(object):
         self.annotations.append(copy.deepcopy(annotation))
 
     def detect(self, x, conf, adc_zero):
+        """
+        Run detection. x is digital signal
+        """
         self.c = conf
         self.annotations = []
         self.sample_valid = False
@@ -347,7 +353,7 @@ class GQRS(object):
                 if self.sample_valid:
                     self.qf()
                 else:
-                    self.countdown = int(time_to_sample_number(1, self.c.freq))
+                    self.countdown = int(time_to_sample_number(1, self.c.fs))
                     self.state = "CLEANUP"
             else:
                 self.countdown -= 1
@@ -424,7 +430,8 @@ class GQRS(object):
                             if tw is not None:
                                 tmp_time = tw.time - self.c.dt2
                                 tann = Annotation(tmp_time, "TWAVE",
-                                                  1 if tmp_time > self.annot.time + self.c.rtmean else 0, rtdmin)
+                                                  1 if tmp_time > self.annot.time + self.c.rtmean else 0,
+                                                  rtdmin)
                                 # if self.state == "RUNNING":
                                 #     self.putann(tann)
                                 rt = tann.time - self.annot.time
@@ -465,30 +472,44 @@ class GQRS(object):
             p = p.next_peak
 
 
-def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
-                hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4,
+def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
+                threshold=1.0, hr=75, RRdelta=0.2, RRmin=0.28, RRmax=2.4,
                 QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
                 QRSa=750, QRSamin=130):
     """
     Detect qrs locations in a single channel ecg. Functionally, a direct port
-    of the gqrs algorithm from the original wfdb package. See the notes below
-    for a summary of the program.
+    of the gqrs algorithm from the original wfdb package. Accepts either a
+    physical signal, or a digital signal with known adc_gain and adc_zero.
 
-    This algorithm is not being developed/supported. Use another algorithm
-    such as `xqrs_detect` for a supported qrs detector.
+    See the notes below for a summary of the program. This algorithm is not
+    being developed/supported. The qrs.py module contains supported qrs
+    detectors.
 
     Parameters
     ----------
-    x : numpy array
-        The digital signal.
+    sig : 1d numpy array, optional
+        The input physical signal. The detection algorithm which replicates
+        the original, works using digital samples, and this physical option is
+        provided as a convenient interface. If this is the specified input
+        signal, automatic adc is performed using 24 bit precision, to obtain
+        the `d_sig`, `adc_gain`, and `adc_zero` parameters. There may be minor
+        differences in detection results (ie. an occasional 1 sample
+        difference) between using `sig` and `d_sig`. To replicate the exact
+        output of the original gqrs algorithm, use the `d_sig` argument
+        instead.
     fs : int, or float
         The sampling frequency of the signal.
-    adc_gain : int 
-        The gain of the signal (the number of adus (q.v.) per physical unit).
-    adc_zero: int
+    d_sig : 1d numpy array, optional
+        The input digital signal. If this is the specified input signal rather
+        than `sig`, the `adc_gain` and `adc_zero` parameters must be specified.
+    adc_gain : int, or float, optional
+        The analogue to digital gain of the signal (the number of adus per
+        physical unit).
+    adc_zero: int, optional
         The value produced by the ADC given a 0 volt input.
     threshold : int, or float, optional
-        The threshold for detection.
+        The relative amplitude detection threshold. Used to initialize the peak
+        and qrs detection threshold.
     hr : int, or float, optional
         Typical heart rate, in beats per minute.
     RRdelta : int or float, optional
@@ -496,8 +517,8 @@ def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
     RRmin : int or float, optional
         Minimum RR interval ("refractory period"), in seconds.
     RRmax : int or float, optional
-        Maximum RR interval, in seconds. Thresholds will be adjusted if no peaks
-        are detected within this interval.
+        Maximum RR interval, in seconds. Thresholds will be adjusted if no
+        peaks are detected within this interval.
     QS : int or float, optional
         Typical QRS duration, in seconds.
     QT : int or float, optional
@@ -519,28 +540,89 @@ def gqrs_detect(x, fs, adc_gain, adc_zero, threshold=1.0,
 
     Notes
     -----
-    The algorithm works as follows:
-    - Apply trapezoid low-pass filtering to the signal
-    - Convolve a QRS matched filter with the filtered signal
-    - Run the learning phase: 
-    - Run the detection:
-      - 
-
     This function should not be used for signals with fs <= 50Hz
 
-    A list of issues from the original c code and hence this python
-    implementationcan be found here: https://github.com/bemoody/wfdb/issues/17
+    The algorithm theoretically works as follows:
+    - Load in configuration parameters. They are used to set/initialize the:
+      - allowed rr interval limits (fixed)
+      - initial recent rr interval (running)
+      - qrs width, used for detection filter widths (fixed)
+      - allowed rt interval limits (fixed)
+      - initial recent rt interval (running)
+      - initial peak amplitude detection threshold (running)
+      - initial qrs amplitude detection threshold (running)
+      **Note** that this algorithm does not normalize signal amplitudes, and
+      hence is highly dependent on configuration amplitude parameters.
+    - Apply trapezoid low-pass filtering to the signal
+    - Convolve a QRS matched filter with the filtered signal
+    - Run the learning phase using a calculated signal length: detect qrs and
+      non-qrs peaks as in the main detection phase, without saving the qrs
+      locations. During this phase, running parameters of recent intervals
+      and peak/qrs thresholds are adjusted.
+    - Run the detection:
+    ```
+    if a sample is bigger than its immediate neighbors and larger than the
+    peak detection threshold, it is a peak:
+        if it is further than RRmin from the previous qrs, and is a *primary
+        peak:
+            if it is further than 2 standard deviations from the previous qrs,
+            do a backsearch for a missed low amplitude beat:
+                return the primary peak between the current sample and the
+                previous qrs if any.
+            if it surpasses the qrs threshold, it is a qrs complex:
+                save the qrs location.
+                update running rr and qrs amplitude parameters.
+                look for the qrs complex's t-wave and mark it if found.
+    else if it is not a peak:
+        lower the peak detection threshold if the last peak found was more than
+        RRmax ago, and not already at its minimum.
+    ```
+
+    * A peak is secondary if there is a larger peak within its neighborhood
+    (time +- rrmin), or if it has been identified as a T-wave associated with a
+    previous primary peak. A peak is primary if it is largest in its neighborhood,
+    or if the only larger peaks are secondary.
+
+    The above describes how the algorithm should theoretically work, but there
+    are bugs which make the program contradict certain parts of its supposed
+    logic. A list of issues from the original c, code and hence this python
+    implementation can be found here:
+
+    https://github.com/bemoody/wfdb/issues/17
     
-    gqrs will not be developed in this library.
+    gqrs will not be supported/developed in this library.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import wfdb
+    >>> from wfdb import processing
+
+    >>> # Detect using a physical input signal
+    >>> record = wfdb.rdrecord('sample-data/100', channels=[0])
+    >>> qrs_locs = processing.gqrs_detect(record.p_signal[:,0], fs=record.fs)
+
+    >>> # Detect using a digital input signal
+    >>> record_2 = wfdb.rdrecord('sample-data/100', channels=[0], physical=False)
+    >>> qrs_locs_2 = processing.gqrs_detect(d_sig=record_2.d_signal[:,0],
+                                            fs=record_2.fs,
+                                            adc_gain=record_2.adc_gain[0],
+                                            adc_zero=record_2.adc_zero[0])
 
     """
-    conf = Conf(freq=fs, gain=adc_gain, hr=hr,
-                RRdelta=RRdelta, RRmin=RRmin, RRmax=RRmax,
-                QS=QS, QT=QT,
-                RTmin=RTmin, RTmax=RTmax,
-                QRSa=QRSa, QRSamin=QRSamin,
-                thresh=threshold)
+    # Perform adc if input signal is physical
+    if sig is not None:
+        record = Record(p_signal=sig.reshape([-1,1]), fmt=['24'])
+        record.set_d_features(do_adc=True)
+        d_sig = record.d_signal[:,0]
+        adc_zero = 0
+        adc_gain = record.adc_gain[0]
+
+    conf = Conf(fs=fs, adc_gain=adc_gain, hr=hr, RRdelta=RRdelta, RRmin=RRmin,
+                RRmax=RRmax, QS=QS, QT=QT, RTmin=RTmin, RTmax=RTmax, QRSa=QRSa,
+                QRSamin=QRSamin, thresh=threshold)
     gqrs = GQRS()
-    annotations = gqrs.detect(x=x, conf=conf, adc_zero=adc_zero)
+
+    annotations = gqrs.detect(x=d_sig, conf=conf, adc_zero=adc_zero)
 
     return numpy.array([a.time for a in annotations])

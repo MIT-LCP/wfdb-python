@@ -1194,8 +1194,9 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
             fmt=fmt, units=units, sig_name=sig_name, adc_gain = gain,
             baseline=baseline, comments=comments, base_time=base_time,
             base_date=base_date)
-        # Compute optimal fields to store the digital signal, carry out adc, and set the fields.
-        record.set_d_features(do_adc = 1)
+        # Compute optimal fields to store the digital signal, carry out adc,
+        # and set the fields.
+        record.set_d_features(do_adc=1)
     else:
         # Create the Record object
         record = Record(record_name=record_name, d_signal=d_signal, fs=fs,

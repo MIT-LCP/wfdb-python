@@ -135,7 +135,7 @@ class SignalMixin(object):
         """
 
         if expanded:
-            if do_dac == 1:
+            if do_dac:
                 self.check_field('e_d_signal', channels = 'all')
                 self.check_field('fmt', 'all')
                 self.check_field('adc_gain', 'all')
@@ -150,7 +150,7 @@ class SignalMixin(object):
             self.sig_len = int(len(self.e_p_signal[0])/self.samps_per_frame[0])
             self.n_sig = len(self.e_p_signal)
         else:
-            if do_dac == 1:
+            if do_dac:
                 self.check_field('d_signal')
                 self.check_field('fmt', 'all')
                 self.check_field('adc_gain', 'all')
@@ -165,33 +165,44 @@ class SignalMixin(object):
             self.n_sig = self.p_signal.shape[1]
 
 
-    def set_d_features(self, do_adc=False, single_fmt=1, expanded=False):
+    def set_d_features(self, do_adc=False, single_fmt=True, expanded=False):
         """
-        Use properties of the (e_)d_signal field to set other fields: n_sig, sig_len, init_value, checksum, *(fmt, adc_gain, baseline) 
-        If do_adc == True, the (e_)p_signal field will first be used to perform analogue to digital conversion to set the (e_)d_signal 
-        field, before (e_)d_signal is used. 
+        Use properties of the (e_)d_signal field to set other fields:
+        - n_sig
+        - sig_len
+        - init_value
+        - checksum,
+        - *(fmt, adc_gain, baseline) 
+        
+        If `do_adc`, the `(e_)p_signal` field will first be used to perform
+        analogue to digital conversion to set the `(e_)d_signal`
+        field, before `(e_)d_signal` is used. 
 
         Regarding adc conversion:
-          - If fmt is unset:
-            - Neither adc_gain nor baseline may be set. If the digital values used to store the signal are known, then the file
-              format should also be known. 
-            - The most appropriate fmt for the signals will be calculated and the 'fmt' attribute will be set. Given that neither
-              gain nor baseline are allowed to be set, optimal values for those fields will then be calculated and set as well.
+        - If fmt is unset:
+          - Neither adc_gain nor baseline may be set. If the digital values
+            used to store the signal are known, then the file format should
+            also be known. 
+          - The most appropriate fmt for the signals will be calculated and the
+            `fmt` attribute will be set. Given that neither `adc_gain` nor
+            `baseline` is allowed to be set, optimal values for those fields will
+            then be calculated and set as well.
+        - If fmt is set:
+          - If both adc_gain and baseline are unset, optimal values for those
+            fields will be calculated the fields will be set. 
+          - If both adc_gain and baseline are set, the function will continue.
+          - If only one of adc_gain and baseline are set, this function will
+            raise an error. It makes no sense to know only one of those fields.
+        - ADC will occur after valid values for fmt, adc_gain, and baseline are
+          present, using all three fields.
 
-          - If fmt is set:
-            - If both adc_gain and baseline are unset, optimal values for those fields will be calculated the fields will be set. 
-            - If both adc_gain and baseline are set, the function will continue.
-            - If only one of adc_gain and baseline are set, this function will throw an error. It makes no sense to know only
-              one of those fields.
-
-          ADC will occur after valid values for fmt, adc_gain, and baseline are present, using all three fields.  
         """
         if expanded:
             # adc is performed.
-            if do_adc == True:
+            if do_adc:
                 self.check_field('e_p_signal', channels='all')
 
-                # If there is no fmt set
+                # If there is no fmt set it, adc_gain, and baseline
                 if self.fmt is None:
                     # Make sure that neither adc_gain nor baseline are set
                     if self.adc_gain is not None or self.baseline is not None:
@@ -224,7 +235,7 @@ class SignalMixin(object):
             self.checksum = self.calc_checksum(expanded)
         else:
             # adc is performed.
-            if do_adc == True:
+            if do_adc:
                 self.check_field('p_signal')
 
                 # If there is no fmt set
@@ -235,9 +246,11 @@ class SignalMixin(object):
                     # Choose appropriate fmts based on estimated signal resolutions. 
                     res = est_res(self.p_signal)
                     self.fmt = wfdbfmt(res, single_fmt)
+                    # Calculate and set optimal gain and baseline values to convert physical signals
+                    self.adc_gain, self.baseline = self.calc_adc_params()
+
                 # If there is a fmt set
                 else:
-                    
                     self.check_field('fmt', 'all')
                     # Neither field set
                     if self.adc_gain is None and self.baseline is None:
@@ -449,26 +462,26 @@ class SignalMixin(object):
         """
         gains = []
         baselines = []
-        
+
         # min and max ignoring nans, unless whole channel is nan.
         # Should suppress warning message. 
         minvals = np.nanmin(self.p_signal, axis=0) 
         maxvals = np.nanmax(self.p_signal, axis=0)
-        
+
         dnans = digi_nan(self.fmt)
-        
+
         for ch in range(0, np.shape(self.p_signal)[1]):
             # Get the minimum and maximum (valid) storage values
             dmin, dmax = digi_bounds(self.fmt[ch])
             # add 1 because the lowest value is used to store nans
             dmin = dmin + 1
             dnan = dnans[ch]
-            
+
             pmin = minvals[ch]
             pmax = maxvals[ch]
-            
+
             # map values using full digital range.
-            
+
             # If the entire signal is nan, just put any. 
             if pmin == np.nan:
                 gain = 1 
@@ -489,15 +502,15 @@ class SignalMixin(object):
 
             # What about roundoff error? Make sure values don't map to beyond
             # range. 
-            baseline = int(baseline) 
-            
+            baseline = int(baseline)
+
             # WFDB library limits...
             if abs(gain)>214748364 or abs(baseline)>2147483648:
                 raise Exception('adc_gain and baseline must have magnitudes < 214748364')
-                    
+
             gains.append(gain)
             baselines.append(baseline)
-        
+
         return (gains, baselines)
 
 
@@ -1240,11 +1253,11 @@ def est_res(signals):
 
 # Return the most suitable wfdb format(s) to use given signal resolutions.
 # If single_fmt is True, the format for the maximum resolution will be returned.
-def wfdbfmt(res, single_fmt = True):
+def wfdbfmt(res, single_fmt=True):
 
     if isinstance(res, list):
         # Return a single format
-        if single_fmt is True:
+        if single_fmt:
             res = [max(res)]*len(res)
 
         fmts = []
