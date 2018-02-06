@@ -5,7 +5,18 @@ import pdb
 
 
 class Comparitor(object):
+    """
+    The class to implement and hold comparisons between two sets of
+    annotations.
 
+
+    Useful instance methods are `print_summary` and `plot`.
+
+    Examples
+    --------
+
+
+    """
     def __init__(self, ref_sample, test_sample, window_width, signal=None):
         """
         Parameters
@@ -16,6 +27,9 @@ class Comparitor(object):
             An array of the comparison sample locations
         window_width : int
             The width of the window
+        signal : 1d numpy array, optional
+            The signal array the annotation samples are labelling. Only used
+            for plotting.
         """
         if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
             raise ValueError(('The sample locations must be monotonically'
@@ -79,9 +93,9 @@ class Comparitor(object):
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.specificity = self.tp / self.n_ref
-        self.positive_predictivity = self.tp / self.n_test
-        self.false_positive_rate = self.fp / self.n_test
+        self.specificity = float(self.tp) / self.n_ref
+        self.positive_predictivity = float(self.tp) / self.n_test
+        self.false_positive_rate = float(self.fp) / self.n_test
 
 
     def compare(self):
@@ -91,29 +105,33 @@ class Comparitor(object):
         test_samp_num = 0
         ref_samp_num = 0
         
-        while ref_samp_num < self.n_ref-1 and test_samp_num < self.n_test-1:
+        # Iterate through the reference sample numbers
+        while ref_samp_num < self.n_ref and test_samp_num < self.n_test:
 
+            # Get the closest testing sample number for this reference sample
             closest_samp_num, smallest_samp_diff = (
-                self.get_closest_samp_num(ref_samp_num, test_samp_num,
-                                          self.n_test))
-            # This needs to work for last index
-            closest_samp_num_next, smallest_samp_diff_next = (
-                self.get_closest_samp_num(ref_samp_num + 1, test_samp_num,
-                                          self.n_test))
+                self.get_closest_samp_num(ref_samp_num, test_samp_num))
+            # Get the closest testing sample number for the next reference
+            # sample. This doesn't need to be called for the last index.
+            if ref_samp_num < self.n_ref - 1:
+                closest_samp_num_next, smallest_samp_diff_next = (
+                    self.get_closest_samp_num(ref_samp_num + 1, test_samp_num))
+            else:
+                # Set non-matching value if there is no next reference sample
+                # to compete for the test sample
+                closest_samp_num_next = -1
 
             # Found a contested test sample number. Decide which reference
             # sample it belongs to.
             if closest_samp_num == closest_samp_num_next:
-                # If the sample is closer to the next reference sample, get
-                # the next closest sample for this reference sample.
+                # If the sample is closer to the next reference sample,
+                # assign it to the next refernece sample.
                 if smallest_samp_diff_next < smallest_samp_diff:
-                    # Get the next closest sample.
+                    # Get the next closest sample for this reference sample.
                     # Can this be empty? Need to catch case where nothing left?
                     closest_samp_num, smallest_samp_diff = (
                         self.get_closest_samp_num(ref_samp_num, test_samp_num,
                                                   closest_samp_num))
-
-                self.matching_sample_nums[ref_samp_num] = closest_samp_num
 
             # If no clash, it is straightforward.
             
@@ -127,12 +145,10 @@ class Comparitor(object):
         self.calc_stats()
 
             
-    def get_closest_samp_num(self, ref_samp_num, start_test_samp_num,
-                             stop_test_samp_num):
+    def get_closest_samp_num(self, ref_samp_num, start_test_samp_num):
         """
         Return the closest testing sample number for the given reference
-        sample number. Limit the search between start_test_samp_num and
-        stop_test_samp_num.
+        sample number. Limit the search from start_test_samp_num.
         """
 
         if start_test_samp_num >= self.n_test:
@@ -147,7 +163,7 @@ class Comparitor(object):
         smallest_samp_diff = abs(samp_diff)
 
         # Iterate through the testing samples
-        for test_samp_num in range(start_test_samp_num, stop_test_samp_num):
+        for test_samp_num in range(start_test_samp_num, self.n_test):
             test_samp = self.test_sample[test_samp_num]
             samp_diff = ref_samp - test_samp
             abs_samp_diff = abs(samp_diff)
@@ -164,6 +180,9 @@ class Comparitor(object):
         return closest_samp_num, smallest_samp_diff
 
     def print_summary(self):
+        """
+
+        """
         # True positives = matched reference samples
         self.tp = len(self.matched_ref_inds)
         # False positives = extra test samples not matched
@@ -190,14 +209,11 @@ class Comparitor(object):
             % (self.false_positive_rate, self.fp, self.n_test))
 
 
-    def plot(self, signal=None, sig_style='', title=None, figsize=None,
+    def plot(self, sig_style='', title=None, figsize=None,
              return_fig=False):
         """
         Plot results of two sets of annotations
         """
-        if signal is not None:
-            self.signal = signal
-
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(1, 1, 1)
 
@@ -243,19 +259,47 @@ class Comparitor(object):
             return fig, ax
 
 
-def compare_annotations(ref_sample, test_sample, window_width):
+def compare_annotations(ref_sample, test_sample, window_width, signal=None):
     """
+    Compare a set of reference annotation locations against a set of test
+    annotation locations.
     
+    This is a gateway function for the `Comparitor` object. See its docstring
+    for more information.
+
+
     Parameters
     ----------
+    ref_sample : 1d numpy array
+        Array of reference sample locations
+    test_sample : 1d numpy array
+        Array of test sample locations to compare
+    window_width : int
+        The maximum absolute difference in sample numbers that is permitted for
+        matching annotations.
 
     Returns
     -------
     comparitor : Comparitor object
         Object containing parameters about the two sets of annotations
+    
+    Notes
+    -----
+    See the docstring for the `Comparitor` object.
+
+    Examples
+    --------
+    >>> import wfdb
+    >>> from wfdb import processing
+
+    >>> 
+    
+
+
 
     """
-    comparitor = Comparitor(ref_sample, test_sample, window_width)
+    comparitor = Comparitor(ref_sample=ref_sample, test_sample=test_sample,
+                            window_width=window_width, signal=signal)
     comparitor.compare()
 
     return comparitor
