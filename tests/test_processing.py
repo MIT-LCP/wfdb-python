@@ -100,9 +100,20 @@ class test_qrs():
     """
     Testing qrs detectors
     """
-    def test_xqrs_1(self):
+    def test_xqrs(self):
+        """
+        Run xqrs detector on record 100 and compare to reference annotations
+        """
         sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
-        ann_reference = wfdb.rdann('sample-data/100','atr')
-        conf = processing.Conf()
-        xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'], conf=conf)
+        ann_ref = wfdb.rdann('sample-data/100','atr')
+
+        xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'])
         xqrs.detect()
+
+        comparitor = processing.compare_annotations(ann_ref.sample[1:],
+                                                    xqrs.qrs_inds,
+                                                    int(0.1 * fields['fs']))
+
+        assert comparitor.specificity > 0.99
+        assert comparitor.positive_predictivity > 0.99
+        assert comparitor.false_positive_rate < 0.01

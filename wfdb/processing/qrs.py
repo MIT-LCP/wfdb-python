@@ -6,55 +6,7 @@ from sklearn.preprocessing import normalize
 from .peaks import find_local_peaks
 
 
-class Conf(object):
-    """
-    Initial signal configuration object for qrs detectors
-    """
-    def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
-                 qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2,
-                 t_inspect_period=0.36):
-        """
-        Parameters
-        ----------
-        hr : int or float, optional
-            Heart rate in beats per minute. Wait... what is this for?
-            Setting initial hr and rr values.
-        hr_max : int or float, optional
-            Hard maximum heart rate between two beats, in beats per minute
-        hr_min : int or float, optional
-            Hard minimum heart rate between two beats, in beats per minute
-        qrs_width : int or float, optional
-            Expected qrs width in seconds. Also acts as a refractory period.
-        qrs_thr_init : int or float, optional
-            Initial qrs detection threshold. Use when learning is False, or
-            learning fails.
-        qrs_thr_min : int or float or string, optional
-            Hard minimum detection threshold of qrs wave. Leave as 0 for no
-            minimum.
-        ref_period : int or float, optional
-            The qrs refractory period.
-        t_inspect_period : int or float, optional
-            The period below
 
-        """
-        if hr_min < 0:
-            raise ValueError("'hr_min' must be <= 0")
-
-        if not hr_min < hr_init < hr_max:
-            raise ValueError("'hr_min' < 'hr_init' < 'hr_max' must be True")
-
-        if qrs_thr_init < qrs_thr_min:
-            raise ValueError("qrs_thr_min must be <= qrs_thr_init")
-
-        self.hr_init = hr_init
-        self.hr_max = hr_max
-        self.hr_min = hr_min
-        self.qrs_width = qrs_width
-        self.qrs_radius = self.qrs_width / 2
-        self.qrs_thr_init = qrs_thr_init
-        self.qrs_thr_min = qrs_thr_min
-        self.ref_period = ref_period
-        self.t_inspect_period = t_inspect_period
 
 
 class XQRS(object):
@@ -73,12 +25,62 @@ class XQRS(object):
 
     """
 
-    def __init__(self, sig, fs, conf=Conf()):
+    def __init__(self, sig, fs, conf=None):
         self.sig = sig
         self.fs = fs
         self.sig_len = len(sig)
-        self.conf = conf
+        self.conf = conf or XQRS.Conf()
         self.set_conf()
+
+    class Conf(object):
+        """
+        Initial signal configuration object for this qrs detector
+        """
+        def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
+                     qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2,
+                     t_inspect_period=0.36):
+            """
+            Parameters
+            ----------
+            hr : int or float, optional
+                Heart rate in beats per minute. Wait... what is this for?
+                Setting initial hr and rr values.
+            hr_max : int or float, optional
+                Hard maximum heart rate between two beats, in beats per minute
+            hr_min : int or float, optional
+                Hard minimum heart rate between two beats, in beats per minute
+            qrs_width : int or float, optional
+                Expected qrs width in seconds. Also acts as a refractory period.
+            qrs_thr_init : int or float, optional
+                Initial qrs detection threshold. Use when learning is False, or
+                learning fails.
+            qrs_thr_min : int or float or string, optional
+                Hard minimum detection threshold of qrs wave. Leave as 0 for no
+                minimum.
+            ref_period : int or float, optional
+                The qrs refractory period.
+            t_inspect_period : int or float, optional
+                The period below
+
+            """
+            if hr_min < 0:
+                raise ValueError("'hr_min' must be <= 0")
+
+            if not hr_min < hr_init < hr_max:
+                raise ValueError("'hr_min' < 'hr_init' < 'hr_max' must be True")
+
+            if qrs_thr_init < qrs_thr_min:
+                raise ValueError("qrs_thr_min must be <= qrs_thr_init")
+
+            self.hr_init = hr_init
+            self.hr_max = hr_max
+            self.hr_min = hr_min
+            self.qrs_width = qrs_width
+            self.qrs_radius = self.qrs_width / 2
+            self.qrs_thr_init = qrs_thr_init
+            self.qrs_thr_min = qrs_thr_min
+            self.ref_period = ref_period
+            self.t_inspect_period = t_inspect_period
 
     def set_conf(self):
         """
@@ -142,8 +144,8 @@ class XQRS(object):
         Find a number of consecutive beats using cross correlation to determine
         qrs detection thresholds.
 
-        If the system fails to find enough beats, the default parameters will be
-        used instead.
+        If the system fails to find enough beats, the default parameters will
+        be used instead.
 
         Beats are classified as 
 
@@ -154,7 +156,9 @@ class XQRS(object):
             Number of calibration beats to detect for learning
 
         Learn the following:
-        - qrs threshold
+        - recent qrs amplitude
+        - recent noise amplitude
+        - recent rr interval
 
         """
         if self.verbose:
@@ -510,8 +514,8 @@ def get_filter_gain(b, a, f_gain, fs):
     return gain
 
 
-def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=Conf(), learn=True,
-                verbose=True):
+def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=XQRS.Conf(),
+                learn=True, verbose=True):
     """
     Run the 'xqrs' qrs detection algorithm on a signal. See notes for algorithm
     details.

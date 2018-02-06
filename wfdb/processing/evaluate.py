@@ -216,7 +216,8 @@ class Comparitor(object):
             ax.plot(self.matched_ref_sample,
                     self.signal[self.matched_ref_sample], 'ko')
             ax.plot(self.unmatched_ref_sample,
-                    self.signal[self.unmatched_ref_sample], 'ko', fillstyle='none')
+                    self.signal[self.unmatched_ref_sample], 'ko',
+                    fillstyle='none')
             # Plot test annotations
             ax.plot(self.matched_test_sample,
                     self.signal[self.matched_test_sample], 'g+')
@@ -229,7 +230,8 @@ class Comparitor(object):
         else:
            # Plot reference annotations
             ax.plot(self.matched_ref_sample, np.ones(self.tp), 'ko')
-            ax.plot(self.unmatched_ref_sample, np.ones(self.fn), 'ko', fillstyle='none')
+            ax.plot(self.unmatched_ref_sample, np.ones(self.fn), 'ko',
+                fillstyle='none')
             # Plot test annotations
             ax.plot(self.matched_test_sample, 0.5 * np.ones(self.tp), 'g+')
             ax.plot(self.unmatched_test_sample, 0.5 * np.ones(self.fp), 'rx')
@@ -257,26 +259,3 @@ def compare_annotations(ref_sample, test_sample, window_width):
     comparitor.compare()
 
     return comparitor
-
-# def plot_record(record=None, title=None, annotation=None, time_units='samples',
-#             sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
-#             return_fig=False, ecg_grids=[]): 
-def plot_comparitor(comparitor, ):
-    """
-    Plot two sets of annotations
-
-    Parameters
-    ----------
-    comparitor: Comparitor object
-        The comparitor object that has been run
-    sig : numpy array, optional
-        The underlying signal of the two sets of annotations to plot.
-    """
-    
-    
-    fig=plt.figure(figsize=figsize)
-
-
-
-    if return_fig:
-        return fig
