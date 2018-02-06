@@ -2,8 +2,8 @@
 import numpy
 import copy
 
-
 from ..io.record import Record
+
 
 def time_to_sample_number(seconds, frequency):
     return seconds * frequency + 0.5

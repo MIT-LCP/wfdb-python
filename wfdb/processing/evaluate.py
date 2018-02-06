@@ -1,10 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+import pdb
+
 
 class Comparitor(object):
 
-    def __init__(self, ref_sample, test_sample, window_width):
+    def __init__(self, ref_sample, test_sample, window_width, signal=None):
         """
         Parameters
         ----------
@@ -12,10 +14,12 @@ class Comparitor(object):
             An array of the reference sample locations
         test_sample : numpy array
             An array of the comparison sample locations
+        window_width : int
+            The width of the window
         """
         if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
-            raise ValueError(("The sample locations must be monotonically"
-                              + " increasing"))
+            raise ValueError(('The sample locations must be monotonically'
+                              + ' increasing'))
         
         self.ref_sample = ref_sample
         self.test_sample = test_sample
@@ -23,9 +27,11 @@ class Comparitor(object):
         self.n_test = len(test_sample)
         self.window_width = window_width
 
-        # The matching test sample numbers. -1 for indices with no match
-        self.matching_sample_nums = -1 * np.ones(self.n_ref)
+        # The matching test sample number for each reference annotation.
+        # -1 for indices with no match
+        self.matching_sample_nums = -1 * np.ones(self.n_ref, dtype='int')
 
+        self.signal = signal
         # TODO: rdann return annotations.where
 
     def calc_stats(self):
@@ -38,7 +44,7 @@ class Comparitor(object):
          ref=500  test=480
         {  30 { 470 } 10  }
         -------------------
-        
+
         tp = 470
         fp = 10
         fn = 30
@@ -48,15 +54,25 @@ class Comparitor(object):
         false_positive_rate = 10 / 480
 
         """
-        self.detected_ref_inds = np.where(self.matching_sample_nums != -1)
-        self.missed_ref_inds = np.where(self.matching_sample_nums == -1)
-        self.matched_test_inds = self.matching_sample_nums(
-            self.matching_sample_nums != -1)
-        self.unmached_test_inds = np.setdiff1d(np.array(range(self.n_test)),
+        # Reference annotation indices that were detected
+        self.matched_ref_inds = np.where(self.matching_sample_nums != -1)[0]
+        # Reference annotation indices that were missed
+        self.unmatched_ref_inds = np.where(self.matching_sample_nums == -1)[0]
+        # Test annotation indices that were matched to a reference annotation
+        self.matched_test_inds = self.matching_sample_nums[
+            self.matching_sample_nums != -1]
+        # Test annotation indices that were unmatched to a reference annotation 
+        self.unmatched_test_inds = np.setdiff1d(np.array(range(self.n_test)),
             self.matched_test_inds, assume_unique=True)
+        
+        # Sample numbers that were matched and unmatched
+        self.matched_ref_sample = self.ref_sample[self.matched_ref_inds]
+        self.unmatched_ref_sample = self.ref_sample[self.unmatched_ref_inds]
+        self.matched_test_sample = self.test_sample[self.matched_test_inds]
+        self.unmatched_test_sample = self.test_sample[self.unmatched_test_inds]
 
         # True positives = matched reference samples
-        self.tp = len(detected_ref_inds)
+        self.tp = len(self.matched_ref_inds)
         # False positives = extra test samples not matched
         self.fp = self.n_test - self.tp
         # False negatives = undetected reference samples
@@ -69,7 +85,9 @@ class Comparitor(object):
 
 
     def compare(self):
-
+        """
+        Main comparison function
+        """
         test_samp_num = 0
         ref_samp_num = 0
         
@@ -94,7 +112,6 @@ class Comparitor(object):
                     closest_samp_num, smallest_samp_diff = (
                         self.get_closest_samp_num(ref_samp_num, test_samp_num,
                                                   closest_samp_num))
-
 
                 self.matching_sample_nums[ref_samp_num] = closest_samp_num
 
@@ -146,6 +163,83 @@ class Comparitor(object):
 
         return closest_samp_num, smallest_samp_diff
 
+    def print_summary(self):
+        # True positives = matched reference samples
+        self.tp = len(self.matched_ref_inds)
+        # False positives = extra test samples not matched
+        self.fp = self.n_test - self.tp
+        # False negatives = undetected reference samples
+        self.fn = self.n_ref - self.tp
+        # No tn attribute
+
+        self.specificity = self.tp / self.n_ref
+        self.positive_predictivity = self.tp / self.n_test
+        self.false_positive_rate = self.fp / self.n_test
+
+        print('%d reference annotations, %d test annotations\n'
+            % (self.n_ref, self.n_test))
+        print('True Positives (matched samples): %d' % self.tp)
+        print('False Positives (unmatched test samples: %d' % self.fp)
+        print('False Negatives (unmatched reference samples): %d\n' % self.fn)
+
+        print('Specificity: %.4f (%d/%d)'
+            % (self.specificity, self.tp, self.n_ref))
+        print('Positive Predictivity: %.4f (%d/%d)'
+            % (self.positive_predictivity, self.tp, self.n_test))
+        print('False Positive Rate: %.4f (%d/%d)'
+            % (self.false_positive_rate, self.fp, self.n_test))
+
+
+    def plot(self, signal=None, sig_style='', title=None, figsize=None,
+             return_fig=False):
+        """
+        Plot results of two sets of annotations
+        """
+        if signal is not None:
+            self.signal = signal
+
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(1, 1, 1)
+
+        legend = ['Signal',
+                  'Matched Reference Annotations (%d/%d)' % (self.tp, self.n_ref),
+                  'Unmatched Reference Annotations (%d/%d)' % (self.fn, self.n_ref),
+                  'Matched Test Annotations (%d/%d)' % (self.tp, self.n_test),
+                  'Unmatched Test Annotations (%d/%d)' % (self.fp, self.n_test)
+        ]
+
+        # Plot the signal if any
+        if self.signal is not None:
+            ax.plot(self.signal, sig_style)
+
+            # Plot reference annotations
+            ax.plot(self.matched_ref_sample,
+                    self.signal[self.matched_ref_sample], 'ko')
+            ax.plot(self.unmatched_ref_sample,
+                    self.signal[self.unmatched_ref_sample], 'ko', fillstyle='none')
+            # Plot test annotations
+            ax.plot(self.matched_test_sample,
+                    self.signal[self.matched_test_sample], 'g+')
+            ax.plot(self.unmatched_test_sample,
+                    self.signal[self.unmatched_test_sample], 'rx')
+            
+            ax.legend(legend)
+
+        # Just plot annotations 
+        else:
+           # Plot reference annotations
+            ax.plot(self.matched_ref_sample, np.ones(self.tp), 'ko')
+            ax.plot(self.unmatched_ref_sample, np.ones(self.fn), 'ko', fillstyle='none')
+            # Plot test annotations
+            ax.plot(self.matched_test_sample, 0.5 * np.ones(self.tp), 'g+')
+            ax.plot(self.unmatched_test_sample, 0.5 * np.ones(self.fp), 'rx')
+            ax.legend(legend[1:])
+
+        fig.show()
+
+        if return_fig:
+            return fig, ax
+
 
 def compare_annotations(ref_sample, test_sample, window_width):
     """
@@ -167,7 +261,7 @@ def compare_annotations(ref_sample, test_sample, window_width):
 # def plot_record(record=None, title=None, annotation=None, time_units='samples',
 #             sig_style='', ann_style='r*', plot_ann_sym=False, figsize=None,
 #             return_fig=False, ecg_grids=[]): 
-def plot_comparitor(comparitor, sig=None, sig_style='', title=None, figsize=None, return_fig=False):
+def plot_comparitor(comparitor, ):
     """
     Plot two sets of annotations
 
