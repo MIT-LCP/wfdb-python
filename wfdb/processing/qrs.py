@@ -6,22 +6,14 @@ from sklearn.preprocessing import normalize
 from .peaks import find_local_peaks
 
 
-
-
-
 class XQRS(object):
     """
-    Challenges to overcome:
-    - Must be able to return zero annotations when there are none
-    - Must be able to detect few beats
-    - Not classify large t-waves as qrs
-    - Inverted qrs
-    - rr history must be cleansed when there is a large gap? or keep rr history
-      but discard recent qrs history.
-    - Want to find peaks near beginning of record
-
-    Record 117 is a good challenge. Big twave, weird qrs
+    A qrs detector class. Used to 
     
+    The `XQRS.Conf` class is the configuration class that stores initial
+    parameters for the detection.
+
+    The `XQRS.detect` method runs 
 
     """
 
@@ -42,9 +34,8 @@ class XQRS(object):
             """
             Parameters
             ----------
-            hr : int or float, optional
-                Heart rate in beats per minute. Wait... what is this for?
-                Setting initial hr and rr values.
+            hr_init : int or float, optional
+                Initial heart rate in beats per minute. Used for 
             hr_max : int or float, optional
                 Hard maximum heart rate between two beats, in beats per minute
             hr_min : int or float, optional
@@ -141,24 +132,31 @@ class XQRS(object):
 
     def learn_init_params(self, n_calib_beats=8):
         """
-        Find a number of consecutive beats using cross correlation to determine
-        qrs detection thresholds.
-
-        If the system fails to find enough beats, the default parameters will
-        be used instead.
-
-        Beats are classified as 
-
+        Find a number of consecutive beats and use them to initialize:
+        - recent qrs amplitude
+        - recent noise amplitude
+        - recent rr interval
+        - peak detection threshold
+        - qrs detection threshold
+        
+        The learning works as follows:
+        - Find all local maxima (largest sample within `qrs_radius` samples) of
+          the filtered signal.
+        - Inspect the local maxima until `n_calib_beats` beats are found:
+          - Calculate the cross-correlation between a ricker wavelet of length
+            `qrs_width`, and the filtered signal segment centered around the
+            local maximum.
+          - If the cross-correlation exceeds 0.6, classify it as a beat.
+        - Use the beats to initialize the previously described parameters.
+        - If the system fails to find enough beats, the default parameters will
+          be used instead. See the docstring for
+          `XQRS.set_default_init_params`.
 
         Parameters
         ----------
         n_calib_beats : int, optional
             Number of calibration beats to detect for learning
 
-        Learn the following:
-        - recent qrs amplitude
-        - recent noise amplitude
-        - recent rr interval
 
         """
         if self.verbose:
@@ -185,7 +183,6 @@ class XQRS(object):
 
             # Calculate cross-correlation between the filtered signal segment
             # and a ricker wavelet
-
 
             # Question: should the signal be squared? Case for inverse qrs
             # complexes
@@ -268,11 +265,12 @@ class XQRS(object):
         """
         Set initial running parameters using default values.
 
-        Steady state equation is: qrs_thr = 0.25*qrs_amp + 0.75*noise_amp
+        The steady state equation is:
+          `qrs_thr = 0.25*qrs_amp + 0.75*noise_amp`
         
-        Estimate that qrs amp is 10x noise amp, which is equivalent to:
-        qrs_thr = 0.325 * qrs_amp or 13/40 * qrs_amp 
-        which seems reasonable.
+        Estimate that qrs amp is 10x noise amp, giving:
+          `qrs_thr = 0.325 * qrs_amp or 13/40 * qrs_amp`
+
         """
         if self.verbose:
             print('Initializing using default parameters')
@@ -518,26 +516,24 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=XQRS.Conf(),
                 learn=True, verbose=True):
     """
     Run the 'xqrs' qrs detection algorithm on a signal. See notes for algorithm
-    details.
+    details. See also the docstring for the XQRS object.
 
     Parameters
     ----------
     sig : numpy array
-        The input ecg signal to apply the qrs detection
+        The input ecg signal to apply the qrs detection on.
     fs : int or float
-        The sampling frequency of the input signal
+        The sampling frequency of the input signal.
     sampfrom : int, optional
-        The starting sample of the signal to apply the detection
-    conf : Conf object, optional
+        The starting sample of the signal to apply the detection on.
+    conf : XQRS.Conf object, optional
         The configuration object specifying signal configuration parameters.
-        See the docstring of the Conf class.
+        See the docstring of the XQRS.Conf class.
     learn : bool, optional
-        Whether to apply learning on the signal, to initialize , before running the main detection.
-        
-
-        If learning fails or is not conducted, the default configuration
-        parameters will be used to initialize these variables. See the notes, or
-        the XQRS.learn_initial_params docstring for more details.
+        Whether to apply learning on the signal before running the main
+        detection. If learning fails or is not conducted, the default
+        configuration parameters will be used to initialize these variables.
+        See the `XQRS.learn_init_params` docstring for details.
     verbose : bool, optional
         Whether to display the stages and outcomes of the detection process.
 
@@ -546,26 +542,15 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=XQRS.Conf(),
     qrs_inds : numpy array
         The indices of the detected qrs complexes
 
-    Notes
-    -----
-    The detection process is as follows:
-    - Bandpass filtere the signal between 5 and 20Hz.
-    - Filter the bandpassed signal with a ricker wavelet to create the moving
-      wave integration (mwi) signal.
-    - Initialize detection parameters. This can be done 
-    - Learning:
-      - Find prominent peaks (using qrs radius)
-      - Find N beats. Use ricker wavelet convoluted with filtered signal.
-      - Use beats to initialize qrs threshold. Other peak threshold is
-        set to half of that. Set min peak and qrs threshold? There is a problem
-        with setting this hard limit. gqrs has a hard
-        limit, but pantompkins doesn't. Solution: Give options
-          1. Specify limit. Can set to 0 if don't want.
-          2. Set limit from peaks detected while learning. Else 0.
-        During learning beat detection, confirm the set is roughly the same size.
-        Reject 'beats' detected that are too far off in amplitude.
+    Examples
+    --------
     
+    >>> import wfdb
+    >>> from wfdb import processing
 
+    >>> sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
+    >>> qrs_inds = processing.xqrs_detect(sig=sig[:,0], fs=fields['fs'])
+    
     """
     xqrs = XQRS(sig=sig, fs=fs, conf=conf)
     xqrs.detect(sampfrom=sampfrom, sampto=sampto)

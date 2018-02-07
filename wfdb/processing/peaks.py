@@ -4,8 +4,6 @@ import numpy as np
 from .basic import smooth
 
 
-import pdb
-
 def find_peaks(x):
     """
     Find hard peaks and soft peaks in a signal, defined as follows:
@@ -127,7 +125,8 @@ def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
         p = r[np.argmax(np.absolute(np.asarray(vals)-smoothed_vals))]
         tmp.add(p)
 
-    # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have the bigget distance from smooth curve
+    # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have
+    # the bigget distance from smooth curve
     dist = np.absolute(x-smoothed) # Peak distance from the smoothed mean
     rpeak_indices = set()
     for p in tmp:
@@ -140,7 +139,8 @@ def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
     rpeak_indices = list(rpeak_indices)
 
     # Prevent multiple peaks to appear in the max bpm range (max_gap)
-    # If we found more than one peak in this interval, then we choose the peak with the maximum amplitude compared to the mean of the signal
+    # If we found more than one peak in this interval, then we choose the peak
+    # with the maximum amplitude compared to the mean of the signal
     tmp = np.asarray(rpeak_indices)
     to_remove = {}
     for idx in rpeak_indices:
