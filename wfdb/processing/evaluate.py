@@ -253,6 +253,9 @@ class Comparitor(object):
             ax.plot(self.unmatched_test_sample, 0.5 * np.ones(self.fp), 'rx')
             ax.legend(legend[1:])
 
+        if title:
+            ax.set_title(title)
+
         fig.show()
 
         if return_fig:
