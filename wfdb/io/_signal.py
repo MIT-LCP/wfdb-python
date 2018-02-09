@@ -21,7 +21,7 @@ class SignalMixin(object):
 
         if not self.n_sig:
             return
-        
+
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
@@ -34,17 +34,21 @@ class SignalMixin(object):
             # Check the validity of the d_signal field
             self.check_field('d_signal')
 
-        # Check the cohesion of the d_signal field against the other fields used to write the header
+        # Check the cohesion of the d_signal field against the other
+        # fields used to write the header
         self.check_sig_cohesion(write_fields, expanded)
-        
+
         # Write each of the specified dat files
         self.wr_dat_files(expanded)
 
 
 
-    # Check the cohesion of the d_signal/e_d_signal field with the other fields used to write the record
-    def check_sig_cohesion(self, write_fields, expanded):
 
+    def check_sig_cohesion(self, write_fields, expanded):
+        """
+        Check the cohesion of the d_signal/e_d_signal field with the other
+        fields used to write the record
+        """
         # Using list of arrays e_d_signal
         if expanded:
             # Set default samps_per_frame
@@ -64,12 +68,12 @@ class SignalMixin(object):
             for ch in range(0, self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
-                
+
                 chmin = min(self.e_d_signal[ch])
                 chmax = max(self.e_d_signal[ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
-            
+
             # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
             if self.n_sig>0:
                 if 'checksum' in write_fields:
@@ -96,12 +100,12 @@ class SignalMixin(object):
             for ch in range(0, self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
-                
+
                 chmin = min(self.d_signal[:,ch])
                 chmax = max(self.d_signal[:,ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
-                        
+
             # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
             if self.n_sig>0:
                 if 'checksum' in write_fields:
@@ -115,16 +119,16 @@ class SignalMixin(object):
                         print("The actual init_value of d_signal is: ", realinit_value)
                         raise ValueError("init_value field does not match actual init_value of d_signal")
 
-    
+
     def set_p_features(self, do_dac=False, expanded=False):
         """
-        Use properties of the p_signal (expanded=False) or e_p_signal field to set other fields: 
+        Use properties of the p_signal (expanded=False) or e_p_signal field to set other fields:
           - n_sig
           - sig_len
         If expanded=True, samps_per_frame is also required.
 
         If do_dac == True, the (e_)_d_signal field will be used to perform digital to analogue conversion
-        to set the (e_)p_signal field, before (e_)p_signal is used. 
+        to set the (e_)p_signal field, before (e_)p_signal is used.
         Regarding dac conversion:
           - fmt, gain, and baseline must all be set in order to perform dac.
           - Unlike with adc, there is no way to infer these fields.
@@ -172,24 +176,24 @@ class SignalMixin(object):
         - sig_len
         - init_value
         - checksum,
-        - *(fmt, adc_gain, baseline) 
-        
+        - *(fmt, adc_gain, baseline)
+
         If `do_adc`, the `(e_)p_signal` field will first be used to perform
         analogue to digital conversion to set the `(e_)d_signal`
-        field, before `(e_)d_signal` is used. 
+        field, before `(e_)d_signal` is used.
 
         Regarding adc conversion:
         - If fmt is unset:
           - Neither adc_gain nor baseline may be set. If the digital values
             used to store the signal are known, then the file format should
-            also be known. 
+            also be known.
           - The most appropriate fmt for the signals will be calculated and the
             `fmt` attribute will be set. Given that neither `adc_gain` nor
             `baseline` is allowed to be set, optimal values for those fields will
             then be calculated and set as well.
         - If fmt is set:
           - If both adc_gain and baseline are unset, optimal values for those
-            fields will be calculated the fields will be set. 
+            fields will be calculated the fields will be set.
           - If both adc_gain and baseline are set, the function will continue.
           - If only one of adc_gain and baseline are set, this function will
             raise an error. It makes no sense to know only one of those fields.
@@ -207,7 +211,7 @@ class SignalMixin(object):
                     # Make sure that neither adc_gain nor baseline are set
                     if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
-                    # Choose appropriate fmts based on estimated signal resolutions. 
+                    # Choose appropriate fmts based on estimated signal resolutions.
                     res = est_res(self.e_p_signal)
                     self.fmt = wfdbfmt(res, single_fmt)
                 # If there is a fmt set
@@ -220,7 +224,7 @@ class SignalMixin(object):
                     # Exactly one field set
                     elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
-                
+
                 self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
 
@@ -243,7 +247,7 @@ class SignalMixin(object):
                     # Make sure that neither adc_gain nor baseline are set
                     if self.adc_gain is not None or self.baseline is not None:
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
-                    # Choose appropriate fmts based on estimated signal resolutions. 
+                    # Choose appropriate fmts based on estimated signal resolutions.
                     res = est_res(self.p_signal)
                     self.fmt = wfdbfmt(res, single_fmt)
                     # Calculate and set optimal gain and baseline values to convert physical signals
@@ -259,7 +263,7 @@ class SignalMixin(object):
                     # Exactly one field set
                     elif (self.adc_gain is None) ^ (self.baseline is None):
                         raise Exception('If fmt is set, gain and baseline should both be set or not set.')
-                
+
                 self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')
 
@@ -276,14 +280,14 @@ class SignalMixin(object):
 
     def adc(self, expanded=False, inplace=False):
         """
-        Performs analogue to digital conversion of the physical signal stored 
+        Performs analogue to digital conversion of the physical signal stored
         in p_signal if expanded is False, or e_p_signal if expanded is True.
 
         The p_signal/e_p_signal, fmt, gain, and baseline fields must all be
         valid.
 
         If inplace is True, the adc will be performed inplace on the variable,
-        the d_signal/e_d_signal attribute will be set, and the 
+        the d_signal/e_d_signal attribute will be set, and the
         p_signal/e_p_signal field will be set to None.
 
         Input arguments:
@@ -292,9 +296,9 @@ class SignalMixin(object):
         - inplace (default=False): Boolean specifying whether to automatically
           set the object's corresponding digital signal attribute and set the
           physical signal attribute to None (True), or to return the converted
-          signal as a separate variable without changing the original physical 
+          signal as a separate variable without changing the original physical
           signal attribute (False).
-        
+
         Possible output argument:
         - d_signal: The digital conversion of the signal. Either a 2d numpy
           array or a list of 1d numpy arrays.
@@ -306,10 +310,10 @@ class SignalMixin(object):
         record.adc(inplace=True)
         record.dac(inplace=True)
         """
-        
+
         # The digital nan values for each channel
         dnans = digi_nan(self.fmt)
-        
+
         # To do: choose the minimum return res needed
         intdtype = 'int64'
 
@@ -359,10 +363,10 @@ class SignalMixin(object):
                     for ch in range(d_signal.shape[1]):
                         if nanlocs[:,ch].any():
                             d_signal[nanlocs[:,ch],ch] = dnans[ch]
-                
+
             return d_signal
 
-    
+
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
         Performs the digital to analogue conversion of the signal stored
@@ -372,18 +376,18 @@ class SignalMixin(object):
         valid.
 
         If inplace is True, the dac will be performed inplace on the variable,
-        the p_signal/e_p_signal attribute will be set, and the 
+        the p_signal/e_p_signal attribute will be set, and the
         d_signal/e_d_signal field will be set to None.
-    
+
         Input arguments:
         - expanded: Boolean specifying whether to transform the
           e_d_signal attribute (True) or the d_signal attribute (False).
         - inplace: Boolean specifying whether to automatically
           set the object's corresponding physical signal attribute and set the
           digital signal attribute to None (True), or to return the converted
-          signal as a separate variable without changing the original digital 
+          signal as a separate variable without changing the original digital
           signal attribute (False).
-        
+
         Possible output argument:
         - p_signal: The physical conversion of the signal. Either a 2d numpy
           array or a list of 1d numpy arrays.
@@ -448,10 +452,10 @@ class SignalMixin(object):
                 np.subtract(p_signal, self.baseline, p_signal)
                 np.divide(p_signal, self.adc_gain, p_signal)
                 p_signal[nanlocs] = np.nan
-                    
+
             return p_signal
 
-    
+
     def calc_adc_params(self):
         """
         Compute appropriate gain and baseline parameters given the physical
@@ -464,8 +468,8 @@ class SignalMixin(object):
         baselines = []
 
         # min and max ignoring nans, unless whole channel is nan.
-        # Should suppress warning message. 
-        minvals = np.nanmin(self.p_signal, axis=0) 
+        # Should suppress warning message.
+        minvals = np.nanmin(self.p_signal, axis=0)
         maxvals = np.nanmax(self.p_signal, axis=0)
 
         dnans = digi_nan(self.fmt)
@@ -482,26 +486,26 @@ class SignalMixin(object):
 
             # map values using full digital range.
 
-            # If the entire signal is nan, just put any. 
+            # If the entire signal is nan, just put any.
             if pmin == np.nan:
-                gain = 1 
+                gain = 1
                 baseline = 1
-            # If the signal is just one value, store all values as digital 1. 
+            # If the signal is just one value, store all values as digital 1.
             elif pmin == pmax:
                 if pmin == 0:
                     gain = 1
                     baseline = 1
                 else:
                     gain = 1 / pmin
-                    baseline = 0 
+                    baseline = 0
             # Regular mixed signal case
-            # Todo: 
+            # Todo:
             else:
                 gain = (dmax-dmin) / (pmax-pmin)
                 baseline = dmin - gain*pmin
 
             # What about roundoff error? Make sure values don't map to beyond
-            # range. 
+            # range.
             baseline = int(baseline)
 
             # WFDB library limits...
@@ -560,7 +564,7 @@ class SignalMixin(object):
     def wr_dat_files(self, expanded=False):
 
         # Get the set of dat files to be written, and
-        # the channels to be written to each file. 
+        # the channels to be written to each file.
         file_names, datchannels = orderedsetlist(self.file_name)
 
         # Get the fmt and byte offset corresponding to each dat file
@@ -589,8 +593,8 @@ class SignalMixin(object):
     def smooth_frames(self, sigtype='physical'):
         """
         Convert expanded signals with different samples/frame into
-        a uniform numpy array. 
-        
+        a uniform numpy array.
+
         Input parameters
         - sigtype (default='physical'): Specifies whether to mooth
           the e_p_signal field ('physical'), or the e_d_signal
@@ -679,9 +683,9 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
     w_channel = {} # one list per dat file
 
     for fn in file_name:
-        # intersecting dat channels between the input channels and the channels of the file 
+        # intersecting dat channels between the input channels and the channels of the file
         idc = [c for c in datchannel[fn] if c in channels]
-        
+
         # There is at least one wanted channel in the dat file
         if idc != []:
             w_file_name.append(fn)
@@ -690,7 +694,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
             w_samps_per_frame[fn] = [samps_per_frame[c] for c in datchannel[fn]]
             w_skew[fn] = [skew[c] for c in datchannel[fn]]
             w_channel[fn] = idc
-        
+
     # Wanted dat channels, relative to the dat file itself
     r_w_channel =  {}
     # The channels in the final output array that correspond to the read channels in each dat file
@@ -698,7 +702,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
     for fn in w_channel:
         r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
         out_datchannel[fn] = [channels.index(c) for c in w_channel[fn]]
-    
+
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
     if smooth_frames or sum(samps_per_frame)==n_sig:
@@ -709,24 +713,24 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            signals[:, out_datchannel[fn]] = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
+            signals[:, out_datchannel[fn]] = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]),
                 sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
-    
+
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
     else:
         signals=[None]*len(channels)
 
         for fn in w_file_name:
-            # Get the list of all signals contained in the dat file 
-            datsignals = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]), 
+            # Get the list of all signals contained in the dat file
+            datsignals = rddat(fn, dirname, pb_dir, w_fmt[fn], len(datchannel[fn]),
                 sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
 
             # Copy over the wanted signals
             for cn in range(len(out_datchannel[fn])):
                 signals[out_datchannel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
 
-    return signals 
+    return signals
 
 
 def rddat(file_name, dirname, pb_dir, fmt, n_sig,
@@ -735,7 +739,7 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
     """
     Get samples from a WFDB dat file.
     'sampfrom', 'sampto', and smooth_frames are user desired
-    input fields. All other fields specify the file parameters. 
+    input fields. All other fields specify the file parameters.
 
     Returns all channels
 
@@ -744,14 +748,14 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
     - dirname: The full directory where the dat file is located, if the dat file is local.
     - pb_dir: The physiobank directory where the dat file is located, if the dat file is remote.
     - fmt: The format of the dat file
-    - n_sig: The number of signals contained in the dat file  
+    - n_sig: The number of signals contained in the dat file
     - sig_len : The signal length (per channel) of the dat file
     - byte_offset: The byte offsets of the dat file
     - samps_per_frame: The samples/frame for the signals of the dat file
     - skew: The skew for the signals of the dat file
     - sampfrom: The starting sample number to be read from the signals
     - sampto: The final sample number to be read from the signals
-    - smooth_frames: Whether to smooth channels with multiple samples/frame 
+    - smooth_frames: Whether to smooth channels with multiple samples/frame
     """
 
     # Total number of samples per frame
@@ -766,13 +770,13 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
 
     # Number of bytes to be read from the dat file
     totalreadbytes = requiredbytenum('read', fmt, nreadsamples)
-    
+
     # Total samples to be processed in intermediate step. Includes extra padded samples beyond dat file
     totalprocesssamples = nreadsamples + extraflatsamples
 
     # Total number of bytes to be processed in intermediate step.
     totalprocessbytes = requiredbytenum('read', fmt, totalprocesssamples)
-    
+
     # Get the intermediate bytes or samples to process. Bit of a discrepancy. Recall special formats
     # load uint8 bytes, other formats already load samples.
 
@@ -853,9 +857,9 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
 def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom, sampto):
     """
     Calculate parameters used to read and process the dat file
-    
+
     Output arguments:
-    - startbyte - The starting byte to read the dat file from. Always points to the start of a 
+    - startbyte - The starting byte to read the dat file from. Always points to the start of a
       byte block for special formats.
     - nreadsamples - The number of flat samples to read from the dat file.
     - blockfloorsamples - The extra samples read prior to the first desired sample, for special
@@ -875,7 +879,7 @@ def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom
 
     # First flat sample number to read (if all channels were flattened)
     startflatsample = sampfrom * tsamps_per_frame
-    
+
     #endflatsample = min((sampto + max(skew)-sampfrom), sig_len) * tsamps_per_frame
 
     # Calculate the last flat sample number to read.
@@ -957,10 +961,10 @@ def requiredbytenum(mode, fmt, nsamp):
 def getdatbytes(file_name, dirname, pb_dir, fmt, startbyte, nsamp):
     """
     Read bytes from a dat file, either local or remote, into a numpy array.
-    Slightly misleading function name. Does not return bytes object. 
+    Slightly misleading function name. Does not return bytes object.
     Output argument dtype varies depending on fmt. Non-special fmts are
     read in their final required format. Special format are read as uint8.
-    
+
     Input arguments:
     - nsamp: The total number of samples to read. Does NOT need to create whole blocks
       for special format. Any number of samples should be readable. But see below*.
@@ -1019,7 +1023,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         sig = np.zeros(nsamp, dtype='int16')
 
         # One sample pair is stored in one byte triplet.
-        
+
         # Even numbered samples
         sig[0::2] = sigbytes[0::3] + 256 * np.bitwise_and(sigbytes[1::3], 0x0f)
         # Odd numbered samples (len(sig) always >1 due to processing of whole blocks)
@@ -1060,7 +1064,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
-    
+
     elif fmt == '311':
         # Easier to process when dealing with whole blocks
         if nsamp % 3:
@@ -1080,7 +1084,7 @@ def bytes2samples(sigbytes, nsamp, fmt):
         sig[1::3] = (sigbytes[1::4] >> 2)[0:len(sig[1::3])] + 64 * np.bitwise_and(sigbytes[2::4], 0x0f)[0:len(sig[1::3])]
         # Third sample is 4 msb of third byte and 6 msb of forth byte
         sig[2::3] = (sigbytes[2::4] >> 4)[0:len(sig[2::3])] + 16 * np.bitwise_and(sigbytes[3::4], 0x7f)[0:len(sig[2::3])]
-        
+
         # Remove trailing samples read within the byte block if originally not 3n sampled
         if addedsamps:
             sig = sig[:-addedsamps]
@@ -1100,7 +1104,7 @@ def skewsig(sig, skew, n_sig, readlen, fmt, nanreplace, samps_per_frame=None):
     """
     if max(skew)>0:
 
-        # Expanded frame samples. List of arrays. 
+        # Expanded frame samples. List of arrays.
         if isinstance(sig, list):
             # Shift the channel samples
             for ch in range(n_sig):
@@ -1131,7 +1135,7 @@ def skewsig(sig, skew, n_sig, readlen, fmt, nanreplace, samps_per_frame=None):
 
     return sig
 
-            
+
 # Integrity check of signal shape after reading
 def checksigdims(sig, readlen, n_sig, samps_per_frame):
     if isinstance(sig, np.ndarray):
@@ -1177,15 +1181,15 @@ def digi_bounds(fmt):
         return (-8388608, 8388607)
     elif fmt == '32':
         return (-2147483648, 2147483647)
-    
-# Return nan value for the format type(s). 
+
+# Return nan value for the format type(s).
 def digi_nan(fmt):
     if isinstance(fmt, list):
         diginans = []
         for f in fmt:
             diginans.append(digi_nan(f))
         return diginans
-        
+
     if fmt == '80':
         return -128
     if fmt == '310':
@@ -1206,19 +1210,27 @@ def digi_nan(fmt):
         return -2147483648
 
 
-
-reslevels = np.power(2, np.arange(0,33))
 def est_res(signals):
     """
     def est_res(signals):
 
-    Estimate the resolution of each signal in a multi-channel signal in bits. Maximum of 32 bits.
-    Input arguments:
-    - signals: A 2d numpy array representing a uniform multichannel signal, or a list of 1d numpy arrays
-      representing multiple channels of signals with different numbers of samples per frame.
+    Estimate the resolution of each signal in a multi-channel signal in
+    bits. Maximum of 32 bits.
+
+    Parameters
+    ----------
+    signals : numpy array, or list
+        A 2d numpy array representing a uniform multichannel signal, or
+        a list of 1d numpy arrays representing multiple channels of
+        signals with different numbers of samples per frame.
+
+    Returns
+    -------
+    res : list
+        A list of estimated integer resolutions for each channel
     """
-    
-    # Expanded sample signals. List of numpy arrays                
+    res_levels = np.power(2, np.arange(0,33))
+    # Expanded sample signals. List of numpy arrays
     if isinstance(signals, list):
         n_sig = len(signals)
     # Uniform numpy array
@@ -1228,33 +1240,40 @@ def est_res(signals):
         else:
             n_sig = signals.shape[1]
     res = []
-        
+
     for ch in range(n_sig):
-        # Estimate the number of steps as the range divided by the minimum increment. 
+        # Estimate the number of steps as the range divided by the
+        # minimum increment.
         if isinstance(signals, list):
             sortedsig = np.sort(signals[ch])
         else:
             sortedsig = np.sort(signals[:,ch])
-        
+
         min_inc = min(np.diff(sortedsig))
-        
+
         if min_inc == 0:
-            # Case where signal is flat. Resolution is 0.  
+            # Case where signal is flat. Resolution is 0.
             res.append(0)
         else:
             nlevels = 1 + (sortedsig[-1]-sortedsig[0])/min_inc
-            if nlevels>=reslevels[-1]:
+            if nlevels>=res_levels[-1]:
                 res.append(32)
             else:
-                res.append(np.where(reslevels>=nlevels)[0][0])
-            
+                res.append(np.where(res_levels>=nlevels)[0][0])
+
     return res
 
 
-# Return the most suitable wfdb format(s) to use given signal resolutions.
-# If single_fmt is True, the format for the maximum resolution will be returned.
-def wfdbfmt(res, single_fmt=True):
 
+def wfdbfmt(res, single_fmt=True):
+    """
+    Return the most suitable wfdb format(s) to use given signal
+    resolutions.
+    If single_fmt is True, the format for the maximum resolution will be returned.
+
+    Parameters
+
+    """
     if isinstance(res, list):
         # Return a single format
         if single_fmt:
@@ -1264,7 +1283,7 @@ def wfdbfmt(res, single_fmt=True):
         for r in res:
             fmts.append(wfdbfmt(r))
         return fmts
-    
+
     if res<=8:
         return '80'
     elif res<=12:
@@ -1303,14 +1322,14 @@ def wfdbfmtres(fmt, maxres=False):
 # Given the resolution of a signal, return the minimum
 # dtype to store it
 def npdtype(res, discrete):
-    
+
     if not hasattr(res, '__index__') or res>64:
         raise TypeError('res must be integer based and <=64')
-    
+
     for npres in [8, 16, 32, 64]:
         if res<=npres:
             break
-    
+
     if discrete is True:
         return 'int'+str(npres)
     else:
@@ -1335,7 +1354,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
             for framenum in range(spf):
                 d_signal[:, expand_ch] = e_d_signal[ch][framenum::spf]
                 expand_ch = expand_ch + 1
-    
+
     # This n_sig is used for making list items.
     # Does not necessarily represent number of signals (ie. for expanded=True)
     n_sig = d_signal.shape[1]
@@ -1350,15 +1369,15 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
 
     elif fmt == '212':
 
-        # Each sample is represented by a 12 bit two's complement amplitude. 
-        # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first). 
-        # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample) 
-        # and the next byte (which contains the remaining 8 bits of the second sample). 
-        # The process is repeated for each successive pair of samples. 
+        # Each sample is represented by a 12 bit two's complement amplitude.
+        # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first).
+        # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample)
+        # and the next byte (which contains the remaining 8 bits of the second sample).
+        # The process is repeated for each successive pair of samples.
 
-        # convert to 12 bit two's complement 
+        # convert to 12 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 4096
-        
+
         # Concatenate into 1D
         d_signal = d_signal.reshape(-1)
 
@@ -1366,7 +1385,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         # use this for byte processing
         processnsamp = nsamp
 
-        # Odd numbered number of samples. Fill in extra blank for following byte calculation. 
+        # Odd numbered number of samples. Fill in extra blank for following byte calculation.
         if processnsamp % 2:
             d_signal = np.concatenate([d_signal, np.array([0])])
             processnsamp +=1
@@ -1377,7 +1396,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         # Fill in the byte triplets
 
         # Triplet 1 from lowest 8 bits of sample 1
-        bwrite[0::3] = d_signal[0::2] & 255 
+        bwrite[0::3] = d_signal[0::2] & 255
         # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
         bwrite[1::3] = ((d_signal[0::2] & 3840) >> 8) + ((d_signal[1::2] & 3840) >> 4)
         # Triplet 3 from lowest 8 bits of sample 2
@@ -1388,12 +1407,12 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
             bwrite = bwrite[:-1]
 
     elif fmt == '16':
-        # convert to 16 bit two's complement 
+        # convert to 16 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 65536
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255]*n_sig
         b2 = ( d_signal & [65280]*n_sig ) >> 8
-        # Interweave the bytes so that the same samples' bytes are consecutive 
+        # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         bwrite = np.concatenate((b1, b2), axis=1)
@@ -1401,13 +1420,13 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         # Convert to un_signed 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
     elif fmt == '24':
-        # convert to 24 bit two's complement 
+        # convert to 24 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 16777216
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255]*n_sig
         b2 = ( d_signal & [65280]*n_sig ) >> 8
         b3 = ( d_signal & [16711680]*n_sig ) >> 16
-        # Interweave the bytes so that the same samples' bytes are consecutive 
+        # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         b3 = b3.reshape((-1, 1))
@@ -1415,16 +1434,16 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         bwrite = bwrite.reshape((1,-1))[0]
         # Convert to un_signed 8 bit dtype to write
         bwrite = bwrite.astype('uint8')
-    
+
     elif fmt == '32':
-        # convert to 32 bit two's complement 
+        # convert to 32 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 4294967296
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255]*n_sig
         b2 = ( d_signal & [65280]*n_sig ) >> 8
         b3 = ( d_signal & [16711680]*n_sig ) >> 16
         b4 = ( d_signal & [4278190080]*n_sig ) >> 24
-        # Interweave the bytes so that the same samples' bytes are consecutive 
+        # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         b3 = b3.reshape((-1, 1))
@@ -1435,7 +1454,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         bwrite = bwrite.astype('uint8')
     else:
         raise ValueError('This library currently only supports writing the following formats: 80, 16, 24, 32')
-        
+
     # Byte offset in the file
     if byte_offset is not None and byte_offset>0:
         print('Writing file '+file_name+' with '+str(byte_offset)+' empty leading bytes')
@@ -1449,8 +1468,8 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
 
 def orderedsetlist(fulllist):
     """
-    Returns the unique elements in a list in the order that they appear. 
-    Also returns the indices of the original list that correspond to each output element. 
+    Returns the unique elements in a list in the order that they appear.
+    Also returns the indices of the original list that correspond to each output element.
     """
     uniquelist = []
     original_inds = {}

@@ -38,7 +38,7 @@ class test_processing():
         lb = -5
         ub = 15
 
-        x = processing.normalize(sig[:, 0], lb, ub)
+        x = processing.normalize_bound(sig[:, 0], lb, ub)
         assert x.shape[0] == sig.shape[0]
         assert numpy.min(x) >= lb
         assert numpy.max(x) <= ub
@@ -66,7 +66,7 @@ class test_processing():
                           8216, 8503, 8785, 9070, 9377, 9682]
 
         peaks = processing.gqrs_detect(d_sig=record.d_signal[:,0],
-                                       fs=record.fs, 
+                                       fs=record.fs,
                                        adc_gain=record.adc_gain[0],
                                        adc_zero=record.adc_zero[0],
                                        threshold=1.0)

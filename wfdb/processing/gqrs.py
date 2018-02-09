@@ -531,7 +531,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
         Typical QRS peak-to-peak amplitude, in microvolts.
     QRSamin : int or float, optional
         Minimum QRS peak-to-peak amplitude, in microvolts.
-    
+
     Returns
     -------
     qrs_locs : numpy array
@@ -589,7 +589,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     implementation can be found here:
 
     https://github.com/bemoody/wfdb/issues/17
-    
+
     gqrs will not be supported/developed in this library.
 
     Examples
