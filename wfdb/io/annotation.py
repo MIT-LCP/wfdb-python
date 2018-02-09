@@ -11,13 +11,13 @@ from . import record
 
 class Annotation(object):
     """
-    The class representing WFDB annotations. 
+    The class representing WFDB annotations.
 
     Annotation objects can be created using the initializer, or by reading a
     WFDB annotation file with `rdann`.
 
     The attributes of the Annotation object give information about the
-    annotation as specified by: 
+    annotation as specified by:
     https://www.physionet.org/physiotools/wag/annot-5.htm
 
     Call `show_ann_labels()` to see the list of standard annotation codes. Any
@@ -31,10 +31,11 @@ class Annotation(object):
                                aux_note=[None, None, 'Serious Vfib'])
 
     """
-    
-    def __init__(self, record_name, extension, sample, symbol=None, subtype=None,
-                 chan=None, num=None, aux_note=None, fs=None, label_store=None,
-                 description=None, custom_labels=None, contained_labels=None):
+
+    def __init__(self, record_name, extension, sample, symbol=None,
+                 subtype=None, chan=None, num=None, aux_note=None, fs=None,
+                 label_store=None, description=None, custom_labels=None,
+                 contained_labels=None):
         """
         Parameters
         ----------
@@ -45,7 +46,7 @@ class Annotation(object):
             The file extension of the file the annotation is stored in.
         sample : numpy array
             A numpy array containing the annotation locations in samples relative to
-            the beginning of the record. 
+            the beginning of the record.
         symbol : list, or numpy array, optional
             The symbols used to display the annotation labels. List or numpy array.
             If this field is present, `label_store` must not be present.
@@ -72,7 +73,7 @@ class Annotation(object):
             pandas DataFrame with three columns:
             ['label_store', 'symbol', 'description']
         contained_labels : pandas dataframe, optional
-            The unique labels contained in this annotation. Same structure as 
+            The unique labels contained in this annotation. Same structure as
             `custom_labels`.
 
         """
@@ -93,6 +94,8 @@ class Annotation(object):
 
         self.custom_labels = custom_labels
         self.contained_labels = contained_labels
+
+        self.ann_len = len(self.sample)
 
         #__label_map__: (storevalue, symbol, description) hidden attribute
 
@@ -128,11 +131,29 @@ class Annotation(object):
 
         return True
 
-    # Write an annotation file
+    def apply_range(self, sampfrom=0, sampto=None):
+        """
+        Filter the annotation attributes to keep only items between the
+        desired sample values
+
+        """
+        sampto = sampto or self.sample[-1]
+
+        kept_inds = np.intersect1d(np.where(self.sample>=sampfrom),
+                                   np.where(self.sample<=sampto))
+
+
+        for field in ['sample', 'label_store', 'subtype', 'chan', 'num']:
+            setattr(self, field, getattr(self, field)[kept_inds])
+
+        self.aux_note = [self.aux_note[i] for i in kept_inds]
+
+        self.ann_len = len(self.sample)
+
     def wrann(self, write_fs=False):
         """
-        Instance method to write a WFDB annotation file from an Annotation object.
-        
+        Write a WFDB annotation file.
+
         Parameters
         ----------
         write_fs : bool, optional
@@ -158,16 +179,17 @@ class Annotation(object):
 
         # Check the cohesion of fields
         self.check_field_cohesion(present_label_fields)
-        
+
         # Calculate the label_store field if necessary
         if 'label_store' not in present_label_fields:
-            self.convert_label_attribute(source_field=present_label_fields[0], target_field='label_store')
+            self.convert_label_attribute(source_field=present_label_fields[0],
+                                         target_field='label_store')
 
         # Write the header file using the specified fields
         self.wrannfile(write_fs=write_fs)
 
         return
-    
+
     def get_label_fields(self):
         """
         Get the present label fields in the object
@@ -263,7 +285,7 @@ class Annotation(object):
                 if label_store:
                     if not hasattr(label_store[i], '__index__'):
                         raise TypeError('The label_store values of the '+field+' field must be integer-like')
-                
+
                 if not isinstance(symbol[i], strtypes) or len(symbol[i]) not in [1,2,3]:
                     raise ValueError('The symbol values of the '+field+' field must be strings of length 1 to 3')
 
@@ -284,7 +306,7 @@ class Annotation(object):
             for e in uniq_elements:
                 if not isinstance(e, strtypes):
                     raise TypeError('Subelements of the '+field+' field must be strings')
-            
+
             if field == 'symbol':
                 for e in uniq_elements:
                     if len(e) not in [1,2,3]:
@@ -295,7 +317,7 @@ class Annotation(object):
                 for e in uniq_elements:
                     if bool(re.search('[\t\n\r\f\v]', e)):
                         raise ValueError('Subelements of the '+field+' field must not contain tabs or newlines')
-        
+
         elif field == 'sample':
             if len(self.sample) == 1:
                 sampdiffs = np.array([self.sample[0]])
@@ -309,12 +331,12 @@ class Annotation(object):
                 raise ValueError("The 'sample' field must contain monotonically increasing sample numbers")
             if max(sampdiffs) > 2147483648:
                 raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
-        
+
         elif field == 'label_store':
             if min(item) < 1 or max(item) > 49:
                 raise ValueError('The label_store values must be between 1 and 49')
 
-        # The C WFDB library stores num/sub/chan as chars. 
+        # The C WFDB library stores num/sub/chan as chars.
         elif field == 'subtype':
             # signed character
             if min(self.subtype) < 0 or max(self.subtype) >127:
@@ -345,7 +367,7 @@ class Annotation(object):
                     raise ValueError("The lengths of the 'sample' and '"+field+"' fields do not match")
 
         # Ensure all label fields are defined by the label map. This has to be checked because
-        # it is possible the user defined (or lack of) custom_labels does not capture all the 
+        # it is possible the user defined (or lack of) custom_labels does not capture all the
         # labels present.
         for field in present_label_fields:
             defined_values = self.__label_map__[field].values
@@ -376,11 +398,11 @@ class Annotation(object):
            label map.
         2. The unused label store values. This is extracted by finding the
            set of all labels contained in this annotation object and seeing
-           which symbols/descriptions are not used. 
+           which symbols/descriptions are not used.
 
         If there are more custom labels defined than there are enough spaces,
         even in condition 2 from above, this function will raise an error.
-        
+
         This function must work when called as a standalone.
         """
         custom_labels = self.custom_labels
@@ -405,7 +427,7 @@ class Annotation(object):
         # Assign label_store values to the custom labels if not defined
         if 'label_store' not in list(custom_labels):
             undefined_label_stores = self.get_undefined_label_stores()
-            
+
             if len(custom_labels) > len(undefined_label_stores):
                 available_label_stores = self.get_available_label_stores()
             else:
@@ -424,7 +446,7 @@ class Annotation(object):
         self.custom_labels = custom_labels
 
         return
-        
+
     def get_undefined_label_stores(self):
         """
         Get the label_store values not defined in the
@@ -444,7 +466,7 @@ class Annotation(object):
           annotation object.
         - the store values whose standard wfdb symbols/descriptions
           match those of the custom labels (if custom_labels exists)
-        
+
         If 'usefield' is explicitly specified, the function will use that
         field to figure out available label stores. If 'usefield'
         is set to 'tryall', the function will choose one of the contained
@@ -452,7 +474,7 @@ class Annotation(object):
         """
 
 
-        # Figure out which field to use to get available labels stores. 
+        # Figure out which field to use to get available labels stores.
         if usefield == 'tryall':
             if self.label_store is not None:
                 usefield = 'label_store'
@@ -479,7 +501,7 @@ class Annotation(object):
                 unused_field = set(ann_label_table[usefield].values) - contained_field
                 unused_label_stores = ann_label_table.loc[ann_label_table[usefield] in unused_field, 'label_store'].values
 
-            # Get the standard wfdb label_store values overwritten by the 
+            # Get the standard wfdb label_store values overwritten by the
             # custom_labels if any
             if self.custom_symbols is not None:
                 custom_field = set(self.get_custom_label_attribute(usefield))
@@ -496,7 +518,7 @@ class Annotation(object):
             undefined_label_stores = self.get_undefined_label_stores()
             # Final available label stores = undefined + unused + overwritten
             available_label_stores = set(undefined_label_stores).union(set(unused_label_stores)).union(overwritten_label_stores)
-            
+
             return available_label_stores
 
 
@@ -514,12 +536,12 @@ class Annotation(object):
 
         if isinstance(self.custom_labels, pd.DataFrame):
             if 'label_store' not in list(self.custom_labels):
-                raise ValueError('label_store not defined in custom_labels')  
+                raise ValueError('label_store not defined in custom_labels')
             a = list(self.custom_labels[attribute].values)
         else:
             if len(self.custom_labels[0]) == 2:
                 if attribute == 'label_store':
-                    raise ValueError('label_store not defined in custom_labels')   
+                    raise ValueError('label_store not defined in custom_labels')
                 elif attribute == 'symbol':
                     a = [l[0] for l in self.custom_labels]
                 elif attribute == 'description':
@@ -549,7 +571,7 @@ class Annotation(object):
             self.standardize_custom_labels()
             for i in self.custom_labels.index:
                 label_map.loc[i] = self.custom_labels.loc[i]
-        
+
         if inplace:
             self.__label_map__ = label_map
         else:
@@ -582,7 +604,7 @@ class Annotation(object):
         with open(self.record_name+'.'+self.extension, 'wb') as f:
             # Combine all bytes to write: fs (if any), custom annotations (if any), main content, file terminator
             np.concatenate((fs_bytes, cl_bytes, end_special_bytes, core_bytes, np.array([0,0]))).astype('u1').tofile(f)
-        
+
         return
 
     # Calculate the bytes written to the annotation file for the fs field
@@ -713,7 +735,7 @@ class Annotation(object):
                     self.subtype = list(self.subtype)
                     for i in zero_inds:
                         self.subtype[i] = None
-            
+
         # Empty aux_note strings are not written
         if self.aux_note is not None:
             for i in range(nannots):
@@ -722,9 +744,9 @@ class Annotation(object):
             if np.array_equal(self.aux_note, [None]*nannots):
                 self.aux_note = None
 
-        
+
     def sym_to_aux(self):
-        # Move non-encoded symbol elements into the aux_note field 
+        # Move non-encoded symbol elements into the aux_note field
         self.check_field('symbol')
 
         # Non-encoded symbols
@@ -778,7 +800,8 @@ class Annotation(object):
             custom_labels = label_triplets_to_df(self.custom_labels)
         elif isinstance(self.custom_labels, pd.DataFrame):
             # Set the index just in case it doesn't already match the label_store
-            self.custom_labels.set_index(self.custom_labels['label_store'].values, inplace=True)
+            self.custom_labels.set_index(
+                self.custom_labels['label_store'].values, inplace=True)
             custom_labels = self.custom_labels
         else:
             custom_labels = None
@@ -809,7 +832,8 @@ class Annotation(object):
         contained_labels = label_map.loc[index_vals, :]
 
         if reset_index:
-            contained_labels.set_index(contained_labels['label_store'].values, inplace=True)
+            contained_labels.set_index(contained_labels['label_store'].values,
+                                       inplace=True)
 
         if inplace:
             self.contained_labels = contained_labels
@@ -836,7 +860,8 @@ class Annotation(object):
         for e in missing_elements:
             self.convert_label_attribute(contained_elements[0], e)
 
-        unwanted_label_elements = list(set(ann_label_fields) - set(wanted_label_elements))
+        unwanted_label_elements = list(set(ann_label_fields)
+                                       - set(wanted_label_elements))
 
         self.rm_attributes(unwanted_label_elements)
 
@@ -849,7 +874,8 @@ class Annotation(object):
             setattr(self, a, None)
         return
 
-    def convert_label_attribute(self, source_field, target_field, inplace=True, overwrite=True):
+    def convert_label_attribute(self, source_field, target_field, inplace=True,
+                                overwrite=True):
         """
         Convert one label attribute (label_store, symbol, or description) to another.
         Input arguments:
@@ -857,7 +883,7 @@ class Annotation(object):
         - overwrite - if True, performs conversion and replaces target field attribute even if the
           target attribute already has a value. If False, does not perform conversion in the aforementioned case.
           Set to True (do conversion) if inplace=False.
-        
+
         Creates mapping df on the fly based on ann_label_table and self.custom_labels
         """
         if inplace and not overwrite:
@@ -883,12 +909,13 @@ def label_triplets_to_df(triplets):
     """
     Get a pd dataframe from a tuple triplets
     used to define annotation labels.
-    
+
     The triplets should come in the
     form: (label_store, symbol, description)
     """
 
-    label_df = pd.DataFrame({'label_store':np.array([t[0] for t in triplets], dtype='int'),
+    label_df = pd.DataFrame({'label_store':np.array([t[0] for t in triplets],
+                                                    dtype='int'),
                              'symbol':[t[1] for t in triplets],
                              'description':[t[2] for t in triplets]})
 
@@ -906,7 +933,7 @@ def custom_triplet_bytes(custom_triplet):
     # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space, description, (0 null if necessary)
     # Remember, aux_note string includes 'number(s)<space><symbol><space><description>''
     annbytes = [0, 88, len(custom_triplet[2]) + 3 + len(str(custom_triplet[0])), 252] + [ord(c) for c in str(custom_triplet[0])] \
-               + [32] + [ord(custom_triplet[1])] + [32] + [ord(c) for c in custom_triplet[2]] 
+               + [32] + [ord(custom_triplet[1])] + [32] + [ord(c) for c in custom_triplet[2]]
 
     if len(annbytes) % 2:
         annbytes.append(0)
@@ -1002,36 +1029,39 @@ def field2bytes(field, value):
         # - First byte stores length of aux_note field
         # - Second byte stores 63*4 indicator
         # - Then store the aux_note string characters
-        data_bytes = [len(value), 252] + [ord(i) for i in value]    
+        data_bytes = [len(value), 252] + [ord(i) for i in value]
         # Zero pad odd length aux_note strings
-        if len(value) % 2: 
+        if len(value) % 2:
             data_bytes.append(0)
 
     return data_bytes
 
 
-def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, num=None,
-          aux_note=None, label_store=None, fs=None, custom_labels=None):
+def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
+          num=None, aux_note=None, label_store=None, fs=None,
+          custom_labels=None):
     """
     Write a WFDB annotation file.
 
     Specify at least the following:
     - The record name of the WFDB record (record_name)
     - The annotation file extension (extension)
-    - The annotation locations in samples relative to the beginning of the record (sample)
-    - Either the numerical values used to store the labels (`label_store`), or
-      more commonly, the display symbols of each label (`symbol`).
+    - The annotation locations in samples relative to the beginning of
+      the record (sample)
+    - Either the numerical values used to store the labels
+      (`label_store`), or more commonly, the display symbols of each
+      label (`symbol`).
 
     Parameters
     ----------
     record_name : str
         The string name of the WFDB record to be written (without any file
-        extensions). 
+        extensions).
     extension : str
         The string annotation file extension.
     sample : numpy array
         A numpy array containing the annotation locations in samples relative to
-        the beginning of the record. 
+        the beginning of the record.
     symbol : list, or numpy array, optional
         The symbols used to display the annotation labels. List or numpy array.
         If this field is present, `label_store` must not be present.
@@ -1055,7 +1085,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, 
     custom_labels : pandas dataframe, optional
         The map of custom defined annotation labels used for this annotation, in
         addition to the standard WFDB annotation labels. Custom labels are
-        defined by two or three fields: 
+        defined by two or three fields:
         - The integer values used to store custom annotation labels in the file
           (optional)
         - Their short display symbols
@@ -1071,7 +1101,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, 
         4. A list or tuple of tuple pairs, with pair elements representing:
            (symbol, description). If this option is chosen, label_store values
            are automatically chosen.
-        
+
         If the `label_store` field is given for this function, and
         `custom_labels` is defined, `custom_labels` must contain `label_store`
         in its mapping. ie. it must come in format 1 or 3 above.
@@ -1081,11 +1111,11 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, 
     This is a gateway function, written as a simple way to write WFDB annotation
     files without needing to explicity create an Annotation object. You may also
     create an Annotation object, manually set its attributes, and call its
-    `wrann` instance method. 
-          
+    `wrann` instance method.
+
     Each annotation stored in a WFDB annotation file contains a sample field and
     a label field. All other fields may or may not be present.
-    
+
     Examples
     --------
     >>> # Read an annotation as an Annotation object
@@ -1119,7 +1149,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None, 
 def show_ann_labels():
     """
     Display the standard wfdb annotation label mapping.
-    
+
     Examples
     --------
     >>> show_ann_labels()
@@ -1134,16 +1164,15 @@ def show_ann_classes():
 
     Usage:
     >>> show_ann_classes()
-    
+
     """
     print(ann_class_table)
 
 
-## ------------- Reading Annotations ------------- ##
-
 # todo: return as df option?
 def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
-          pb_dir=None, return_label_elements=['symbol'], summarize_labels=False):
+          pb_dir=None, return_label_elements=['symbol'],
+          summarize_labels=False):
     """
     Read a WFDB annotation file record_name.extension and return an
     Annotation object.
@@ -1164,7 +1193,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
     pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database 
+        Option used to stream data from Physiobank. The Physiobank database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/physiobank/database/mitdb':
         pb_dir='mitdb'.
@@ -1227,11 +1256,8 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
     (sample, label_store, subtype,
      chan, num) = lists_to_int_arrays(sample, label_store, subtype, chan, num)
 
-    # Obtain annotation sample relative to the starting signal index
-    if shift_samps and len(sample) > 0 and sampfrom:
-        sample = sample - sampfrom
-
-    # Try to get fs from the header file if it is not contained in the annotation file
+    # Try to get fs from the header file if it is not contained in the
+    # annotation file
     if fs is None:
         try:
             rec = record.rdheader(record_name, pb_dir)
@@ -1246,7 +1272,17 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
                             chan=chan, num=num, aux_note=aux_note, fs=fs,
                             custom_labels=custom_labels)
 
-    # Get the set of unique label definitions contained in this annotation
+    # Apply the desired index range
+    if sampfrom > 0 and sampto is not None:
+        annotation.apply_range(sampfrom=sampfrom, sampto=sampto)
+
+    # If specified, obtain annotation samples relative to the starting
+    # index
+    if shift_samps and len(sample) > 0 and sampfrom:
+        annotation.sample = annotation.sample - sampfrom
+
+    # Get the set of unique label definitions contained in this
+    # annotation
     if summarize_labels:
         annotation.get_contained_labels(inplace=True)
 
@@ -1318,7 +1354,7 @@ def proc_ann_bytes(filebytes, sampto):
         current_label_store = filebytes[bpi, 1] >> 2
 
         while (current_label_store > 59):
-            subtype, chan, num, aux_note, update, bpi = proc_extra_field(current_label_store, filebytes, 
+            subtype, chan, num, aux_note, update, bpi = proc_extra_field(current_label_store, filebytes,
                                                                          bpi, subtype, chan, num,
                                                                          aux_note, update)
 
@@ -1335,12 +1371,12 @@ def proc_ann_bytes(filebytes, sampto):
 
 # Get the sample difference and store fields of the current annotation
 def proc_core_fields(filebytes, bpi):
-    
+
     label_store = filebytes[bpi, 1] >> 2
 
     # The current byte pair will contain either the actual d_sample + annotation store value,
     # or 0 + SKIP.
-    
+
     # Not a skip - it is the actual sample number + annotation type store value
     if label_store != 59:
         sample_diff = filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
@@ -1415,7 +1451,7 @@ def update_extra_fields(subtype, chan, num, aux_note, update):
     - aux_note and sub are set to default values if missing.
     - chan and num copy over previous value if missing.
     """
-    
+
     if update['subtype']:
         subtype.append(0)
 
@@ -1445,7 +1481,7 @@ def get_special_inds(sample, label_store, aux_note):
     Get the indices of annotations that hold definition information about
     the entire annotation file, and other empty annotations to be removed.
 
-    Note: There is no need to deal with SKIP annotations (label_store=59) 
+    Note: There is no need to deal with SKIP annotations (label_store=59)
           which were already dealt with in proc_core_fields and hence not
           included here.
     """
@@ -1468,7 +1504,7 @@ def get_special_inds(sample, label_store, aux_note):
 def interpret_defintion_annotations(potential_definition_inds, aux_note):
     """
     Try to extract annotation definition information from annotation notes.
-    Information that may be contained: 
+    Information that may be contained:
     - fs - sample=0, label_state=22, aux_note='## time resolution: XXX'
     - custom annotation label definitions
     """
@@ -1570,7 +1606,7 @@ ann_classes = [
 
     AnnotationClass('qrsc', 'Human reviewed qrs detections', True),
     AnnotationClass('qrs', 'Machine QRS detections', False),
-    
+
     AnnotationClass('bph', 'Human reviewed BP beat detections', True),
     AnnotationClass('bpm', 'Machine BP beat detections', False),
 
@@ -1584,7 +1620,7 @@ ann_classes = [
 ]
 
 ann_class_table = pd.DataFrame({'extension':[ac.extension for ac in ann_classes], 'description':[ac.description for ac in ann_classes],
-                                 'human_reviewed':[ac.human_reviewed for ac in ann_classes]}) 
+                                 'human_reviewed':[ac.human_reviewed for ac in ann_classes]})
 ann_class_table.set_index(ann_class_table['extension'].values, inplace=True)
 ann_class_table = ann_class_table[['extension', 'description', 'human_reviewed']]
 
@@ -1653,7 +1689,7 @@ ann_labels = [
 ]
 
 
-ann_label_table = pd.DataFrame({'label_store':np.array([al.label_store for al in ann_labels], dtype='int'), 'symbol':[al.symbol for al in ann_labels], 
+ann_label_table = pd.DataFrame({'label_store':np.array([al.label_store for al in ann_labels], dtype='int'), 'symbol':[al.symbol for al in ann_labels],
                                'description':[al.description for al in ann_labels]})
 ann_label_table.set_index(ann_label_table['label_store'].values, inplace=True)
 ann_label_table = ann_label_table[['label_store','symbol','description']]
