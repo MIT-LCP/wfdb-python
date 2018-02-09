@@ -44,8 +44,8 @@ class BaseRecord(object):
         # Check that the field is present
         if getattr(self, field) is None:
             raise Exception("Missing field required: "+field)
-           
-        # Check the type of the field (and of its elements if it should be a list) 
+
+        # Check the type of the field (and of its elements if it should be a list)
         self.check_field_type(field, channels)
 
         # Expand to make sure all channels must have present field
@@ -79,7 +79,7 @@ class BaseRecord(object):
                 if self.e_p_signal.ndim != 1:
                     raise TypeError("e_p_signal must be a list of 1d numpy arrays")
 
-        #elif field == 'segments': # Nothing to check here. 
+        #elif field == 'segments': # Nothing to check here.
         # Record specification fields
         elif field == 'record_name':
             # Allow letters, digits, hyphens, and underscores.
@@ -100,7 +100,7 @@ class BaseRecord(object):
                 raise ValueError('counter_freq must be a positive number')
         elif field == 'base_counter':
             if self.base_counter <=0:
-                raise ValueError('base_counter must be a positive number') 
+                raise ValueError('base_counter must be a positive number')
         elif field == 'sig_len':
             if self.sig_len <0:
                 raise ValueError('sig_len must be a non-negative integer')
@@ -125,12 +125,12 @@ class BaseRecord(object):
                     accepted_string = re.match('[-\w]+\.?[\w]+',f)
                     if not accepted_string or accepted_string.string != f:
                         raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record_100.dat')
-                    # Check that dat files are grouped together 
+                    # Check that dat files are grouped together
                     if orderedsetlist(self.file_name)[0] != orderednoconseclist(self.file_name):
                         raise ValueError('file_name error: all entries for signals that share a given file must be consecutive')
                 elif field == 'fmt':
                     if f not in _signal.dat_fmts:
-                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signal.dat_fmts))    
+                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signal.dat_fmts))
                 elif field == 'samps_per_frame':
                     if f < 1:
                         raise ValueError('samps_per_frame values must be positive integers')
@@ -363,7 +363,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.p_signal = p_signal
         self.d_signal = d_signal
         self.e_p_signal = e_p_signal
-        self.e_d_signal = e_d_signal       
+        self.e_d_signal = e_d_signal
 
         self.file_name = file_name
         self.fmt = fmt
@@ -405,21 +405,31 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         return True
 
 
-    def wrsamp(self, expanded=False):
+    def wrsamp(self, expanded=False, write_dir=''):
         """
         Write a wfdb header file and associated dat files if any.
-        Uses d_signal (expanded=False) or e_d_signal to write the samples
+
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to write the expanded signal (e_d_signal) instead
+            of the uniform signal (d_signal).
+        write_dir : str, optional
+            The directory in which to write the files.
+
         """
-        # Perform field validity and cohesion checks, and write the header file.
-        self.wrheader()
+        # Perform field validity and cohesion checks, and write the
+        # header file.
+        self.wrheader(write_dir=write_dir)
         if self.n_sig>0:
-            # Perform signal validity and cohesion checks, and write the associated dat files.
-            self.wr_dats(expanded)
+            # Perform signal validity and cohesion checks, and write the
+            # associated dat files.
+            self.wr_dats(expanded=expanded, write_dir=write_dir)
 
 
-    # Arrange/edit object fields to reflect user channel and/or signal range input
-    # Account for case when signals are expanded
     def arrange_fields(self, channels, expanded=False):
+        # Arrange/edit object fields to reflect user channel and/or signal range input
+        # Account for case when signals are expanded
 
         # Rearrange signal specification fields
         for field in _header.sig_field_specs:
@@ -482,7 +492,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                                     seg_len=[800, 200, 900])
     >>> # Get a MultiRecord object
     >>> record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
-    >>> # Turn it into a 
+    >>> # Turn it into a
     >>> record_s = record_s.multi_to_single()
 
     record_s initially stores a `MultiRecord` object, and is then converted into
@@ -508,12 +518,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.sig_segments = sig_segments
 
     # Write a multi-segment header, along with headers and dat files for all segments
-    def wrsamp(self):
+    def wrsamp(self, write_dir=''):
         # Perform field validity and cohesion checks, and write the header file.
-        self.wrheader()
+        self.wrheader(write_dir=write_dir)
         # Perform record validity and cohesion checks, and write the associated segments.
         for seg in self.segments:
-            seg.wrsamp()
+            seg.wrsamp(write_dir=write_dir)
 
 
     # Check the cohesion of the segments field with other fields used to write the record
@@ -759,7 +769,7 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
         directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
         pb_dir='mitdb'.
-    
+
     rd_segments : bool, optional
         Used when reading multi-segment headers. If True, segment headers will
         also be read (into the record object's `segments` field).
@@ -895,13 +905,13 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         16, and 8, where the value represents the numpy int or float dtype.
         Note that the value cannot be 8 when physical is True since there is no
         float8 format.
-    
+
     Returns
     -------
     record : Record or MultiRecord
         The wfdb Record or MultiRecord object representing the contents of the
         record read.
-    
+
     Notes
     -----
     If a signal range or channel selection is specified when calling this
@@ -945,14 +955,14 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
             record.d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
                                                   record.byte_offset, record.samps_per_frame, record.skew,
                                                   sampfrom, sampto, channels, smooth_frames, ignore_skew)
-            
+
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrange_fields(channels, expanded=False)
 
             if physical:
                 # Perform inplace dac to get physical signal
                 record.dac(expanded=False, return_res=return_res, inplace=True)
-                
+
         # Return each sample of the signals with multiple samples per frame
         else:
             record.e_d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
@@ -965,7 +975,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
             if physical is True:
                 # Perform dac to get physical signal
                 record.dac(expanded=True, return_res=return_res, inplace=True)
-                
+
     # A multi segment record
     else:
         # Strategy:
@@ -1111,8 +1121,8 @@ def wanted_siginds(wanted_sig_names, record_sig_names):
 
 
 def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
-    fmt=None, gain=None, baseline=None, comments=None, base_time=None,
-    base_date=None):
+    fmt=None, adc_gain=None, baseline=None, comments=None, base_time=None,
+    base_date=None, write_dir=''):
     """
     Write a single segment WFDB record, creating a WFDB header file and any
     associated dat files.
@@ -1126,9 +1136,9 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         The sampling frequency of the record.
     units : list
         A list of strings giving the units of each signal channel.
-    sig_name : 
+    sig_name :
         A list of strings giving the signal name of each signal channel.
-    p_signal : numpy array, optional 
+    p_signal : numpy array, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         physical signal values intended to be written. Either p_signal or
         d_signal must be set, but not both. If p_signal is set, this method will
@@ -1136,7 +1146,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         digital values to the dat file(s). If fmt is set, gain and baseline must
         be set or unset together. If fmt is unset, gain and baseline must both
         be unset.
-    d_signal : numpy array, optional 
+    d_signal : numpy array, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         digital signal values intended to be directly written to the dat
         file(s). The dtype must be an integer type. Either p_signal or d_signal
@@ -1148,8 +1158,8 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         other WFDB formats as specified by:
         https://www.physionet.org/physiotools/wag/signal-5.htm
         but this library will not write (though it will read) those file types.
-    gain : list, optional
-        A list of integers specifying the ADC gain.
+    adc_gain : list, optional
+        A list of numbers specifying the ADC gain.
     baseline : list, optional
         A list of integers specifying the digital baseline.
     comments : list, optional
@@ -1158,6 +1168,8 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
     base_date : str, optional
         A string of the record's start date in 'DD/MM/YYYY' format.
+    write_dir : str, optional
+        The directory in which to write the files.
 
     Notes
     -----
@@ -1178,38 +1190,40 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
                     sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
-    
+
     """
 
     # Check input field combinations
     if p_signal is not None and d_signal is not None:
         raise Exception('Must only give one of the inputs: p_signal or d_signal')
     if d_signal is not None:
-        if fmt is None or gain is None or baseline is None:
+        if fmt is None or adc_gain is None or baseline is None:
             raise Exception("When using d_signal, must also specify 'fmt', 'gain', and 'baseline' fields.")
     # Depending on whether d_signal or p_signal was used, set other required features.
     if p_signal is not None:
         # Create the Record object
         record = Record(record_name=record_name, p_signal=p_signal, fs=fs,
-            fmt=fmt, units=units, sig_name=sig_name, adc_gain = gain,
-            baseline=baseline, comments=comments, base_time=base_time,
-            base_date=base_date)
+                        fmt=fmt, units=units, sig_name=sig_name,
+                        adc_gain=adc_gain, baseline=baseline,
+                        comments=comments, base_time=base_time,
+                        base_date=base_date)
         # Compute optimal fields to store the digital signal, carry out adc,
         # and set the fields.
         record.set_d_features(do_adc=1)
     else:
         # Create the Record object
         record = Record(record_name=record_name, d_signal=d_signal, fs=fs,
-            fmt=fmt, units=units, sig_name = sig_name, adc_gain = gain,
-            baseline=baseline, comments=comments, base_time=base_time,
-            base_date=base_date)
+                        fmt=fmt, units=units, sig_name=sig_name,
+                        adc_gain=adc_gain, baseline=baseline,
+                        comments=comments, base_time=base_time,
+                        base_date=base_date)
         # Use d_signal to set the fields directly
         record.set_d_features()
 
     # Set default values of any missing field dependencies
     record.set_defaults()
     # Write the record files - header and associated dat
-    record.wrsamp()
+    record.wrsamp(write_dir=write_dir)
 
 
 # Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format.
@@ -1223,7 +1237,7 @@ def parse_timestring(timestring):
 
     if not hours or not minutes or not seconds:
         raise ValueError("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
-        
+
     hours = int(hours)
     minutes = int(minutes)
     seconds = float(seconds)
@@ -1233,9 +1247,9 @@ def parse_timestring(timestring):
     elif hours<0:
         raise ValueError('hours must be positive')
     if minutes>59:
-        raise ValueError('minutes must be < 60') 
+        raise ValueError('minutes must be < 60')
     elif minutes<0:
-        raise ValueError('minutes must be positive')  
+        raise ValueError('minutes must be positive')
     if seconds>59:
         raise ValueError('seconds must be < 60')
     elif seconds<0:
@@ -1262,7 +1276,7 @@ def parse_datestring(datestring):
         raise ValueError('month must be between 1 and 12')
     if day not in range(1, monthrange(year, month)[1]+1):
         raise ValueError('day does not exist for specified year and month')
-    
+
     return (day, month, year)
 
 # Returns the unique elements in a list in the order that they appear.
@@ -1293,45 +1307,47 @@ def orderednoconseclist(fulllist):
     return noconseclist
 
 
-def dl_database(db, dl_dir, records='all', annotators='all' , keep_subdirs=True,
+def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
                 overwrite = False):
     """
-    Download WFDB record (and optionally annotation) files from a Physiobank
-    database. The database must contain a 'RECORDS' file in its base directory
-    which lists its WFDB records.
+    Download WFDB record (and optionally annotation) files from a
+    Physiobank database. The database must contain a 'RECORDS' file in
+    its base directory which lists its WFDB records.
 
     Parameters
     ----------
-    db : str 
+    db : str
         The Physiobank database directory to download. eg. For database:
         'http://physionet.org/physiobank/database/mitdb', db='mitdb'.
     dl_dir : str
         The full local directory path in which to download the files.
     records : list, or 'all', optional
-        A list of strings specifying the WFDB records to download. Leave as
-        'all' to download all records listed in the database's RECORDS file.
+        A list of strings specifying the WFDB records to download. Leave
+        as 'all' to download all records listed in the database's
+        RECORDS file.
         eg. records=['test01_00s', test02_45s] for database:
         https://physionet.org/physiobank/database/macecgdb/
     annotators : list, 'all', or None, optional
-        A list of strings specifying the WFDB annotation file types to download
-        along with the record files. Is either None to skip downloading any
-        annotations, 'all' to download all annotation types as specified by the
-        ANNOTATORS file, or a list of strings which each specify an annotation
-        extension.
+        A list of strings specifying the WFDB annotation file types to
+        download along with the record files. Is either None to skip
+        downloading any annotations, 'all' to download all annotation
+        types as specified by the ANNOTATORS file, or a list of strings
+        which each specify an annotation extension.
         eg. annotators = ['anI'] for database:
         https://physionet.org/physiobank/database/prcp/
     keep_subdirs : bool, optional
-        Whether to keep the relative subdirectories of downloaded files as they
-        are organized in Physiobank (True), or to download all files into the
-        same base directory (False).
+        Whether to keep the relative subdirectories of downloaded files
+        as they are organized in Physiobank (True), or to download all
+        files into the same base directory (False).
     overwrite : bool, optional
-        If True, all files will be redownloaded regardless. If False, existing
-        files with the same name and relative subdirectory will be checked.
-        If the local file is the same size as the online file, the download is
-        skipped. If the local file is larger, it will be deleted and the file
-        will be redownloaded. If the local file is smaller, the file will be
-        assumed to be partially downloaded and the remaining bytes will be
-        downloaded and appended.
+        If True, all files will be redownloaded regardless. If False,
+        existing files with the same name and relative subdirectory will
+        be checked. If the local file is the same size as the online
+        file, the download is skipped. If the local file is larger, it
+        will be deleted and the file will be redownloaded. If the local
+        file is smaller, the file will be assumed to be partially
+        downloaded and the remaining bytes will be downloaded and
+        appended.
 
     Examples
     --------
@@ -1429,7 +1445,7 @@ class SignalClass(object):
         self.description = description
         # names that are assigned to this signal type
         self.signalnames = signalnames
-    
+
     def __str__(self):
         return self.abbreviation
 

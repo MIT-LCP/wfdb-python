@@ -15,7 +15,7 @@ class SignalMixin(object):
     Mixin class with signal methods. Inherited by Record class.
     """
 
-    def wr_dats(self, expanded):
+    def wr_dats(self, expanded, write_dir):
         # Write all dat files associated with a record
         # expanded=True to use e_d_signal instead of d_signal
 
@@ -39,7 +39,7 @@ class SignalMixin(object):
         self.check_sig_cohesion(write_fields, expanded)
 
         # Write each of the specified dat files
-        self.wr_dat_files(expanded)
+        self.wr_dat_files(expanded=expanded, write_dir=write_dir)
 
 
 
@@ -561,7 +561,7 @@ class SignalMixin(object):
         return cs
 
     # Write each of the specified dat files
-    def wr_dat_files(self, expanded=False):
+    def wr_dat_files(self, expanded=False, write_dir=''):
 
         # Get the set of dat files to be written, and
         # the channels to be written to each file.
@@ -582,12 +582,16 @@ class SignalMixin(object):
         # Write the dat files
         if expanded:
             for fn in file_names:
-                wr_dat_file(fn, datfmts[fn], None , datoffsets[fn], True, [self.e_d_signal[ch] for ch in datchannels[fn]], self.samps_per_frame)
+                wr_dat_file(fn, datfmts[fn], None , datoffsets[fn], True,
+                            [self.e_d_signal[ch] for ch in datchannels[fn]],
+                            self.samps_per_frame, write_dir=write_dir)
         else:
             # Create a copy to prevent overwrite
             dsig = self.d_signal.copy()
             for fn in file_names:
-                wr_dat_file(fn, datfmts[fn], dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1], datoffsets[fn])
+                wr_dat_file(fn, datfmts[fn],
+                            dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1],
+                            datoffsets[fn], write_dir=write_dir)
 
 
     def smooth_frames(self, sigtype='physical'):
@@ -1335,12 +1339,14 @@ def npdtype(res, discrete):
     else:
         return 'float'+str(npres)
 
-# Write a dat file.
-# All bytes are written one at a time
-# to avoid endianness issues.
-def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signal=None, samps_per_frame=None):
-    f=open(file_name,'wb')
 
+def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
+                e_d_signal=None, samps_per_frame=None, write_dir=''):
+    """
+    Write a dat file. All bytes are written one at a time to avoid
+    endianness issues.
+
+    """
     # Combine list of arrays into single array
     if expanded:
         n_sig = len(e_d_signal)
@@ -1368,7 +1374,6 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
         bwrite = d_signal.astype('uint8')
 
     elif fmt == '212':
-
         # Each sample is represented by a 12 bit two's complement amplitude.
         # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first).
         # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample)
@@ -1459,6 +1464,8 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False, e_d_signa
     if byte_offset is not None and byte_offset>0:
         print('Writing file '+file_name+' with '+str(byte_offset)+' empty leading bytes')
         bwrite = np.append(np.zeros(byte_offset, dtype = 'uint8'), bwrite)
+
+    f=open(os.path.join(write_dir, file_name),'wb')
 
     # Write the file
     bwrite.tofile(f)

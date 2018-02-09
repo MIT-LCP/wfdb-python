@@ -2,10 +2,12 @@ import wfdb
 import numpy as np
 import os
 
-# Target files created using the original WFDB Software Package version 10.5.24
-class test_record():
 
-    # ---------------------------- 1. Basic Tests ---------------------------- #
+class test_record():
+    # Target files created using the original WFDB Software Package
+    # version 10.5.24
+
+    # ----------------------- 1. Basic Tests -----------------------#
 
     # Format 16/Entire signal/Digital
     # Target file created with: rdsamp -r sample-data/test01_00s | cut -f 2- >
@@ -16,7 +18,8 @@ class test_record():
         targetsig = np.genfromtxt('tests/target-output/target1a')
 
         # Compare data streaming from physiobank
-        pbrecord = wfdb.rdrecord('test01_00s', physical=False, pb_dir='macecgdb')
+        pbrecord = wfdb.rdrecord('test01_00s', physical=False,
+                                 pb_dir='macecgdb')
 
         # Test file writing
         record2 = wfdb.rdrecord('sample-data/test01_00s', physical=False)
@@ -38,8 +41,10 @@ class test_record():
         targetsig = np.genfromtxt('tests/target-output/target1b')
 
         # Compare data streaming from physiobank
-        pbsig, pbfields = wfdb.rdsamp('a103l', pb_dir='challenge/2015/training',
-                             sampfrom=12500, sampto=40000, channels=[2, 0])
+        pbsig, pbfields = wfdb.rdsamp('a103l',
+                                      pb_dir='challenge/2015/training',
+                                      sampfrom=12500, sampto=40000,
+                                      channels=[2, 0])
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
 
@@ -48,13 +53,14 @@ class test_record():
     # -f 2- > target1c
     def test_1c(self):
         record = wfdb.rdrecord('sample-data/a103l',
-                             sampfrom=20000, channels=[0, 1], physical=False)
+                               sampfrom=20000, channels=[0, 1], physical=False)
         sig = record.d_signal
         targetsig = np.genfromtxt('tests/target-output/target1c')
 
         # Compare data streaming from physiobank
         pbrecord = wfdb.rdrecord('a103l', pb_dir='challenge/2015/training',
-                             sampfrom=20000, channels=[0, 1], physical=False)
+                                 sampfrom=20000, channels=[0, 1],
+                                 physical=False)
 
         # Test file writing
         record.wrsamp()
@@ -75,15 +81,16 @@ class test_record():
         targetsig = targetsig.reshape(len(targetsig), 1)
 
         # Compare data streaming from physiobank
-        pbsig, pbfields = wfdb.rdsamp('3000003_0003', pb_dir='mimic2wdb/30/3000003/',
-                             sampfrom=125, sampto=1000, channels=[1])
+        pbsig, pbfields = wfdb.rdsamp('3000003_0003',
+                                      pb_dir='mimic2wdb/30/3000003/',
+                                      sampfrom=125, sampto=1000, channels=[1])
 
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
 
 
-    # ---------------------------- 2. Special format tests ---------------------------- #
-    
+    # -------------------- 2. Special format tests ------------------ #
+
     # Format 212/Entire signal/Physical
     # Target file created with: rdsamp -r sample-data/100 -P | cut -f 2- >
     # target2a
@@ -94,7 +101,8 @@ class test_record():
 
         # Compare data streaming from physiobank
         pbsig, pbfields = wfdb.rdsamp('100', pb_dir = 'mitdb')
-        # This comment line was manually added and is not present in the original physiobank record
+        # This comment line was manually added and is not present in the
+        # original physiobank record
         del(fields['comments'][0])
 
         assert np.array_equal(siground, targetsig)
@@ -105,14 +113,16 @@ class test_record():
     # cut -f 2- > target2b
     def test_2b(self):
         record = wfdb.rdrecord('sample-data/100', sampfrom=1,
-                             sampto=10800, channels=[1], physical=False)
+                               sampto=10800, channels=[1], physical=False)
         sig = record.d_signal
         targetsig = np.genfromtxt('tests/target-output/target2b')
         targetsig = targetsig.reshape(len(targetsig), 1)
 
         # Compare data streaming from physiobank
-        pbrecord = wfdb.rdrecord('100', sampfrom=1, sampto=10800, channels=[1], physical=False, pb_dir = 'mitdb')
-        # This comment line was manually added and is not present in the original physiobank record
+        pbrecord = wfdb.rdrecord('100', sampfrom=1, sampto=10800, channels=[1],
+                                 physical=False, pb_dir = 'mitdb')
+        # This comment line was manually added and is not present in the
+        # original physiobank record
         del(record.comments[0])
 
         # Test file writing
@@ -146,7 +156,8 @@ class test_record():
     # Target file created with: rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 | cut -f 2- | wrsamp -o 310derive -O 310
     # rdsamp -r 310derive -f 0.007 | cut -f 2- > target2d
     def test_2d(self):
-        record = wfdb.rdrecord('sample-data/310derive', sampfrom=2, physical=False)
+        record = wfdb.rdrecord('sample-data/310derive', sampfrom=2,
+                               physical=False)
         sig = record.d_signal
         targetsig = np.genfromtxt('tests/target-output/target2d')
         assert np.array_equal(sig, targetsig)
@@ -155,14 +166,15 @@ class test_record():
     # Target file created with: rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 -s 1 | cut -f 2- | wrsamp -o 311derive -O 311
     # rdsamp -r 311derive -f 0.005 -t 3.91 -P | cut -f 2- > target2e
     def test_2e(self):
-        sig, fields = wfdb.rdsamp('sample-data/311derive', sampfrom=1, sampto=978)
+        sig, fields = wfdb.rdsamp('sample-data/311derive', sampfrom=1,
+                                  sampto=978)
         sig = np.round(sig, decimals=8)
         targetsig = np.genfromtxt('tests/target-output/target2e')
         targetsig = targetsig.reshape([977, 1])
         assert np.array_equal(sig, targetsig)
 
 
-    # ---------------------------- 3. Multi-dat file tests ---------------------------- #
+    # ------------------- 3. Multi-dat file tests -------------------- #
 
     # Multi-dat/Entire signal/Digital
     # Target file created with: rdsamp -r sample-data/s0010_re | cut -f 2- >
@@ -173,7 +185,8 @@ class test_record():
         targetsig = np.genfromtxt('tests/target-output/target3a')
 
         # Compare data streaming from physiobank
-        pbrecord= wfdb.rdrecord('s0010_re', physical=False, pb_dir='ptbdb/patient001')
+        pbrecord= wfdb.rdrecord('s0010_re', physical=False,
+                                pb_dir='ptbdb/patient001')
 
         # Test file writing
         record.wrsamp()
@@ -193,8 +206,9 @@ class test_record():
         targetsig = np.genfromtxt('tests/target-output/target3b')
 
         # Compare data streaming from physiobank
-        pbsig, pbfields = wfdb.rdsamp('s0010_re', sampfrom=5000, pb_dir='ptbdb/patient001',
-                             sampto=38000, channels=[13, 0, 4, 8, 3])
+        pbsig, pbfields = wfdb.rdsamp('s0010_re', sampfrom=5000,
+                                       pb_dir='ptbdb/patient001',
+                                       sampto=38000, channels=[13, 0, 4, 8, 3])
 
         assert np.array_equal(siground, targetsig)
         assert np.array_equal(sig, pbsig) and fields == pbfields
@@ -203,22 +217,24 @@ class test_record():
     # ------------------- 4. Skew and multiple samples/frame tests ------------------- #
 
     # Format 16 multi-samples per frame and skew digital
-    # Target file created with: rdsamp -r sample-data/test01_00s_skewframe | cut 
+    # Target file created with: rdsamp -r sample-data/test01_00s_skewframe | cut
     # -f 2- > target4a
     def test_4a(self):
-        record = wfdb.rdrecord('sample-data/test01_00s_skewframe', physical=False)
+        record = wfdb.rdrecord('sample-data/test01_00s_skewframe',
+                               physical=False)
         sig = record.d_signal
         # The WFDB library rdsamp does not return the final N samples for all
         # channels due to the skew. The WFDB python rdsamp does return the final
         # N samples, filling in NANs for end of skewed channels only.
         sig = sig[:-3, :]
-        
+
         targetsig = np.genfromtxt('tests/target-output/target4a')
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
-        recordnoskew = wfdb.rdrecord('sample-data/test01_00s_skewframe', physical=False,
-                                   smooth_frames=False, ignore_skew=True)
+        recordnoskew = wfdb.rdrecord('sample-data/test01_00s_skewframe',
+                                     physical=False,
+                                     smooth_frames=False, ignore_skew=True)
         recordnoskew.wrsamp(expanded=True)
         # Read the written record
         recordwrite = wfdb.rdrecord('test01_00s_skewframe', physical=False)
@@ -240,12 +256,13 @@ class test_record():
         targetsig = np.genfromtxt('tests/target-output/target4b')
 
         # Compare data streaming from physiobank
-        pbrecord = wfdb.rdrecord('03700181', physical=False, pb_dir = 'mimicdb/037')
+        pbrecord = wfdb.rdrecord('03700181', physical=False,
+                                 pb_dir='mimicdb/037')
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
         recordnoskew = wfdb.rdrecord('sample-data/03700181', physical=False,
-                                   smooth_frames=False, ignore_skew=True)
+                                     smooth_frames=False, ignore_skew=True)
         recordnoskew.wrsamp(expanded=True)
         # Read the written record
         recordwrite = wfdb.rdrecord('03700181', physical=False)
@@ -282,10 +299,11 @@ class test_record():
 
 
     # Format 16 multi-samples per frame and skew, read expanded signals
-    # Target file created with: rdsamp -r sample-data/test01_00s_skewframe -P -H | cut 
+    # Target file created with: rdsamp -r sample-data/test01_00s_skewframe -P -H | cut
     # -f 2- > target4d
     def test_4d(self):
-        record = wfdb.rdrecord('sample-data/test01_00s_skewframe', smooth_frames=False)
+        record = wfdb.rdrecord('sample-data/test01_00s_skewframe',
+                               smooth_frames=False)
 
         # Upsample the channels with lower samples/frame
         expandsig = np.zeros((7994, 3))
@@ -302,14 +320,14 @@ class test_record():
     # ------------------------ 5. Multi-segment Tests ------------------------ #
 
     # Multi-segment variable layout/Selected duration. All samples contained in one segment.
-    # Target file created with: 
+    # Target file created with:
     # rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428365 -t s14428375 -P | cut -f 2- > target5a
     def test_5a(self):
         record=wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
-                           sampfrom=14428365, sampto=14428375)
+                             sampfrom=14428365, sampto=14428375)
         siground=np.round(record.p_signal, decimals=8)
         targetsig=np.genfromtxt('tests/target-output/target5a')
-        
+
         np.testing.assert_equal(siground, targetsig)
 
     # Multi-segment variable layout/Selected duration. Samples read from >1 segment
@@ -317,10 +335,10 @@ class test_record():
     # rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > target5b
     def test_5b(self):
         record=wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
-                           sampfrom=14428364, sampto=14428375)
+                             sampfrom=14428364, sampto=14428375)
         siground=np.round(record.p_signal, decimals=8)
         targetsig=np.genfromtxt('tests/target-output/target5b')
-        
+
         np.testing.assert_equal(siground, targetsig)
 
     # Multi-segment fixed layout entire signal.
@@ -329,16 +347,17 @@ class test_record():
         record=wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s')
         siground=np.round(record.p_signal, decimals=8)
         targetsig=np.genfromtxt('tests/target-output/target5c')
-        
+
         np.testing.assert_equal(siground, targetsig)
 
     # Multi-segment fixed layout/selected duration. All samples contained in one segment
     # Target file created with: rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2- > target5d
     def test_5d(self):
-        record=wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s', sampto = 75000)
+        record=wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s',
+                             sampto=75000)
         siground=np.round(record.p_signal, decimals=8)
         targetsig=np.genfromtxt('tests/target-output/target5d')
-        
+
         np.testing.assert_equal(siground, targetsig)
 
     # Test 11 - Multi-segment variable layout/Entire signal/Physical
@@ -355,7 +374,7 @@ class test_record():
     #    record=rdsamp('sample-data/matched/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000)
     #    siground=np.round(record.p_signal, decimals=8)
     #    targetsig=np.genfromtxt('tests/target-output/target12')
-    #    
+    #
     #    assert np.array_equal(sig, targetsig)
 
 

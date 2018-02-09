@@ -241,7 +241,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
 
     Parameters
     ----------
-    db : str 
+    db : str
         The Physiobank database directory to download. eg. For database:
         'http://physionet.org/physiobank/database/mitdb', db='mitdb'.
     dl_dir : str
