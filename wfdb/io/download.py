@@ -107,7 +107,7 @@ def get_dbs():
 
 # ---- Helper functions for downloading physiobank files ------- #
 
-def get_record_list(dburl, records):
+def get_record_list(dburl, records='all'):
     # Check for a RECORDS file
     if records == 'all':
         r = requests.get(posixpath.join(dburl, 'RECORDS'))

@@ -473,10 +473,9 @@ class XQRS(object):
         """
         for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
             if self._is_qrs(peak_num=peak_num, backsearch=True):
-                self._update_qrs_params(peak_num=peak_num, backsearch=True)
+                self._update_qrs(peak_num=peak_num, backsearch=True)
             # No need to update noise parameters if it was classified as
             # noise. It would have already been updated.
-        return
 
     def _run_detection(self):
         """
@@ -501,7 +500,7 @@ class XQRS(object):
 
             # Before continuing to the next peak, do backsearch if
             # necessary
-            while self._require_backsearch():
+            if self._require_backsearch():
                 self._backsearch()
 
         # Detected indices are relative to starting sample

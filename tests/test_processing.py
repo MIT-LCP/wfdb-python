@@ -5,7 +5,9 @@ from wfdb import processing
 
 
 class test_processing():
-
+    """
+    Test processing functions
+    """
     def test_resample_single(self):
         sig, fields = wfdb.rdsamp('sample-data/100')
         ann = wfdb.rdann('sample-data/100', 'atr')
@@ -33,7 +35,7 @@ class test_processing():
         assert new_sig.shape[0] == expected_length
         assert new_sig.shape[1] == sig.shape[1]
 
-    def test_normalize(self):
+    def test_normalize_bound(self):
         sig, _ = wfdb.rdsamp('sample-data/100')
         lb = -5
         ub = 15
@@ -80,10 +82,11 @@ class test_processing():
         min_bpm = 10
         max_bpm = 350
         min_gap = fs*60/min_bpm
-        max_gap = fs*60/max_bpm
+        max_gap = fs * 60 / max_bpm
 
-        y_idxs = processing.correct_peaks(sig[:,0], ann.sample, min_gap,
-                                          max_gap, smooth_window=150)
+        y_idxs = processing.correct_peaks(sig=sig[:,0], peak_inds=ann.sample,
+                                          max_gap=max_gap,
+                                          smooth_window_size=150)
 
         yz = numpy.zeros(sig.shape[0])
         yz[y_idxs] = 1

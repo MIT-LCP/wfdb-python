@@ -141,8 +141,7 @@ class Comparitor(object):
                     # Get the next closest sample for this reference sample.
                     # Can this be empty? Need to catch case where nothing left?
                     closest_samp_num, smallest_samp_diff = (
-                        self._get_closest_samp_num(ref_samp_num, test_samp_num,
-                                                  closest_samp_num))
+                        self._get_closest_samp_num(ref_samp_num, test_samp_num))
 
             # If no clash, it is straightforward.
 
