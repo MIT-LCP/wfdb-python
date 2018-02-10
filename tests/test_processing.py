@@ -85,7 +85,7 @@ class test_processing():
         max_gap = fs * 60 / max_bpm
 
         y_idxs = processing.correct_peaks(sig=sig[:,0], peak_inds=ann.sample,
-                                          max_gap=max_gap,
+                                          search_radius=int(max_gap),
                                           smooth_window_size=150)
 
         yz = numpy.zeros(sig.shape[0])

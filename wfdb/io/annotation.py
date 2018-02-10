@@ -150,7 +150,7 @@ class Annotation(object):
 
         self.ann_len = len(self.sample)
 
-    def wrann(self, write_fs=False):
+    def wrann(self, write_fs=False, write_dir=''):
         """
         Write a WFDB annotation file.
 
@@ -186,7 +186,7 @@ class Annotation(object):
                                          target_field='label_store')
 
         # Write the header file using the specified fields
-        self.wrannfile(write_fs=write_fs)
+        self.wr_ann_file(write_fs=write_fs, write_dir=write_dir)
 
         return
 
@@ -578,7 +578,7 @@ class Annotation(object):
             return label_map
 
 
-    def wrannfile(self, write_fs):
+    def wr_ann_file(self, write_fs, write_dir=''):
         """
         Calculate the bytes used to encode an annotation set and
         write them to an annotation file
@@ -601,9 +601,11 @@ class Annotation(object):
             end_special_bytes = [0, 236, 255, 255, 255, 255, 1, 0]
 
         # Write the file
-        with open(self.record_name+'.'+self.extension, 'wb') as f:
+        with open(os.path.join(write_dir, self.record_name+'.'+self.extension),
+                  'wb') as f:
             # Combine all bytes to write: fs (if any), custom annotations (if any), main content, file terminator
-            np.concatenate((fs_bytes, cl_bytes, end_special_bytes, core_bytes, np.array([0,0]))).astype('u1').tofile(f)
+            np.concatenate((fs_bytes, cl_bytes, end_special_bytes, core_bytes,
+                            np.array([0,0]))).astype('u1').tofile(f)
 
         return
 
@@ -614,7 +616,8 @@ class Annotation(object):
             return []
 
         # Initial indicators of encoding fs
-        data_bytes = [0,88, 0, 252,35,35,32,116,105,109,101,32,114,101,115,111,108,117,116,105,111,110,58,32]
+        data_bytes = [0, 88, 0, 252, 35, 35, 32, 116, 105, 109, 101, 32, 114,
+                      101, 115, 111, 108, 117, 116, 105, 111, 110, 58, 32]
 
         # Check if fs is close enough to int
         if isinstance(self.fs, float):
@@ -636,7 +639,8 @@ class Annotation(object):
 
         return np.array(data_bytes).astype('u1')
 
-    # Calculate the bytes written to the annotation file for the custom_labels field
+    # Calculate the bytes written to the annotation file for the
+    # custom_labels field
     def calc_cl_bytes(self):
 
         if self.custom_labels is None:
@@ -1039,7 +1043,7 @@ def field2bytes(field, value):
 
 def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
           num=None, aux_note=None, label_store=None, fs=None,
-          custom_labels=None):
+          custom_labels=None, write_dir=''):
     """
     Write a WFDB annotation file.
 
@@ -1105,6 +1109,8 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
         If the `label_store` field is given for this function, and
         `custom_labels` is defined, `custom_labels` must contain `label_store`
         in its mapping. ie. it must come in format 1 or 3 above.
+    write_dir : str, optional
+        The directory in which to write the annotation file
 
     Notes
     -----
@@ -1143,7 +1149,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
             raise Exception("Only one of the 'symbol' and 'label_store' fields may be input, for describing annotation labels")
 
     # Perform field checks and write the annotation file
-    annotation.wrann(write_fs=True)
+    annotation.wrann(write_fs=True, write_dir=write_dir)
 
 
 def show_ann_labels():

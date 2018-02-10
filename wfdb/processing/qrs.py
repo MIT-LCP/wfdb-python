@@ -305,6 +305,9 @@ class XQRS(object):
         self.rr_recent = rr_recent
         self.last_qrs_ind = last_qrs_ind
 
+        # No qrs detected initially
+        self.last_qrs_peak_num = None
+
 
     def _set_default_init_params(self):
         """
@@ -390,6 +393,7 @@ class XQRS(object):
 
         self.qrs_inds.append(i)
         self.last_qrs_ind = i
+        # Peak number corresponding to last qrs
         self.last_qrs_peak_num = self.peak_num
 
         # qrs recent amplitude is adjusted twice as quickly if the peak
@@ -469,13 +473,16 @@ class XQRS(object):
 
     def _backsearch(self):
         """
-        Inspect previous peaks for qrs using a lower threshold
+        Inspect previous peaks from the last detected qrs peak (if any),
+        using a lower threshold
+
         """
-        for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
-            if self._is_qrs(peak_num=peak_num, backsearch=True):
-                self._update_qrs(peak_num=peak_num, backsearch=True)
-            # No need to update noise parameters if it was classified as
-            # noise. It would have already been updated.
+        if self.last_qrs_peak_num is not None:
+            for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
+                if self._is_qrs(peak_num=peak_num, backsearch=True):
+                    self._update_qrs(peak_num=peak_num, backsearch=True)
+                # No need to update noise parameters if it was classified as
+                # noise. It would have already been updated.
 
     def _run_detection(self):
         """
