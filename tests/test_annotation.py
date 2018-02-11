@@ -2,14 +2,14 @@ import numpy as np
 import re
 import wfdb
 
-class test_rdann():
+class test_annotation():
 
     # Test 1 - Annotation file 100.atr
-    # Target file created with: rdann -r sampledata/100 -a atr > anntarget1
+    # Target file created with: rdann -r sample-data/100 -a atr > anntarget1
     def test_1(self):
 
         # Read data using WFDB python package
-        annotation = wfdb.rdann('sampledata/100', 'atr')
+        annotation = wfdb.rdann('sample-data/100', 'atr')
 
         
         # This is not the fault of the script. The annotation file specifies a
@@ -20,7 +20,7 @@ class test_rdann():
         # no null to detect in the output text file of rdann.
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget1', 'r'))
+        lines = tuple(open('tests/target-output/anntarget1', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -53,12 +53,12 @@ class test_rdann():
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('100', 'atr', pbdir = 'mitdb', return_label_elements=['label_store', 'symbol'])
+        pbannotation = wfdb.rdann('100', 'atr', pb_dir='mitdb', return_label_elements=['label_store', 'symbol'])
         pbannotation.aux_note[0] = '(N'
         pbannotation.create_label_map()
         
         # Test file writing
-        annotation.wrann(writefs=True)
+        annotation.wrann(write_fs=True)
         writeannotation = wfdb.rdann('100', 'atr', return_label_elements=['label_store', 'symbol'])
         writeannotation.create_label_map()
 
@@ -67,14 +67,14 @@ class test_rdann():
         assert annotation.__eq__(writeannotation)
 
     # Test 2 - Annotation file 12726.anI with many aux_note strings.
-    # Target file created with: rdann -r sampledata/100 -a atr > anntarget2
+    # Target file created with: rdann -r sample-data/100 -a atr > anntarget2
     def test_2(self):
 
         # Read data from WFDB python package
-        annotation = wfdb.rdann('sampledata/12726', 'anI')
+        annotation = wfdb.rdann('sample-data/12726', 'anI')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget2', 'r'))
+        lines = tuple(open('tests/target-output/anntarget2', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -106,11 +106,11 @@ class test_rdann():
                 np.array_equal(annotation.num, target_num), 
                 annotation.aux_note == target_aux_note]
         # Test file streaming
-        pbannotation = wfdb.rdann('12726', 'anI', pbdir = 'prcp', return_label_elements=['label_store', 'symbol'])
+        pbannotation = wfdb.rdann('12726', 'anI', pb_dir='prcp', return_label_elements=['label_store', 'symbol'])
         pbannotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(writefs=True)
+        annotation.wrann(write_fs=True)
         writeannotation = wfdb.rdann('12726', 'anI', return_label_elements=['label_store', 'symbol'])
         writeannotation.create_label_map()
 
@@ -119,14 +119,14 @@ class test_rdann():
         assert annotation.__eq__(writeannotation)
 
     # Test 3 - Annotation file 1003.atr with custom annotation types
-    # Target file created with: rdann -r sampledata/1003 -a atr > anntarget3
+    # Target file created with: rdann -r sample-data/1003 -a atr > anntarget3
     def test_3(self):
 
         # Read data using WFDB python package
-        annotation = wfdb.rdann('sampledata/1003', 'atr')
+        annotation = wfdb.rdann('sample-data/1003', 'atr')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/targetoutputdata/anntarget3', 'r'))
+        lines = tuple(open('tests/target-output/anntarget3', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -159,11 +159,11 @@ class test_rdann():
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('1003', 'atr', pbdir = 'challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
+        pbannotation = wfdb.rdann('1003', 'atr', pb_dir='challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
         pbannotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(writefs=True)
+        annotation.wrann(write_fs=True)
         writeannotation = wfdb.rdann('1003', 'atr', return_label_elements=['label_store', 'symbol'])
         writeannotation.create_label_map()
 

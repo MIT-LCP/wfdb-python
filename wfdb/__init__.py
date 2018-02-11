@@ -1,8 +1,8 @@
-from .readwrite.records import Record, MultiRecord, rdheader, rdsamp, srdsamp, wrsamp, dldatabase, dldatabasefiles
-from .readwrite._signals import estres, wrdatfile
-from .readwrite._headers import sig_classes
-from .readwrite.annotations import Annotation, rdann, wrann, show_ann_labels, ann_classes, ann_labels, ann_label_table
-from .readwrite.downloads import getdblist
-from .plot.plots import plotrec, plotann, plot_records
-from . import processing
+from .io.record import (Record, MultiRecord, rdheader, rdrecord, rdsamp,
+                        wrsamp, dl_database)
+from .io.annotation import (Annotation, rdann, wrann, show_ann_labels,
+                            show_ann_classes)
+from .io.download import get_dbs, get_record_list
+from .plot.plot import plot_items, plot_wfdb, plot_all_records
+
 from .version import __version__

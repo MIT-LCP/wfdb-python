@@ -1,109 +1,218 @@
 import copy
-import numpy
-from .gqrs import time_to_sample_number, Conf, Peak, Annotation
+import numpy as np
+
 from .basic import smooth
 
-def find_peaks(x):
-    # Definitions:
-    # * Hard peak: a peak that is either /\ or \/
-    # * Soft peak: a peak that is either /-*\ or \-*/ (In that cas we define the middle of it as the peak)
 
-    # Returns two numpy arrays:
-    # * hard_peaks contains the indices of the Hard peaks
-    # * soft_peaks contains the indices of the Soft peaks
+def find_peaks(sig):
+    """
+    Find hard peaks and soft peaks in a signal, defined as follows:
+    - Hard peak: a peak that is either /\ or \/
+    - Soft peak: a peak that is either /-*\ or \-*/
+      In this case we define the middle as the peak
 
-    if len(x) == 0:
-        return numpy.empty([0]), numpy.empty([0])
+    Parameters
+    ----------
+    sig : np array
+        The 1d signal array
 
-    tmp = x[1:]
-    tmp = numpy.append(tmp, [x[-1]])
-    tmp = x-tmp
-    tmp[numpy.where(tmp>0)] = +1
-    tmp[numpy.where(tmp==0)] = 0
-    tmp[numpy.where(tmp<0)] = -1
+    Returns
+    -------
+    hard_peaks : numpy array
+        Array containing the indices of the hard peaks:
+    soft_peaks : numpy array
+        Array containing the indices of the soft peaks
+
+    """
+    if len(sig) == 0:
+        return np.empty([0]), np.empty([0])
+
+    tmp = sig[1:]
+    tmp = np.append(tmp, [sig[-1]])
+    tmp = sig - tmp
+    tmp[np.where(tmp>0)] = 1
+    tmp[np.where(tmp==0)] = 0
+    tmp[np.where(tmp<0)] = -1
     tmp2 = tmp[1:]
-    tmp2 = numpy.append(tmp2, [0])
+    tmp2 = np.append(tmp2, [0])
     tmp = tmp-tmp2
-    hard_peaks = numpy.where(numpy.logical_or(tmp==-2,tmp==+2))[0]+1
+
+    hard_peaks = np.where(np.logical_or(tmp==-2, tmp==+2))[0] + 1
     soft_peaks = []
-    for iv in numpy.where(numpy.logical_or(tmp==-1,tmp==+1))[0]:
+
+    for iv in np.where(np.logical_or(tmp==-1,tmp==+1))[0]:
         t = tmp[iv]
         i = iv+1
         while True:
             if i==len(tmp) or tmp[i] == -t or tmp[i] == -2 or tmp[i] == 2:
                 break
             if tmp[i] == t:
-                soft_peaks.append(int(iv+(i-iv)/2))
+                soft_peaks.append(int(iv + (i - iv)/2))
                 break
             i += 1
-    soft_peaks = numpy.asarray(soft_peaks)+1
+    soft_peaks = np.array(soft_peaks, dtype='int') + 1
+
     return hard_peaks, soft_peaks
 
 
-def correct_peaks(x, peak_indices, min_gap, max_gap, smooth_window):
-    N = x.shape[0]
+def find_local_peaks(sig, radius):
+    """
+    Find all local peaks in a signal. A sample is a local peak if it is
+    the largest value within the <radius> samples on its left and right.
 
-    rpeaks = numpy.zeros(N)
-    rpeaks[peak_indices] = 1.0
+    In cases where it shares the max value with nearby samples, the
+    middle sample is classified as the local peak.
 
-    rpeaks = rpeaks.astype('int32')
+    Parameters
+    ----------
+    sig : numpy array
+        1d numpy array of the signal.
+    radius : int
+        The radius in which to search for defining local maxima.
 
-    # 1- Extract ranges where we have one or many ones side by side
-    rpeaks_ranges = []
-    tmp_idx = 0
-    for i in range(1, len(rpeaks)):
-        if rpeaks[i-1] == 1:
-            if rpeaks[i] == 0:
-                rpeaks_ranges.append((tmp_idx, i-1))
+    """
+    # TODO: Fix flat mountain scenarios.
+    peak_inds = []
+
+    i = 0
+    while i < radius + 1:
+        if sig[i] == max(sig[:i + radius]):
+            peak_inds.append(i)
+            i += radius
         else:
-            if rpeaks[i] == 1:
-                tmp_idx = i
+            i += 1
 
-    smoothed = smooth(x, smooth_window)
+    while i < len(sig):
+        if sig[i] == max(sig[i - radius:i + radius]):
+            peak_inds.append(i)
+            i += radius
+        else:
+            i += 1
 
-    # Compute signal's peaks
-    hard_peaks, soft_peaks = find_peaks(x=x)
-    all_peak_idxs = numpy.concatenate((hard_peaks, soft_peaks)).astype('int64')
+    while i < len(sig):
+        if sig[i] == max(sig[i - radius:]):
+            peak_inds.append(i)
+            i += radius
+        else:
+            i += 1
 
-    # Replace each range of ones by the index of the best value in it
-    tmp = set()
-    for rp_range in rpeaks_ranges:
-        r = numpy.arange(rp_range[0], rp_range[1]+1, dtype='int64')
-        vals = x[r]
-        smoothed_vals = smoothed[r]
-        p = r[numpy.argmax(numpy.absolute(numpy.asarray(vals)-smoothed_vals))]
-        tmp.add(p)
+    return (np.array(peak_inds))
 
-    # Replace all peaks by the peak within x-max_gap < x < x+max_gap which have the bigget distance from smooth curve
-    dist = numpy.absolute(x-smoothed) # Peak distance from the smoothed mean
-    rpeak_indices = set()
-    for p in tmp:
-        a = max(0, p-max_gap)
-        b = min(N, p+max_gap)
-        r = numpy.arange(a, b, dtype='int64')
-        idx_best = r[numpy.argmax(dist[r])]
-        rpeak_indices.add(idx_best)
 
-    rpeak_indices = list(rpeak_indices)
+def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
+                  peak_dir='compare'):
+    """
+    Adjust a set of detected peaks to coincide with local signal maxima,
+    and
 
-    # Prevent multiple peaks to appear in the max bpm range (max_gap)
-    # If we found more than one peak in this interval, then we choose the peak with the maximum amplitude compared to the mean of the signal
-    tmp = numpy.asarray(rpeak_indices)
-    to_remove = {}
-    for idx in rpeak_indices:
-        if idx in to_remove:
-            continue
-        r = tmp[numpy.where(numpy.absolute(tmp-idx)<=max_gap)[0]]
-        if len(r) == 1:
-            continue
-        rr = r.astype('int64')
-        vals = x[rr]
-        smoo = smoothed[rr]
-        the_one = r[numpy.argmax(numpy.absolute(vals-smoo))]
-        for i in r:
-            if i != the_one:
-                to_remove[i] = True
-    for v, _ in to_remove.items():
-        rpeak_indices.remove(v)
+    Parameters
+    ----------
+    sig : numpy array
+        The 1d signal array
+    peak_inds : np array
+        Array of the original peak indices
+    max_gap : int
+        The radius within which the original peaks may be shifted.
+    smooth_window_size : int
+        The window size of the moving average filter applied on the
+        signal. Peak distance is calculated on the difference between
+        the original and smoothed signal.
+    peak_dir : str, optional
+        The expected peak direction: 'up' or 'down', 'both', or
+        'compare'.
+        - If 'up', the peaks will be shifted to local maxima
+        - If 'down', the peaks will be shifted to local minima
+        - If 'both', the peaks will be shifted to local maxima of the
+          rectified signal
+        - If 'compare', the function will try both 'up' and 'down'
+          options, and choose the direction that gives the largest mean
+          distance from the smoothed signal.
 
-    return sorted(rpeak_indices)
+    Returns
+    -------
+    corrected_peak_inds : numpy array
+        Array of the corrected peak indices
+
+
+    Examples
+    --------
+
+    """
+    sig_len = sig.shape[0]
+    n_peaks = len(peak_inds)
+
+    # Subtract the smoothed signal from the original
+    sig = sig - smooth(sig=sig, window_size=smooth_window_size)
+
+
+    # Shift peaks to local maxima
+    if peak_dir == 'up':
+        shifted_peak_inds = shift_peaks(sig=sig,
+                                        peak_inds=peak_inds,
+                                        search_radius=search_radius,
+                                        peak_up=True)
+    elif peak_dir == 'down':
+        shifted_peak_inds = shift_peaks(sig=sig,
+                                        peak_inds=peak_inds,
+                                        search_radius=search_radius,
+                                        peak_up=False)
+    elif peak_dir == 'both':
+        shifted_peak_inds = shift_peaks(sig=np.abs(sig),
+                                        peak_inds=peak_inds,
+                                        search_radius=search_radius,
+                                        peak_up=True)
+    else:
+        shifted_peak_inds_up = shift_peaks(sig=sig,
+                                           peak_inds=peak_inds,
+                                           search_radius=search_radius,
+                                           peak_up=True)
+        shifted_peak_inds_down = shift_peaks(sig=sig,
+                                             peak_inds=peak_inds,
+                                             search_radius=search_radius,
+                                             peak_up=False)
+
+        # Choose the direction with the biggest deviation
+        up_dist = np.mean(np.abs(sig[shifted_peak_inds_up]))
+        down_dist = np.mean(np.abs(sig[shifted_peak_inds_down]))
+
+        if up_dist >= down_dist:
+            shifted_peak_inds = shifted_peak_inds_up
+        else:
+            shifted_peak_inds = shifted_peak_inds_down
+
+    return shifted_peak_inds
+
+
+def shift_peaks(sig, peak_inds, search_radius, peak_up):
+    """
+    Helper function for correct_peaks. Return the shifted peaks to local
+    maxima or minima within a radius.
+
+    peak_up : bool
+        Whether the expected peak direction is up
+    """
+    sig_len = sig.shape[0]
+    n_peaks = len(peak_inds)
+    # The indices to shift each peak ind by
+    shift_inds = np.zeros(n_peaks, dtype='int')
+
+    # Iterate through peaks
+    for i in range(n_peaks):
+        ind = peak_inds[i]
+        local_sig = sig[max(0, ind - search_radius):min(ind + search_radius, sig_len-1)]
+
+        if peak_up:
+            shift_inds[i] = np.argmax(local_sig)
+        else:
+            shift_inds[i] = np.argmin(local_sig)
+
+    # May have to adjust early values
+    for i in range(n_peaks):
+        ind = peak_inds[i]
+        if ind >= search_radius:
+            break
+        shift_inds[i] -= search_radius - ind
+
+    shifted_peak_inds = peak_inds + shift_inds - search_radius
+
+    return shifted_peak_inds
