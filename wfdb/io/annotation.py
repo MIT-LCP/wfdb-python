@@ -152,7 +152,7 @@ class Annotation(object):
 
     def wrann(self, write_fs=False, write_dir=''):
         """
-        Write a WFDB annotation file.
+        Write a WFDB annotation file from this object.
 
         Parameters
         ----------
@@ -1168,7 +1168,8 @@ def show_ann_classes():
     """
     Display the standard wfdb annotation classes
 
-    Usage:
+    Examples
+    --------
     >>> show_ann_classes()
 
     """

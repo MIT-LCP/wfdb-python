@@ -53,7 +53,8 @@ def stream_dat(file_name, pb_dir, fmt, bytecount, startbyte, datatypes):
 
     # Specify the byte range
     endbyte = startbyte + bytecount-1
-    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte), 'Accept-Encoding': '*/*'}
+    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte),
+               'Accept-Encoding': '*/*'}
 
     # Get the content
     r = requests.get(url, headers=headers, stream=True)
@@ -107,12 +108,32 @@ def get_dbs():
 
 # ---- Helper functions for downloading physiobank files ------- #
 
-def get_record_list(dburl, records='all'):
+def get_record_list(db_dir, records='all'):
+    """
+    Get a list of records belonging to a database.
+
+    Parameters
+    ----------
+    db_dir : str
+        The database directory, usually the same as the database slug.
+        The location to look for a RECORDS file.
+    records : list, optional
+        A Option used when this function acts as a helper function.
+        Leave as default 'all' to get all records.
+
+    Examples
+    --------
+    >>> wfdb.get_record_list('mitdb')
+
+    """
+    # Full url physiobank database
+    db_url = posixpath.join(db_index_url, db_dir)
+
     # Check for a RECORDS file
     if records == 'all':
-        r = requests.get(posixpath.join(dburl, 'RECORDS'))
+        r = requests.get(posixpath.join(db_url, 'RECORDS'))
         if r.status_code == 404:
-            raise ValueError('The database '+dburl+' has no WFDB files to download')
+            raise ValueError('The database '+db_url+' has no WFDB files to download')
 
         # Get each line as a string
         recordlist = r.content.decode('ascii').splitlines()
@@ -123,16 +144,19 @@ def get_record_list(dburl, records='all'):
     return recordlist
 
 
-def get_annotators(dburl, annotators):
+def get_annotators(db_dir, annotators):
+
+    # Full url physiobank database
+    db_url = posixpath.join(db_index_url, db_dir)
 
     if annotators is not None:
         # Check for an ANNOTATORS file
-        r = requests.get(posixpath.join(dburl, 'ANNOTATORS'))
+        r = requests.get(posixpath.join(db_url, 'ANNOTATORS'))
         if r.status_code == 404:
             if annotators == 'all':
                 return
             else:
-                raise ValueError('The database '+dburl+' has no annotation files to download')
+                raise ValueError('The database '+db_url+' has no annotation files to download')
         # Make sure the input annotators are present in the database
         annlist = r.content.decode('ascii').splitlines()
         annlist = [a.split('\t')[0] for a in annlist]
@@ -271,9 +295,9 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
 
     # Full url physiobank database
-    dburl = posixpath.join(db_index_url, db)
+    db_url = posixpath.join(db_index_url, db)
     # Check if the database is valid
-    r = requests.get(dburl)
+    r = requests.get(db_url)
     r.raise_for_status()
 
     # Construct the urls to download

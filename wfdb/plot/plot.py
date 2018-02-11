@@ -12,7 +12,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
                ecg_grids=[], figsize=None, return_fig=False):
-    """ 
+    """
     Subplot individual channels of signals and/or annotations.
 
     Parameters
@@ -79,7 +79,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     figure : matplotlib figure, optional
         The matplotlib figure generated. Only returned if the 'return_fig'
         parameter is set to True.
-    
+
     Examples
     --------
     >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
@@ -94,7 +94,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
 
     # Figure out number of subplots required
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
-    
+
     # Create figure
     fig, axes = create_figure(n_subplots, figsize)
 
@@ -111,7 +111,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     # Add title and axis labels.
     label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
                  title)
-    
+
     plt.show(fig)
 
     if return_fig:
@@ -129,7 +129,7 @@ def get_plot_dims(signal, ann_samp):
     else:
         sig_len = 0
         n_sig = 0
-        
+
     if ann_samp is not None:
         n_annot = len(ann_samp)
     else:
@@ -145,17 +145,17 @@ def create_figure(n_subplots, figsize):
 
     for i in range(n_subplots):
         axes.append(fig.add_subplot(n_subplots, 1, i+1))
-    
+
     return fig, axes
 
 
 def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
     "Plot signal channels"
-    
+
     # Extend signal style if necesary
     if len(sig_style) == 1:
         sig_style = n_sig * sig_style
-    
+
     # Figure out time indices
     if time_units == 'samples':
         t = np.linspace(0, sig_len-1, sig_len)
@@ -163,15 +163,15 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
         downsample_factor = {'seconds':fs, 'minutes':fs * 60,
                              'hours':fs * 3600}
         t = np.linspace(0, sig_len-1, sig_len) / downsample_factor[time_units]
-    
+
     # Plot the signals
     if signal.ndim == 1:
         axes[0].plot(t, signal, sig_style[0], zorder=3)
     else:
         for ch in range(n_sig):
             axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3)
-    
-    
+
+
 def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                     ann_style, axes):
     "Plot annotations, possibly overlaid on signals"
@@ -185,10 +185,10 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
     else:
         downsample_factor = {'seconds':float(fs), 'minutes':float(fs)*60,
                              'hours':float(fs)*3600}[time_units]
-    
-    # Plot the annotations 
+
+    # Plot the annotations
     for ch in range(n_annot):
-        if ann_samp[ch] is not None: 
+        if ann_samp[ch] is not None:
             # Figure out the y values to plot on a channel basis
 
             # 1 dimensional signals
@@ -213,21 +213,21 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     "Add ecg grids to the axes"
     if ecg_grids == 'all':
         ecg_grids = range(0, len(axes))
-    
-    
+
+
     for ch in ecg_grids:
         # Get the initial plot limits
         auto_xlims = axes[ch].get_xlim()
         auto_ylims= axes[ch].get_ylim()
-        
+
         (major_ticks_x, minor_ticks_x, major_ticks_y,
             minor_ticks_y) = calc_ecg_grids(auto_ylims[0], auto_ylims[1],
                                             units[ch], fs, auto_xlims[1],
                                             time_units)
-        
+
         min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
         min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
-            
+
         for tick in minor_ticks_x:
             axes[ch].plot([tick, tick], [min_y,  max_y], c='#ededed',
                           marker='|', zorder=1)
@@ -248,10 +248,10 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
 def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
     Calculate tick intervals for ecg grids
-    
+
     - 5mm 0.2s major grids, 0.04s minor grids
-    - 0.5mV major grids, 0.125 minor grids 
-    
+    - 0.5mV major grids, 0.125 minor grids
+
     10 mm is equal to 1mV in voltage.
     """
     # Get the grid interval of the x axis
@@ -297,7 +297,7 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
     "Add title, and axes labels"
     if title:
         axes[0].set_title(title)
-    
+
     # Determine y label
     # Explicit labels take precedence if present. Otherwise, construct labels
     # using signal names and units
@@ -313,16 +313,16 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
 
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
-    
+
     axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
-    
+
 
 def plot_wfdb(record=None, annotation=None, plot_sym=False,
               time_units='samples', title=None, sig_style=[''],
               ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
-    """ 
+    """
     Subplot individual channels of a wfdb record and/or annotation.
-    
+
     This function implements the base functionality of the `plot_items`
     function, while allowing direct input of wfdb objects.
 
@@ -371,7 +371,7 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
     return_fig : bool, optional
         Whether the figure is to be returned as an output argument.
-    
+
     Returns
     -------
     figure : matplotlib figure, optional
@@ -417,14 +417,14 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         sig_units = record.units
     else:
         signal, fs, sig_name, sig_units = 4 * [None]
-        
+
     # Get annotation attributes
     if annotation:
         # Get channels
         all_chans = set(annotation.chan)
 
         n_chans = max(all_chans) + 1
-        
+
         # Just one channel. Place content in one list index.
         # if len(all_chans) == 1:
         #     ann_samp = annotation.chan[0]*[None] + [annotation.sample]
@@ -460,7 +460,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     return signal, ann_samp, ann_sym, fs, sig_name, sig_units
 
 
-def plot_all_records(directory=os.getcwd()):
+def plot_all_records(directory=''):
     """
     Plot all wfdb records in a directory (by finding header files), one at
     a time, until the 'enter' key is pressed.
@@ -468,13 +468,16 @@ def plot_all_records(directory=os.getcwd()):
     Parameters
     ----------
     directory : str, optional
-        The directory in which to search for WFDB records.
-    
+        The directory in which to search for WFDB records. Defaults to
+        current working directory.
+
     """
+    directory = directory or os.getcwd()
+
     headers = [f for f in os.listdir(directory) if os.path.isfile(
         os.path.join(directory, f))]
     headers = [f for f in headers if f.endswith('.hea')]
-    
+
     records = [h.split('.hea')[0] for h in headers]
     records.sort()
 

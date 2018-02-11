@@ -407,7 +407,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     def wrsamp(self, expanded=False, write_dir=''):
         """
-        Write a wfdb header file and associated dat files if any.
+        Write a wfdb header file and any associated dat files from this
+        object.
 
         Parameters
         ----------
@@ -517,11 +518,17 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.seg_len = seg_len
         self.sig_segments = sig_segments
 
-    # Write a multi-segment header, along with headers and dat files for all segments
+
     def wrsamp(self, write_dir=''):
-        # Perform field validity and cohesion checks, and write the header file.
+        """
+        Write a multi-segment header, along with headers and dat files
+        for all segments, from this object.
+        """
+        # Perform field validity and cohesion checks, and write the
+        # header file.
         self.wrheader(write_dir=write_dir)
-        # Perform record validity and cohesion checks, and write the associated segments.
+        # Perform record validity and cohesion checks, and write the
+        # associated segments.
         for seg in self.segments:
             seg.wrsamp(write_dir=write_dir)
 
@@ -1307,7 +1314,7 @@ def orderednoconseclist(fulllist):
     return noconseclist
 
 
-def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
+def dl_database(db_dir, dl_dir, records='all', annotators='all', keep_subdirs=True,
                 overwrite = False):
     """
     Download WFDB record (and optionally annotation) files from a
@@ -1316,9 +1323,9 @@ def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
 
     Parameters
     ----------
-    db : str
+    db_dir : str
         The Physiobank database directory to download. eg. For database:
-        'http://physionet.org/physiobank/database/mitdb', db='mitdb'.
+        'http://physionet.org/physiobank/database/mitdb', db_dir='mitdb'.
     dl_dir : str
         The full local directory path in which to download the files.
     records : list, or 'all', optional
@@ -1354,18 +1361,14 @@ def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
     >>> wfdb.dl_database('ahadb', os.getcwd())
 
     """
-
-    # Full url physiobank database
-    dburl = posixpath.join(download.db_index_url, db)
     # Check if the database is valid
     r = requests.get(dburl)
     r.raise_for_status()
 
-
     # Get the list of records
-    recordlist = download.get_record_list(dburl, records)
+    recordlist = download.get_record_list(db_dir, records)
     # Get the annotator extensions
-    annotators = download.get_annotators(dburl, annotators)
+    annotators = download.get_annotators(db_dir, annotators)
 
     # All files to download (relative to the database's home directory)
     allfiles = []
@@ -1378,7 +1381,7 @@ def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
             dirname, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pb_dir=posixpath.join(db, dirname))
+            record = rdheader(baserecname, pb_dir=posixpath.join(db_dir, dirname))
 
             # Single segment record
             if isinstance(record, Record):
@@ -1398,20 +1401,20 @@ def dl_database(db, dl_dir, records='all', annotators='all', keep_subdirs=True,
                     if seg.endswith('_layout'):
                         continue
                     # Add all dat files of the segment
-                    recseg = rdheader(seg, pb_dir=posixpath.join(db, dirname))
+                    recseg = rdheader(seg, pb_dir=posixpath.join(db_dir, dirname))
                     for file in recseg.file_name:
                         allfiles.append(posixpath.join(dirname, file))
         # check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = posixpath.join(download.db_index_url, db, annfile)
+                url = posixpath.join(download.db_index_url, db_dir, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
                     allfiles.append(annfile)
 
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in allfiles]
+    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in allfiles]
 
     # Make any required local directories
     download.make_local_dirs(dl_dir, dlinputs, keep_subdirs)
