@@ -18,7 +18,7 @@ Core components of this package are based on the original WFDB specifications. T
 Documentation and Usage
 -----------------------
 
-See the documentation site for the public APIs.
+See the `documentation site`_ for the public APIs.
 
 See the `demo.ipynb`_ notebook file for more example use cases.
 
@@ -49,7 +49,7 @@ Contributing
 We welcome community contributions in the form of pull requests. When contributing code, please ensure:
 
 * PEP8_ style guidelines are followed.
-* Documentation is provided. New functions and classes should have numpy/scipy style docstrings_. 
+* Documentation is provided. New functions and classes should have numpy/scipy style docstrings_.
 * Unit tests are written for new features that are not covered by `existing tests`_.
 
 
@@ -63,6 +63,8 @@ Authors
 
 .. |Build Status| image:: https://travis-ci.org/MIT-LCP/wfdb-python.svg?branch=master
    :target: https://travis-ci.org/MIT-LCP/wfdb-python
+
+.. _documentation site: http://wfdb.readthedocs.io
 
 .. _PEP8: https://www.python.org/dev/peps/pep-0008/
 .. _docstrings: https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
