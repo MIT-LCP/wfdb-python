@@ -1,7 +1,6 @@
 import copy
 import numpy as np
 from scipy import signal
-from sklearn.cluster import KMeans
 from sklearn.preprocessing import normalize
 
 from .basic import get_filter_gain
