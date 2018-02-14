@@ -129,6 +129,7 @@ class XQRS(object):
         self.rr_max = 60 * self.fs / self.conf.hr_min
         self.rr_min = 60 * self.fs / self.conf.hr_max
 
+        # Note: if qrs_width is odd, qrs_width == qrs_radius*2 + 1
         self.qrs_width = int(self.conf.qrs_width * self.fs)
         self.qrs_radius = int(self.conf.qrs_radius * self.fs)
 
@@ -209,16 +210,14 @@ class XQRS(object):
             print('Learning initial signal parameters...')
 
         # Find the local peaks of the signal.
-        peak_inds_f = find_local_peaks(self.sig_f,
-                                             int(self.qrs_width / 2))
+        peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
 
         last_qrs_ind = -self.rr_max
         qrs_inds = []
         qrs_amps = []
         noise_amps = []
 
-        qrs_radius = int(self.qrs_width / 2)
-        ricker_wavelet = signal.ricker(self.qrs_width, 4).reshape(-1,1)
+        ricker_wavelet = signal.ricker(self.qrs_radius * 2, 4).reshape(-1,1)
 
         # Go through the peaks and find qrs peaks and noise peaks.
         for peak_num in range(
@@ -232,8 +231,8 @@ class XQRS(object):
 
             # Question: should the signal be squared? Case for inverse qrs
             # complexes
-            sig_segment = normalize((self.sig_f[i - qrs_radius:i + qrs_radius]
-                                     ).reshape(-1, 1), axis=0)
+            sig_segment = normalize((self.sig_f[i - self.qrs_radius:
+                                                i + self.qrs_radius]).reshape(-1, 1), axis=0)
 
             xcorr = np.correlate(sig_segment[:, 0], ricker_wavelet[:,0])
 
