@@ -24,8 +24,10 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
-        - 1d numpy array, with values representing sample indices
-        - list, with values representing sample indices
+        - 1d numpy array, with values representing sample indices. Empty
+          arrays are skipped.
+        - list, with values representing sample indices. Empty lists
+          are skipped.
         - None. For channels in which nothing is to be plotted.
         If `signal` is defined, the annotation locations will be overlaid on
         the signals, with the list index corresponding to the signal channel.
@@ -188,7 +190,7 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
 
     # Plot the annotations
     for ch in range(n_annot):
-        if ann_samp[ch] is not None:
+        if ann_samp[ch] is not None and len(ann_samp[ch]):
             # Figure out the y values to plot on a channel basis
 
             # 1 dimensional signals
