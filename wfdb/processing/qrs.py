@@ -220,9 +220,10 @@ class XQRS(object):
         ricker_wavelet = signal.ricker(self.qrs_radius * 2, 4).reshape(-1,1)
 
         # Go through the peaks and find qrs peaks and noise peaks.
+        # only inspect peaks with at least qrs_radius around either side
         for peak_num in range(
                 np.where(peak_inds_f > self.qrs_width)[0][0],
-                len(peak_inds_f)):
+                np.where(peak_inds_f <= self.sig_len - self.qrs_width)[0][0]):
 
             i = peak_inds_f[peak_num]
 
@@ -287,7 +288,7 @@ class XQRS(object):
                 print('Failed to find %d beats during learning.'
                       % n_calib_beats)
 
-            self._set_init_params()
+            self._set_default_init_params()
 
 
     def _set_init_params(self, qrs_amp_recent, noise_amp_recent, rr_recent,
@@ -614,7 +615,7 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
 
     """
     xqrs = XQRS(sig=sig, fs=fs, conf=conf)
-    xqrs.detect(sampfrom=sampfrom, sampto=sampto)
+    xqrs.detect(sampfrom=sampfrom, sampto=sampto, verbose=verbose)
     return xqrs.qrs_inds
 
 
