@@ -1,5 +1,11 @@
-import numpy as np
 import matplotlib.pyplot as plt
+from multiprocessing import cpu_count, Pool
+import numpy as np
+import requests
+
+from ..io.annotation import rdann
+from ..io.download import get_record_list
+from ..io.record import rdsamp
 
 
 class Comparitor(object):
@@ -336,4 +342,72 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
                             window_width=window_width, signal=signal)
     comparitor.compare()
 
+    return comparitor
+
+
+def benchmark_mitdb(detector, verbose=False):
+    """
+    Benchmark a qrs detector against mitdb's records.
+
+    Parameters
+    ----------
+    detector : function
+        The detector function.
+    verbose : bool, optional
+        The verbose option of the detector function.
+
+    Returns
+    -------
+    comparitors : list
+        List of Comparitor objects run on the records.
+    specificity : float
+        Aggregate specificity.
+    positive_predictivity : float
+        Aggregate positive_predictivity.
+    false_positive_rate : float
+        Aggregate false_positive_rate.
+
+    Notes
+    -----
+    TODO:
+    - remove non-qrs detections from reference annotations
+    - allow kwargs
+
+    """
+    record_list = get_record_list('mitdb')
+    n_records = len(record_list)
+
+    # Function arguments for starmap
+    args = zip(record_list, n_records * [detector], n_records * [verbose])
+
+    # Run detector and compare against reference annotations for all
+    # records
+    with Pool(cpu_count() - 1) as p:
+        comparitors = p.starmap(benchmark_mitdb_record, args)
+
+    # Calculate aggregate stats
+    specificity = np.mean([c.specificity for c in comparitors])
+    positive_predictivity = np.mean(
+        [c.positive_predictivity for c in comparitors])
+    false_positive_rate = np.mean(
+        [c.false_positive_rate for c in comparitors])
+
+    print('Benchmark complete')
+
+    return comparitors, specificity, positive_predictivity, false_positive_rate
+
+
+def benchmark_mitdb_record(rec, detector, verbose):
+    """
+    Benchmark a single mitdb record
+    """
+    sig, fields = rdsamp(rec, pb_dir='mitdb', channels=[0])
+    ann_ref = rdann(rec, pb_dir='mitdb', extension='atr')
+
+    qrs_inds = detector(sig=sig[:,0], fs=fields['fs'], verbose=verbose)
+
+    comparitor = compare_annotations(ref_sample=ann_ref.sample[1:],
+                                     test_sample=qrs_inds,
+                                     window_width=int(0.1 * fields['fs']))
+    print('Finished record %s' % rec)
     return comparitor
