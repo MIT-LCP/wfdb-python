@@ -27,16 +27,108 @@ def compute_hr(sig_len, qrs_inds, fs):
     if len(qrs_inds) < 2:
         return heart_rate
 
-    current_hr = np.nan
-
     for i in range(0, len(qrs_inds)-2):
         a = qrs_inds[i]
         b = qrs_inds[i+1]
         c = qrs_inds[i+2]
-        RR = (b-a) * (1.0 / fs) * 1000
-        hr = 60000.0 / RR
+        rr = (b-a) * (1.0 / fs) * 1000
+        hr = 60000.0 / rr
         heart_rate[b+1:c+1] = hr
 
     heart_rate[qrs_inds[-1]:] = heart_rate[qrs_inds[-1]]
 
     return heart_rate
+
+
+def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
+            rr_units='samples'):
+    """
+    Compute rr intervals from qrs indices by extracting the time
+    differences.
+
+    Parameters
+    ----------
+    qrs_locs : numpy array
+        1d array of qrs locations.
+    fs : float, optional
+        Sampling frequency of the original signal. Needed if
+        `qrs_units` does not match `rr_units`.
+    min_rr : float, optional
+        The minimum allowed rr interval. Values below this are excluded
+        from the returned rr intervals. Units are in `rr_units`.
+    max_rr : float, optional
+        The maximum allowed rr interval. Values above this are excluded
+        from the returned rr intervals. Units are in `rr_units`.
+    qrs_units : str, optional
+        The time unit of `qrs_locs`. Must be one of: 'samples',
+        'seconds'.
+    rr_units : str, optional
+        The desired time unit of the returned rr intervals in. Must be
+        one of: 'samples', 'seconds'.
+
+    Returns
+    -------
+    rr : numpy array
+        Array of rr intervals.
+
+    """
+    rr = np.diff(qrs_inds)
+
+    # Convert to desired output rr units if needed
+    if qrs_units == 'samples' and rr_units == 'seconds':
+        rr = rr / fs
+    elif qrs_units == 'seconds' and rr_units == 'samples':
+        rr = rr * fs
+
+    # Apply rr interval filters
+    if min_rr is not None:
+        rr = rr[rr > min_rr]
+
+    if max_rr is not None:
+        rr = rr[rr < max_rr]
+
+    return rr
+
+
+def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
+    """
+    Compute mean heart rate from a set of rr intervals.
+
+    Parameters
+    ----------
+    rr : numpy array
+        Array of rr intervals.
+    fs : int, or float
+        The corresponding signal's sampling frequency. Required if
+        'input_time_units' == 'samples'.
+    min_rr : float, optional
+        The minimum allowed rr interval. Values below this are excluded
+        when calculating the heart rate. Units are in `rr_units`.
+    max_rr : float, optional
+        The maximum allowed rr interval. Values above this are excluded
+        when calculating the heart rate. Units are in `rr_units`.
+    rr_units : str, optional
+        The time units of the input rr intervals. Must be one of:
+        'samples', 'seconds'.
+
+    Returns
+    -------
+    mean_hr : float
+        The mean heart rate in beats per minute
+
+    """
+    if min_rr is not None:
+        rr = rr[rr > min_rr]
+
+    if max_rr is not None:
+        rr = rr[rr < max_rr]
+
+    mean_rr = np.mean(rr)
+
+    mean_hr = 60 / mean_rr
+
+    # Convert to bpm
+    if input_units == 'samples':
+        mean_hr = mean_hr * fs
+
+    return mean_hr
