@@ -72,7 +72,11 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
         Array of rr intervals.
 
     """
-    rr = np.diff(qrs_inds)
+    rr = np.diff(qrs_locs)
+
+    # Empty input qrs_locs
+    if not len(rr):
+        return rr
 
     # Convert to desired output rr units if needed
     if qrs_units == 'samples' and rr_units == 'seconds':
@@ -92,7 +96,8 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
 
 def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
     """
-    Compute mean heart rate from a set of rr intervals.
+    Compute mean heart rate in beats per minute, from a set of rr
+    intervals. Returns 0 if rr is empty.
 
     Parameters
     ----------
@@ -117,6 +122,9 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
         The mean heart rate in beats per minute
 
     """
+    if not len(rr):
+        return 0
+
     if min_rr is not None:
         rr = rr[rr > min_rr]
 
@@ -128,7 +136,7 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
     mean_hr = 60 / mean_rr
 
     # Convert to bpm
-    if input_units == 'samples':
+    if rr_units == 'samples':
         mean_hr = mean_hr * fs
 
     return mean_hr

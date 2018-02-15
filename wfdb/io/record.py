@@ -1103,7 +1103,7 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
 
     signals = record.p_signal
     fields = {}
-    for field in ['fs','units','sig_name', 'comments']:
+    for field in ['fs','sig_len', 'n_sig', 'units','sig_name', 'comments']:
         fields[field] = getattr(record, field)
 
     return signals, fields

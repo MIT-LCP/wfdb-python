@@ -373,6 +373,13 @@ def benchmark_mitdb(detector, verbose=False):
     - remove non-qrs detections from reference annotations
     - allow kwargs
 
+    Examples
+    --------
+    >>> import wfdb
+    >> from wfdb.processing import benchmark_mitdb, xqrs_detect
+
+    >>> comparitors, a, b, c = benchmark_mitdb(xqrs_detect)
+
     """
     record_list = get_record_list('mitdb')
     n_records = len(record_list)
