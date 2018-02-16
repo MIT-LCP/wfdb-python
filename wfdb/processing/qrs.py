@@ -554,6 +554,14 @@ class XQRS(object):
         self.sampto = sampto
         self.verbose = verbose
 
+        # Don't attempt to run on a flat signal
+        if np.max(self.sig) == np.min(self.sig):
+            self.
+            if self.verbose:
+                print('Flat signal. Detection skipped.')
+                self.qrs_inds = np.empty(0)
+            return
+
         # Get/set signal configuration fields from Conf object
         self._set_conf()
         # Bandpass filter the signal
