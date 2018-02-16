@@ -556,10 +556,9 @@ class XQRS(object):
 
         # Don't attempt to run on a flat signal
         if np.max(self.sig) == np.min(self.sig):
-            self.
+            self.qrs_inds = np.empty(0)
             if self.verbose:
                 print('Flat signal. Detection skipped.')
-                self.qrs_inds = np.empty(0)
             return
 
         # Get/set signal configuration fields from Conf object
