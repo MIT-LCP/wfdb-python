@@ -72,6 +72,9 @@ def find_local_peaks(sig, radius):
 
     """
     # TODO: Fix flat mountain scenarios.
+    if np.min(sig) == np.max(sig):
+        return np.empty(0)
+
     peak_inds = []
 
     i = 0

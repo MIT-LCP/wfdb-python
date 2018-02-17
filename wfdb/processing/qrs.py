@@ -209,9 +209,6 @@ class XQRS(object):
         if self.verbose:
             print('Learning initial signal parameters...')
 
-        # Find the local peaks of the signal.
-        peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
-
         last_qrs_ind = -self.rr_max
         qrs_inds = []
         qrs_amps = []
@@ -219,14 +216,25 @@ class XQRS(object):
 
         ricker_wavelet = signal.ricker(self.qrs_radius * 2, 4).reshape(-1,1)
 
+        # Find the local peaks of the signal.
+        peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
+
+        peak_inds_f_r = np.where(peak_inds_f > self.qrs_width)[0]
+        peak_inds_f_l = np.where(peak_inds_f <= self.sig_len - self.qrs_width)[0]
+
+        # Skip if no peaks in range
+        if (not peak_inds_f.size or not peak_inds_f_r.size
+                                 or not peak_inds_f_l.size):
+            if self.verbose:
+                print('Failed to find %d beats during learning.'
+                      % n_calib_beats)
+            self._set_default_init_params()
+            return
+
         # Go through the peaks and find qrs peaks and noise peaks.
         # only inspect peaks with at least qrs_radius around either side
-        for peak_num in range(
-                np.where(peak_inds_f > self.qrs_width)[0][0],
-                np.where(peak_inds_f <= self.sig_len - self.qrs_width)[0][0]):
-
+        for peak_num in range(peak_inds_f_r[0], peak_inds_f_l[0]):
             i = peak_inds_f[peak_num]
-
             # Calculate cross-correlation between the filtered signal
             # segment and a ricker wavelet
 
