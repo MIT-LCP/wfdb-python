@@ -1314,8 +1314,8 @@ def orderednoconseclist(fulllist):
     return noconseclist
 
 
-def dl_database(db_dir, dl_dir, records='all', annotators='all', keep_subdirs=True,
-                overwrite = False):
+def dl_database(db_dir, dl_dir, records='all', annotators='all',
+                keep_subdirs=True, overwrite = False):
     """
     Download WFDB record (and optionally annotation) files from a
     Physiobank database. The database must contain a 'RECORDS' file in
@@ -1361,8 +1361,10 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all', keep_subdirs=Tr
     >>> wfdb.dl_database('ahadb', os.getcwd())
 
     """
+    # Full url physiobank database
+    db_url = posixpath.join(download.db_index_url, db_dir)
     # Check if the database is valid
-    r = requests.get(dburl)
+    r = requests.get(db_url)
     r.raise_for_status()
 
     # Get the list of records
