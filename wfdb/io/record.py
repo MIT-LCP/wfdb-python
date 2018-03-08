@@ -935,7 +935,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     Examples
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
-                               channels = [1,3])
+                               channels=[1,3])
 
     """
 
