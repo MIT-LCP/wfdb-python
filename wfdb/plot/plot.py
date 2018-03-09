@@ -391,12 +391,14 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     """
     (signal, ann_samp, ann_sym, fs, sig_name,
-        sig_units) = get_wfdb_plot_items(record=record, annotation=annotation,
-                                         plot_sym=plot_sym)
+        sig_units, record_name) = get_wfdb_plot_items(record=record,
+                                                      annotation=annotation,
+                                                      plot_sym=plot_sym)
 
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
                       time_units=time_units, sig_name=sig_name,
-                      sig_units=sig_units, title=title, sig_style=sig_style,
+                      sig_units=sig_units, title=(title or record_name),
+                      sig_style=sig_style,
                       ann_style=ann_style, ecg_grids=ecg_grids,
                       figsize=figsize, return_fig=return_fig)
 
@@ -417,8 +419,9 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         fs = record.fs
         sig_name = record.sig_name
         sig_units = record.units
+        record_name = 'Record: %s' % record.record_name
     else:
-        signal, fs, sig_name, sig_units = 4 * [None]
+        signal = fs = sig_name = sig_units = record_name = None
 
     # Get annotation attributes
     if annotation:
@@ -455,11 +458,13 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         # Try to get fs from annotation if not already in record
         if fs is None:
             fs = annotation.fs
+
+        record_name = record_name or annotation.record_name
     else:
         ann_samp = None
         ann_sym = None
 
-    return signal, ann_samp, ann_sym, fs, sig_name, sig_units
+    return signal, ann_samp, ann_sym, fs, sig_name, sig_units, record_name
 
 
 def plot_all_records(directory=''):
