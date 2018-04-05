@@ -7,6 +7,7 @@ from .basic import smooth
 def find_peaks(sig):
     """
     Find hard peaks and soft peaks in a signal, defined as follows:
+
     - Hard peak: a peak that is either /\ or \/
     - Soft peak: a peak that is either /-*\ or \-*/
       In this case we define the middle as the peak
@@ -123,6 +124,7 @@ def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
     peak_dir : str, optional
         The expected peak direction: 'up' or 'down', 'both', or
         'compare'.
+
         - If 'up', the peaks will be shifted to local maxima
         - If 'down', the peaks will be shifted to local minima
         - If 'both', the peaks will be shifted to local maxima of the

@@ -18,6 +18,7 @@ class XQRS(object):
     The `XQRS.detect` method runs the detection algorithm.
 
     The process works as follows:
+
     - Load the signal and configuration parameters.
     - Bandpass filter the signal between 5 and 20 Hz, to get the
       filtered signal.
@@ -30,18 +31,19 @@ class XQRS(object):
       or fails, use default parameters.
     - Run the main detection. Iterate through the local maxima of
       the mwi signal. For each local maxima:
-        - Check if it is a qrs complex. To be classified as a qrs,
-          it must come after the refractory period, cross the qrs
-          detection threshold, and not be classified as a t-wave
-          if it comes close enough to the previous qrs. If
-          successfully classified, update running detection
-          threshold and heart rate parameters.
-        - If not a qrs, classify it as a noise peak and update
-          running parameters.
-        - Before continuing to the next local maxima, if no qrs
-          was detected within 1.66 times the recent rr interval,
-          perform backsearch qrs detection. This checks previous
-          peaks using a lower qrs detection threshold.
+
+      - Check if it is a qrs complex. To be classified as a qrs,
+        it must come after the refractory period, cross the qrs
+        detection threshold, and not be classified as a t-wave
+        if it comes close enough to the previous qrs. If
+        successfully classified, update running detection
+        threshold and heart rate parameters.
+      - If not a qrs, classify it as a noise peak and update
+        running parameters.
+      - Before continuing to the next local maxima, if no qrs
+        was detected within 1.66 times the recent rr interval,
+        perform backsearch qrs detection. This checks previous
+        peaks using a lower qrs detection threshold.
 
     Examples
     --------
@@ -1171,16 +1173,19 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     This function should not be used for signals with fs <= 50Hz
 
     The algorithm theoretically works as follows:
+
     - Load in configuration parameters. They are used to set/initialize the:
-      - allowed rr interval limits (fixed)
-      - initial recent rr interval (running)
-      - qrs width, used for detection filter widths (fixed)
-      - allowed rt interval limits (fixed)
-      - initial recent rt interval (running)
-      - initial peak amplitude detection threshold (running)
-      - initial qrs amplitude detection threshold (running)
-      **Note** that this algorithm does not normalize signal amplitudes, and
-      hence is highly dependent on configuration amplitude parameters.
+
+      * allowed rr interval limits (fixed)
+      * initial recent rr interval (running)
+      * qrs width, used for detection filter widths (fixed)
+      * allowed rt interval limits (fixed)
+      * initial recent rt interval (running)
+      * initial peak amplitude detection threshold (running)
+      * initial qrs amplitude detection threshold (running)
+      * `Note`: this algorithm does not normalize signal amplitudes, and
+        hence is highly dependent on configuration amplitude parameters.
+
     - Apply trapezoid low-pass filtering to the signal
     - Convolve a QRS matched filter with the filtered signal
     - Run the learning phase using a calculated signal length: detect qrs and

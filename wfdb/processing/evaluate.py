@@ -13,7 +13,7 @@ class Comparitor(object):
     The class to implement and hold comparisons between two sets of
     annotations.
 
-    See methods `print_summary` and `plot`.
+    See methods `compare`, `print_summary` and `plot`.
 
     Examples
     --------
@@ -60,7 +60,7 @@ class Comparitor(object):
 
         # The matching test sample number for each reference annotation.
         # -1 for indices with no match
-        self.matching_sample_nums = -1 * np.ones(self.n_ref, dtype='int')
+        self.matching_sample_nums = np.full(self.n_ref, -1, dtype='int')
 
         self.signal = signal
         # TODO: rdann return annotations.where
@@ -114,17 +114,35 @@ class Comparitor(object):
         self.positive_predictivity = float(self.tp) / self.n_test
         self.false_positive_rate = float(self.fp) / self.n_test
 
-
     def compare(self):
         """
         Main comparison function
+        """
+        """
+        Note: Make sure to be able to handle these ref/test scenarios:
+
+        A:
+        o----o---o---o
+        x-------x----x
+
+        B:
+        o----o-----o---o
+        x--------x--x--x
+
+        C:
+        o------o-----o---o
+        x-x--------x--x--x
+
+        D:
+        o------o-----o---o
+        x-x--------x-----x
+
         """
         test_samp_num = 0
         ref_samp_num = 0
 
         # Iterate through the reference sample numbers
         while ref_samp_num < self.n_ref and test_samp_num < self.n_test:
-
             # Get the closest testing sample number for this reference sample
             closest_samp_num, smallest_samp_diff = (
                 self._get_closest_samp_num(ref_samp_num, test_samp_num))
@@ -138,25 +156,42 @@ class Comparitor(object):
                 # to compete for the test sample
                 closest_samp_num_next = -1
 
-            # Found a contested test sample number. Decide which reference
-            # sample it belongs to.
-            if closest_samp_num == closest_samp_num_next:
-                # If the sample is closer to the next reference sample,
-                # assign it to the next refernece sample.
-                if smallest_samp_diff_next < smallest_samp_diff:
-                    # Get the next closest sample for this reference sample.
-                    # Can this be empty? Need to catch case where nothing left?
-                    closest_samp_num, smallest_samp_diff = (
-                        self._get_closest_samp_num(ref_samp_num, test_samp_num))
+            # Found a contested test sample number. Decide which
+            # reference sample it belongs to. If the sample is closer to
+            # the next reference sample, leave it to the next reference
+            # sample and label this reference sample as unmatched.
+            if (closest_samp_num == closest_samp_num_next
+                    and smallest_samp_diff_next < smallest_samp_diff):
+                # Get the next closest sample for this reference sample,
+                # if not already assigned to a previous sample.
+                # It will be the previous testing sample number in any
+                # possible case (scenario D below), or nothing.
+                if closest_samp_num and (not ref_samp_num or closest_samp_num - 1 != self.matching_sample_nums[ref_samp_num - 1]):
+                    # The previous test annotation is inspected
+                    closest_samp_num = closest_samp_num - 1
+                    smallest_samp_diff = abs(self.ref_sample[ref_samp_num]
+                        - self.test_sample[closest_samp_num])
+                    # Assign the reference-test pair if close enough
+                    if smallest_samp_diff < self.window_width:
+                        self.matching_sample_nums[ref_samp_num] = closest_samp_num
+                    # Set the starting test sample number to inspect
+                    # for the next reference sample.
+                    test_samp_num = closest_samp_num + 1
 
-            # If no clash, it is straightforward.
+                # Otherwise there is no matching test annotation
 
-            # Assign the reference-test pair if close enough
-            if smallest_samp_diff < self.window_width:
-                self.matching_sample_nums[ref_samp_num] = closest_samp_num
+            # If there is no clash, or the contested test sample is
+            # closer to the current reference, keep the test sample
+            # for this reference sample.
+            else:
+                # Assign the reference-test pair if close enough
+                if smallest_samp_diff < self.window_width:
+                    self.matching_sample_nums[ref_samp_num] = closest_samp_num
+                # Increment the starting test sample number to inspect
+                # for the next reference sample.
+                test_samp_num = closest_samp_num + 1
 
             ref_samp_num += 1
-            test_samp_num = closest_samp_num + 1
 
         self._calc_stats()
 
@@ -185,7 +220,7 @@ class Comparitor(object):
             abs_samp_diff = abs(samp_diff)
 
             # Found a better match
-            if abs(samp_diff) < smallest_samp_diff:
+            if abs_samp_diff < smallest_samp_diff:
                 closest_samp_num = test_samp_num
                 smallest_samp_diff = abs_samp_diff
 
@@ -378,7 +413,7 @@ def benchmark_mitdb(detector, verbose=False):
     >>> import wfdb
     >> from wfdb.processing import benchmark_mitdb, xqrs_detect
 
-    >>> comparitors, a, b, c = benchmark_mitdb(xqrs_detect)
+    >>> comparitors, spec, pp, fpr = benchmark_mitdb(xqrs_detect)
 
     """
     record_list = get_record_list('mitdb')

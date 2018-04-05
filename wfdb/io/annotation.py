@@ -1048,6 +1048,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
     Write a WFDB annotation file.
 
     Specify at least the following:
+
     - The record name of the WFDB record (record_name)
     - The annotation file extension (extension)
     - The annotation locations in samples relative to the beginning of
@@ -1090,12 +1091,14 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
         The map of custom defined annotation labels used for this annotation, in
         addition to the standard WFDB annotation labels. Custom labels are
         defined by two or three fields:
+
         - The integer values used to store custom annotation labels in the file
           (optional)
         - Their short display symbols
         - Their long descriptions.
 
         This input argument may come in four formats:
+
         1. A pandas.DataFrame object with columns:
            ['label_store', 'symbol', 'description']
         2. A pandas.DataFrame object with columns: ['symbol', 'description']

@@ -290,25 +290,32 @@ class SignalMixin(object):
         the d_signal/e_d_signal attribute will be set, and the
         p_signal/e_p_signal field will be set to None.
 
-        Input arguments:
-        - expanded (default=False): Boolean specifying whether to transform the
-          e_p_signal attribute (True) or the p_signal attribute (False).
-        - inplace (default=False): Boolean specifying whether to automatically
-          set the object's corresponding digital signal attribute and set the
-          physical signal attribute to None (True), or to return the converted
-          signal as a separate variable without changing the original physical
-          signal attribute (False).
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to transform the `e_p_signal` attribute (True) or
+            the `p_signal` attribute (False).
+        inplace : bool, optional
+            Whether to automatically set the object's corresponding
+            digital signal attribute and set the physical
+            signal attribute to None (True), or to return the converted
+            signal as a separate variable without changing the original
+            physical signal attribute (False).
 
-        Possible output argument:
-        - d_signal: The digital conversion of the signal. Either a 2d numpy
-          array or a list of 1d numpy arrays.
+        Returns
+        -------
+        d_signal : numpy array, optional
+            The digital conversion of the signal. Either a 2d numpy
+            array or a list of 1d numpy arrays.
 
-        Example Usage:
-        import wfdb
-        record = wfdb.rdsamp('sample-data/100')
-        d_signal = record.adc()
-        record.adc(inplace=True)
-        record.dac(inplace=True)
+        Examples:
+        ---------
+        >>> import wfdb
+        >>> record = wfdb.rdsamp('sample-data/100')
+        >>> d_signal = record.adc()
+        >>> record.adc(inplace=True)
+        >>> record.dac(inplace=True)
+
         """
 
         # The digital nan values for each channel
@@ -379,25 +386,32 @@ class SignalMixin(object):
         the p_signal/e_p_signal attribute will be set, and the
         d_signal/e_d_signal field will be set to None.
 
-        Input arguments:
-        - expanded: Boolean specifying whether to transform the
-          e_d_signal attribute (True) or the d_signal attribute (False).
-        - inplace: Boolean specifying whether to automatically
-          set the object's corresponding physical signal attribute and set the
-          digital signal attribute to None (True), or to return the converted
-          signal as a separate variable without changing the original digital
-          signal attribute (False).
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to transform the `e_d_signal attribute` (True) or
+            the `d_signal` attribute (False).
+        inplace : bool, optional
+            Whether to automatically set the object's corresponding
+            physical signal attribute and set the digital signal
+            attribute to None (True), or to return the converted
+            signal as a separate variable without changing the original
+            digital signal attribute (False).
 
-        Possible output argument:
-        - p_signal: The physical conversion of the signal. Either a 2d numpy
-          array or a list of 1d numpy arrays.
+        Returns
+        -------
+        p_signal : numpy array, optional
+            The physical conversion of the signal. Either a 2d numpy
+            array or a list of 1d numpy arrays.
 
-        Example Usage:
-        import wfdb
-        record = wfdb.rdsamp('sample-data/100', physical=False)
-        p_signal = record.dac()
-        record.dac(inplace=True)
-        record.adc(inplace=True)
+        Examples
+        --------
+        >>> import wfdb
+        >>> record = wfdb.rdsamp('sample-data/100', physical=False)
+        >>> p_signal = record.dac()
+        >>> record.dac(inplace=True)
+        >>> record.adc(inplace=True)
+
         """
 
         # The digital nan values for each channel

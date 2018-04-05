@@ -38,4 +38,4 @@ Annotation Evaluators
 ---------------------
 
 .. automodule:: wfdb.processing
-    :members: Comparitor, compare_annotations
+    :members: Comparitor, compare_annotations, benchmark_mitdb
