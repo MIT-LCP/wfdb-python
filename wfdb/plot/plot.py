@@ -315,6 +315,13 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
 
         ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
 
+        # If there are annotations with channels outside of signal range
+        # put placeholders
+        n_missing_labels = n_subplots - len(ylabel)
+        if n_missing_labels:
+            ylabel = ylabel + ['ch_%d/NU' % i for i in range(len(ylabel),
+                                                             n_subplots)]
+
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
 
@@ -353,14 +360,15 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     plot_sym : bool, optional
         Whether to plot the annotation symbols on the graph.
     time_units : str, optional
-        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
-        and 'hours'.
+        The x axis unit. Allowed options are: 'samples', 'seconds',
+        'minutes', and 'hours'.
     title : str, optional
         The title of the graph.
     sig_style : list, optional
-        A list of strings, specifying the style of the matplotlib plot for each
-        signal channel. If the list has a length of 1, the style will be used
-        for all channels.
+        A list of strings, specifying the style of the matplotlib plot
+        for each signal channel. The list length should match the number
+        of signal channels. If the list has a length of 1, the style
+        will be used for all channels.
     ann_style : list, optional
         A list of strings, specifying the style of the matplotlib plot for each
         annotation channel. If the list has a length of 1, the style will be
@@ -427,23 +435,17 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
 
     # Get annotation attributes
     if annotation:
+        # Note: There may be instances in which the annotation `chan`
+        # attribute has non-overlapping channels with the signal.
+        # In this case, omit empty middle channels.
+
         # Get channels
         all_chans = set(annotation.chan)
 
         n_chans = max(all_chans) + 1
 
-        # Just one channel. Place content in one list index.
-        # if len(all_chans) == 1:
-        #     ann_samp = annotation.chan[0]*[None] + [annotation.sample]
-        #     if plot_sym:
-        #         ann_sym = annotation.chan[0]*[None] + [annotation.symbol]
-        #     else:
-        #         ann_sym = None
-        # # Split annotations by channel
-        # else:
-
         # Indices for each channel
-        chan_inds = n_chans * [np.empty(0)]
+        chan_inds = n_chans * [np.empty(0, dtype='int')]
 
         for chan in all_chans:
             chan_inds[chan] = np.where(annotation.chan == chan)[0]
