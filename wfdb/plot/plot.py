@@ -60,9 +60,10 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     title : str, optional
         The title of the graph.
     sig_style : list, optional
-        A list of strings, specifying the style of the matplotlib plot for each
-        signal channel. If the list has a length of 1, the style will be used
-        for all channels.
+        A list of strings, specifying the style of the matplotlib plot
+        for each signal channel. The list length should match the number
+        of signal channels. If the list has a length of 1, the style
+        will be used for all channels.
     ann_style : list, optional
         A list of strings, specifying the style of the matplotlib plot for each
         annotation channel. If the list has a length of 1, the style will be
@@ -350,7 +351,6 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
       - the sampling frequency, from the `fs` attribute if present, and if fs
         was not already extracted from the `record` argument.
 
-
     Parameters
     ----------
     record : wfdb Record, optional
@@ -370,9 +370,10 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
         of signal channels. If the list has a length of 1, the style
         will be used for all channels.
     ann_style : list, optional
-        A list of strings, specifying the style of the matplotlib plot for each
-        annotation channel. If the list has a length of 1, the style will be
-        used for all channels.
+        A list of strings, specifying the style of the matplotlib plot
+        for each annotation channel. The list length should match the
+        number of annotation channels. If the list has a length of 1,
+        the style will be used for all channels.
     ecg_grids : list, optional
         A list of integers specifying channels in which to plot ecg grids. May
         also be set to 'all' for all channels. Major grids at 0.5mV, and minor
@@ -400,14 +401,14 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                        figsize=(10,4), ecg_grids='all')
 
     """
-    (signal, ann_samp, ann_sym, fs, sig_name,
-        sig_units, record_name) = get_wfdb_plot_items(record=record,
-                                                      annotation=annotation,
-                                                      plot_sym=plot_sym)
+    (signal, ann_samp, ann_sym, fs,
+        ylabel, record_name) = get_wfdb_plot_items(record=record,
+                                                   annotation=annotation,
+                                                   plot_sym=plot_sym)
 
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
-                      time_units=time_units, sig_name=sig_name,
-                      sig_units=sig_units, title=(title or record_name),
+                      time_units=time_units, ylabel=ylabel,
+                      title=(title or record_name),
                       sig_style=sig_style,
                       ann_style=ann_style, ecg_grids=ecg_grids,
                       figsize=figsize, return_fig=return_fig)
@@ -430,31 +431,27 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         sig_name = record.sig_name
         sig_units = record.units
         record_name = 'Record: %s' % record.record_name
+        ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
-        signal = fs = sig_name = sig_units = record_name = None
+        signal = fs = ylabel = record_name = None
 
     # Get annotation attributes
     if annotation:
-        # Note: There may be instances in which the annotation `chan`
-        # attribute has non-overlapping channels with the signal.
-        # In this case, omit empty middle channels.
-
         # Get channels
-        all_chans = set(annotation.chan)
-
-        n_chans = max(all_chans) + 1
+        ann_chans = set(annotation.chan)
+        n_ann_chans = max(ann_chans) + 1
 
         # Indices for each channel
-        chan_inds = n_chans * [np.empty(0, dtype='int')]
+        chan_inds = n_ann_chans * [np.empty(0, dtype='int')]
 
-        for chan in all_chans:
+        for chan in ann_chans:
             chan_inds[chan] = np.where(annotation.chan == chan)[0]
 
         ann_samp = [annotation.sample[ci] for ci in chan_inds]
 
         if plot_sym:
-            ann_sym = n_chans * [None]
-            for ch in all_chans:
+            ann_sym = n_ann_chans * [None]
+            for ch in ann_chans:
                 ann_sym[ch] = [annotation.symbol[ci] for ci in chan_inds[ch]]
         else:
             ann_sym = None
@@ -468,7 +465,49 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         ann_samp = None
         ann_sym = None
 
-    return signal, ann_samp, ann_sym, fs, sig_name, sig_units, record_name
+    # Cleaning: remove empty channels and set labels and styles.
+
+    # Wrangle together the signal and annotation channels if necessary
+    if record and annotation:
+        # There may be instances in which the annotation `chan`
+        # attribute has non-overlapping channels with the signal.
+        # In this case, omit empty middle channels. This function should
+        # already process labels and arrangements before passing into
+        # `plot_items`
+        sig_chans = set(range(signal.shape[1]))
+        all_chans = sorted(sig_chans.union(ann_chans))
+
+        # Need to update ylabels and annotation values
+        if sig_chans != all_chans:
+            compact_ann_samp = []
+            if plot_sym:
+                compact_ann_sym = []
+            else:
+                compact_ann_sym = None
+            ylabel = []
+            for ch in all_chans: # ie. 0, 1, 9
+                if ch in ann_chans:
+                    compact_ann_samp.append(ann_samp[ch])
+                    if plot_sym:
+                        compact_ann_sym.append(ann_sym[ch])
+                if ch in sig_chans:
+                    ylabel.append(''.join([sig_name[ch], sig_units[ch]]))
+                else:
+                    ylabel.append('ch_%d/NU' % ch)
+            ann_samp = compact_ann_samp
+            ann_sym = compact_ann_sym
+        # Signals encompass annotations
+        else:
+            ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+
+    # Remove any empty middle channels from annotations
+    elif annotation:
+        ann_samp = [a for a in ann_samp if a.size]
+        if ann_sym is not None:
+            ann_sym = [a for a in ann_sym if a]
+        ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
+
+    return signal, ann_samp, ann_sym, fs, ylabel, record_name
 
 
 def plot_all_records(directory=''):

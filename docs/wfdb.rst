@@ -32,7 +32,7 @@ Downloading
 -----------
 
 .. automodule:: wfdb
-    :members: get_dbs, get_record_list, dl_database
+    :members: get_dbs, get_record_list, dl_database, dl_files
 
 
 Plotting
