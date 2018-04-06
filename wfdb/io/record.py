@@ -1380,6 +1380,9 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         if rec.endswith('.edf'):
             allfiles.append(rec)
         else:
+            # May be pointing to directory
+            if rec.endswith('/'):
+                rec = rec + rec[:-1]
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
             dirname, baserecname = os.path.split(rec)
