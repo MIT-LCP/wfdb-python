@@ -397,11 +397,11 @@ class test_record():
 class test_download():
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
-    def test_dl_database_no_dat_file():
+    def test_dl_database_no_dat_file(self):
         wfdb.dl_database('afdb', './download-tests/', ['00735'])
 
     # Test that we can download records that *do* have a "dat" file.
-    def test_dl_database_with_dat_file():
+    def test_dl_database_with_dat_file(self):
         wfdb.dl_database('afdb', './download-tests/', ['04015'])
 
     # Cleanup written files
