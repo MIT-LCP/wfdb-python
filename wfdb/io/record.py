@@ -1391,7 +1391,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
             # Single segment record
             if isinstance(record, Record):
                 # Add all dat files of the segment
-                for file in record.file_name:
+                for file in (record.file_name if record.file_name else []):
                     allfiles.append(posixpath.join(dirname, file))
 
             # Multi segment record
