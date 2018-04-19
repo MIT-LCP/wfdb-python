@@ -1024,7 +1024,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                 record.segments[segnum] = rdrecord(
                     os.path.join(dirname, record.seg_name[segnum]),
                     sampfrom=segranges[i][0], sampto=segranges[i][1],
-                    channels=segsigs[i], physical=True, pb_dir=pb_dir)
+                    channels=segsigs[i], physical=physical, pb_dir=pb_dir)
 
         # Arrange the fields of the overall object to reflect user input
         record.arrange_fields(readsegs, segranges, channels)
