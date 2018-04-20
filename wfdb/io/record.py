@@ -18,7 +18,7 @@ from . import _header
 from . import _signal
 from . import download
 
-
+import pdb
 class BaseRecord(object):
     # The base WFDB class extended by the Record and MultiRecord classes.
     def __init__(self, record_name=None, n_sig=None,
@@ -569,7 +569,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def required_segments(self, sampfrom, sampto, channels):
 
         # The starting segment with actual samples
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             startseg = 0
         else:
             startseg = 1
@@ -612,7 +612,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def required_signal(self, readsegs, channels, dirname, pb_dir):
 
         # Fixed layout. All channels are the same.
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             # Should we bother here with skipping empty segments?
             # They won't be read anyway.
             readsigs = [channels]*len(readsegs)
@@ -649,7 +649,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             self.segments = self.segments[readsegs[0]:readsegs[-1]+1]
             self.seg_name = self.seg_name[readsegs[0]:readsegs[-1]+1]
             self.seg_len = self.seg_len[readsegs[0]:readsegs[-1]+1]
@@ -703,7 +703,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         startsamps = [0] + list(np.cumsum(self.seg_len)[0:-1])
         endsamps = list(np.cumsum(self.seg_len))
 
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             # Get the signal names and units from the first segment
             fields['sig_name'] = self.segments[0].sig_name
             fields['units'] = self.segments[0].units
@@ -834,9 +834,9 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
             setattr(record, field, d_rec[field])
         # Determine whether the record is fixed or variable
         if record.seg_len[0] == 0:
-            record.layout = 'Variable'
+            record.layout = 'variable'
         else:
-            record.layout = 'Fixed'
+            record.layout = 'fixed'
 
         # If specified, read the segment headers
         if rd_segments:
@@ -1000,14 +1000,9 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         record.segments = [None]*record.n_seg
 
-        # Variable layout
-        if record.seg_len[0] == 0:
-            record.layout = 'Variable'
-            # Read the layout specification header
+        # Variable layout, read the layout specification header
+        if record.layout == 'variable':
             record.segments[0] = rdheader(os.path.join(dirname, record.seg_name[0]), pb_dir=pb_dir)
-        # Fixed layout
-        else:
-            record.layout = 'Fixed'
 
         # The segment numbers and samples within each segment to read.
         readsegs, segranges  = record.required_segments(sampfrom, sampto, channels)
