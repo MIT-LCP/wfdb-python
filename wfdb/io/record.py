@@ -650,13 +650,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             for i in range(0, len(seg_numbers)):
                 # Skip empty segments
                 if self.seg_name[seg_numbers[i]] == '~':
-                    required_channels.append(None)
+                    required_channels.append([])
                 else:
                     # Get the signal names of the current segment
                     s_sig_names = rdheader(
                         os.path.join(dirname, self.seg_name[seg_numbers[i]]),
                         pb_dir=pb_dir).sig_name
-                    required_channels.append(get_wanted_channel_inds(
+                    required_channels.append(get_wanted_channels(
                         w_sig_names, s_sig_names))
 
         return required_channels
@@ -722,8 +722,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             del(fields[attr])
 
         # Get the formats, signal names and units from the first segment
-        for attr in ['fmt', 'sig_name', 'units']:
-            setattr(fields, attr, getattr(self.segments[0], attr))
+        for attr in ['fmt', 'adcgain', 'baseline', 'units', 'sig_name']:
+            fields[attr] = getattr(self.segments[0], attr)
 
         # Figure out attribute to set, and dtype.
         if physical:
@@ -734,27 +734,26 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 dtype = 'float32'
             else:
                 dtype = 'float16'
+            nan_vals = self.n_sig * [np.nan]
         else:
             # Figure out if this conversion can be performed. All
             # signals must have the same fmt, gain, and baseline for
             # all segments. Fixed layout signals automatically
-            # pass the test. Also get the input output mapping for each
-            # segment.
+            # pass the test.
             if self.layout == 'variable':
-                channel_map = (self.n_seg-1) * []
-
                 for seg in self.segments[1:]:
-                    if seg is None:
-                        continue
-
-
-
-                if not_the_same:
-                    raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format')
-
+                    segment_channels = get_wanted_channels(fields['sig_name'], seg, pad=True)
+                    for attr in ['fmt', 'adcgain', 'baseline', 'units', 'sig_name']:
+                        for ch in range(self.n_sig):
+                            # Skip if the signal is not contained in the segment
+                            if segment_channels[ch] is None:
+                                continue
+                            if getattr(seg, attr)[segment_channels[ch]] != fields[attr][ch]:
+                                raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
 
             sig_attr = 'd_signal'
             dtype = ???
+            nan_vals = _signal.digi_nan(fields['fmt'])
 
         combined_signal = np.zeros([self.sig_len, self.n_sig], dtype=dtype)
 
@@ -763,13 +762,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         start_samps = [0] + list(np.cumsum(self.seg_len)[0:-1])
         end_samps = list(np.cumsum(self.seg_len))
 
-
-
         if self.layout == 'fixed':
             # Copy over the signals directly. Recall there are no
             # empty segments in fixed layout records.
             for i in range(self.n_seg):
-                combined_signal[start_samps[i]:end_samps[i],:] = getattr(self.segments[i], sig_attr)
+                combined_signal[start_samps[i]:end_samps[i], :] = getattr(self.segments[i], sig_attr)
         else:
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
@@ -777,36 +774,21 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
                 # Empty segment
                 if seg is None:
-                    combined_signal[start_samps[i]:end_samps[i], :] = np.nan #### Or digital values .............
-
-
+                    combined_signal[start_samps[i]:end_samps[i], :] = nan_vals
                 # Non-empty segment
                 else:
-                    # Figure out if there are any channels wanted and
-                    # the output channels they are to be stored in
-                    inchannels = []
-                    outchannels = []
-                    for s in fields['sig_name']:
-                        if s in seg.sig_name:
-                            inchannels.append(seg.sig_name.index(s))
-                            outchannels.append(fields['sig_name'].index(s))
-
-                    # Segment contains no wanted channels. Fill with nans.
-                    if inchannels == []:
-                        p_signal[startsamps[i]:endsamps[i],:] = np.nan
-                    # Segment contains wanted channel(s). Transfer samples.
-                    else:
-                        # This statement is necessary in case this function is not called
-                        # directly from rdsamp with m2s=True.
-                        if not hasattr(seg, 'p_signal'):
-                            seg.p_signal = seg.dac(return_res=return_res)
-
-                        for ch in range(0, fields['n_sig']):
-                            if ch not in outchannels:
-                                p_signal[startsamps[i]:endsamps[i],ch] = np.nan
-                            else:
-                                p_signal[startsamps[i]:endsamps[i],ch] = seg.p_signal[:, inchannels[outchannels.index(ch)]]
-
+                    # Get the segment channels to copy over for each
+                    # overall channel
+                    segment_channels = get_wanted_channels(fields['sig_name'],
+                                                           seg, pad=True)
+                    for ch in range(self.n_sig):
+                        # Fill with invalids if segment does not contain
+                        # signal
+                        if segment_channels[ch] is None:
+                            combined_signal[start_samps[i]:end_samps[i], ch] = nan_vals[ch]
+                        # Copy over relevant signal
+                        else:
+                            combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)
 
         # Create the single segment Record object and set attributes
         record = Record()
@@ -1075,13 +1057,13 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Read the desired samples in the relevant segments
         for i in range(len(seg_numbers)):
-            segnum = seg_numbers[i]
+            seg_num = seg_numbers[i]
             # Empty segment or segment with no relevant channels
-            if record.seg_name[segnum] == '~' or seg_channels[i] is None:
-                record.segments[segnum] = None
+            if record.seg_name[seg_num] == '~' or len(seg_channels[i]) == 0:
+                record.segments[seg_num] = None
             else:
-                record.segments[segnum] = rdrecord(
-                    os.path.join(dirname, record.seg_name[segnum]),
+                record.segments[seg_num] = rdrecord(
+                    os.path.join(dirname, record.seg_name[seg_num]),
                     sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
                     channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
@@ -1171,7 +1153,7 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     return signals, fields
 
 
-def get_wanted_channel_inds(wanted_sig_names, record_sig_names, pad=False):
+def get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
     """
     Given some wanted signal names, and the signal names contained in a
     record, return the indices of the record channels that intersect.
