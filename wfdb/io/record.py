@@ -697,7 +697,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         Create a Record object from the MultiRecord object. All signal
         segments will be combined into the new object's `p_signal` or
         `d_signal` field. For digital format, the signals must have
-        the same storage format, baseline, and adcgain in all segments.
+        the same storage format, baseline, and adc_gain in all segments.
 
         Parameters
         ----------
@@ -722,7 +722,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             del(fields[attr])
 
         # Get the formats, signal names and units from the first segment
-        for attr in ['fmt', 'adcgain', 'baseline', 'units', 'sig_name']:
+        for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
             fields[attr] = getattr(self.segments[0], attr)
 
         # Figure out attribute to set, and dtype.
@@ -742,8 +742,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # pass the test.
             if self.layout == 'variable':
                 for seg in self.segments[1:]:
-                    segment_channels = get_wanted_channels(fields['sig_name'], seg, pad=True)
-                    for attr in ['fmt', 'adcgain', 'baseline', 'units', 'sig_name']:
+                    segment_channels = get_wanted_channels(fields['sig_name'],
+                                                           seg.sig_name,
+                                                           pad=True)
+                    for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
                         for ch in range(self.n_sig):
                             # Skip if the signal is not contained in the segment
                             if segment_channels[ch] is None:
@@ -752,7 +754,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                                 raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
 
             sig_attr = 'd_signal'
-            dtype = ???
+            # Figure out the largest required dtype
+            dtype = _signal.npdtype(_signal.wfdbfmtres(fields['fmt'],
+                                                       maxres=True),
+                                    discrete=True)
             nan_vals = _signal.digi_nan(fields['fmt'])
 
         combined_signal = np.zeros([self.sig_len, self.n_sig], dtype=dtype)
@@ -780,7 +785,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     # Get the segment channels to copy over for each
                     # overall channel
                     segment_channels = get_wanted_channels(fields['sig_name'],
-                                                           seg, pad=True)
+                                                           seg.sig_name,
+                                                           pad=True)
                     for ch in range(self.n_sig):
                         # Fill with invalids if segment does not contain
                         # signal
@@ -788,7 +794,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                             combined_signal[start_samps[i]:end_samps[i], ch] = nan_vals[ch]
                         # Copy over relevant signal
                         else:
-                            combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)
+                            combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)[:, segment_channels[ch]]
 
         # Create the single segment Record object and set attributes
         record = Record()
