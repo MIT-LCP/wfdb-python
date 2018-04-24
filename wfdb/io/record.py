@@ -5,8 +5,9 @@
 # The check_field_cohesion() function will be called in wrheader which checks all the header fields.
 # The check_sig_cohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
-from calendar import monthrange
+
 from collections import OrderedDict
+import datetime
 import multiprocessing
 import numpy as np
 import os
@@ -105,9 +106,12 @@ class BaseRecord(object):
             if self.sig_len <0:
                 raise ValueError('sig_len must be a non-negative integer')
         elif field == 'base_time':
-            _ = parse_timestring(self.base_time)
+            try:
+                _ = datetime.datetime.strptime(self.base_time, '%H:%M/%S.%f')
+            except ValueError:
+                _ = datetime.datetime.strptime(self.base_time, '%H:%M/%S')
         elif field == 'base_date':
-            _ = parse_datestring(self.base_date)
+            _ = datetime.datetime.strptime(self.base_date, '%d/%m/%Y')
 
         # Signal specification fields. Lists of elements to check.
         elif field in _header.sig_field_specs:
@@ -422,8 +426,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
 
     def arrange_fields(self, channels, expanded=False):
-        # Arrange/edit object fields to reflect user channel and/or signal range input
-        # Account for case when signals are expanded
+        """
+        Arrange/edit object fields to reflect user channel and/or signal range input
+        Account for case when signals are expanded
+        """
 
         # Rearrange signal specification fields
         for field in _header.sig_field_specs:
@@ -1294,59 +1300,6 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     # Write the record files - header and associated dat
     record.wrsamp(write_dir=write_dir)
 
-
-# Time string parser for WFDB header - H(H):M(M):S(S(.sss)) format.
-def parse_timestring(timestring):
-    times = re.findall("(?P<hours>\d{1,2}):(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}[.\d+]*)", timestring)
-
-    if not times:
-        raise ValueError("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
-    else:
-        hours, minutes, seconds = times[0]
-
-    if not hours or not minutes or not seconds:
-        raise ValueError("Invalid time string: "+timestring+". Acceptable format is: 'Hours:Minutes:Seconds'")
-
-    hours = int(hours)
-    minutes = int(minutes)
-    seconds = float(seconds)
-
-    if int(hours) >23:
-        raise ValueError('hours must be < 24')
-    elif hours<0:
-        raise ValueError('hours must be positive')
-    if minutes>59:
-        raise ValueError('minutes must be < 60')
-    elif minutes<0:
-        raise ValueError('minutes must be positive')
-    if seconds>59:
-        raise ValueError('seconds must be < 60')
-    elif seconds<0:
-        raise ValueError('seconds must be positive')
-
-    return (hours, minutes, seconds)
-
-# Date string parser for WFDB header - DD/MM/YYYY
-def parse_datestring(datestring):
-    dates = re.findall(r"(?P<day>\d{2})/(?P<month>\d{2})/(?P<year>\d{4})", datestring)
-
-    if not dates:
-        raise ValueError("Invalid date string. Acceptable format is: 'DD/MM/YYYY'")
-    else:
-        day, month, year = dates[0]
-
-    day = int(day)
-    month = int(month)
-    year = int(year)
-
-    if year<1:
-        raise ValueError('year must be positive')
-    if month<1 or month>12:
-        raise ValueError('month must be between 1 and 12')
-    if day not in range(1, monthrange(year, month)[1]+1):
-        raise ValueError('day does not exist for specified year and month')
-
-    return (day, month, year)
 
 # Returns the unique elements in a list in the order that they appear.
 # Also returns the indices of the original list that correspond to each output element.
