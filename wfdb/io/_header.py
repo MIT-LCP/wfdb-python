@@ -492,7 +492,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True")
 
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             for i in range(self.n_seg):
                 if self.seg_name[i] != '~':
                     sig_name = self.segments[i].sig_name

@@ -18,7 +18,7 @@ from . import _header
 from . import _signal
 from . import download
 
-
+import pdb
 class BaseRecord(object):
     # The base WFDB class extended by the Record and MultiRecord classes.
     def __init__(self, record_name=None, n_sig=None,
@@ -233,7 +233,7 @@ class BaseRecord(object):
             check_item_type(item, field, (Record), 'none')
 
     # Ensure that input read parameters are valid for the record
-    def check_read_inputs(self, sampfrom, sampto, channels, physical, m2s,
+    def check_read_inputs(self, sampfrom, sampto, channels, physical,
                           smooth_frames, return_res):
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
@@ -270,13 +270,6 @@ class BaseRecord(object):
 
         # Cannot expand multiple samples/frame for multi-segment records
         if isinstance(self, MultiRecord):
-
-            # If m2s == True, Physical must be true. There is no
-            # meaningful representation of digital signals transferred
-            # from individual segments.
-            if m2s is True and physical is not True:
-                raise Exception('If m2s is True, physical must also be True.')
-
             if smooth_frames is False:
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
@@ -563,13 +556,25 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Already effectively done it when checking sum(seg_len) against sig_len
 
 
-    # Determine the segments and the samples
-    # within each segment that have to be read in a
-    # multi-segment record. Called during rdsamp.
-    def required_segments(self, sampfrom, sampto, channels):
+
+    def _required_segments(self, sampfrom, sampto, channels):
+        """
+        Determine the segments and the samples within each segment that
+        have to be read in a multi-segment record.
+
+        Parameters
+        ----------
+        sampfrom : int
+            The starting sample number to read for each channel.
+        sampto : int
+            The sample number at which to stop reading for each channel.
+        channels : list, or 'all', optional
+            List of integer indices specifying the channels to be read. Leave as
+            'all' to read all channels.
+        """
 
         # The starting segment with actual samples
-        if self.layout == 'Fixed':
+        if self.layout == 'fixed':
             startseg = 0
         else:
             startseg = 1
@@ -577,102 +582,135 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Cumulative sum of segment lengths (ignoring layout segment)
         cumsumlengths = list(np.cumsum(self.seg_len[startseg:]))
         # Get first segment
-        readsegs = [[sampfrom < cs for cs in cumsumlengths].index(True)]
+        seg_numbers = [[sampfrom < cs for cs in cumsumlengths].index(True)]
         # Get final segment
         if sampto == cumsumlengths[len(cumsumlengths) - 1]:
-            readsegs.append(len(cumsumlengths) - 1)
+            seg_numbers.append(len(cumsumlengths) - 1)
         else:
-            readsegs.append([sampto <= cs for cs in cumsumlengths].index(True))
+            seg_numbers.append([sampto <= cs for cs in cumsumlengths].index(True))
 
         # Add 1 for variable layout records
-        readsegs = list(np.add(readsegs,startseg))
+        seg_numbers = list(np.add(seg_numbers,startseg))
 
         # Obtain the sampfrom and sampto to read for each segment
-        if readsegs[1] == readsegs[0]:
+        if seg_numbers[1] == seg_numbers[0]:
             # Only one segment to read
-            readsegs = [readsegs[0]]
+            seg_numbers = [seg_numbers[0]]
             # The segment's first sample number relative to the entire record
-            segstartsamp = sum(self.seg_len[0:readsegs[0]])
+            segstartsamp = sum(self.seg_len[0:seg_numbers[0]])
             readsamps = [[sampfrom-segstartsamp, sampto-segstartsamp]]
 
         else:
             # More than one segment to read
-            readsegs = list(range(readsegs[0], readsegs[1]+1))
-            readsamps = [[0, self.seg_len[s]] for s in readsegs]
+            seg_numbers = list(range(seg_numbers[0], seg_numbers[1]+1))
+            readsamps = [[0, self.seg_len[s]] for s in seg_numbers]
 
             # Starting sample for first segment.
-            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[readsegs[0]-startseg]
+            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[seg_numbers[0]-startseg]
 
             # End sample for last segment
-            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[readsegs[-1]-startseg]
+            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[seg_numbers[-1]-startseg]
 
-        return (readsegs, readsamps)
+        return (seg_numbers, readsamps)
 
-    # Get the channel numbers to be read from each segment
-    def required_signal(self, readsegs, channels, dirname, pb_dir):
+
+    def _get_required_channels(self, seg_numbers, channels, dirname, pb_dir):
+        """
+        Get the channel numbers to be read from each specified segment,
+        given the channel numbers specified for the entire record.
+
+        Parameters
+        ----------
+        seg_numbers : list
+            List of segment numbers to read.
+        channels : list
+            The channel indices to read for the whole record. Same one
+            specified by user input.
+
+        Returns
+        -------
+        required_channels : list
+            List of lists, containing channel indices to read for each
+            desired segment.
+
+        """
 
         # Fixed layout. All channels are the same.
-        if self.layout == 'Fixed':
-            # Should we bother here with skipping empty segments?
-            # They won't be read anyway.
-            readsigs = [channels]*len(readsegs)
+        if self.layout == 'fixed':
+            required_channels = [channels]*len(seg_numbers)
         # Variable layout: figure out channels by matching record names
         else:
-            readsigs = []
+            required_channels = []
             # The overall layout signal names
             l_sig_names = self.segments[0].sig_name
             # The wanted signals
             w_sig_names = [l_sig_names[c] for c in channels]
 
             # For each segment ...
-            for i in range(0, len(readsegs)):
+            for i in range(0, len(seg_numbers)):
                 # Skip empty segments
-                if self.seg_name[readsegs[i]] == '~':
-                    readsigs.append(None)
+                if self.seg_name[seg_numbers[i]] == '~':
+                    required_channels.append([])
                 else:
                     # Get the signal names of the current segment
-                    s_sig_names = rdheader(os.path.join(dirname, self.seg_name[readsegs[i]]), pb_dir = pb_dir).sig_name
-                    readsigs.append(wanted_siginds(w_sig_names, s_sig_names))
+                    s_sig_names = rdheader(
+                        os.path.join(dirname, self.seg_name[seg_numbers[i]]),
+                        pb_dir=pb_dir).sig_name
+                    required_channels.append(get_wanted_channels(
+                        w_sig_names, s_sig_names))
 
-        return readsigs
+        return required_channels
 
-    # Arrange/edit object fields to reflect user channel and/or signal range input
-    def arrange_fields(self, readsegs, segranges, channels):
+    def arrange_fields(self, seg_numbers, seg_ranges, channels):
+        """
+        Arrange/edit object fields to reflect user channel and/or
+        signal range inputs.
+
+        """
 
         # Update seg_len values for relevant segments
-        for i in range(0, len(readsegs)):
-            self.seg_len[readsegs[i]] = segranges[i][1] - segranges[i][0]
+        for i in range(0, len(seg_numbers)):
+            self.seg_len[seg_numbers[i]] = seg_ranges[i][1] - seg_ranges[i][0]
 
         # Update record specification parameters
         self.n_sig = len(channels)
-        self.sig_len = sum([sr[1]-sr[0] for sr in segranges])
+        self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
-        if self.layout == 'Fixed':
-            self.segments = self.segments[readsegs[0]:readsegs[-1]+1]
-            self.seg_name = self.seg_name[readsegs[0]:readsegs[-1]+1]
-            self.seg_len = self.seg_len[readsegs[0]:readsegs[-1]+1]
+        if self.layout == 'fixed':
+            self.segments = self.segments[seg_numbers[0]:seg_numbers[-1]+1]
+            self.seg_name = self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
+            self.seg_len = self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
         else:
             # Keep the layout specifier segment
-            self.segments = [self.segments[0]] + self.segments[readsegs[0]:readsegs[-1]+1]
-            self.seg_name = [self.seg_name[0]] + self.seg_name[readsegs[0]:readsegs[-1]+1]
-            self.seg_len = [self.seg_len[0]] + self.seg_len[readsegs[0]:readsegs[-1]+1]
+            self.segments = [self.segments[0]] + self.segments[seg_numbers[0]:seg_numbers[-1]+1]
+            self.seg_name = [self.seg_name[0]] + self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
+            self.seg_len = [self.seg_len[0]] + self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
 
         # Update number of segments
         self.n_seg = len(self.segments)
 
 
-    def multi_to_single(self, return_res=64):
+    def multi_to_single(self, physical, return_res=64):
         """
-        Create a Record object from the MultiRecord object. All signal segments
-        will be combined into the new object's `p_signal` field.
+        Create a Record object from the MultiRecord object. All signal
+        segments will be combined into the new object's `p_signal` or
+        `d_signal` field. For digital format, the signals must have
+        the same storage format, baseline, and adc_gain in all segments.
 
         Parameters
         ----------
-        return_res : int
+        physical : bool
+            Whether to convert the physical or digital signal.
+        return_res : int, optional
             The return resolution of the `p_signal` field. Options are 64, 32,
             and 16.
+
+        Returns
+        -------
+        record : wfdb Record
+            The single segment record created.
 
         """
 
@@ -680,79 +718,89 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         fields = self.__dict__.copy()
 
         # Remove multirecord fields
-        del(fields['segments'])
-        del(fields['seg_name'])
-        del(fields['seg_len'])
-        del(fields['n_seg'])
+        for attr in ['segments', 'seg_name', 'seg_len', 'n_seg']:
+            del(fields[attr])
 
-        # The output physical signals
-        if return_res == 64:
-            floatdtype = 'float64'
-        elif return_res == 32:
-            floatdtype = 'float32'
+        # Get the formats, signal names and units from the first segment
+        for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
+            fields[attr] = getattr(self.segments[0], attr)
+
+        # Figure out attribute to set, and dtype.
+        if physical:
+            sig_attr = 'p_signal'
+            if return_res == 64:
+                dtype = 'float64'
+            elif return_res == 32:
+                dtype = 'float32'
+            else:
+                dtype = 'float16'
+            nan_vals = self.n_sig * [np.nan]
         else:
-            floatdtype = 'float16'
+            # Figure out if this conversion can be performed. All
+            # signals must have the same fmt, gain, and baseline for
+            # all segments. Fixed layout signals automatically
+            # pass the test.
+            if self.layout == 'variable':
+                for seg in self.segments[1:]:
+                    segment_channels = get_wanted_channels(fields['sig_name'],
+                                                           seg.sig_name,
+                                                           pad=True)
+                    for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
+                        for ch in range(self.n_sig):
+                            # Skip if the signal is not contained in the segment
+                            if segment_channels[ch] is None:
+                                continue
+                            if getattr(seg, attr)[segment_channels[ch]] != fields[attr][ch]:
+                                raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
 
+            sig_attr = 'd_signal'
+            # Figure out the largest required dtype
+            dtype = _signal.npdtype(_signal.wfdbfmtres(fields['fmt'],
+                                                       maxres=True),
+                                    discrete=True)
+            nan_vals = _signal.digi_nan(fields['fmt'])
 
-        p_signal = np.zeros([self.sig_len, self.n_sig], dtype=floatdtype)
+        combined_signal = np.zeros([self.sig_len, self.n_sig], dtype=dtype)
 
-        # Get the physical samples from each segment
+        # Start and end samples in the overall array to place the
+        # segment samples into
+        start_samps = [0] + list(np.cumsum(self.seg_len)[0:-1])
+        end_samps = list(np.cumsum(self.seg_len))
 
-        # Start and end samples in the overall array
-        # to place the segment samples into
-        startsamps = [0] + list(np.cumsum(self.seg_len)[0:-1])
-        endsamps = list(np.cumsum(self.seg_len))
-
-        if self.layout == 'Fixed':
-            # Get the signal names and units from the first segment
-            fields['sig_name'] = self.segments[0].sig_name
-            fields['units'] = self.segments[0].units
-
+        if self.layout == 'fixed':
+            # Copy over the signals directly. Recall there are no
+            # empty segments in fixed layout records.
             for i in range(self.n_seg):
-                p_signal[startsamps[i]:endsamps[i],:] = self.segments[i].p_signal
-        # For variable layout, have to get channels by name
+                combined_signal[start_samps[i]:end_samps[i], :] = getattr(self.segments[i], sig_attr)
         else:
-            # Get the signal names from the layout segment
-            fields['sig_name'] = self.segments[0].sig_name
-            fields['units'] = self.segments[0].units
-
+            # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
                 seg = self.segments[i]
 
                 # Empty segment
                 if seg is None:
-                    p_signal[startsamps[i]:endsamps[i],:] = np.nan
+                    combined_signal[start_samps[i]:end_samps[i], :] = nan_vals
                 # Non-empty segment
                 else:
-                    # Figure out if there are any channels wanted and
-                    # the output channels they are to be stored in
-                    inchannels = []
-                    outchannels = []
-                    for s in fields['sig_name']:
-                        if s in seg.sig_name:
-                            inchannels.append(seg.sig_name.index(s))
-                            outchannels.append(fields['sig_name'].index(s))
-
-                    # Segment contains no wanted channels. Fill with nans.
-                    if inchannels == []:
-                        p_signal[startsamps[i]:endsamps[i],:] = np.nan
-                    # Segment contains wanted channel(s). Transfer samples.
-                    else:
-                        # This statement is necessary in case this function is not called
-                        # directly from rdsamp with m2s=True.
-                        if not hasattr(seg, 'p_signal'):
-                            seg.p_signal = seg.dac(return_res=return_res)
-                        for ch in range(0, fields['n_sig']):
-                            if ch not in outchannels:
-                                p_signal[startsamps[i]:endsamps[i],ch] = np.nan
-                            else:
-                                p_signal[startsamps[i]:endsamps[i],ch] = seg.p_signal[:, inchannels[outchannels.index(ch)]]
+                    # Get the segment channels to copy over for each
+                    # overall channel
+                    segment_channels = get_wanted_channels(fields['sig_name'],
+                                                           seg.sig_name,
+                                                           pad=True)
+                    for ch in range(self.n_sig):
+                        # Fill with invalids if segment does not contain
+                        # signal
+                        if segment_channels[ch] is None:
+                            combined_signal[start_samps[i]:end_samps[i], ch] = nan_vals[ch]
+                        # Copy over relevant signal
+                        else:
+                            combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)[:, segment_channels[ch]]
 
         # Create the single segment Record object and set attributes
         record = Record()
         for field in fields:
             setattr(record, field, fields[field])
-        record.p_signal = p_signal
+        setattr(record, sig_attr, combined_signal)
 
         return record
 
@@ -834,9 +882,9 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
             setattr(record, field, d_rec[field])
         # Determine whether the record is fixed or variable
         if record.seg_len[0] == 0:
-            record.layout = 'Variable'
+            record.layout = 'variable'
         else:
-            record.layout = 'Fixed'
+            record.layout = 'fixed'
 
         # If specified, read the segment headers
         if rd_segments:
@@ -871,66 +919,67 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     Parameters
     ----------
     record_name : str
-        The name of the WFDB record to be read (without any file extensions).
-        If the argument contains any path delimiter characters, the argument
-        will be interpreted as PATH/baserecord and the data files will be
-        searched for in the local path.
+        The name of the WFDB record to be read (without any file
+        extensions). If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/baserecord
+        and the data files will be searched for in the local path.
     sampfrom : int, optional
-        The starting sample number to read for each channel.
+        The starting sample number to read for all channels.
     sampto : int, or 'end', optional
-        The sample number at which to stop reading for each channel. Leave as
-        'end' to read the entire duration.
+        The sample number at which to stop reading for all channels.
+        Leave as 'end' to read the entire duration.
     channels : list, or 'all', optional
-        List of integer indices specifying the channels to be read. Leave as
-        'all' to read all channels.
+        List of integer indices specifying the channels to be read.
+        Leave as 'all' to read all channels.
     physical : bool, optional
-        Specifies whether to return signals in physical units in the p_signal
-        field (True), or digital units in the d_signal field (False).
+        Specifies whether to return signals in physical units in the
+        `p_signal` field (True), or digital units in the `d_signal`
+        field (False).
     pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
-        directory from which to find the required record files.
+        Option used to stream data from Physiobank. The Physiobank
+        database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
         pb_dir='mitdb'.
     m2s : bool, optional
-        Used when reading multi-segment records. Specifies whether to directly
-        return a wfdb MultiRecord object (False), or to convert it into and
-        return a wfdb Record object (True).
+        Used when reading multi-segment records. Specifies whether to
+        directly return a wfdb MultiRecord object (False), or to convert
+        it into and return a wfdb Record object (True).
     smooth_frames : bool, optional
-        Used when reading records with signals having multiple samples per
-        frame. Specifies whether to smooth the samples in signals with more than
-        one sample per frame and return an (MxN) uniform numpy array as the
-        `d_signal` or `p_signal` field (True), or to return a list of 1d numpy
-        arrays containing every expanded sample as the `e_d_signal` or
-        `e_p_signal` field (False).
+        Used when reading records with signals having multiple samples
+        per frame. Specifies whether to smooth the samples in signals
+        with more than one sample per frame and return an (MxN) uniform
+        numpy array as the `d_signal` or `p_signal` field (True), or to
+        return a list of 1d numpy arrays containing every expanded
+        sample as the `e_d_signal` or `e_p_signal` field (False).
     ignore_skew : bool, optional
-        Used when reading records with at least one skewed signal. Specifies
-        whether to apply the skew to align the signals in the output variable
-        (False), or to ignore the skew field and load in all values contained in
-        the dat files unaligned (True).
+        Used when reading records with at least one skewed signal.
+        Specifies whether to apply the skew to align the signals in the
+        output variable (False), or to ignore the skew field and load in
+        all values contained in the dat files unaligned (True).
     return_res : int, optional
-        The numpy array dtype of the returned signals. Options are: 64, 32,
-        16, and 8, where the value represents the numpy int or float dtype.
-        Note that the value cannot be 8 when physical is True since there is no
-        float8 format.
+        The numpy array dtype of the returned signals. Options are: 64,
+        32, 16, and 8, where the value represents the numpy int or float
+        dtype. Note that the value cannot be 8 when physical is True
+        since there is no float8 format.
 
     Returns
     -------
     record : Record or MultiRecord
-        The wfdb Record or MultiRecord object representing the contents of the
-        record read.
+        The wfdb Record or MultiRecord object representing the contents
+        of the record read.
 
     Notes
     -----
-    If a signal range or channel selection is specified when calling this
-    function, the resulting attributes of the returned object will be set to
-    reflect the section of the record that is actually read, rather than
-    necessarily the entire record. For example, if channels=[0, 1, 2] is
-    specified when reading a 12 channel record, the 'n_sig' attribute will be 3,
-    not 12.
+    If a signal range or channel selection is specified when calling
+    this function, the resulting attributes of the returned object will
+    be set to reflect the section of the record that is actually read,
+    rather than necessarily the entire record. For example, if
+    `channels=[0, 1, 2]` is specified when reading a 12 channel record,
+    the 'n_sig' attribute will be 3, not 12.
 
-    The `rdsamp` function exists as a simple alternative to `rdrecord` for
-    the common purpose of extracting the physical signals and a few important
-    descriptor fields. `rdsamp` returns two arguments:
+    The `rdsamp` function exists as a simple alternative to `rdrecord`
+    for the common purpose of extracting the physical signals and a few
+    important descriptor fields.
 
     Examples
     --------
@@ -951,11 +1000,11 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         channels = list(range(record.n_sig))
 
     # Ensure that input fields are valid for the record
-    record.check_read_inputs(sampfrom, sampto, channels, physical, m2s, smooth_frames, return_res)
+    record.check_read_inputs(sampfrom, sampto, channels, physical,
+                             smooth_frames, return_res)
 
     # A single segment record
     if isinstance(record, Record):
-
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smooth_frames or max([record.samps_per_frame[c] for c in channels])==1:
             # Read signals from the associated dat files that contain wanted channels
@@ -979,7 +1028,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
             # Arrange/edit the object fields to reflect user channel and/or signal range input
             record.arrange_fields(channels, expanded=True)
 
-            if physical is True:
+            if physical:
                 # Perform dac to get physical signal
                 record.dac(expanded=True, return_res=return_res, inplace=True)
 
@@ -1000,38 +1049,37 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         record.segments = [None]*record.n_seg
 
-        # Variable layout
-        if record.seg_len[0] == 0:
-            record.layout = 'Variable'
-            # Read the layout specification header
-            record.segments[0] = rdheader(os.path.join(dirname, record.seg_name[0]), pb_dir=pb_dir)
-        # Fixed layout
-        else:
-            record.layout = 'Fixed'
+        # Variable layout, read the layout specification header
+        if record.layout == 'variable':
+            record.segments[0] = rdheader(os.path.join(dirname,
+                                                       record.seg_name[0]),
+                                          pb_dir=pb_dir)
 
         # The segment numbers and samples within each segment to read.
-        readsegs, segranges  = record.required_segments(sampfrom, sampto, channels)
-        # The signals within each segment to read
-        segsigs = record.required_signal(readsegs, channels, dirname, pb_dir)
+        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto,
+                                                        channels)
+        # The channels within each segment to read
+        seg_channels = record._get_required_channels(seg_numbers, channels, dirname, pb_dir)
 
         # Read the desired samples in the relevant segments
-        for i in range(len(readsegs)):
-            segnum = readsegs[i]
+        for i in range(len(seg_numbers)):
+            seg_num = seg_numbers[i]
             # Empty segment or segment with no relevant channels
-            if record.seg_name[segnum] == '~' or segsigs[i] is None:
-                record.segments[segnum] = None
+            if record.seg_name[seg_num] == '~' or len(seg_channels[i]) == 0:
+                record.segments[seg_num] = None
             else:
-                record.segments[segnum] = rdrecord(
-                    os.path.join(dirname, record.seg_name[segnum]),
-                    sampfrom=segranges[i][0], sampto=segranges[i][1],
-                    channels=segsigs[i], physical=True, pb_dir=pb_dir)
+                record.segments[seg_num] = rdrecord(
+                    os.path.join(dirname, record.seg_name[seg_num]),
+                    sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
+                    channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
         # Arrange the fields of the overall object to reflect user input
-        record.arrange_fields(readsegs, segranges, channels)
+        record.arrange_fields(seg_numbers, seg_ranges, channels)
 
         # Convert object into a single segment Record object
         if m2s:
-            record = record.multi_to_single(return_res=return_res)
+            record = record.multi_to_single(physical=physical,
+                                            return_res=return_res)
 
     # Perform dtype conversion if necessary
     if isinstance(record, Record) and record.n_sig>0:
@@ -1048,21 +1096,21 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     Parameters
     ----------
     record_name : str
-        The name of the WFDB record to be read (without any file extensions).
-        If the argument contains any path delimiter characters, the argument
-        will be interpreted as PATH/baserecord and the data files will be
-        searched for in the local path.
+        The name of the WFDB record to be read (without any file
+        extensions). If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/baserecord
+        and the data files will be searched for in the local path.
     sampfrom : int, optional
-        The starting sample number to read for each channel.
+        The starting sample number to read for all channels.
     sampto : int, or 'end', optional
-        The sample number at which to stop reading for each channel. Leave as
-        'end' to read the entire duration.
+        The sample number at which to stop reading for all channels.
+        Leave as 'end' to read the entire duration.
     channels : list, or 'all', optional
-        List of integer indices specifying the channels to be read. Leave as
-        'all' to read all channels.
+        List of integer indices specifying the channels to be read.
+        Leave as 'all' to read all channels.
     pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
-        directory from which to find the required record files.
+        Option used to stream data from Physiobank. The Physiobank
+        database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
         pb_dir='mitdb'.
 
@@ -1071,7 +1119,8 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     signals : numpy array
         A 2d numpy array storing the physical signals from the record.
     fields : dict
-        A dictionary containing several key attributes of the read record:
+        A dictionary containing several key attributes of the read
+        record:
           - fs: The sampling frequency of the record
           - units: The units for each channel
           - sig_name: The signal name for each channel
@@ -1079,22 +1128,23 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
 
     Notes
     -----
-    If a signal range or channel selection is specified when calling this
-    function, the resulting attributes of the returned object will be set to
-    reflect the section of the record that is actually read, rather than
-    necessarily the entire record. For example, if channels=[0, 1, 2] is
-    specified when reading a 12 channel record, the 'n_sig' attribute will be 3,
-    not 12.
+    If a signal range or channel selection is specified when calling
+    this function, the resulting attributes of the returned object will
+    be set to reflect the section of the record that is actually read,
+    rather than necessarily the entire record. For example, if
+    `channels=[0, 1, 2]` is specified when reading a 12 channel record,
+    the 'n_sig' attribute will be 3, not 12.
 
-    The `rdrecord` function is the base function upon which this one is built.
-    It returns all attributes present, along with the signals, as attributes in
-    a `Record` object. The function, along with the returned data type, has more
-    options than `rdsamp` for users who wish to more directly manipulate WFDB
-    content.
+    The `rdrecord` function is the base function upon which this one is
+    built. It returns all attributes present, along with the signals, as
+    attributes in a `Record` object. The function, along with the
+    returned data type, has more options than `rdsamp` for users who
+    wish to more directly manipulate WFDB content.
 
     Examples
     --------
-    >>> signals, fields = wfdb.rdsamp('sample-data/test01_00s', sampfrom=800,
+    >>> signals, fields = wfdb.rdsamp('sample-data/test01_00s',
+                                      sampfrom=800,
                                       channel =[1,3])
 
     """
@@ -1109,19 +1159,31 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
     return signals, fields
 
 
-def wanted_siginds(wanted_sig_names, record_sig_names):
+def get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
     """
-    Given some wanted signal names, and the signal names contained
-    in a record, return the indices of the record channels that intersect.
-    Remember that the wanted signal names are already in order specified in user input channels.
+    Given some wanted signal names, and the signal names contained in a
+    record, return the indices of the record channels that intersect.
+
+    Parameters
+    ----------
+    wanted_sig_names : list
+        List of desired signal name strings
+    record_sig_names : list
+        List of signal names for a single record
+    pad : bool, optional
+        Whether the output channels is to always have the same number
+        of elements and the wanted channels. If True, pads missing
+        signals with None.
+
+    Returns
+    -------
+    wanted_channel_inds
+
     """
-    contained_signal = [s for s in wanted_sig_names if s in record_sig_names]
-    if contained_signal == []:
-        return None
+    if pad:
+        return [record_sig_names.index(s) if s in record_sig_names else None for s in wanted_sig_names]
     else:
-        return [record_sig_names.index(s) for s in contained_signal]
-
-
+        return [record_sig_names.index(s) for s in wanted_sig_names if s in record_sig_names]
 
 
 #------------------- /Reading Records -------------------#

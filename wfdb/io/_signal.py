@@ -723,11 +723,11 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
-    if smooth_frames or sum(samps_per_frame)==n_sig:
+    if smooth_frames or sum(samps_per_frame) == n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
-        maxdtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
+        max_dtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
         # Allocate signal array. Minimize dtype
-        signals = np.zeros([sampto-sampfrom, len(channels)], dtype = maxdtype)
+        signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:

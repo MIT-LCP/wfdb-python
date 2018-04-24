@@ -1,0 +1,22 @@
+[15:14:12.960]    87240     "    0  255    0	Initiate slow tilt up
+[15:15:04.428]   100107     "    0  255    0	Conclude slow tilt up
+[15:18:12.276]   147069     "    0  255    0	Initiate slow tilt down
+[15:19:02.412]   159603     "    0  255    0	Conclude slow tilt down
+[15:25:05.192]   250298     "    0  255    0	Initiate rapid tilt up
+[15:25:07.504]   250876     "    0  255    0	Conclude rapid tilt up
+[15:25:56.188]   263047     "    0  255    0	Movement artifacts
+[15:28:26.332]   300583     "    0  255    0	Initiate rapid tilt down
+[15:28:28.832]   301208     "    0  255    0	Conclude rapid tilt down
+[15:34:21.116]   389279     "    0  255    0	Stand up
+[15:34:24.332]   390083     "    0  255    0	Lost ECG signal due to poor electrode-skin contacL
+[15:37:35.836]   437959     "    0  255    0	Transition back to supine
+[15:41:56.284]   503071     "    0  255    0	Stand up
+[15:44:56.828]   548207     "    0  255    0	Transition back to supine
+[15:49:11.840]   611960     "    0  255    0	Initiate slow tilt up
+[15:50:03.240]   624810     "    0  255    0	Conclude slow tilt up
+[15:52:56.708]   668177     "    0  255    0	Initiate slow tilt down
+[15:53:46.868]   680717     "    0  255    0	Conclude slow tilt down
+[15:57:11.924]   731981     "    0  255    0	Initiate rapid tilt up
+[15:57:13.908]   732477     "    0  255    0	Conclude rapid tilt up
+[15:59:41.752]   769438     "    0  255    0	Initiate rapid tilt down
+[15:59:43.852]   769963     "    0  255    0	Conclude rapid tilt down
