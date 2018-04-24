@@ -5,13 +5,13 @@ import wfdb
 class test_annotation():
 
     # Test 1 - Annotation file 100.atr
-    # Target file created with: rdann -r sample-data/100 -a atr > anntarget1
+    # Target file created with: rdann -r sample-data/100 -a atr > ann-1
     def test_1(self):
 
         # Read data using WFDB python package
         annotation = wfdb.rdann('sample-data/100', 'atr')
 
-        
+
         # This is not the fault of the script. The annotation file specifies a
         # length 3
         annotation.aux_note[0] = '(N'
@@ -20,7 +20,7 @@ class test_annotation():
         # no null to detect in the output text file of rdann.
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/target-output/anntarget1', 'r'))
+        lines = tuple(open('tests/target-output/ann-1', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -45,18 +45,18 @@ class test_annotation():
         target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.sample, target_sample), 
-                np.array_equal(annotation.symbol, target_symbol), 
-                np.array_equal(annotation.subtype, target_subtype), 
-                np.array_equal(annotation.chan, target_chan), 
-                np.array_equal(annotation.num, target_num), 
+        comp = [np.array_equal(annotation.sample, target_sample),
+                np.array_equal(annotation.symbol, target_symbol),
+                np.array_equal(annotation.subtype, target_subtype),
+                np.array_equal(annotation.chan, target_chan),
+                np.array_equal(annotation.num, target_num),
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
         pbannotation = wfdb.rdann('100', 'atr', pb_dir='mitdb', return_label_elements=['label_store', 'symbol'])
         pbannotation.aux_note[0] = '(N'
         pbannotation.create_label_map()
-        
+
         # Test file writing
         annotation.wrann(write_fs=True)
         writeannotation = wfdb.rdann('100', 'atr', return_label_elements=['label_store', 'symbol'])
@@ -67,14 +67,14 @@ class test_annotation():
         assert annotation.__eq__(writeannotation)
 
     # Test 2 - Annotation file 12726.anI with many aux_note strings.
-    # Target file created with: rdann -r sample-data/100 -a atr > anntarget2
+    # Target file created with: rdann -r sample-data/100 -a atr > ann-2
     def test_2(self):
 
         # Read data from WFDB python package
         annotation = wfdb.rdann('sample-data/12726', 'anI')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/target-output/anntarget2', 'r'))
+        lines = tuple(open('tests/target-output/ann-2', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -99,11 +99,11 @@ class test_annotation():
         target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.sample, target_sample), 
-                np.array_equal(annotation.symbol, target_symbol), 
-                np.array_equal(annotation.subtype, target_subtype), 
-                np.array_equal(annotation.chan, target_chan), 
-                np.array_equal(annotation.num, target_num), 
+        comp = [np.array_equal(annotation.sample, target_sample),
+                np.array_equal(annotation.symbol, target_symbol),
+                np.array_equal(annotation.subtype, target_subtype),
+                np.array_equal(annotation.chan, target_chan),
+                np.array_equal(annotation.num, target_num),
                 annotation.aux_note == target_aux_note]
         # Test file streaming
         pbannotation = wfdb.rdann('12726', 'anI', pb_dir='prcp', return_label_elements=['label_store', 'symbol'])
@@ -119,14 +119,14 @@ class test_annotation():
         assert annotation.__eq__(writeannotation)
 
     # Test 3 - Annotation file 1003.atr with custom annotation types
-    # Target file created with: rdann -r sample-data/1003 -a atr > anntarget3
+    # Target file created with: rdann -r sample-data/1003 -a atr > ann-3
     def test_3(self):
 
         # Read data using WFDB python package
         annotation = wfdb.rdann('sample-data/1003', 'atr')
 
         # Target data from WFDB software package
-        lines = tuple(open('tests/target-output/anntarget3', 'r'))
+        lines = tuple(open('tests/target-output/ann-3', 'r'))
         nannot = len(lines)
 
         target_time = [None] * nannot
@@ -151,11 +151,11 @@ class test_annotation():
         target_chan = target_chan.astype('int')
 
         # Compare
-        comp = [np.array_equal(annotation.sample, target_sample), 
-                np.array_equal(annotation.symbol, target_symbol), 
-                np.array_equal(annotation.subtype, target_subtype), 
-                np.array_equal(annotation.chan, target_chan), 
-                np.array_equal(annotation.num, target_num), 
+        comp = [np.array_equal(annotation.sample, target_sample),
+                np.array_equal(annotation.symbol, target_symbol),
+                np.array_equal(annotation.subtype, target_subtype),
+                np.array_equal(annotation.chan, target_chan),
+                np.array_equal(annotation.num, target_num),
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
