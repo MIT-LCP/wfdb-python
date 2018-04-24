@@ -361,13 +361,43 @@ class test_record():
 
         np.testing.assert_equal(sig_round, sig_target)
 
-    # Test 11 - Multi-segment variable layout/Entire signal/Physical
-    # Target file created with: rdsamp -r sample-data/multi-segment/s25047/s25047-2704-05-04-10-44 -P | cut -f 2- > io-5e
+
     def test_5e(self):
+        """
+        Multi-segment variable layout, entire signal, physical
+
+        The reference signal creation cannot be made with rdsamp
+        directly because the wfdb c package (10.5.24) applies the single
+        adcgain and baseline values from the layout specification
+        header, which is undesired in multi-segment signals with
+        different adcgain/baseline values across segments.
+
+        Target file created with:
+        ```
+        for i in {01..18}
+        do
+            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2- >> io-5e
+        done
+        ```
+
+        Entire signal has 543240 samples.
+        - 25740 length empty segment.
+        - First 16 segments have same 2 channels, length 420000
+        - Last 2 segments have same 3 channels, length 97500
+
+        """
         record = wfdb.rdrecord('sample-data/multi-segment/s25047/s25047-2704-05-04-10-44')
         sig_round = np.round(record.p_signal, decimals=8)
-        sig_target = np.genfromtxt('tests/target-output/io-5e')
-        assert np.array_equal(sig_round, target_sig)
+
+        sig_target_a = np.full((25740,3), np.nan)
+        sig_target_b = np.concatenate(
+            (np.genfromtxt('tests/target-output/io-5e', skip_footer=97500),
+             np.full((420000, 1), np.nan)), axis=1)
+        sig_target_c = np.genfromtxt('tests/target-output/io-5e',
+                                     skip_header=420000)
+        sig_target = np.concatenate((sig_target_a, sig_target_b, sig_target_c))
+
+        np.testing.assert_equal(sig_round, sig_target)
 
     # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical
     # Target file created with: rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s -t 4000 -s 3 0 -P | cut -f 2- > target12
