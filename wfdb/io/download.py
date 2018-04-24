@@ -9,9 +9,12 @@ import requests
 db_index_url = 'http://physionet.org/physiobank/database/'
 
 
-# Read a header file from physiobank
-def stream_header(record_name, pb_dir):
 
+def stream_header(record_name, pb_dir):
+    """
+    Read a header file from physiobank
+
+    """
     # Full url of header location
     url = posixpath.join(db_index_url, pb_dir, record_name+'.hea')
     r = requests.get(url)

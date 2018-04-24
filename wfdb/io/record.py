@@ -107,7 +107,7 @@ class BaseRecord(object):
                 raise ValueError('sig_len must be a non-negative integer')
         elif field == 'base_time':
             try:
-                _ = datetime.datetime.strptime(self.base_time, '%H:%M/%S.%f')
+                _ = datetime.datetime.strptime(self.base_time, '%H:%M:%S.%f')
             except ValueError:
                 _ = datetime.datetime.strptime(self.base_time, '%H:%M/%S')
         elif field == 'base_date':
@@ -852,19 +852,19 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     header_lines, comment_lines = _header.get_header_lines(record_name, pb_dir)
 
     # Get fields from record line
-    d_rec = _header.read_rec_line(header_lines[0])
+    record_fields = _header._read_record_line(header_lines[0])
 
     # Processing according to whether the header is single or multi segment
 
     # Single segment header - Process signal specification lines
-    if d_rec['n_seg'] is None:
+    if record_fields['n_seg'] is None:
         # Create a single-segment WFDB record object
         record = Record()
 
         # There is at least one channel
         if len(header_lines)>1:
             # Read the fields from the signal lines
-            d_sig = _header.read_sig_lines(header_lines[1:])
+            d_sig = _header._read_signal_lines(header_lines[1:])
             # Set the object's signal line fields
             for field in _header.sig_field_specs:
                 setattr(record, field, d_sig[field])
@@ -873,19 +873,19 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
         for field in _header.rec_field_specs:
             if field == 'n_seg':
                 continue
-            setattr(record, field, d_rec[field])
+            setattr(record, field, record_fields[field])
     # Multi segment header - Process segment specification lines
     else:
         # Create a multi-segment WFDB record object
         record = MultiRecord()
         # Read the fields from the segment lines
-        d_seg = _header.read_seg_lines(header_lines[1:])
+        d_seg = _header._read_segment_lines(header_lines[1:])
         # Set the object's segment line fields
         for field in _header.seg_field_specs:
             setattr(record, field, d_seg[field])
         # Set the objects' record line fields
         for field in _header.rec_field_specs:
-            setattr(record, field, d_rec[field])
+            setattr(record, field, record_fields[field])
         # Determine whether the record is fixed or variable
         if record.seg_len[0] == 0:
             record.layout = 'variable'

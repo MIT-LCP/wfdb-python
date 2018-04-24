@@ -12,7 +12,7 @@ class FieldSpecification(object):
     Class for storing specifications for wfdb record fields
     """
     def __init__(self, allowed_types, delimiter, dependency, write_req,
-                 read_def, write_def):
+                 read_default, write_def):
         # Data types the field (or its elements) can be
         self.allowed_types = allowed_types
         # The text delimiter that preceeds the field if it is a field that gets written to header files.
@@ -22,7 +22,7 @@ class FieldSpecification(object):
         # Whether the field is always required for writing a header (more stringent than origin WFDB library)
         self.write_req = write_req
         # The default value for the field when read if any
-        self.read_def = read_def
+        self.read_default = read_default
         # The default value for the field to fill in before writing if any
         self.write_def = write_def
 
@@ -466,7 +466,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         Only works if information about the segments has been read in
         """
         if self.segments is None:
-            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True")
+            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
 
         # Default value = all signal names.
         if sig_name is None:
@@ -489,7 +489,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
     # Get the signal names for the entire record
     def get_sig_name(self):
         if self.segments is None:
-            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True")
+            raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
 
         if self.layout == 'fixed':
             for i in range(self.n_seg):
@@ -533,106 +533,109 @@ def get_header_lines(record_name, pb_dir):
     return header_lines, comment_lines
 
 
-# Extract fields from a record line string into a dictionary
-def read_rec_line(rec_line):
+def _read_record_line(record_line):
+    """
+    Extract fields from a record line string into a dictionary
 
+    """
     # Dictionary for record fields
-    d_rec = {}
+    record_fields = {}
 
     # Read string fields from record line
-    (d_rec['record_name'], d_rec['n_seg'], d_rec['n_sig'], d_rec['fs'],
-    d_rec['counter_freq'], d_rec['base_counter'], d_rec['sig_len'],
-    d_rec['base_time'], d_rec['base_date']) = re.findall(rx_record, rec_line)[0]
+    (record_fields['record_name'], record_fields['n_seg'],
+     record_fields['n_sig'], record_fields['fs'],
+     record_fields['counter_freq'], record_fields['base_counter'],
+     record_fields['sig_len'], record_fields['base_time'],
+     record_fields['base_date']) = re.findall(rx_record, record_line)[0]
 
     for field in rec_field_specs:
-        # Replace empty strings with their read defaults (which are mostly None)
-        if d_rec[field] == '':
-            d_rec[field] = rec_field_specs[field].read_def
-        # Typecast non-empty strings for numerical fields
+        # Replace empty strings with their read defaults (which are
+        # mostly None)
+        if record_fields[field] == '':
+            record_fields[field] = rec_field_specs[field].read_default
+        # Typecast non-empty strings for numerical and date/time fields
         else:
             if rec_field_specs[field].allowed_types is int_types:
-                d_rec[field] = int(d_rec[field])
+                record_fields[field] = int(record_fields[field])
             # fs may be read as float or int
             elif field == 'fs':
-                fs = float(d_rec['fs'])
+                fs = float(record_fields['fs'])
                 if round(fs, 8) == float(int(fs)):
                     fs = int(fs)
-                d_rec['fs'] = fs
+                record_fields['fs'] = fs
 
-    return d_rec
+    return record_fields
+
 
 # Extract fields from signal line strings into a dictionary
-def read_sig_lines(sig_lines):
+def _read_signal_lines(signal_lines):
     # Dictionary for signal fields
-    d_sig = {}
+    signal_fields = {}
 
     # Each dictionary field is a list
     for field in sig_field_specs:
-        d_sig[field] = [None]*len(sig_lines)
+        signal_fields[field] = [None]*len(signal_lines)
 
     # Read string fields from signal line
-    for i in range(0, len(sig_lines)):
-        (d_sig['file_name'][i], d_sig['fmt'][i],
-            d_sig['samps_per_frame'][i],
-            d_sig['skew'][i],
-            d_sig['byte_offset'][i],
-            d_sig['adc_gain'][i],
-            d_sig['baseline'][i],
-            d_sig['units'][i],
-            d_sig['adc_res'][i],
-            d_sig['adc_zero'][i],
-            d_sig['init_value'][i],
-            d_sig['checksum'][i],
-            d_sig['block_size'][i],
-            d_sig['sig_name'][i]) = rx_signal.findall(sig_lines[i])[0]
+    for i in range(len(signal_lines)):
+        (signal_fields['file_name'][i], signal_fields['fmt'][i],
+         signal_fields['samps_per_frame'][i], signal_fields['skew'][i],
+         signal_fields['byte_offset'][i], signal_fields['adc_gain'][i],
+         signal_fields['baseline'][i], signal_fields['units'][i],
+         signal_fields['adc_res'][i], signal_fields['adc_zero'][i],
+         signal_fields['init_value'][i], signal_fields['checksum'][i],
+         signal_fields['block_size'][i],
+         signal_fields['sig_name'][i]) = rx_signal.findall(signal_lines[i])[0]
 
         for field in sig_field_specs:
             # Replace empty strings with their read defaults (which are mostly None)
             # Note: Never set a field to None. [None]* n_sig is accurate, indicating
             # that different channels can be present or missing.
-            if d_sig[field][i] == '':
-                d_sig[field][i] = sig_field_specs[field].read_def
+            if signal_fields[field][i] == '':
+                signal_fields[field][i] = sig_field_specs[field].read_default
 
                 # Special case: missing baseline defaults to ADCzero if present
-                if field == 'baseline' and d_sig['adc_zero'][i] != '':
-                    d_sig['baseline'][i] = int(d_sig['adc_zero'][i])
+                if field == 'baseline' and signal_fields['adc_zero'][i] != '':
+                    signal_fields['baseline'][i] = int(signal_fields['adc_zero'][i])
             # Typecast non-empty strings for numerical fields
             else:
                 if sig_field_specs[field].allowed_types is int_types:
-                    d_sig[field][i] = int(d_sig[field][i])
+                    signal_fields[field][i] = int(signal_fields[field][i])
                 elif sig_field_specs[field].allowed_types is float_types:
-                    d_sig[field][i] = float(d_sig[field][i])
+                    signal_fields[field][i] = float(signal_fields[field][i])
                     # Special case: gain of 0 means 200
-                    if field == 'adc_gain' and d_sig['adc_gain'][i] == 0:
-                        d_sig['adc_gain'][i] = 200.
+                    if field == 'adc_gain' and signal_fields['adc_gain'][i] == 0:
+                        signal_fields['adc_gain'][i] = 200.
 
-    return d_sig
+    return signal_fields
 
 
-# Extract fields from segment line strings into a dictionary
-def read_seg_lines(seg_lines):
+def _read_segment_lines(segment_lines):
+    """
+    Extract fields from segment line strings into a dictionary
 
-    # Dictionary for signal fields
-    d_seg = {}
+    """
+    # Dictionary for segment fields
+    segment_fields = {}
 
     # Each dictionary field is a list
     for field in seg_field_specs:
-        d_seg[field] = [None]*len(seg_lines)
+        segment_fields[field] = [None]*len(segment_lines)
 
     # Read string fields from signal line
-    for i in range(0, len(seg_lines)):
-        (d_seg['seg_name'][i], d_seg['seg_len'][i]) = rx_segment.findall(seg_lines[i])[0]
+    for i in range(0, len(segment_lines)):
+        (segment_fields['seg_name'][i], segment_fields['seg_len'][i]) = rx_segment.findall(segment_lines[i])[0]
 
         for field in seg_field_specs:
             # Replace empty strings with their read defaults (which are mostly None)
-            if d_seg[field][i] == '':
-                d_seg[field][i] = seg_field_specs[field].read_def
+            if segment_fields[field][i] == '':
+                segment_fields[field][i] = seg_field_specs[field].read_default
             # Typecast non-empty strings for numerical field
             else:
                 if field == 'seg_len':
-                    d_seg[field][i] = int(d_seg[field][i])
+                    segment_fields[field][i] = int(segment_fields[field][i])
 
-    return d_seg
+    return segment_fields
 
 
 def lines_to_file(file_name, write_dir, lines):
