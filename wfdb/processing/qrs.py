@@ -639,94 +639,99 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
 def time_to_sample_number(seconds, frequency):
     return seconds * frequency + 0.5
 
-
-class Conf(object):
-    def __init__(self, fs, adc_gain, hr=75,
-                 RRdelta=0.2, RRmin=0.28, RRmax=2.4,
-                 QS=0.07, QT=0.35,
-                 RTmin=0.25, RTmax=0.33,
-                 QRSa=750, QRSamin=130,
-                 thresh=1.0):
-        self.fs = fs
-
-        self.sps = int(time_to_sample_number(1, fs))
-        self.spm = int(time_to_sample_number(60, fs))
-
-        self.hr = hr
-        self.RR = 60.0 / self.hr
-        self.RRdelta = RRdelta
-        self.RRmin = RRmin
-        self.RRmax = RRmax
-        self.QS = QS
-        self.QT = QT
-        self.RTmin = RTmin
-        self.RTmax = RTmax
-        self.QRSa = QRSa
-        self.QRSamin = QRSamin
-        self.thresh = thresh
-
-        self._NORMAL = 1  # normal beat
-        self._ARFCT = 16  # isolated QRS-like artifact
-        self._NOTE = 22  # comment annotation
-        self._TWAVE = 27  # T-wave peak
-        self._NPEAKS = 64  # number of peaks buffered (per signal)
-        self._BUFLN = 32768  # must be a power of 2, see qf()
-
-        self.rrmean = int(self.RR * self.sps)
-        self.rrdev = int(self.RRdelta * self.sps)
-        self.rrmin = int(self.RRmin * self.sps)
-        self.rrmax = int(self.RRmax * self.sps)
-
-        self.rrinc = int(self.rrmean / 40)
-        if self.rrinc < 1:
-            self.rrinc = 1
-
-        self.dt = int(self.QS * self.sps / 4)
-        if self.dt < 1:
-            self.dt = 1
-            print("Warning: sampling rate may be too low!")
-
-        self.rtmin = int(self.RTmin * self.sps)
-        self.rtmean = int(0.75 * self.QT * self.sps)
-        self.rtmax = int(self.RTmax * self.sps)
-
-        dv = adc_gain * self.QRSamin * 0.001
-        self.pthr = int((self.thresh * dv * dv) / 6)
-        self.qthr = self.pthr << 1
-        self.pthmin = self.pthr >> 2
-        self.qthmin = int((self.pthmin << 2) / 3)
-        self.tamean = self.qthr  # initial value for mean T-wave amplitude
-
-        # Filter constants and thresholds.
-        self.dt2 = 2 * self.dt
-        self.dt3 = 3 * self.dt
-        self.dt4 = 4 * self.dt
-
-        self.smdt = self.dt
-        self.v1norm = self.smdt * self.dt * 64
-
-        self.smt = 0
-        self.smt0 = 0 + self.smdt
-
-
-class Peak(object):
-    def __init__(self, peak_time, peak_amp, peak_type):
-        self.time = peak_time
-        self.amp = peak_amp
-        self.type = peak_type
-        self.next_peak = None
-        self.prev_peak = None
-
-
-class Annotation(object):
-    def __init__(self, ann_time, ann_type, ann_subtype, ann_num):
-        self.time = ann_time
-        self.type = ann_type
-        self.subtype = ann_subtype
-        self.num = ann_num
-
-
 class GQRS(object):
+    """
+    GQRS detection class
+    """
+    class Conf(object):
+        """
+        Initial signal configuration object for this qrs detector
+
+        """
+        def __init__(self, fs, adc_gain, hr=75,
+                     RRdelta=0.2, RRmin=0.28, RRmax=2.4,
+                     QS=0.07, QT=0.35,
+                     RTmin=0.25, RTmax=0.33,
+                     QRSa=750, QRSamin=130,
+                     thresh=1.0):
+            self.fs = fs
+
+            self.sps = int(time_to_sample_number(1, fs))
+            self.spm = int(time_to_sample_number(60, fs))
+
+            self.hr = hr
+            self.RR = 60.0 / self.hr
+            self.RRdelta = RRdelta
+            self.RRmin = RRmin
+            self.RRmax = RRmax
+            self.QS = QS
+            self.QT = QT
+            self.RTmin = RTmin
+            self.RTmax = RTmax
+            self.QRSa = QRSa
+            self.QRSamin = QRSamin
+            self.thresh = thresh
+
+            self._NORMAL = 1  # normal beat
+            self._ARFCT = 16  # isolated QRS-like artifact
+            self._NOTE = 22  # comment annotation
+            self._TWAVE = 27  # T-wave peak
+            self._NPEAKS = 64  # number of peaks buffered (per signal)
+            self._BUFLN = 32768  # must be a power of 2, see qf()
+
+            self.rrmean = int(self.RR * self.sps)
+            self.rrdev = int(self.RRdelta * self.sps)
+            self.rrmin = int(self.RRmin * self.sps)
+            self.rrmax = int(self.RRmax * self.sps)
+
+            self.rrinc = int(self.rrmean / 40)
+            if self.rrinc < 1:
+                self.rrinc = 1
+
+            self.dt = int(self.QS * self.sps / 4)
+            if self.dt < 1:
+                raise Exception('Sampling rate is too low. Unable to use signal.')
+
+            self.rtmin = int(self.RTmin * self.sps)
+            self.rtmean = int(0.75 * self.QT * self.sps)
+            self.rtmax = int(self.RTmax * self.sps)
+
+            dv = adc_gain * self.QRSamin * 0.001
+            self.pthr = int((self.thresh * dv * dv) / 6)
+            self.qthr = self.pthr << 1
+            self.pthmin = self.pthr >> 2
+            self.qthmin = int((self.pthmin << 2) / 3)
+            self.tamean = self.qthr  # initial value for mean T-wave amplitude
+
+            # Filter constants and thresholds.
+            self.dt2 = 2 * self.dt
+            self.dt3 = 3 * self.dt
+            self.dt4 = 4 * self.dt
+
+            self.smdt = self.dt
+            self.v1norm = self.smdt * self.dt * 64
+
+            self.smt = 0
+            self.smt0 = 0 + self.smdt
+
+
+    class Peak(object):
+        def __init__(self, peak_time, peak_amp, peak_type):
+            self.time = peak_time
+            self.amp = peak_amp
+            self.type = peak_type
+            self.next_peak = None
+            self.prev_peak = None
+
+
+    class Annotation(object):
+        def __init__(self, ann_time, ann_type, ann_subtype, ann_num):
+            self.time = ann_time
+            self.type = ann_type
+            self.subtype = ann_subtype
+            self.num = ann_num
+
+
     def putann(self, annotation):
         self.annotations.append(copy.deepcopy(annotation))
 
@@ -752,13 +757,13 @@ class GQRS(object):
         self.tf = len(x) - 1
         self.t = 0 - self.c.dt4
 
-        self.annot = Annotation(0, "NOTE", 0, 0)
+        self.annot = GQRS.Annotation(0, "NOTE", 0, 0)
 
         # Cicular buffer of Peaks
-        first_peak = Peak(0, 0, 0)
+        first_peak = GQRS.Peak(0, 0, 0)
         tmp = first_peak
         for _ in range(1, self.c._NPEAKS):
-            tmp.next_peak = Peak(0, 0, 0)
+            tmp.next_peak = GQRS.Peak(0, 0, 0)
             tmp.next_peak.prev_peak = tmp
             tmp = tmp.next_peak
         tmp.next_peak = first_peak
@@ -848,6 +853,7 @@ class GQRS(object):
             # from 1 to dt. 0 is never calculated.
             else:
                 v = int(self.at(smt))
+                print(smdt)
                 for j in range(1, smdt):
                     smtpj = self.at(smt + j)
                     smtlj = self.at(smt - j)
@@ -1060,7 +1066,7 @@ class GQRS(object):
                                 q = q.next_peak
                             if tw is not None:
                                 tmp_time = tw.time - self.c.dt2
-                                tann = Annotation(tmp_time, "TWAVE",
+                                tann = GQRS.Annotation(tmp_time, "TWAVE",
                                                   1 if tmp_time > self.annot.time + self.c.rtmean else 0,
                                                   rtdmin)
                                 # if self.state == "RUNNING":
@@ -1251,7 +1257,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
         adc_zero = 0
         adc_gain = record.adc_gain[0]
 
-    conf = Conf(fs=fs, adc_gain=adc_gain, hr=hr, RRdelta=RRdelta, RRmin=RRmin,
+    conf = GQRS.Conf(fs=fs, adc_gain=adc_gain, hr=hr, RRdelta=RRdelta, RRmin=RRmin,
                 RRmax=RRmax, QS=QS, QT=QT, RTmin=RTmin, RTmax=RTmax, QRSa=QRSa,
                 QRSamin=QRSamin, thresh=threshold)
     gqrs = GQRS()
