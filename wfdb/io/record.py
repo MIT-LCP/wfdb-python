@@ -37,7 +37,7 @@ class BaseRecord(object):
         self.comments = comments
         self.sig_name = sig_name
 
-    def check_field(self, field, channels=None):
+    def check_field(self, field, required_channels=None):
         """
         Check whether a single field is valid in its basic form. Does
         not check compatibility with other fields.
@@ -57,12 +57,26 @@ class BaseRecord(object):
         if item is None:
             raise Exception('Missing field required: %s' % field)
 
-        # Check the type of the field (and of its elements if it should be a list)
-        self.check_field_type(field, channels)
-
-        # Expand to make sure all channels must have present field
         if channels == 'all':
-            channels = [True] * len(getattr(self, field))
+            channels = range(len(item))
+
+        # We should have a list specifying these automatically.
+
+        # Whether the item should be a list. Watch out for required_channels for `segments`
+        expect_list = True if field in _header.LIST_FIELDS else False
+
+        # Check the type of the field (and of its elements if it should
+        # be a list)
+        check_item_type(item, field_name=field,
+                        allowed_types=_header.ALLOWED_TYPES[field],
+                        expect_list=expect_list,
+                        required_channels=required_channels)
+
+
+        #
+        # self.check_field_type(field, channels)
+
+
 
         # Individual specific field checks
 
@@ -110,90 +124,83 @@ class BaseRecord(object):
         elif field == 'base_date':
             _ = datetime.datetime.strptime(self.base_date, '%d/%m/%Y')
 
-        # Signal specification fields. Lists of elements to check.
-        elif field in _header.SIGNAL_SPECS:
+        # Lists of elements to check.
+        elif expect_list:
 
-            for ch in range(len(channels)):
-                f = getattr(self, field)[ch]
-
+            for ch in range(len(item)):
                 # The channel element is allowed to be None
-                if not channels[ch]:
-                    if f is None:
+                if ch not in required_channels:
+                    if item[ch] is None:
                         continue
 
+                # Signal specification fields.
                 if field == 'file_name':
                     # Check for file_name characters
-                    accepted_string = re.match('[-\w]+\.?[\w]+',f)
-                    if not accepted_string or accepted_string.string != f:
+                    accepted_string = re.match('[-\w]+\.?[\w]+', item[ch])
+                    if not accepted_string or accepted_string.string != item[ch]:
                         raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record_100.dat')
                     # Check that dat files are grouped together
                     if orderedsetlist(self.file_name)[0] != orderednoconseclist(self.file_name):
                         raise ValueError('file_name error: all entries for signals that share a given file must be consecutive')
                 elif field == 'fmt':
-                    if f not in _signal.dat_fmts:
-                        raise ValueError('File formats must be valid WFDB dat formats: '+' , '.join(_signal.dat_fmts))
+                    if item[ch] not in _signal.dat_fmts:
+                        raise ValueError('File formats must be valid WFDB dat formats:', _signal.dat_fmts)
                 elif field == 'samps_per_frame':
-                    if f < 1:
+                    if item[ch] < 1:
                         raise ValueError('samps_per_frame values must be positive integers')
                 elif field == 'skew':
-                    if f < 0:
+                    if item[ch] < 0:
                         raise ValueError('skew values must be non-negative integers')
                 elif field == 'byte_offset':
-                    if f < 0:
+                    if item[ch] < 0:
                         raise ValueError('byte_offset values must be non-negative integers')
                 elif field == 'adc_gain':
-                    if f <= 0:
+                    if item[ch] <= 0:
                         raise ValueError('adc_gain values must be positive numbers')
                 elif field == 'baseline':
                     # Original WFDB library 10.5.24 only has 4 bytes for
                     # baseline.
-                    if f < -2147483648 or f> 2147483648:
+                    if item[ch] < -2147483648 or item[ch] > 2147483648:
                         raise ValueError('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
                 elif field == 'units':
-                    if re.search('\s', f):
+                    if re.search('\s', item[ch]):
                         raise ValueError('units strings may not contain whitespaces.')
                 elif field == 'adc_res':
-                    if f < 0:
+                    if item[ch] < 0:
                         raise ValueError('adc_res values must be non-negative integers')
                 elif field == 'block_size':
-                    if f < 0:
+                    if item[ch] < 0:
                         raise ValueError('block_size values must be non-negative integers')
                 elif field == 'sig_name':
-                    if re.search('\s', f):
+                    if re.search('\s', item[ch]):
                         raise ValueError('sig_name strings may not contain whitespaces.')
-                    if len(set(self.sig_name)) != len(self.sig_name):
+                    if len(set(item)) != len(item):
                         raise ValueError('sig_name strings must be unique.')
 
-        # Segment specification fields
-        elif field == 'seg_name':
-            # Segment names must be alphanumerics or just a single '~'
-            for f in self.seg_name:
-                if f == '~':
-                    continue
-                accepted_string = re.match('[-\w]+',f)
-                if not accepted_string or accepted_string.string != f:
-                    raise ValueError("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
-        elif field == 'seg_len':
-            # For records with more than 1 segment, the first segment may be
-            # the layout specification segment with a length of 0
-            if len(self.seg_len)>1:
-                if self.seg_len[0] < 0:
-                    raise ValueError('seg_len values must be positive integers. Only seg_len[0] may be 0 to indicate a layout segment')
-                sl = self.seg_len[1:]
-            else:
-                sl = self.seg_len
-            for f in sl:
-                if f < 1:
-                    raise ValueError('seg_len values must be positive integers. Only seg_len[0] may be 0 to indicate a layout segment')
-        # Comment field
-        elif field == 'comments':
-            for f in self.comments:
-                if f=='': # Allow empty string comment lines
-                    continue
-                if f[0] == '#':
-                    print("Note: comment strings do not need to begin with '#'. This library adds them automatically.")
-                if re.search('[\t\n\r\f\v]', f):
-                    raise ValueError('comments may not contain tabs or newlines (they may contain spaces and underscores).')
+                # Segment specification fields
+                elif field == 'seg_name':
+                    # Segment names must be alphanumerics or just a single '~'
+                    if item[ch] == '~':
+                        continue
+                    accepted_string = re.match('[-\w]+', item[ch])
+                    if not accepted_string or accepted_string.string != item[ch]:
+                        raise ValueError("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
+                elif field == 'seg_len':
+                    # For records with more than 1 segment, the first
+                    # segment may be the layout specification segment
+                    # with a length of 0
+                    min_len = 0 if ch == 0 else 1
+                    if item[ch] < min_len:
+                        raise ValueError('seg_len values must be positive integers. Only seg_len[0] may be 0 to indicate a layout segment')
+                # Comment field
+                elif field == 'comments':
+                    # Allow empty string comment lines
+                    if item[ch] =='':
+                        continue
+                    if item[ch].startswith('#'):
+                        print("Note: comment strings do not need to begin with '#'. This library adds them automatically.")
+                    if re.search('[\t\n\r\f\v]', item[ch]):
+                        raise ValueError('comments may not contain tabs or newlines (they may contain spaces and underscores).')
 
 
     def check_field_type(self, field, ch=None):
@@ -231,9 +238,11 @@ class BaseRecord(object):
         elif field == 'segments':
             check_item_type(item, field, (Record), 'none')
 
-    # Ensure that input read parameters are valid for the record
+
     def check_read_inputs(self, sampfrom, sampto, channels, physical,
                           smooth_frames, return_res):
+        # Ensure that input read parameters are valid for the record
+
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
             raise TypeError('sampfrom must be an integer')
@@ -244,23 +253,22 @@ class BaseRecord(object):
             raise TypeError('channels must be a list of integers')
 
         # Duration Ranges
-        if sampfrom<0:
+        if sampfrom < 0:
             raise ValueError('sampfrom must be a non-negative integer')
-        if sampfrom>self.sig_len:
+        if sampfrom > self.sig_len:
             raise ValueError('sampfrom must be shorter than the signal length')
-        if sampto<0:
+        if sampto < 0:
             raise ValueError('sampto must be a non-negative integer')
-        if sampto>self.sig_len:
+        if sampto > self.sig_len:
             raise ValueError('sampto must be shorter than the signal length')
-        if sampto<=sampfrom:
+        if sampto <= sampfrom:
             raise ValueError('sampto must be greater than sampfrom')
 
         # Channel Ranges
-        for c in channels:
-            if c<0:
-                raise ValueError('Input channels must all be non-negative integers')
-            if c>self.n_sig-1:
-                raise ValueError('Input channels must all be lower than the total number of channels')
+        if min(c) < 0:
+            raise ValueError('Input channels must all be non-negative integers')
+        if max(c) > self.n_sig - 1:
+            raise ValueError('Input channels must all be lower than the total number of channels')
 
         if return_res not in [64, 32, 16, 8]:
             raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
@@ -274,7 +282,7 @@ class BaseRecord(object):
 
 
 def check_item_type(item, field_name, allowed_types, expect_list=False,
-                    channels=[]):
+                    required_channels='all'):
     """
     Check the item's type against a set of allowed types.
     Vary the print message regarding whether the item can be None.
@@ -290,7 +298,7 @@ def check_item_type(item, field_name, allowed_types, expect_list=False,
         Iterable of types the item is allowed to be.
     expect_list : bool, optional
         Whether the item is expected to be a list.
-    channels : list, optional
+    required_channels : list, optional
         List of integers specifying which channels of the item must be
         present. May be set to 'all' to indicate all channels. Only used
         if `expect_list` is True, ie. item is a list, and its
@@ -301,25 +309,20 @@ def check_item_type(item, field_name, allowed_types, expect_list=False,
         if not isinstance(item, list):
             raise TypeError('Field `%s` must be a list.' % field_name)
 
-        # All channels must have present field
-        if channels == 'all':
-            channels = list(range(len(item)))
-        # All channels may contain None
-        elif channels is None:
-            channels = [False] * len(item)
+        # All channels of the field must be present.
+        if required_channels == 'all':
+            required_channels = list(range(len(item)))
 
-        for ch in range(len(channels)):
-            # The field must exist for the channel
-            if channels[ch]
-                if not isinstance(item[ch], allowed_types):
-                    raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),
-                                    allowed_types)
-
-            # The field may be None for the channel
+        for ch in range(len(item)):
+            # Check whether the field may be None
+            if ch_in required_channels:
+                allowed_types_ch = allowed_types + (type(None),)
             else:
-                if not isinstance(item[ch], allowed_types) and item[ch] is not None:
-                    raise TypeError('Channel %d of field `%s` must be a None, or one of the following types:' % (ch, field_name),
-                                    allowed_types)
+                allowed_types_ch = allowed_types
+
+            if not isinstance(item[ch], allowed_type):
+                raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),
+                                allowed_types)
     else:
         if not isinstance(item, allowed_types):
             raise TypeError('Field `%s` must be one of the following types:',

@@ -63,15 +63,15 @@ RECORD_SPECS = pd.DataFrame(
     index=['record_name', 'n_seg', 'n_sig', 'fs', 'counter_freq',
            'base_counter', 'sig_len', 'base_time', 'base_date'],
     columns=_SPECIFICATION_COLUMNS,
-    data=[[(str), '', None, True, None, None], # record_name
+    data=[[(str,), '', None, True, None, None], # record_name
           [int_types, '/', 'record_name', True, None, None], # n_seg
           [int_types, ' ', 'record_name', True, None, None], # n_sig
           [float_types, ' ', 'n_sig', True, 250, None], # fs
           [float_types, '/', 'fs', False, None, None], # counter_freq
           [float_types, '(', 'counter_freq', False, None, None], # base_counter
           [int_types, ' ', 'fs', True, None, None], # sig_len
-          [(datetime.time), ' ', 'sig_len', False, None, '00:00:00'], # base_time
-          [(datetime.date), ' ', 'base_time', False, None, None], # base_date
+          [(datetime.time,), ' ', 'sig_len', False, None, '00:00:00'], # base_time
+          [(datetime.date,), ' ', 'base_time', False, None, None], # base_date
     ]
 )
 
@@ -80,20 +80,20 @@ SIGNAL_SPECS = pd.DataFrame(
            'adc_gain', 'baseline', 'units', 'adc_res', 'adc_zero',
            'init_value', 'checksum', 'block_size', 'sig_name'],
     columns=_SPECIFICATION_COLUMNS,
-    data=[[(str), '', None, True, None, None], # file_name
-          [(str), ' ', 'file_name', True, None, None], # fmt
+    data=[[(str,), '', None, True, None, None], # file_name
+          [(str,), ' ', 'file_name', True, None, None], # fmt
           [int_types, 'x', 'fmt', False, 1, None], # samps_per_frame
           [int_types, ':', 'fmt', False, None, None], # skew
           [int_types, '+', 'fmt', False, None, None], # byte_offset
           [float_types, ' ', 'fmt', True, 200., None], # adc_gain
           [int_types, '(', 'adc_gain', True, 0, None], # baseline
-          [(str), '/', 'adc_gain', True, 'mV', None], # units
+          [(str,), '/', 'adc_gain', True, 'mV', None], # units
           [int_types, ' ', 'adc_gain', False, None, 0], # adc_res
           [int_types, ' ', 'adc_res', False, None, 0], # adc_zero
           [int_types, ' ', 'adc_zero', False, None, None], # init_value
           [int_types, ' ', 'init_value', False, None, None], # checksum
           [int_types, ' ', 'checksum', False, None, 0], # block_size
-          [(str), ' ', 'block_size', False, None, None], # sig_name
+          [(str,), ' ', 'block_size', False, None, None], # sig_name
     ]
 )
 
@@ -105,7 +105,17 @@ SEGMENT_SPECS = pd.DataFrame(
     ]
 )
 
+# Specifications of all wfdb header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
+
+# Allowed types of wfdb header fields, and also attributes defined in
+# this library
+ALLOWED_TYPES = dict([[index, FIELD_SPECS.loc[index, 'allowed_types']] for index in FIELD_SPECS.index])
+ALLOWED_TYPES.add({'comment': (str,), p_signal, d_signal, e_p_signal, e_d_signal, segments})
+
+# Fields that must be lists
+LIST_FIELDS = tuple(SIGNAL_SPECS.index) + ('comments', 'e_p_signal',
+                                           'e_d_signal', 'segments')
 
 
 # Regexp objects for reading headers
@@ -244,10 +254,19 @@ class HeaderMixin(BaseHeaderMixin):
         for f in sfields:
             self.set_default(f)
 
-    # Write a wfdb header file. The signals or segments fields are not used.
+
     def wrheader(self, write_dir=''):
+        """
+        Write a wfdb header file. The signals are not used. Before
+        writing:
+        - Get the fields used to write the header for this instance.
+        - Check each required field.
+
+        """
 
         # Get all the fields used to write the header
+        # sig_write_fields is a dictionary of
+        # {field_name:required_channels}
         rec_write_fields, sig_write_fields = self.get_write_fields()
 
         # Check the validity of individual fields used to write the header
@@ -258,7 +277,7 @@ class HeaderMixin(BaseHeaderMixin):
 
         # Signal specification fields.
         for field in sig_write_fields:
-            self.check_field(field, channels=sig_write_fields[field])
+            self.check_field(field, required_channels=sig_write_fields[field])
 
         # Check the cohesion of fields used to write the header
         self.check_field_cohesion(rec_write_fields, list(sig_write_fields))
@@ -288,6 +307,7 @@ class HeaderMixin(BaseHeaderMixin):
         # Determine whether there are signals. If so, get their required
         # fields.
         self.check_field('n_sig')
+
         if self.n_sig >  0:
             sig_write_fields = self.get_write_subset('signal')
         else:
@@ -421,15 +441,15 @@ class MultiHeaderMixin(BaseHeaderMixin):
         for field in self.get_write_fields():
             self.set_default(field)
 
-    # Write a wfdb header file. The signals or segments fields are not used.
+    # Write a wfdb header file. The signals or segments are not used.
     def wrheader(self, write_dir=''):
 
         # Get all the fields used to write the header
         write_fields = self.get_write_fields()
 
         # Check the validity of individual fields used to write the header
-        for f in write_fields:
-            self.check_field(f)
+        for field in write_fields:
+            self.check_field(field)
 
         # Check the cohesion of fields used to write the header
         self.check_field_cohesion()
@@ -438,12 +458,17 @@ class MultiHeaderMixin(BaseHeaderMixin):
         self.wr_header_file(write_fields, write_dir)
 
 
-    # Get the list of fields used to write the multi-segment header.
-    # Returns the default required fields, the user defined fields, and their dependencies.
+
     def get_write_fields(self):
+        """
+        Get the list of fields used to write the multi-segment header.
+        Returns the default required fields, the user defined fields,
+        and their dependencies.
+
+        """
 
         # Record specification fields
-        write_fields=self.get_write_subset('record')
+        write_fields = self.get_write_subset('record')
 
         # Segment specification fields are all mandatory
         write_fields = write_fields + ['seg_name', 'seg_len']
