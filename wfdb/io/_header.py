@@ -1,80 +1,120 @@
-from collections import OrderedDict
-import numpy as np
+import datetime
 import os
 import re
+
+import numpy as np
+import pandas as pd
 
 from . import download
 from . import _signal
 
 
-class FieldSpecification(object):
-    """
-    Class for storing specifications for wfdb record fields
-    """
-    def __init__(self, allowed_types, delimiter, dependency, write_req,
-                 read_default, write_def):
-        # Data types the field (or its elements) can be
-        self.allowed_types = allowed_types
-        # The text delimiter that preceeds the field if it is a field that gets written to header files.
-        self.delimiter = delimiter
-        # The required/dependent field which must also be present
-        self.dependency = dependency
-        # Whether the field is always required for writing a header (more stringent than origin WFDB library)
-        self.write_req = write_req
-        # The default value for the field when read if any
-        self.read_default = read_default
-        # The default value for the field to fill in before writing if any
-        self.write_def = write_def
-
-        # The read vs write default values are different for 2 reasons:
-        # 1. We want to force the user to be explicit with certain important
-        #    fields when writing WFDB records fields, without affecting
-        #    existing WFDB headers when reading.
-        # 2. Certain unimportant fields may be dependencies of other
-        #    important fields. When writing, we want to fill in defaults
-        #    so that the user doesn't need to. But when reading, it should
-        #    be clear that the fields are missing.
-
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
 float_types = int_types + (float, np.float64, np.float32)
 int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
 
-# Record specification fields
-rec_field_specs = OrderedDict([('record_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('n_seg', FieldSpecification(int_types, '/', 'record_name', True, None, None)),
-                         ('n_sig', FieldSpecification(int_types, ' ', 'record_name', True, None, None)),
-                         ('fs', FieldSpecification(float_types, ' ', 'n_sig', True, 250, None)),
-                         ('counter_freq', FieldSpecification(float_types, '/', 'fs', False, None, None)),
-                         ('base_counter', FieldSpecification(float_types, '(', 'counter_freq', False, None, None)),
-                         ('sig_len', FieldSpecification(int_types, ' ', 'fs', True, None, None)),
-                         ('base_time', FieldSpecification((str), ' ', 'sig_len', False, None, '00:00:00')),
-                         ('base_date', FieldSpecification((str), ' ', 'base_time', False, None, None))])
 
-# Signal specification fields.
-sig_field_specs = OrderedDict([('file_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('fmt', FieldSpecification((str), ' ', 'file_name', True, None, None)),
-                         ('samps_per_frame', FieldSpecification(int_types, 'x', 'fmt', False, 1, None)),
-                         ('skew', FieldSpecification(int_types, ':', 'fmt', False, None, None)),
-                         ('byte_offset', FieldSpecification(int_types, '+', 'fmt', False, None, None)),
-                         ('adc_gain', FieldSpecification(float_types, ' ', 'fmt', True, 200., None)),
-                         ('baseline', FieldSpecification(int_types, '(', 'adc_gain', True, 0, None)),
-                         ('units', FieldSpecification((str), '/', 'adc_gain', True, 'mV', None)),
-                         ('adc_res', FieldSpecification(int_types, ' ', 'adc_gain', False, None, 0)),
-                         ('adc_zero', FieldSpecification(int_types, ' ', 'adc_res', False, None, 0)),
-                         ('init_value', FieldSpecification(int_types, ' ', 'adc_zero', False, None, None)),
-                         ('checksum', FieldSpecification(int_types, ' ', 'init_value', False, None, None)),
-                         ('block_size', FieldSpecification(int_types, ' ', 'checksum', False, None, 0)),
-                         ('sig_name', FieldSpecification((str), ' ', 'block_size', False, None, None))])
+"""
+WFDB field specifications for each field.
 
-# Segment specification fields.
-seg_field_specs = OrderedDict([('seg_name', FieldSpecification((str), '', None, True, None, None)),
-                         ('seg_len', FieldSpecification(int_types, ' ', 'seg_name', True, None, None))])
+Parameters
+----------
+allowed_types:
+    Data types the field (or its elements) can be.
+delimiter:
+    The text delimiter that precedes the field in the header file.
+write_required:
+    Whether the field is required for writing a header (more stringent
+    than origin WFDB library).
+read_default:
+    The default value for the field when read if any. Most fields do not
+    have a default. The reason for the variation, is that we do not want
+    to imply that some fields are present when they are not, unless the
+    field is essential. See the notes.
+write_default:
+    The default value for the field to fill in before writing, if any.
+
+Notes
+-----
+In the original WFDB package, certain fields have default values, but
+not all of them. Some attributes need to be present for core
+functionality, ie. baseline, whereas others are not essential, yet have
+defaults, ie. base_time.
+
+This inconsistency has likely resulted in the generation of incorrect
+files, and general confusion. This library aims to make explicit,
+whether certain fields are present in the file, by setting their values
+to None if they are not written in, unless the fields are essential, in
+which case an actual default value will be set.
+
+
+The read vs write default values are different for 2 reasons:
+1. We want to force the user to be explicit with certain important
+   fields when writing WFDB records fields, without affecting
+   existing WFDB headers when reading.
+2. Certain unimportant fields may be dependencies of other
+   important fields. When writing, we want to fill in defaults
+   so that the user doesn't need to. But when reading, it should
+   be clear that the fields are missing.
+
+"""
+
+_SPECIFICATION_COLUMNS = ['allowed_types', 'delimiter', 'dependency',
+                         'write_required', 'read_default', 'write_default']
+
+RECORD_SPECS = pd.DataFrame(
+    index=['record_name', 'n_seg', 'n_sig', 'fs', 'counter_freq',
+           'base_counter', 'sig_len', 'base_time', 'base_date'],
+    columns=_SPECIFICATION_COLUMNS,
+    data=[[(str), '', None, True, None, None], # record_name
+          [int_types, '/', 'record_name', True, None, None], # n_seg
+          [int_types, ' ', 'record_name', True, None, None], # n_sig
+          [float_types, ' ', 'n_sig', True, 250, None], # fs
+          [float_types, '/', 'fs', False, None, None], # counter_freq
+          [float_types, '(', 'counter_freq', False, None, None], # base_counter
+          [int_types, ' ', 'fs', True, None, None], # sig_len
+          [(datetime.time), ' ', 'sig_len', False, None, '00:00:00'], # base_time
+          [(datetime.date), ' ', 'base_time', False, None, None], # base_date
+    ]
+)
+
+SIGNAL_SPECS = pd.DataFrame(
+    index=['file_name', 'fmt', 'samps_per_frame', 'skew', 'byte_offset',
+           'adc_gain', 'baseline', 'units', 'adc_res', 'adc_zero',
+           'init_value', 'checksum', 'block_size', 'sig_name'],
+    columns=_SPECIFICATION_COLUMNS,
+    data=[[(str), '', None, True, None, None], # file_name
+          [(str), ' ', 'file_name', True, None, None], # fmt
+          [int_types, 'x', 'fmt', False, 1, None], # samps_per_frame
+          [int_types, ':', 'fmt', False, None, None], # skew
+          [int_types, '+', 'fmt', False, None, None], # byte_offset
+          [float_types, ' ', 'fmt', True, 200., None], # adc_gain
+          [int_types, '(', 'adc_gain', True, 0, None], # baseline
+          [(str), '/', 'adc_gain', True, 'mV', None], # units
+          [int_types, ' ', 'adc_gain', False, None, 0], # adc_res
+          [int_types, ' ', 'adc_res', False, None, 0], # adc_zero
+          [int_types, ' ', 'adc_zero', False, None, None], # init_value
+          [int_types, ' ', 'init_value', False, None, None], # checksum
+          [int_types, ' ', 'checksum', False, None, 0], # block_size
+          [(str), ' ', 'block_size', False, None, None], # sig_name
+    ]
+)
+
+SEGMENT_SPECS = pd.DataFrame(
+    index=['seg_name', 'seg_len'],
+    columns=_SPECIFICATION_COLUMNS,
+    data=[[(str), '', None, True, None, None], # seg_name
+          [int_types, ' ', 'seg_name', True, None, None], # seg_len
+    ]
+)
+
+FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 
 # Regexp objects for reading headers
 
 # Record Line Fields
-rx_record = re.compile(
+_rx_record = re.compile(
     ''.join(
         [
             "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
@@ -85,7 +125,7 @@ rx_record = re.compile(
             "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"]))
 
 # Signal Line Fields
-rx_signal = re.compile(
+_rx_signal = re.compile(
     ''.join(
         [
             "(?P<file_name>[-\w]+\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
@@ -95,7 +135,7 @@ rx_signal = re.compile(
             "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"]))
 
 # Segment Line Fields
-rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
+_rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 class BaseHeaderMixin(object):
@@ -142,7 +182,7 @@ class BaseHeaderMixin(object):
             write_fields=[]
 
             allwrite_fields=[]
-            fieldspecs = OrderedDict(reversed(list(sig_field_specs.items())))
+            fieldspecs = OrderedDict(reversed(list(SIGNAL_FIELDS.items())))
 
             for ch in range(self.n_sig):
                 # The fields needed for this channel
@@ -259,7 +299,7 @@ class HeaderMixin(BaseHeaderMixin):
 
         # Signal specification fields
         # Setting entire list default, not filling in blanks in lists.
-        elif field in sig_field_specs:
+        elif field in SIGNAL_FIELDS:
 
             # Specific dynamic case
             if field == 'file_name' and self.file_name is None:
@@ -269,7 +309,7 @@ class HeaderMixin(BaseHeaderMixin):
             item = getattr(self, field)
 
             # Return if no default to set, or if the field is already present.
-            if sig_field_specs[field].write_def is None or item is not None:
+            if SIGNAL_FIELDS[field].write_def is None or item is not None:
                 return
 
             # Set more specific defaults if possible
@@ -277,7 +317,7 @@ class HeaderMixin(BaseHeaderMixin):
                 self.adc_res=_signal.wfdbfmtres(self.fmt)
                 return
 
-            setattr(self, field, [sig_field_specs[field].write_def]*self.n_sig)
+            setattr(self, field, [SIGNAL_FIELDS[field].write_def]*self.n_sig)
 
     # Check the cohesion of fields used to write the header
     def check_field_cohesion(self, recwrite_fields, sigwrite_fields):
@@ -337,10 +377,10 @@ class HeaderMixin(BaseHeaderMixin):
             signallines = self.n_sig*['']
             for ch in range(self.n_sig):
                 # Traverse the ordered dictionary
-                for field in sig_field_specs:
+                for field in SIGNAL_FIELDS:
                     # If the field is being used, add each of its elements with the delimiter to the appropriate line
                     if field in sigwrite_fields and sigwrite_fields[field][ch]:
-                        signallines[ch]=signallines[ch] + sig_field_specs[field].delimiter + str(getattr(self, field)[ch])
+                        signallines[ch]=signallines[ch] + SIGNAL_FIELDS[field].delimiter + str(getattr(self, field)[ch])
                     # The 'baseline' field needs to be closed with ')'
                     if field== 'baseline':
                         signallines[ch]=signallines[ch] +')'
@@ -546,7 +586,7 @@ def _read_record_line(record_line):
      record_fields['n_sig'], record_fields['fs'],
      record_fields['counter_freq'], record_fields['base_counter'],
      record_fields['sig_len'], record_fields['base_time'],
-     record_fields['base_date']) = re.findall(rx_record, record_line)[0]
+     record_fields['base_date']) = re.findall(_rx_record, record_line)[0]
 
     for field in rec_field_specs:
         # Replace empty strings with their read defaults (which are
@@ -573,7 +613,7 @@ def _read_signal_lines(signal_lines):
     signal_fields = {}
 
     # Each dictionary field is a list
-    for field in sig_field_specs:
+    for field in SIGNAL_FIELDS:
         signal_fields[field] = [None]*len(signal_lines)
 
     # Read string fields from signal line
@@ -585,23 +625,23 @@ def _read_signal_lines(signal_lines):
          signal_fields['adc_res'][i], signal_fields['adc_zero'][i],
          signal_fields['init_value'][i], signal_fields['checksum'][i],
          signal_fields['block_size'][i],
-         signal_fields['sig_name'][i]) = rx_signal.findall(signal_lines[i])[0]
+         signal_fields['sig_name'][i]) = _rx_signal.findall(signal_lines[i])[0]
 
-        for field in sig_field_specs:
+        for field in SIGNAL_FIELDS:
             # Replace empty strings with their read defaults (which are mostly None)
             # Note: Never set a field to None. [None]* n_sig is accurate, indicating
             # that different channels can be present or missing.
             if signal_fields[field][i] == '':
-                signal_fields[field][i] = sig_field_specs[field].read_default
+                signal_fields[field][i] = SIGNAL_FIELDS[field].read_default
 
                 # Special case: missing baseline defaults to ADCzero if present
                 if field == 'baseline' and signal_fields['adc_zero'][i] != '':
                     signal_fields['baseline'][i] = int(signal_fields['adc_zero'][i])
             # Typecast non-empty strings for numerical fields
             else:
-                if sig_field_specs[field].allowed_types is int_types:
+                if SIGNAL_FIELDS[field].allowed_types is int_types:
                     signal_fields[field][i] = int(signal_fields[field][i])
-                elif sig_field_specs[field].allowed_types is float_types:
+                elif SIGNAL_FIELDS[field].allowed_types is float_types:
                     signal_fields[field][i] = float(signal_fields[field][i])
                     # Special case: gain of 0 means 200
                     if field == 'adc_gain' and signal_fields['adc_gain'][i] == 0:
@@ -624,7 +664,7 @@ def _read_segment_lines(segment_lines):
 
     # Read string fields from signal line
     for i in range(0, len(segment_lines)):
-        (segment_fields['seg_name'][i], segment_fields['seg_len'][i]) = rx_segment.findall(segment_lines[i])[0]
+        (segment_fields['seg_name'][i], segment_fields['seg_len'][i]) = _rx_segment.findall(segment_lines[i])[0]
 
         for field in seg_field_specs:
             # Replace empty strings with their read defaults (which are mostly None)

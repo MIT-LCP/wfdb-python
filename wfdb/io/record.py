@@ -114,7 +114,7 @@ class BaseRecord(object):
             _ = datetime.datetime.strptime(self.base_date, '%d/%m/%Y')
 
         # Signal specification fields. Lists of elements to check.
-        elif field in _header.sig_field_specs:
+        elif field in _header.SIGNAL_SPECS:
 
             for ch in range(0, len(channels)):
                 f = getattr(self, field)[ch]
@@ -214,8 +214,8 @@ class BaseRecord(object):
             check_item_type(item, field, _header.rec_field_specs[field].allowed_types)
 
         # Signal specification field. List.
-        elif field in _header.sig_field_specs:
-            check_item_type(item, field, _header.sig_field_specs[field].allowed_types, ch)
+        elif field in _header.SIGNAL_SPECS:
+            check_item_type(item, field, _header.SIGNAL_SPECS[field].allowed_types, ch)
 
         # Segment specification field. List. All elements cannot be None
         elif field in _header.seg_field_specs:
@@ -432,7 +432,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         """
 
         # Rearrange signal specification fields
-        for field in _header.sig_field_specs:
+        for field in _header.SIGNAL_SPECS:
             item = getattr(self, field)
             setattr(self, field, [item[c] for c in channels])
 
@@ -563,7 +563,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 
 
-    def _required_segments(self, sampfrom, sampto, channels):
+    def _requiresegment_fieldsments(self, sampfrom, sampto, channels):
         """
         Determine the segments and the samples within each segment that
         have to be read in a multi-segment record.
@@ -815,8 +815,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 def rdheader(record_name, pb_dir=None, rd_segments=False):
     """
-    Read a WFDB header file and return the record descriptors as attributes
-    in a Record object.
+    Read a WFDB header file and return a `Record` or `MultiRecord`
+    object with the record descriptors as attributes.
 
     Parameters
     ----------
@@ -854,23 +854,21 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     # Get fields from record line
     record_fields = _header._read_record_line(header_lines[0])
 
-    # Processing according to whether the header is single or multi segment
-
     # Single segment header - Process signal specification lines
     if record_fields['n_seg'] is None:
         # Create a single-segment WFDB record object
         record = Record()
 
-        # There is at least one channel
+        # There are signals
         if len(header_lines)>1:
             # Read the fields from the signal lines
-            d_sig = _header._read_signal_lines(header_lines[1:])
-            # Set the object's signal line fields
-            for field in _header.sig_field_specs:
-                setattr(record, field, d_sig[field])
+            signal_fields = _header._read_signal_lines(header_lines[1:])
+            # Set the object's signal fields
+            for field in signal_fields:
+                setattr(record, field, signal_fields[field])
 
         # Set the object's record line fields
-        for field in _header.rec_field_specs:
+        for field in record_fields:
             if field == 'n_seg':
                 continue
             setattr(record, field, record_fields[field])
@@ -879,13 +877,14 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
         # Create a multi-segment WFDB record object
         record = MultiRecord()
         # Read the fields from the segment lines
-        d_seg = _header._read_segment_lines(header_lines[1:])
-        # Set the object's segment line fields
-        for field in _header.seg_field_specs:
-            setattr(record, field, d_seg[field])
-        # Set the objects' record line fields
-        for field in _header.rec_field_specs:
+        segment_fields = _header._read_segment_lines(header_lines[1:])
+        # Set the object's segment fields
+        for field in segment_fields:
+            setattr(record, field, segment_fields[field])
+        # Set the objects' record fields
+        for field in record_fields:
             setattr(record, field, record_fields[field])
+
         # Determine whether the record is fixed or variable
         if record.seg_len[0] == 0:
             record.layout = 'variable'
@@ -901,16 +900,15 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
                 if s == '~':
                     record.segments.append(None)
                 else:
-                    record.segments.append(rdheader(os.path.join(dirname,s), pb_dir))
+                    record.segments.append(rdheader(os.path.join(dirname, s),
+                                                    pb_dir))
             # Fill in the sig_name attribute
             record.sig_name = record.get_sig_name()
             # Fill in the sig_segments attribute
             record.sig_segments = record.get_sig_segments()
 
     # Set the comments field
-    record.comments = []
-    for line in comment_lines:
-        record.comments.append(line.strip(' \t#'))
+    record.comments = [line.strip(' \t#') for line in comment_lines]
 
     return record
 
@@ -1014,7 +1012,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smooth_frames or max([record.samps_per_frame[c] for c in channels])==1:
             # Read signals from the associated dat files that contain wanted channels
-            record.d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
+            record.d_signal = _signal.rsegment_fieldsment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
                                                   record.byte_offset, record.samps_per_frame, record.skew,
                                                   sampfrom, sampto, channels, smooth_frames, ignore_skew)
 
@@ -1027,7 +1025,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
+            record.e_d_signal = _signal.rsegment_fieldsment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
                                                     record.byte_offset, record.samps_per_frame, record.skew,
                                                     sampfrom, sampto, channels, smooth_frames, ignore_skew)
 
@@ -1062,7 +1060,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                                           pb_dir=pb_dir)
 
         # The segment numbers and samples within each segment to read.
-        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto,
+        seg_numbers, seg_ranges  = record._requiresegment_fieldsments(sampfrom, sampto,
                                                         channels)
         # The channels within each segment to read
         seg_channels = record._get_required_channels(seg_numbers, channels, dirname, pb_dir)
