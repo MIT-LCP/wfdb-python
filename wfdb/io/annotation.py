@@ -220,7 +220,7 @@ class Annotation(object):
             raise TypeError('The '+field+' field must be one of the following types:', ann_field_types[field])
 
         if field in int_ann_fields:
-            if item.dtype not in _header.int_dtypes:
+            if not hasattr(field, '__index__'):
                 raise TypeError('The '+field+' field must have an integer-based dtype.')
 
         # Field specific checks

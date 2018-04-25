@@ -37,73 +37,70 @@ class BaseRecord(object):
         self.comments = comments
         self.sig_name = sig_name
 
-    # Check whether a single field is valid in its basic form. Does not check compatibility with other fields.
-    # ch is only used for signal specification fields, specifying the channels to check. Other channels
-    # can be None.
-    # Be aware that this function is not just called from wrheader.
     def check_field(self, field, channels=None):
-        # Check that the field is present
-        if getattr(self, field) is None:
-            raise Exception("Missing field required: "+field)
+        """
+        Check whether a single field is valid in its basic form. Does
+        not check compatibility with other fields.
+
+        Parameters
+        ----------
+        field : str
+            The field name
+        channels : list, optional
+            Used for signal specification fields. Species the channels
+            to check. Other channels can be None.
+
+        Be aware that this function is not just called from wrheader.
+
+        """
+        item = getattr(self, field)
+        if item is None:
+            raise Exception('Missing field required: %s' % field)
 
         # Check the type of the field (and of its elements if it should be a list)
         self.check_field_type(field, channels)
 
         # Expand to make sure all channels must have present field
         if channels == 'all':
-            channels = [1]*len(getattr(self, field))
+            channels = [True] * len(getattr(self, field))
 
-        # Individual specific field checks:
-        if field == 'd_signal':
-            # Check shape
-            if self.d_signal.ndim != 2:
-                raise TypeError("d_signal must be a 2d numpy array")
-            # Check dtype
-            if self.d_signal.dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                raise TypeError('d_signal must be a 2d numpy array with dtype == int64, int32, int16, or int8.')
-        elif field =='p_signal':
-            # Check shape
-            if self.p_signal.ndim != 2:
-                raise TypeError("p_signal must be a 2d numpy array")
+        # Individual specific field checks
 
-        elif field == 'e_d_signal':
-            # Check shape
+        if field in ['d_signal', 'p_signal']:
+            check_np_array(item=getattr(self, field), field_name=field, ndim=2,
+                           parent_class=(lambda f: np.integer if f == 'd_signal' else np.float64)(field))
+        elif field in ['e_d_signal', 'e_p_signal']:
             for ch in range(len(channels)):
-                if self.e_d_signal[ch].ndim != 1:
-                    raise TypeError("e_d_signal must be a list of 1d numpy arrays")
-                # Check dtype
-                if self.e_d_signal[ch].dtype not in [np.dtype('int64'), np.dtype('int32'), np.dtype('int16'), np.dtype('int8')]:
-                    raise TypeError('e_d_d_signal must be a list of 1d numpy arrays with dtype == int64, int32, int16, or int8.')
-        elif field =='e_p_signal':
-            # Check shape
-            for ch in range(0, len(channels)):
-                if self.e_p_signal.ndim != 1:
-                    raise TypeError("e_p_signal must be a list of 1d numpy arrays")
+                check_np_array(item=getattr(self, field), field_name=field,
+                               ndim=1, parent_class=(lambda f: np.integer if f == 'e_d_signal' else np.float64)(field),
+                               channel_num=ch)
 
         #elif field == 'segments': # Nothing to check here.
+
         # Record specification fields
+
         elif field == 'record_name':
             # Allow letters, digits, hyphens, and underscores.
             accepted_string = re.match('[-\w]+', self.record_name)
             if not accepted_string or accepted_string.string != self.record_name:
                 raise ValueError('record_name must only comprise of letters, digits, hyphens, and underscores.')
         elif field == 'n_seg':
-            if self.n_seg <=0:
+            if self.n_seg <= 0:
                 raise ValueError('n_seg must be a positive integer')
         elif field == 'n_sig':
-            if self.n_sig <=0:
+            if self.n_sig <= 0:
                 raise ValueError('n_sig must be a positive integer')
         elif field == 'fs':
-            if self.fs<=0:
+            if self.fs <= 0:
                 raise ValueError('fs must be a positive number')
         elif field == 'counter_freq':
-            if self.counter_freq <=0:
+            if self.counter_freq <= 0:
                 raise ValueError('counter_freq must be a positive number')
         elif field == 'base_counter':
-            if self.base_counter <=0:
+            if self.base_counter <= 0:
                 raise ValueError('base_counter must be a positive number')
         elif field == 'sig_len':
-            if self.sig_len <0:
+            if self.sig_len < 0:
                 raise ValueError('sig_len must be a non-negative integer')
         elif field == 'base_time':
             try:
@@ -116,7 +113,7 @@ class BaseRecord(object):
         # Signal specification fields. Lists of elements to check.
         elif field in _header.SIGNAL_SPECS:
 
-            for ch in range(0, len(channels)):
+            for ch in range(len(channels)):
                 f = getattr(self, field)[ch]
 
                 # The channel element is allowed to be None
@@ -148,7 +145,8 @@ class BaseRecord(object):
                     if f <= 0:
                         raise ValueError('adc_gain values must be positive numbers')
                 elif field == 'baseline':
-                    # Currently original WFDB library only has 4 bytes for baseline.
+                    # Original WFDB library 10.5.24 only has 4 bytes for
+                    # baseline.
                     if f < -2147483648 or f> 2147483648:
                         raise ValueError('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
                 elif field == 'units':
@@ -157,9 +155,6 @@ class BaseRecord(object):
                 elif field == 'adc_res':
                     if f < 0:
                         raise ValueError('adc_res values must be non-negative integers')
-                # elif field == 'adc_zero': nothing to check here
-                # elif field == 'init_value': nothing to check here
-                # elif field == 'checksum': nothing to check here
                 elif field == 'block_size':
                     if f < 0:
                         raise ValueError('block_size values must be non-negative integers')
@@ -210,16 +205,16 @@ class BaseRecord(object):
         item = getattr(self, field)
 
         # Record specification field. Nonlist.
-        if field in _header.rec_field_specs:
-            check_item_type(item, field, _header.rec_field_specs[field].allowed_types)
+        if field in _header.RECORD_SPECS:
+            check_item_type(item, field, _header.RECORD_SPECS[field].allowed_types)
 
         # Signal specification field. List.
         elif field in _header.SIGNAL_SPECS:
             check_item_type(item, field, _header.SIGNAL_SPECS[field].allowed_types, ch)
 
         # Segment specification field. List. All elements cannot be None
-        elif field in _header.seg_field_specs:
-            check_item_type(item, field, _header.seg_field_specs[field].allowed_types, 'all')
+        elif field in _header.SEGMENT_SPECS:
+            check_item_type(item, field, _header.SEGMENT_SPECS[field].allowed_types, 'all')
 
         # Comments field. List. Elements cannot be None
         elif field == 'comments':
@@ -277,50 +272,98 @@ class BaseRecord(object):
             if smooth_frames is False:
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
-# Check the item type. Vary the print message regarding whether the item can be None.
-# Helper to check_field_type
-# channels is a list of booleans indicating whether the field's channel must be present (1) or may be None (0)
-# and is not just for signal specification fields
-def check_item_type(item, field, allowed_types, channels=None):
 
-    # Checking the list
-    if channels is not None:
+def check_item_type(item, field_name, allowed_types, expect_list=False,
+                    channels=[]):
+    """
+    Check the item's type against a set of allowed types.
+    Vary the print message regarding whether the item can be None.
+    Helper to `BaseRecord.check_field_type`.
 
-        # First make sure the item is a list
+    Parameters
+    ----------
+    item : any
+        The item to check.
+    field_name : str
+        The field name.
+    allowed_types : iterable
+        Iterable of types the item is allowed to be.
+    expect_list : bool, optional
+        Whether the item is expected to be a list.
+    channels : list, optional
+        List of integers specifying which channels of the item must be
+        present. May be set to 'all' to indicate all channels. Only used
+        if `expect_list` is True, ie. item is a list, and its
+        subelements are to be checked.
+
+    """
+    if expect_list:
         if not isinstance(item, list):
-            raise TypeError("Field: '"+field+"' must be a list")
+            raise TypeError('Field `%s` must be a list.' % field_name)
 
-        # Expand to make sure all channels must have present field
+        # All channels must have present field
         if channels == 'all':
-            channels = [1]*len(item)
+            channels = list(range(len(item)))
+        # All channels may contain None
+        elif channels is None:
+            channels = [False] * len(item)
 
-        # Expand to allow any channel to be None
-        if channels == 'none':
-            channels = [0]*len(item)
-
-        for ch in range(0, len(channels)):
-
-            mustexist=channels[ch]
+        for ch in range(len(channels)):
             # The field must exist for the channel
-            if mustexist:
+            if channels[ch]
                 if not isinstance(item[ch], allowed_types):
-                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be one of the following types:", allowed_types)
+                    raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),
+                                    allowed_types)
 
             # The field may be None for the channel
             else:
                 if not isinstance(item[ch], allowed_types) and item[ch] is not None:
-                    raise TypeError("Channel "+str(ch)+" of field: '"+field+"' must be a 'None', or one of the following types:", allowed_types)
-
-    # Single scalar to check
+                    raise TypeError('Channel %d of field `%s` must be a None, or one of the following types:' % (ch, field_name),
+                                    allowed_types)
     else:
         if not isinstance(item, allowed_types):
-            raise TypeError("Field: '"+field+"' must be one of the following types:", allowed_types)
+            raise TypeError('Field `%s` must be one of the following types:',
+                            allowed_types)
 
+
+def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
+    """
+    Check a numpy array's shape and dtype against required
+    specifications.
+
+    Parameters
+    ----------
+    item : numpy array
+        The numpy array to check
+    field_name : str
+        The name of the field to check
+    ndim : int
+        The required number of dimensions
+    parent_class : type
+        The parent class of the dtype. ie. np.integer, np.float64.
+    channel_num : int, optional
+        If not None, indicates that the item passed in is a subelement
+        of a list. Indicate this in the error message if triggered.
+
+    """
+    # Check shape
+    if item.ndim != ndim:
+        error_msg = 'Field `%s` must have ndim == %d' % (field_name, ndim)
+        if channel_num is not None:
+            error_msg = ('Channel %d of f' % ) + error_msg[1:]
+        raise TypeError(error_msg)
+
+    # Check dtype
+    if not np.issubdtype(item.dtype, parent_class):
+        error_msg = 'Field `%s` must have a dtype that subclasses %s' (field_name, parent_class)
+        if channel_num is not None:
+            error_msg = ('Channel %d of f' % ) + error_msg[1:]
+        raise TypeError(error_msg)
 
 
 class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     """
-    The class representing WFDB headers, and single segment WFDB records.
+    The class representing single segment WFDB records.
 
     Record objects can be created using the initializer, by reading a WFDB
     header with `rdheader`, or a WFDB record (header and associated dat files)
@@ -1012,11 +1055,12 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smooth_frames or max([record.samps_per_frame[c] for c in channels])==1:
             # Read signals from the associated dat files that contain wanted channels
-            record.d_signal = _signal.rsegment_fieldsment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
+            record.d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
                                                   record.byte_offset, record.samps_per_frame, record.skew,
                                                   sampfrom, sampto, channels, smooth_frames, ignore_skew)
 
-            # Arrange/edit the object fields to reflect user channel and/or signal range input
+            # Arrange/edit the object fields to reflect user channel
+            # and/or signal range input
             record.arrange_fields(channels, expanded=False)
 
             if physical:
@@ -1025,11 +1069,12 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = _signal.rsegment_fieldsment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
+            record.e_d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
                                                     record.byte_offset, record.samps_per_frame, record.skew,
                                                     sampfrom, sampto, channels, smooth_frames, ignore_skew)
 
-            # Arrange/edit the object fields to reflect user channel and/or signal range input
+            # Arrange/edit the object fields to reflect user channel
+            # and/or signal range input
             record.arrange_fields(channels, expanded=True)
 
             if physical:

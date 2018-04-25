@@ -11,8 +11,6 @@ from . import _signal
 
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
 float_types = int_types + (float, np.float64, np.float32)
-int_dtypes = ('int64', 'uint64', 'int32', 'uint32','int16','uint16')
-
 
 """
 WFDB field specifications for each field.
@@ -46,7 +44,6 @@ files, and general confusion. This library aims to make explicit,
 whether certain fields are present in the file, by setting their values
 to None if they are not written in, unless the fields are essential, in
 which case an actual default value will be set.
-
 
 The read vs write default values are different for 2 reasons:
 1. We want to force the user to be explicit with certain important
@@ -144,19 +141,26 @@ class BaseHeaderMixin(object):
     MultiRecord classes
     """
 
-    def get_write_subset(self, spec_fields):
+    def get_write_subset(self, spec_type):
         """
-        Helper function for get_write_fields.
+        Get the fields used to write the header,
 
-        - spec_fields is the set of specification fields
-        For record specs, it returns a list of all fields needed.
-        For signal specs, it returns a dictionary of all fields needed,
+
+        Helper function for `get_write_fields`.
+
+        Parameters
+        ----------
+        spec_type : str
+            The set of specification fields desired. Either 'record' or
+            'signal'.
+
+        - For record fields,  returns a list of all fields needed.
+        - For signal fields, it returns a dictionary of all fields needed,
         with keys = field and value = list of 1 or 0 indicating channel for the field
-        """
 
-        # record specification fields
-        if spec_fields == 'record':
-            write_fields=[]
+        """
+        if spec_type == 'record':
+            write_fields = []
             fieldspecs = OrderedDict(reversed(list(rec_field_specs.items())))
             # Remove this requirement for single segs
             if not hasattr(self, 'n_seg'):
@@ -177,11 +181,11 @@ class BaseHeaderMixin(object):
                 write_fields.append('comments')
 
         # signal spec field. Need to return a potentially different list for each channel.
-        elif spec_fields == 'signal':
+        elif spec_type == 'signal':
             # List of lists for each channel
-            write_fields=[]
+            write_fields = []
 
-            allwrite_fields=[]
+            allwrite_fields = []
             fieldspecs = OrderedDict(reversed(list(SIGNAL_FIELDS.items())))
 
             for ch in range(self.n_sig):
@@ -198,7 +202,7 @@ class BaseHeaderMixin(object):
                         # Add the field and its recursive dependencies
                         while rf is not None:
                             write_fieldsch.append(rf)
-                            rf=fieldspecs[rf].dependency
+                            rf = fieldspecs[rf].dependency
 
                 write_fields.append(write_fieldsch)
 
@@ -244,46 +248,52 @@ class HeaderMixin(BaseHeaderMixin):
     def wrheader(self, write_dir=''):
 
         # Get all the fields used to write the header
-        recwrite_fields, sigwrite_fields = self.get_write_fields()
+        rec_write_fields, sig_write_fields = self.get_write_fields()
 
         # Check the validity of individual fields used to write the header
 
         # Record specification fields (and comments)
-        for f in recwrite_fields:
-            self.check_field(f)
+        for field in rec_write_fields:
+            self.check_field(field)
 
         # Signal specification fields.
-        for f in sigwrite_fields:
-            self.check_field(f, sigwrite_fields[f])
+        for field in sig_write_fields:
+            self.check_field(field, channels=sig_write_fields[field])
 
         # Check the cohesion of fields used to write the header
-        self.check_field_cohesion(recwrite_fields, list(sigwrite_fields))
+        self.check_field_cohesion(rec_write_fields, list(sig_write_fields))
 
         # Write the header file using the specified fields
-        self.wr_header_file(recwrite_fields, sigwrite_fields, write_dir)
+        self.wr_header_file(rec_write_fields, sig_write_fields, write_dir)
 
 
-    # Get the list of fields used to write the header. (Does NOT include d_signal or e_d_signal.)
-    # Separate items by record and signal specification field.
-    # Returns the default required fields, the user defined fields, and their dependencies.
-    # recwrite_fields includes 'comment' if present.
     def get_write_fields(self):
+        """
+        Get the list of fields used to write the header, separating
+        record and signal specification fields.
+
+        Does NOT include `d_signal` or `e_d_signal`.
+
+        Returns the default required fields, the user defined fields, and their dependencies.
+        rec_write_fields includes 'comment' if present.
+        """
 
         # Record specification fields
-        recwrite_fields=self.get_write_subset('record')
+        rec_write_fields = self.get_write_subset('record')
 
         # Add comments if any
         if self.comments != None:
-            recwrite_fields.append('comments')
+            rec_write_fields.append('comments')
 
-        # Determine whether there are signals. If so, get their required fields.
+        # Determine whether there are signals. If so, get their required
+        # fields.
         self.check_field('n_sig')
-        if self.n_sig>0:
-            sigwrite_fields=self.get_write_subset('signal')
+        if self.n_sig >  0:
+            sig_write_fields = self.get_write_subset('signal')
         else:
-            sigwrite_fields = None
+            sig_write_fields = None
 
-        return recwrite_fields, sigwrite_fields
+        return rec_write_fields, sig_write_fields
 
     # Set the object's attribute to its default value if it is missing
     # and there is a default. Not responsible for initializing the
@@ -320,14 +330,14 @@ class HeaderMixin(BaseHeaderMixin):
             setattr(self, field, [SIGNAL_FIELDS[field].write_def]*self.n_sig)
 
     # Check the cohesion of fields used to write the header
-    def check_field_cohesion(self, recwrite_fields, sigwrite_fields):
+    def check_field_cohesion(self, rec_write_fields, sig_write_fields):
 
         # If there are no signal specification fields, there is nothing to check.
         if self.n_sig>0:
 
             # The length of all signal specification fields must match n_sig
             # even if some of its elements are None.
-            for f in sigwrite_fields:
+            for f in sig_write_fields:
                 if len(getattr(self, f)) != self.n_sig:
                     raise ValueError('The length of field: '+f+' must match field n_sig.')
 
@@ -354,7 +364,7 @@ class HeaderMixin(BaseHeaderMixin):
 
 
 
-    def wr_header_file(self, recwrite_fields, sigwrite_fields, write_dir):
+    def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
         # Write a header file using the specified fields
         header_lines=[]
 
@@ -363,7 +373,7 @@ class HeaderMixin(BaseHeaderMixin):
         # Traverse the ordered dictionary
         for field in rec_field_specs:
             # If the field is being used, add it with its delimiter
-            if field in recwrite_fields:
+            if field in rec_write_fields:
                 stringfield = str(getattr(self, field))
                 # If fs is float, check whether it as an integer
                 if field == 'fs' and isinstance(self.fs, float):
@@ -379,7 +389,7 @@ class HeaderMixin(BaseHeaderMixin):
                 # Traverse the ordered dictionary
                 for field in SIGNAL_FIELDS:
                     # If the field is being used, add each of its elements with the delimiter to the appropriate line
-                    if field in sigwrite_fields and sigwrite_fields[field][ch]:
+                    if field in sig_write_fields and sig_write_fields[field][ch]:
                         signallines[ch]=signallines[ch] + SIGNAL_FIELDS[field].delimiter + str(getattr(self, field)[ch])
                     # The 'baseline' field needs to be closed with ')'
                     if field== 'baseline':
@@ -388,7 +398,7 @@ class HeaderMixin(BaseHeaderMixin):
             header_lines = header_lines + signallines
 
         # Create comment lines (if any)
-        if 'comments' in recwrite_fields:
+        if 'comments' in rec_write_fields:
             comment_lines = ['# '+comment for comment in self.comments]
             header_lines = header_lines + comment_lines
 
