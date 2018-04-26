@@ -29,7 +29,7 @@ class SignalMixin(object):
 
         if expanded:
             # Using list of arrays e_d_signal
-            self.check_field('e_d_signal', channels = 'all')
+            self.check_field('e_d_signal')
         else:
             # Check the validity of the d_signal field
             self.check_field('d_signal')
@@ -140,7 +140,7 @@ class SignalMixin(object):
 
         if expanded:
             if do_dac:
-                self.check_field('e_d_signal', channels = 'all')
+                self.check_field('e_d_signal')
                 self.check_field('fmt', 'all')
                 self.check_field('adc_gain', 'all')
                 self.check_field('baseline', 'all')

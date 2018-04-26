@@ -1,4 +1,3 @@
-# For wrheader(), all fields must be already filled in and cohesive with one another other. The signals field will not be used.
 # For wrsamp(), the field to use will be d_signal (which is allowed to be empty for 0 channel records).
 # set_p_features and set_d_features use characteristics of the p_signal or d_signal field to fill in other header fields.
 # These are separate from another method 'set_defaults' which the user may call to set default header fields
@@ -7,10 +6,12 @@
 
 import datetime
 import multiprocessing
-import numpy as np
-import os
 import posixpath
 import re
+
+import numpy as np
+import os
+import pandas as pd
 import requests
 
 from . import _header
@@ -61,9 +62,6 @@ class BaseRecord(object):
         if item is None:
             raise Exception('Missing field required: %s' % field)
 
-        if required_channels == 'all':
-            required_channels = range(len(item))
-
         # We should have a list specifying these automatically.
 
         # Whether the item should be a list. Watch out for required_channels for `segments`
@@ -79,11 +77,11 @@ class BaseRecord(object):
         # Individual specific field checks
 
         if field in ['d_signal', 'p_signal']:
-            check_np_array(item=getattr(self, field), field_name=field, ndim=2,
+            check_np_array(item=item, field_name=field, ndim=2,
                            parent_class=(lambda f: np.integer if f == 'd_signal' else np.float64)(field))
         elif field in ['e_d_signal', 'e_p_signal']:
-            for ch in range(len(channels)):
-                check_np_array(item=getattr(self, field), field_name=field,
+            for ch in range(len(item)):
+                check_np_array(item=item[ch], field_name=field,
                                ndim=1, parent_class=(lambda f: np.integer if f == 'e_d_signal' else np.float64)(field),
                                channel_num=ch)
 
@@ -121,7 +119,9 @@ class BaseRecord(object):
             _ = datetime.datetime.strptime(self.base_date, '%d/%m/%Y')
 
         # Signal specification fields
-        elif field in SIGNAL_SPECS.index:
+        elif field in _header.SIGNAL_SPECS.index:
+            if required_channels == 'all':
+                required_channels = range(len(item))
 
             for ch in range(len(item)):
                 # If the element is allowed to be None
@@ -173,7 +173,7 @@ class BaseRecord(object):
                         raise ValueError('sig_name strings must be unique.')
 
         # Segment specification fields and comments
-        elif field in SEGMENT_SPECS.index:
+        elif field in _header.SEGMENT_SPECS.index:
             for ch in range(len(item)):
                 if field == 'seg_name':
                     # Segment names must be alphanumerics or just a
@@ -345,7 +345,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # Perform field validity and cohesion checks, and write the
         # header file.
         self.wrheader(write_dir=write_dir)
-        if self.n_sig>0:
+        if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
             self.wr_dats(expanded=expanded, write_dir=write_dir)
@@ -358,7 +358,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         """
 
         # Rearrange signal specification fields
-        for field in _header.SIGNAL_SPECS:
+        for field in _header.SIGNAL_SPECS.index:
             item = getattr(self, field)
             setattr(self, field, [item[c] for c in channels])
 
@@ -742,10 +742,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 # Allowed types of wfdb header fields, and also attributes defined in
 # this library
 ALLOWED_TYPES = dict([[index, _header.FIELD_SPECS.loc[index, 'allowed_types']] for index in _header.FIELD_SPECS.index])
-ALLOWED_TYPES.update({'comment': (str,), 'p_signal': (np.ndarray,),
-                   'd_signal':(np.ndarray,), 'e_p_signal':(np.ndarray,),
-                   'e_d_signal':(np.ndarray,),
-                   'segments':(Record, type(None))})
+ALLOWED_TYPES.update({'comments': (str,), 'p_signal': (np.ndarray,),
+                      'd_signal':(np.ndarray,), 'e_p_signal':(np.ndarray,),
+                      'e_d_signal':(np.ndarray,),
+                      'segments':(Record, type(None))})
 
 # Fields that must be lists
 LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + ('comments', 'e_p_signal',
@@ -797,9 +797,9 @@ def _check_item_type(item, field_name, allowed_types, expect_list=False,
             else:
                 allowed_types_ch = allowed_types
 
-            if not isinstance(item[ch], allowed_type):
+            if not isinstance(item[ch], allowed_types_ch):
                 raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),
-                                allowed_types)
+                                allowed_types_ch)
     else:
         if not isinstance(item, allowed_types):
             raise TypeError('Field `%s` must be one of the following types:',
@@ -1471,46 +1471,61 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     return
 
 
-# ---------- For storing WFDB Signal definitions ---------- #
+# -------------- WFDB Signal Calibration and Classification ---------- #
 
 
 # Unit scales used for default display scales.
 unit_scale = {
-    'Voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
-    'Temperature': ['C'],
-    'Pressure': ['mmHg'],
+    'voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
+    'temperature': ['C', 'F'],
+    'pressure': ['mmHg'],
+    'no_unit': ['NU'],
+    'percentage': ['%'],
+    'heart_rate': ['bpm'],
 }
 
 
+"""
+Signal classes that wfdb signals should fall under. The indexes are the
+abbreviated class names.
 
-# Signal class with all its parameters
-class SignalClass(object):
-    def __init__(self, abbreviation, description, signalnames):
-        self.abbreviation = abbreviation
-        self.description = description
-        # names that are assigned to this signal type
-        self.signalnames = signalnames
+Parameters
+----------
+description:
+    The full descriptive name for the signal class.
+unit_scale:
+    The unit scale that the class should measure. 'No Unit' will also
+    be allowed in all cases. * Will it always be 1?
+signal_names:
+    The signal names that belong to the class.
 
-    def __str__(self):
-        return self.abbreviation
+Notes
+-----
+This will be used to automatically classify signals in classes based
+on their names.
 
-# All signal types. Make sure signal names are in lower case.
-sig_classes = [
-    SignalClass('BP', 'Blood Pressure', ['bp','abp','pap','cvp',]),
-    SignalClass('CO2', 'Carbon Dioxide', ['co2']),
-    SignalClass('CO', 'Carbon Monoxide', ['co']),
-    SignalClass('ECG', 'Electrocardiogram', ['i','ii','iii','iv','v','avr']),
-    SignalClass('EEG', 'Electroencephalogram',['eeg']),
-    SignalClass('EMG', 'Electromyograph', ['emg']),
-    SignalClass('EOG', 'Electrooculograph', ['eog']),
-    SignalClass('HR', 'Heart Rate', ['hr']),
-    SignalClass('MMG', 'Magnetomyograph', ['mmg']),
-    SignalClass('O2', 'Oxygen', ['o2','sp02']),
-    SignalClass('PLETH', 'Plethysmograph', ['pleth']),
-    SignalClass('RESP', 'Respiration', ['resp']),
-    SignalClass('SCG', 'Seismocardiogram', ['scg']),
-    SignalClass('STAT', 'Status', ['stat','status']), # small integers indicating status
-    SignalClass('ST', 'ECG ST Segment', ['st']),
-    SignalClass('TEMP', 'Temperature', ['temp']),
-    SignalClass('UNKNOWN', 'Unknown Class', []),
-]
+"""
+
+SIGNAL_CLASSES = pd.DataFrame(
+    index=['bp', 'co2', 'co', 'ecg', 'eeg', 'emg', 'eog', 'hr', 'mmg',
+           'o2', 'pleth', 'resp', 'scg', 'stat', 'st', 'temp', 'unknown'],
+    columns=['description', 'unit_scale', 'signal_names'],
+    data=[['Blood Pressure', 'pressure', ['bp','abp','pap','cvp']], # bp
+          ['Carbon Dioxide', 'percentage', ['co2', 'pco2']], # co2
+          ['Carbon Monoxide', 'percentage', ['co']], # co
+          ['Electrocardiogram', 'voltage', ['i','ii','iii','iv','v','avr']], # ecg
+          ['Electroencephalogram', 'voltage', ['eeg']], # eeg
+          ['Electromyograph', 'voltage', ['emg']], # emg
+          ['Electrooculograph', 'voltage', ['eog']], # eog
+          ['Heart Rate', 'heart_rate', ['hr']], # hr
+          ['Magnetomyograph', 'voltage', ['mmg']], # mmg
+          ['Oxygen', 'percentage', ['o2', 'spo2']], # o2
+          ['Plethysmograph', 'pressure', ['pleth']], # pleth
+          ['Respiration', 'no_unit', ['resp']], # resp
+          ['Seismocardiogram', 'no_unit', ['scg']], # scg
+          ['Status', 'no_unit', ['stat', 'status']], # stat
+          ['ST Segment', '', ['st']], # st. This is not a signal?
+          ['Temperature', 'temperature', ['temp']], # temp
+          ['Unknown Class', 'no_unit', []], # unknown. special class.
+    ]
+)
