@@ -108,15 +108,6 @@ SEGMENT_SPECS = pd.DataFrame(
 # Specifications of all wfdb header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
-# Allowed types of wfdb header fields, and also attributes defined in
-# this library
-ALLOWED_TYPES = dict([[index, FIELD_SPECS.loc[index, 'allowed_types']] for index in FIELD_SPECS.index])
-ALLOWED_TYPES.add({'comment': (str,), p_signal, d_signal, e_p_signal, e_d_signal, segments})
-
-# Fields that must be lists
-LIST_FIELDS = tuple(SIGNAL_SPECS.index) + ('comments', 'e_p_signal',
-                                           'e_d_signal', 'segments')
-
 
 # Regexp objects for reading headers
 
