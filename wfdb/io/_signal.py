@@ -574,38 +574,40 @@ class SignalMixin(object):
             cs = [int(c) for c in cs]
         return cs
 
-    # Write each of the specified dat files
     def wr_dat_files(self, expanded=False, write_dir=''):
+        """
+        Write each of the specified dat files
 
+        """
         # Get the set of dat files to be written, and
         # the channels to be written to each file.
-        file_names, datchannels = orderedsetlist(self.file_name)
+        file_names, dat_channels = describe_list_indices(self.file_name)
 
         # Get the fmt and byte offset corresponding to each dat file
-        datfmts={}
-        datoffsets={}
+        dat_fmts = {}
+        dat_offsets = {}
         for fn in file_names:
-            datfmts[fn] = self.fmt[datchannels[fn][0]]
+            dat_fmts[fn] = self.fmt[dat_channels[fn][0]]
 
             # byte_offset may not be present
             if self.byte_offset is None:
-                datoffsets[fn] = 0
+                dat_offsets[fn] = 0
             else:
-                datoffsets[fn] = self.byte_offset[datchannels[fn][0]]
+                dat_offsets[fn] = self.byte_offset[dat_channels[fn][0]]
 
         # Write the dat files
         if expanded:
             for fn in file_names:
-                wr_dat_file(fn, datfmts[fn], None , datoffsets[fn], True,
-                            [self.e_d_signal[ch] for ch in datchannels[fn]],
+                wr_dat_file(fn, dat_fmts[fn], None , dat_offsets[fn], True,
+                            [self.e_d_signal[ch] for ch in dat_channels[fn]],
                             self.samps_per_frame, write_dir=write_dir)
         else:
             # Create a copy to prevent overwrite
             dsig = self.d_signal.copy()
             for fn in file_names:
-                wr_dat_file(fn, datfmts[fn],
-                            dsig[:, datchannels[fn][0]:datchannels[fn][-1]+1],
-                            datoffsets[fn], write_dir=write_dir)
+                wr_dat_file(fn, dat_fmts[fn],
+                            dsig[:, dat_channels[fn][0]:dat_channels[fn][-1]+1],
+                            dat_offsets[fn], write_dir=write_dir)
 
 
     def smooth_frames(self, sigtype='physical'):
@@ -689,7 +691,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
     # Get the set of dat files, and the
     # channels that belong to each file.
-    file_name, datchannel = orderedsetlist(file_name)
+    file_name, datchannel = describe_list_indices(file_name)
 
     # Some files will not be read depending on input channels.
     # Get the the wanted fields only.
@@ -1487,25 +1489,36 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
     f.close()
 
 
-def orderedsetlist(fulllist):
+def describe_list_indices(full_list):
     """
-    Returns the unique elements in a list in the order that they appear.
-    Also returns the indices of the original list that correspond to each output element.
-    """
-    uniquelist = []
-    original_inds = {}
+    Parameters
+    ----------
+    full_list : list
+        The list of items to order and
 
-    for i in range(0, len(fulllist)):
-        item = fulllist[i]
+    Returns
+    -------
+    unique_elements : list
+        A list of the unique elements of the list, in the order in which
+        they first appear.
+    element_indices : dict
+        A dictionary of lists for each unique element, giving all the
+        indices in which they appear in the original list.
+
+    """
+    unique_elements = []
+    element_indices = {}
+
+    for i in range(len(full_list)):
+        item = full_list[i]
         # new item
-        if item not in uniquelist:
-            uniquelist.append(item)
-            original_inds[item] = [i]
+        if item not in unique_elements:
+            unique_elements.append(item)
+            element_indices[item] = [i]
         # previously seen item
         else:
-            original_inds[item].append(i)
-    return uniquelist, original_inds
-
+            element_indices[item].append(i)
+    return unique_elements, element_indices
 
 
 def downround(x, base):

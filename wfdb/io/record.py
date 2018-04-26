@@ -5,8 +5,6 @@
 # The check_field_cohesion() function will be called in wrheader which checks all the header fields.
 # The check_sig_cohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
-
-from collections import OrderedDict
 import datetime
 import multiprocessing
 import numpy as np
@@ -46,7 +44,7 @@ class BaseRecord(object):
         ----------
         field : str
             The field name
-        channels : list, optional
+        required_channels : list, optional
             Used for signal specification fields. Species the channels
             to check. Other channels can be None.
 
@@ -57,8 +55,8 @@ class BaseRecord(object):
         if item is None:
             raise Exception('Missing field required: %s' % field)
 
-        if channels == 'all':
-            channels = range(len(item))
+        if required_channels == 'all':
+            required_channels = range(len(item))
 
         # We should have a list specifying these automatically.
 
@@ -138,10 +136,10 @@ class BaseRecord(object):
                     # Check for file_name characters
                     accepted_string = re.match('[-\w]+\.?[\w]+', item[ch])
                     if not accepted_string or accepted_string.string != item[ch]:
-                        raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record_100.dat')
+                        raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat')
                     # Check that dat files are grouped together
-                    if orderedsetlist(self.file_name)[0] != orderednoconseclist(self.file_name):
-                        raise ValueError('file_name error: all entries for signals that share a given file must be consecutive')
+                    if not is_monotonic(self.file_name):
+                        raise ValueError('Signals in a record that share a given file must be consecutive.')
                 elif field == 'fmt':
                     if item[ch] not in _signal.dat_fmts:
                         raise ValueError('File formats must be valid WFDB dat formats:', _signal.dat_fmts)
@@ -156,7 +154,7 @@ class BaseRecord(object):
                         raise ValueError('byte_offset values must be non-negative integers')
                 elif field == 'adc_gain':
                     if item[ch] <= 0:
-                        raise ValueError('adc_gain values must be positive numbers')
+                        raise ValueError('adc_gain values must be positive')
                 elif field == 'baseline':
                     # Original WFDB library 10.5.24 only has 4 bytes for
                     # baseline.
@@ -286,7 +284,7 @@ def check_item_type(item, field_name, allowed_types, expect_list=False,
     """
     Check the item's type against a set of allowed types.
     Vary the print message regarding whether the item can be None.
-    Helper to `BaseRecord.check_field_type`.
+    Helper to `BaseRecord.check_field`.
 
     Parameters
     ----------
@@ -315,7 +313,7 @@ def check_item_type(item, field_name, allowed_types, expect_list=False,
 
         for ch in range(len(item)):
             # Check whether the field may be None
-            if ch_in required_channels:
+            if ch in required_channels:
                 allowed_types_ch = allowed_types + (type(None),)
             else:
                 allowed_types_ch = allowed_types
@@ -1200,8 +1198,9 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
                                       channel =[1,3])
 
     """
-
-    record = rdrecord(record_name, sampfrom, sampto, channels, True, pb_dir, True)
+    record = rdrecord(record_name=record_name, sampfrom=sampfrom,
+                      sampto=sampto, channels=channels, physical=True,
+                      pb_dir=pb_dir, m2s=True)
 
     signals = record.p_signal
     fields = {}
@@ -1347,33 +1346,24 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     record.wrsamp(write_dir=write_dir)
 
 
-# Returns the unique elements in a list in the order that they appear.
-# Also returns the indices of the original list that correspond to each output element.
-def orderedsetlist(fulllist):
-    uniquelist = []
-    original_inds = {}
+def is_monotonic(full_list):
+    """
+    Determine whether elements in a list are monotonic. ie. unique
+    elements are clustered together.
 
-    for i in range(0, len(fulllist)):
-        item = fulllist[i]
-        # new item
-        if item not in uniquelist:
-            uniquelist.append(item)
-            original_inds[item] = [i]
-        # previously seen item
-        else:
-            original_inds[item].append(i)
-    return uniquelist, original_inds
+    ie. [5,5,3,4] is, [5,3,5] is not.
+    """
+    prev_elements = set({full_list[0]})
+    prev_item = full_list[0]
 
-# Returns elements in a list without consecutive repeated values.
-def orderednoconseclist(fulllist):
-    noconseclist = [fulllist[0]]
-    if len(fulllist) == 1:
-        return noconseclist
-    for i in fulllist:
-        if i!= noconseclist[-1]:
-            noconseclist.append(i)
-    return noconseclist
+    for item in full_list:
+        if item != prev_item:
+            if item in prev_elements:
+                return False
+            prev_item = item
+            prev_elements.add(item)
 
+    return True
 
 def dl_database(db_dir, dl_dir, records='all', annotators='all',
                 keep_subdirs=True, overwrite = False):

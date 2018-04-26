@@ -153,10 +153,9 @@ class BaseHeaderMixin(object):
 
     def get_write_subset(self, spec_type):
         """
-        Get the fields used to write the header,
-
-
-        Helper function for `get_write_fields`.
+        Get a set of fields used to write the header; either 'record'
+        or 'signal' specification fields. Helper function for
+        `get_write_fields`.
 
         Parameters
         ----------
@@ -164,9 +163,13 @@ class BaseHeaderMixin(object):
             The set of specification fields desired. Either 'record' or
             'signal'.
 
-        - For record fields,  returns a list of all fields needed.
-        - For signal fields, it returns a dictionary of all fields needed,
-        with keys = field and value = list of 1 or 0 indicating channel for the field
+        Returns
+        -------
+        write_fields : list or dict
+            For record fields,  returns a list of all fields needed. For
+            signal fields, it returns a dictionary of all fields needed,
+            with keys = field and value = list of 1 or 0 indicating
+            channel for the field
 
         """
         if spec_type == 'record':
@@ -181,11 +184,11 @@ class BaseHeaderMixin(object):
                     continue
                 # If the field is required by default or has been defined by the user
                 if fieldspecs[f].write_req or getattr(self, f) is not None:
-                    rf=f
+                    rf = f
                     # Add the field and its recursive dependencies
                     while rf is not None:
                         write_fields.append(rf)
-                        rf=fieldspecs[rf].dependency
+                        rf = fieldspecs[rf].dependency
             # Add comments if any
             if getattr(self, 'comments') is not None:
                 write_fields.append('comments')
@@ -262,6 +265,10 @@ class HeaderMixin(BaseHeaderMixin):
         - Get the fields used to write the header for this instance.
         - Check each required field.
 
+        Parameters
+        ----------
+        write_dir : str, optional
+            The output directory in which the header is written.
         """
 
         # Get all the fields used to write the header
@@ -289,12 +296,22 @@ class HeaderMixin(BaseHeaderMixin):
     def get_write_fields(self):
         """
         Get the list of fields used to write the header, separating
-        record and signal specification fields.
+        record and signal specification fields. Returns the default
+        required fields, the user defined fields,
+        and their dependencies.
 
         Does NOT include `d_signal` or `e_d_signal`.
 
-        Returns the default required fields, the user defined fields, and their dependencies.
-        rec_write_fields includes 'comment' if present.
+        Returns
+        -------
+        rec_write_fields : list
+            Record specification fields to be written. Includes
+            'comment' if present.
+        sig_write_fields : dict
+            Dictionary of signal specification fields to be written,
+            with values equal to the channels that need to be present
+            for each field.
+
         """
 
         # Record specification fields
@@ -304,8 +321,7 @@ class HeaderMixin(BaseHeaderMixin):
         if self.comments != None:
             rec_write_fields.append('comments')
 
-        # Determine whether there are signals. If so, get their required
-        # fields.
+        # Get required signal fields if signals are present.
         self.check_field('n_sig')
 
         if self.n_sig >  0:
