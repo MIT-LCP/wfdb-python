@@ -138,8 +138,8 @@ class BaseRecord(object):
                     if not is_monotonic(self.file_name):
                         raise ValueError('Signals in a record that share a given file must be consecutive.')
                 elif field == 'fmt':
-                    if item[ch] not in _signal.dat_fmts:
-                        raise ValueError('File formats must be valid WFDB dat formats:', _signal.dat_fmts)
+                    if item[ch] not in _signal.DAT_FMTS:
+                        raise ValueError('File formats must be valid WFDB dat formats:', _signal.DAT_FMTS)
                 elif field == 'samps_per_frame':
                     if item[ch] < 1:
                         raise ValueError('samps_per_frame values must be positive integers')

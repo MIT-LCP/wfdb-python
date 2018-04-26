@@ -146,7 +146,8 @@ class BaseHeaderMixin(object):
         """
         Get a set of fields used to write the header; either 'record'
         or 'signal' specification fields. Helper function for
-        `get_write_fields`.
+        `get_write_fields`. Gets the default required fields, the user
+        defined fields, and their dependencies.
 
         Parameters
         ----------
@@ -159,27 +160,31 @@ class BaseHeaderMixin(object):
         write_fields : list or dict
             For record fields,  returns a list of all fields needed. For
             signal fields, it returns a dictionary of all fields needed,
-            with keys = field and value = list of 1 or 0 indicating
-            channel for the field
+            with keys = field and value = list of channels that must be
+            present for the field.
 
         """
         if spec_type == 'record':
             write_fields = []
-            fieldspecs = OrderedDict(reversed(list(rec_field_specs.items())))
-            # Remove this requirement for single segs
-            if not hasattr(self, 'n_seg'):
-                del(fieldspecs['n_seg'])
+            record_specs = RECORD_SPECS.copy()
 
-            for f in fieldspecs:
-                if f in write_fields:
+            # Remove the n_seg requirement for single segment items
+            if not hasattr(self, 'n_seg'):
+                del(record_specs['n_seg'])
+
+            for field in record_specs.index[-1::-1]:
+                # Continue if the field has already been included
+                if field in write_fields:
                     continue
-                # If the field is required by default or has been defined by the user
-                if fieldspecs[f].write_req or getattr(self, f) is not None:
-                    rf = f
+                # If the field is required by default or has been
+                # defined by the user
+                if (record_specs.loc[field, 'write_required']
+                        or getattr(self, field) is not None):
+                    req_field = field
                     # Add the field and its recursive dependencies
-                    while rf is not None:
-                        write_fields.append(rf)
-                        rf = fieldspecs[rf].dependency
+                    while req_field is not None:
+                        write_fields.append(req_field)
+                        req_field = record_specs.loc[req_field, 'dependency']
             # Add comments if any
             if getattr(self, 'comments') is not None:
                 write_fields.append('comments')
@@ -188,41 +193,40 @@ class BaseHeaderMixin(object):
         elif spec_type == 'signal':
             # List of lists for each channel
             write_fields = []
-
-            allwrite_fields = []
-            fieldspecs = OrderedDict(reversed(list(SIGNAL_FIELDS.items())))
+            signal_specs = SIGNAL_SPECS.copy()
 
             for ch in range(self.n_sig):
                 # The fields needed for this channel
-                write_fieldsch = []
-                for f in fieldspecs:
-                    if f in write_fieldsch:
+                write_fields_ch = []
+                for field in signal_specs[-1::-1]:
+                    if field in write_fields_ch:
                         continue
 
-                    fielditem = getattr(self, f)
+                    item = getattr(self, field)
                     # If the field is required by default or has been defined by the user
-                    if fieldspecs[f].write_req or (fielditem is not None and fielditem[ch] is not None):
-                        rf=f
+                    if signal_specs.loc[field, 'write_req'] or (item is not None and item[ch] is not None):
+                        req_field = field
                         # Add the field and its recursive dependencies
-                        while rf is not None:
-                            write_fieldsch.append(rf)
-                            rf = fieldspecs[rf].dependency
+                        while req_field is not None:
+                            write_fields_ch.append(req_field)
+                            req_field = signal_specs.loc[req_field, 'dependency']
 
-                write_fields.append(write_fieldsch)
+                write_fields.append(write_fields_ch)
 
             # Convert the list of lists to a single dictionary.
-            # keys = field and value = list of 1 or 0 indicating channel for the field
-            dictwrite_fields = {}
+            # keys = field and value = list of channels in which the
+            # field is required.
+            dict_write_fields = {}
 
             # For fields present in any channel:
-            for f in set([i for wsub in write_fields for i in wsub]):
-                dictwrite_fields[f] = [0]*self.n_sig
+            for field in set([i for write_fields_ch in write_fields for i in write_fields_ch]):
+                dict_write_fields[field] = []
 
                 for ch in range(self.n_sig):
-                    if f in write_fields[ch]:
-                        dictwrite_fields[f][ch] = 1
+                    if field in write_fields[ch]:
+                        dict_write_fields[field].append(ch)
 
-            write_fields = dictwrite_fields
+            write_fields = dict_write_fields
 
         return write_fields
 
@@ -322,21 +326,26 @@ class HeaderMixin(BaseHeaderMixin):
 
         return rec_write_fields, sig_write_fields
 
-    # Set the object's attribute to its default value if it is missing
-    # and there is a default. Not responsible for initializing the
-    # attribute. That is done by the constructor.
+
     def set_default(self, field):
+        """
+        Set the object's attribute to its default value if it is missing
+        and there is a default.
+
+        Not responsible for initializing the
+        attribute. That is done by the constructor.
+        """
 
         # Record specification fields
-        if field in rec_field_specs:
+        if field in RECORD_SPECS.index:
             # Return if no default to set, or if the field is already present.
-            if rec_field_specs[field].write_def is None or getattr(self, field) is not None:
+            if RECORD_SPECS.loc[field, 'write_default'] is None or getattr(self, field) is not None:
                 return
-            setattr(self, field, rec_field_specs[field].write_def)
+            setattr(self, field, RECORD_SPECS.loc[field, 'write_default'])
 
         # Signal specification fields
         # Setting entire list default, not filling in blanks in lists.
-        elif field in SIGNAL_FIELDS:
+        elif field in SIGNAL_FIELDS.index:
 
             # Specific dynamic case
             if field == 'file_name' and self.file_name is None:
@@ -346,7 +355,7 @@ class HeaderMixin(BaseHeaderMixin):
             item = getattr(self, field)
 
             # Return if no default to set, or if the field is already present.
-            if SIGNAL_FIELDS[field].write_def is None or item is not None:
+            if SIGNAL_SPECS.loc[field, 'write_default'] is None or item is not None:
                 return
 
             # Set more specific defaults if possible
@@ -354,11 +363,15 @@ class HeaderMixin(BaseHeaderMixin):
                 self.adc_res=_signal.wfdbfmtres(self.fmt)
                 return
 
-            setattr(self, field, [SIGNAL_FIELDS[field].write_def]*self.n_sig)
+            setattr(self, field,
+                   [SIGNAL_SPECS.loc[field, 'write_default']] * self.n_sig)
 
-    # Check the cohesion of fields used to write the header
+
     def check_field_cohesion(self, rec_write_fields, sig_write_fields):
+        """
+        Check the cohesion of fields used to write the header
 
+        """
         # If there are no signal specification fields, there is nothing to check.
         if self.n_sig>0:
 
@@ -393,12 +406,12 @@ class HeaderMixin(BaseHeaderMixin):
 
     def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
         # Write a header file using the specified fields
-        header_lines=[]
+        header_lines = []
 
         # Create record specification line
-        recordline = ''
+        record_line = ''
         # Traverse the ordered dictionary
-        for field in rec_field_specs:
+        for field in RECORD_SPECS:
             # If the field is being used, add it with its delimiter
             if field in rec_write_fields:
                 stringfield = str(getattr(self, field))
@@ -406,8 +419,8 @@ class HeaderMixin(BaseHeaderMixin):
                 if field == 'fs' and isinstance(self.fs, float):
                     if round(self.fs, 8) == float(int(self.fs)):
                         stringfield = str(int(self.fs))
-                recordline = recordline + rec_field_specs[field].delimiter + stringfield
-        header_lines.append(recordline)
+                record_line = record_line + RECORD_SPECS[field].delimiter + stringfield
+        header_lines.append(record_line)
 
         # Create signal specification lines (if any) one channel at a time
         if self.n_sig>0:
@@ -489,11 +502,11 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def set_default(self, field):
 
         # Record specification fields
-        if field in rec_field_specs:
+        if field in RECORD_SPECS:
             # Return if no default to set, or if the field is already present.
-            if rec_field_specs[field].write_def is None or getattr(self, field) is not None:
+            if RECORD_SPECS[field].write_def is None or getattr(self, field) is not None:
                 return
-            setattr(self, field, rec_field_specs[field].write_def)
+            setattr(self, field, RECORD_SPECS[field].write_def)
 
 
 
@@ -516,20 +529,20 @@ class MultiHeaderMixin(BaseHeaderMixin):
         header_lines=[]
 
         # Create record specification line
-        recordline = ''
+        record_line = ''
         # Traverse the ordered dictionary
-        for field in rec_field_specs:
+        for field in RECORD_SPECS:
             # If the field is being used, add it with its delimiter
             if field in write_fields:
-                recordline = recordline + rec_field_specs[field].delimiter + str(getattr(self, field))
-        header_lines.append(recordline)
+                record_line = record_line + RECORD_SPECS[field].delimiter + str(getattr(self, field))
+        header_lines.append(record_line)
 
         # Create segment specification lines
         segmentlines = self.n_seg*['']
         # For both fields, add each of its elements with the delimiter to the appropriate line
         for field in ['seg_name', 'seg_name']:
             for segnum in range(0, self.n_seg):
-                segmentlines[segnum] = segmentlines[segnum] + seg_field_specs[field].delimiter + str(getattr(self, field)[segnum])
+                segmentlines[segnum] = segmentlines[segnum] + SEGMENT_SPECS[field].delimiter + str(getattr(self, field)[segnum])
 
         header_lines = header_lines + segmentlines
 
@@ -630,14 +643,14 @@ def _read_record_line(record_line):
      record_fields['sig_len'], record_fields['base_time'],
      record_fields['base_date']) = re.findall(_rx_record, record_line)[0]
 
-    for field in rec_field_specs:
+    for field in RECORD_SPECS.index:
         # Replace empty strings with their read defaults (which are
         # mostly None)
         if record_fields[field] == '':
-            record_fields[field] = rec_field_specs[field].read_default
+            record_fields[field] = RECORD_SPECS.loc[field, 'read_default']
         # Typecast non-empty strings for numerical and date/time fields
         else:
-            if rec_field_specs[field].allowed_types is int_types:
+            if RECORD_SPECS.loc[field, 'allowed_types'] is int_types:
                 record_fields[field] = int(record_fields[field])
             # fs may be read as float or int
             elif field == 'fs':
@@ -701,17 +714,17 @@ def _read_segment_lines(segment_lines):
     segment_fields = {}
 
     # Each dictionary field is a list
-    for field in seg_field_specs:
+    for field in SEGMENT_SPECS:
         segment_fields[field] = [None]*len(segment_lines)
 
     # Read string fields from signal line
     for i in range(0, len(segment_lines)):
         (segment_fields['seg_name'][i], segment_fields['seg_len'][i]) = _rx_segment.findall(segment_lines[i])[0]
 
-        for field in seg_field_specs:
+        for field in SEGMENT_SPECS:
             # Replace empty strings with their read defaults (which are mostly None)
             if segment_fields[field][i] == '':
-                segment_fields[field][i] = seg_field_specs[field].read_default
+                segment_fields[field][i] = SEGMENT_SPECS[field].read_default
             # Typecast non-empty strings for numerical field
             else:
                 if field == 'seg_len':

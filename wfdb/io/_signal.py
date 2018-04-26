@@ -5,9 +5,9 @@ import os
 from . import download
 
 # WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
-simple_fmts = ['80', '16', '24', '32']
-special_fmts = ['212', '310', '311']
-dat_fmts = simple_fmts + special_fmts
+SIMPLE_FMTS = ['80', '16', '24', '32']
+SPECIAL_FMTS = ['212', '310', '311']
+DAT_FMTS = SIMPLE_FMTS + SPECIAL_FMTS
 
 
 class SignalMixin(object):
@@ -584,10 +584,10 @@ class SignalMixin(object):
         file_names, dat_channels = describe_list_indices(self.file_name)
 
         # Get the fmt and byte offset corresponding to each dat file
-        dat_fmts = {}
+        DAT_FMTS = {}
         dat_offsets = {}
         for fn in file_names:
-            dat_fmts[fn] = self.fmt[dat_channels[fn][0]]
+            DAT_FMTS[fn] = self.fmt[dat_channels[fn][0]]
 
             # byte_offset may not be present
             if self.byte_offset is None:
@@ -598,14 +598,14 @@ class SignalMixin(object):
         # Write the dat files
         if expanded:
             for fn in file_names:
-                wr_dat_file(fn, dat_fmts[fn], None , dat_offsets[fn], True,
+                wr_dat_file(fn, DAT_FMTS[fn], None , dat_offsets[fn], True,
                             [self.e_d_signal[ch] for ch in dat_channels[fn]],
                             self.samps_per_frame, write_dir=write_dir)
         else:
             # Create a copy to prevent overwrite
             dsig = self.d_signal.copy()
             for fn in file_names:
-                wr_dat_file(fn, dat_fmts[fn],
+                wr_dat_file(fn, DAT_FMTS[fn],
                             dsig[:, dat_channels[fn][0]:dat_channels[fn][-1]+1],
                             dat_offsets[fn], write_dir=write_dir)
 
@@ -802,7 +802,7 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
 
     # Read values from dat file, and append bytes/samples if needed.
     if extraflatsamples:
-        if fmt in special_fmts:
+        if fmt in SPECIAL_FMTS:
             # Extra number of bytes to append onto the bytes read from the dat file.
             extrabytenum = totalprocessbytes - totalreadbytes
 
@@ -817,7 +817,7 @@ def rddat(file_name, dirname, pb_dir, fmt, n_sig,
     # Continue to process the read values into proper samples
 
     # For special fmts, Turn the bytes into actual samples
-    if fmt in special_fmts:
+    if fmt in SPECIAL_FMTS:
         sigbytes = bytes2samples(sigbytes, totalprocesssamples, fmt)
         # Remove extra leading sample read within the byte block if any
         if blockfloorsamples:
