@@ -341,12 +341,19 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.wr_dats(expanded=expanded, write_dir=write_dir)
 
 
-    def arrange_fields(self, channels, expanded=False):
+    def _arrange_fields(self, channels, sampfrom=0, expanded=False):
         """
         Arrange/edit object fields to reflect user channel and/or signal
         range input.
 
-        Account for case when signals are expanded
+        Parameters
+        ----------
+        channels : list
+            List of channel numbers specified.
+        sampfrom : int
+            Starting sample number read.
+        expanded: bool
+            Whether the record was read in expanded mode.
         """
 
         # Rearrange signal specification fields
@@ -358,12 +365,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         if expanded:
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
-            if self.sig_len != int(len(self.e_d_signal[0])/self.samps_per_frame[0]):
+            if self.sig_len != int(len(self.e_d_signal[0]) / self.samps_per_frame[0]):
                 self.checksum = self.calc_checksum(expanded)
                 self.init_value = [s[0] for s in self.e_d_signal]
 
             self.n_sig = len(channels)
-            self.sig_len = int(len(self.e_d_signal[0])/self.samps_per_frame[0])
+            self.sig_len = int(len(self.e_d_signal[0]) / self.samps_per_frame[0])
 
         # MxN numpy array d_signal
         else:
@@ -381,6 +388,23 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             # Important that these get updated after^^
             self.n_sig = len(channels)
             self.sig_len = self.d_signal.shape[0]
+
+        # Set and adjust time and date if possible
+        if sampfrom:
+            dt_seconds = sampfrom / self.fs
+            if self.base_date and self.base_time:
+                self.base_datetime = datetime.datetime.combine(self.base_date,
+                                                               self.base_time)
+                self.base_datetime += datetime.timedelta(seconds=dt_seconds)
+                self.base_date = self.base_datetime.date()
+                self.base_time = self.base_datetime.time()
+            # We can calculate the time even if there is no date
+            elif self.base_time:
+                tmp_datetime = datetime.datetime.combine(
+                    datetime.datetime.today().date(), self.base_time)
+                self.base_time = (tmp_datetime
+                                  + datetime.timedelta(seconds=dt_seconds)).time()
+            # Cannot calculate date or time if there is only date
 
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
@@ -585,7 +609,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return required_channels
 
-    def arrange_fields(self, seg_numbers, seg_ranges, channels):
+    def _arrange_fields(self, seg_numbers, seg_ranges, channels):
         """
         Arrange/edit object fields to reflect user channel and/or
         signal range inputs.
@@ -1040,7 +1064,8 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
-            record.arrange_fields(channels, expanded=False)
+            record._arrange_fields(channels=channels, sampfrom=sampfrom,
+                                   expanded=False)
 
             if physical:
                 # Perform inplace dac to get physical signal
@@ -1054,7 +1079,8 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
-            record.arrange_fields(channels, expanded=True)
+            record._arrange_fields(channels=channels, sampfrom=sampfrom,
+                                   expanded=True)
 
             if physical:
                 # Perform dac to get physical signal
@@ -1075,7 +1101,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # Segments field is a list of Record objects
         # Empty segments store None.
 
-        record.segments = [None]*record.n_seg
+        record.segments = [None] * record.n_seg
 
         # Variable layout, read the layout specification header
         if record.layout == 'variable':
@@ -1102,7 +1128,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                     channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
         # Arrange the fields of the overall object to reflect user input
-        record.arrange_fields(seg_numbers, seg_ranges, channels)
+        record._arrange_fields(seg_numbers, seg_ranges, channels)
 
         # Convert object into a single segment Record object
         if m2s:
@@ -1110,7 +1136,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                                             return_res=return_res)
 
     # Perform dtype conversion if necessary
-    if isinstance(record, Record) and record.n_sig>0:
+    if isinstance(record, Record) and record.n_sig > 0:
         record.convert_dtype(physical, return_res, smooth_frames)
 
     return record
@@ -1182,7 +1208,8 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
 
     signals = record.p_signal
     fields = {}
-    for field in ['fs','sig_len', 'n_sig', 'units','sig_name', 'comments']:
+    for field in ['fs','sig_len', 'n_sig', 'base_date', 'base_time',
+                  'units','sig_name', 'comments']:
         fields[field] = getattr(record, field)
 
     return signals, fields

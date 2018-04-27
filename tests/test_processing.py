@@ -1,4 +1,4 @@
-import numpy
+import numpy as np
 
 import wfdb
 from wfdb import processing
@@ -15,9 +15,10 @@ class test_processing():
         fs = fields['fs']
         fs_target = 50
 
-        new_sig, new_ann = processing.resample_singlechan(sig[:, 0], ann, fs, fs_target)
+        new_sig, new_ann = processing.resample_singlechan(sig[:, 0], ann, fs,
+                                                          fs_target)
 
-        expected_length = int(sig.shape[0]*fs_target/fs)
+        expected_length = int(sig.shape[0] * fs_target / fs)
 
         assert new_sig.shape[0] == expected_length
 
@@ -42,14 +43,14 @@ class test_processing():
 
         x = processing.normalize_bound(sig[:, 0], lb, ub)
         assert x.shape[0] == sig.shape[0]
-        assert numpy.min(x) >= lb
-        assert numpy.max(x) <= ub
+        assert np.min(x) >= lb
+        assert np.max(x) <= ub
 
     def test_find_peaks(self):
         x = [0, 2, 1, 0, -10, -15, -15, -15, 9, 8, 0, 0, 1, 2, 10]
         hp, sp = processing.find_peaks(x)
-        assert numpy.array_equal(hp, [1, 8])
-        assert numpy.array_equal(sp, [6, 10])
+        assert np.array_equal(hp, [1, 8])
+        assert np.array_equal(sp, [6, 10])
 
     def test_find_peaks_empty(self):
         x = []
@@ -73,7 +74,7 @@ class test_processing():
                                        adc_zero=record.adc_zero[0],
                                        threshold=1.0)
 
-        assert numpy.array_equal(peaks, expected_peaks)
+        assert np.array_equal(peaks, expected_peaks)
 
     def test_correct_peaks(self):
         sig, fields = wfdb.rdsamp('sample-data/100')
@@ -88,16 +89,16 @@ class test_processing():
                                           search_radius=int(max_gap),
                                           smooth_window_size=150)
 
-        yz = numpy.zeros(sig.shape[0])
+        yz = np.zeros(sig.shape[0])
         yz[y_idxs] = 1
-        yz = numpy.where(yz[:10000]==1)[0]
+        yz = np.where(yz[:10000]==1)[0]
 
         expected_peaks = [77, 370, 663, 947, 1231, 1515, 1809, 2045, 2403,
                           2706, 2998, 3283, 3560, 3863, 4171, 4466, 4765, 5061,
                           5347, 5634, 5919, 6215, 6527, 6824, 7106, 7393, 7670,
                           7953, 8246, 8539, 8837, 9142, 9432, 9710, 9998]
 
-        assert numpy.array_equal(yz, expected_peaks)
+        assert np.array_equal(yz, expected_peaks)
 
 class test_qrs():
     """

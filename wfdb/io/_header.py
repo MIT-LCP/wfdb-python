@@ -742,6 +742,11 @@ def _read_record_line(record_line):
                 record_fields['base_date'] = datetime.datetime.strptime(
                     record_fields['base_date'], '%d/%m/%Y').date()
 
+    # This is not a standard wfdb field, but is useful to set.
+    if record_fields['base_date'] and record_fields['base_time']:
+        record_fields['base_datetime'] = datetime.datetime.combine(
+            record_fields['base_date'], record_fields['base_time'])
+
     return record_fields
 
 

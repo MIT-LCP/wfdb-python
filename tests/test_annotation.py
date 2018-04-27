@@ -1,14 +1,23 @@
-import numpy as np
 import re
+
+import numpy as np
+
 import wfdb
 
 class test_annotation():
+    """
+    Testing read and write of wfdb annotations, including Physionet
+    streaming.
 
-    # Test 1 - Annotation file 100.atr
-    # Target file created with: rdann -r sample-data/100 -a atr > ann-1
+    Target files created using the original WFDB Software Package
+    version 10.5.24
+    """
+
     def test_1(self):
-
-        # Read data using WFDB python package
+        """
+        Target file created with:
+            rdann -r sample-data/100 -a atr > ann-1
+        """
         annotation = wfdb.rdann('sample-data/100', 'atr')
 
 
@@ -66,11 +75,13 @@ class test_annotation():
         assert annotation.__eq__(pbannotation)
         assert annotation.__eq__(writeannotation)
 
-    # Test 2 - Annotation file 12726.anI with many aux_note strings.
-    # Target file created with: rdann -r sample-data/100 -a atr > ann-2
     def test_2(self):
+        """
+        Annotation file with many aux_note strings.
 
-        # Read data from WFDB python package
+        Target file created with:
+            rdann -r sample-data/100 -a atr > ann-2
+        """
         annotation = wfdb.rdann('sample-data/12726', 'anI')
 
         # Target data from WFDB software package
@@ -118,11 +129,13 @@ class test_annotation():
         assert annotation.__eq__(pbannotation)
         assert annotation.__eq__(writeannotation)
 
-    # Test 3 - Annotation file 1003.atr with custom annotation types
-    # Target file created with: rdann -r sample-data/1003 -a atr > ann-3
     def test_3(self):
+        """
+        Annotation file with custom annotation types
 
-        # Read data using WFDB python package
+        Target file created with:
+            rdann -r sample-data/1003 -a atr > ann-3
+        """
         annotation = wfdb.rdann('sample-data/1003', 'atr')
 
         # Target data from WFDB software package
