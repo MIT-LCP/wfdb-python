@@ -204,24 +204,29 @@ class Annotation(object):
     # Check the set fields of the annotation object
     def check_fields(self):
         # Check all set fields
-        for field in ann_field_types:
+        for field in ALLOWED_TYPES:
             if getattr(self, field) is not None:
                 # Check the type of the field's elements
                 self.check_field(field)
         return
 
 
-    # Check a particular annotation field
+
     def check_field(self, field):
+        """
+        Check a particular annotation field
+        """
 
         item = getattr(self, field)
 
-        if not isinstance(item, ann_field_types[field]):
-            raise TypeError('The '+field+' field must be one of the following types:', ann_field_types[field])
+        if not isinstance(item, ALLOWED_TYPES[field]):
+            raise TypeError('The '+field+' field must be one of the following types:', ALLOWED_TYPES[field])
 
-        if field in int_ann_fields:
-            if not hasattr(field, '__index__'):
-                raise TypeError('The '+field+' field must have an integer-based dtype.')
+        # Numerical integer annotation fields: sample, label_store, sub,
+        # chan, num
+        if ALLOWED_TYPES[field] == (np.ndarray):
+            record.check_np_array(item=item, field_name=field, ndim=1,
+                                  parent_class=np.integer, channel_num=None)
 
         # Field specific checks
         if field == 'record_name':
@@ -286,13 +291,13 @@ class Annotation(object):
                     if not hasattr(label_store[i], '__index__'):
                         raise TypeError('The label_store values of the '+field+' field must be integer-like')
 
-                if not isinstance(symbol[i], strtypes) or len(symbol[i]) not in [1,2,3]:
+                if not isinstance(symbol[i], str_types) or len(symbol[i]) not in [1,2,3]:
                     raise ValueError('The symbol values of the '+field+' field must be strings of length 1 to 3')
 
                 if bool(re.search('[ \t\n\r\f\v]', symbol[i])):
                     raise ValueError('The symbol values of the '+field+' field must not contain whitespace characters')
 
-                if not isinstance(description[i], strtypes):
+                if not isinstance(description[i], str_types):
                     raise TypeError('The description values of the '+field+' field must be strings')
 
                 # Would be good to enfore this but existing garbage annotations have tabs and newlines...
@@ -304,7 +309,7 @@ class Annotation(object):
             uniq_elements = set(item)
 
             for e in uniq_elements:
-                if not isinstance(e, strtypes):
+                if not isinstance(e, str_types):
                     raise TypeError('Subelements of the '+field+' field must be strings')
 
             if field == 'symbol':
@@ -1580,22 +1585,69 @@ def rm_last(*args):
         return [a[:-1] for a in args]
     return
 
-## ------------- /Reading Annotations ------------- ##
+## ------------- Annotation Field Specifications ------------- ##
+
+"""
+WFDB field specifications for each field. The indexes are the field
+names.
+
+Parameters
+----------
+allowed_types:
+    Data types the field (or its elements) can be.
+delimiter:
+    The text delimiter that precedes the field in the header file.
+write_required:
+    Whether the field is required for writing a header (more stringent
+    than origin WFDB library).
+read_default:
+    The default value for the field when read if any. Most fields do not
+    have a default. The reason for the variation, is that we do not want
+    to imply that some fields are present when they are not, unless the
+    field is essential. See the notes.
+write_default:
+    The default value for the field to fill in before writing, if any.
+
+Notes
+-----
+In the original WFDB package, certain fields have default values, but
+not all of them. Some attributes need to be present for core
+functionality, ie. baseline, whereas others are not essential, yet have
+defaults, ie. base_time.
+
+This inconsistency has likely resulted in the generation of incorrect
+files, and general confusion. This library aims to make explicit,
+whether certain fields are present in the file, by setting their values
+to None if they are not written in, unless the fields are essential, in
+which case an actual default value will be set.
+
+The read vs write default values are different for 2 reasons:
+1. We want to force the user to be explicit with certain important
+   fields when writing WFDB records fields, without affecting
+   existing WFDB headers when reading.
+2. Certain unimportant fields may be dependencies of other
+   important fields. When writing, we want to fill in defaults
+   so that the user doesn't need to. But when reading, it should
+   be clear that the fields are missing.
+
+"""
+
 
 # Allowed types of each Annotation object attribute.
-ann_field_types = {'record_name': (str), 'extension': (str), 'sample': (np.ndarray),
-                 'symbol': (list, np.ndarray),  'subtype': (np.ndarray), 'chan': (np.ndarray),
-                 'num': (np.ndarray), 'aux_note': (list, np.ndarray), 'fs': _header.float_types,
-                 'label_store': (np.ndarray), 'description':(list, np.ndarray), 'custom_labels': (pd.DataFrame, list, tuple),
+ALLOWED_TYPES = {'record_name': (str), 'extension': (str),
+                 'sample': (np.ndarray,), 'symbol': (list, np.ndarray),
+                 'subtype': (np.ndarray,), 'chan': (np.ndarray,),
+                 'num': (np.ndarray,), 'aux_note': (list, np.ndarray),
+                 'fs': _header.float_types, 'label_store': (np.ndarray,),
+                 'description':(list, np.ndarray),
+                 'custom_labels': (pd.DataFrame, list, tuple),
                  'contained_labels':(pd.DataFrame, list, tuple)}
 
-strtypes = (str, np.str_)
+str_types = (str, np.str_)
 
 # Elements of the annotation label
 ann_label_fields = ('label_store', 'symbol', 'description')
 
-# Numerical integer annotation fields: sample, label_store, sub, chan, num
-int_ann_fields = [field for field in ann_field_types if ann_field_types[field] == (np.ndarray)]
 
 class AnnotationClass(object):
     def __init__(self, extension, description, human_reviewed):

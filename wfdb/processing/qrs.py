@@ -853,7 +853,6 @@ class GQRS(object):
             # from 1 to dt. 0 is never calculated.
             else:
                 v = int(self.at(smt))
-                print(smdt)
                 for j in range(1, smdt):
                     smtpj = self.at(smt + j)
                     smtlj = self.at(smt - j)

@@ -1,8 +1,5 @@
-# For wrsamp(), the field to use will be d_signal (which is allowed to be empty for 0 channel records).
 # set_p_features and set_d_features use characteristics of the p_signal or d_signal field to fill in other header fields.
 # These are separate from another method 'set_defaults' which the user may call to set default header fields
-# The check_field_cohesion() function will be called in wrheader which checks all the header fields.
-# The check_sig_cohesion() function will be called in wrsamp in wrdat to check the d_signal against the header fields.
 
 import datetime
 import multiprocessing
@@ -110,13 +107,6 @@ class BaseRecord(object):
         elif field == 'sig_len':
             if self.sig_len < 0:
                 raise ValueError('sig_len must be a non-negative integer')
-        elif field == 'base_time':
-            try:
-                _ = datetime.datetime.strptime(self.base_time, '%H:%M:%S.%f')
-            except ValueError:
-                _ = datetime.datetime.strptime(self.base_time, '%H:%M/%S')
-        elif field == 'base_date':
-            _ = datetime.datetime.strptime(self.base_date, '%d/%m/%Y')
 
         # Signal specification fields
         elif field in _header.SIGNAL_SPECS.index:
@@ -353,7 +343,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     def arrange_fields(self, channels, expanded=False):
         """
-        Arrange/edit object fields to reflect user channel and/or signal range input
+        Arrange/edit object fields to reflect user channel and/or signal
+        range input.
+
         Account for case when signals are expanded
         """
 
@@ -793,9 +785,9 @@ def _check_item_type(item, field_name, allowed_types, expect_list=False,
         for ch in range(len(item)):
             # Check whether the field may be None
             if ch in required_channels:
-                allowed_types_ch = allowed_types + (type(None),)
-            else:
                 allowed_types_ch = allowed_types
+            else:
+                allowed_types_ch = allowed_types + (type(None),)
 
             if not isinstance(item[ch], allowed_types_ch):
                 raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),

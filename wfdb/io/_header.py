@@ -10,7 +10,7 @@ from . import _signal
 
 import pdb
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
-float_types = int_types + (float, np.float64, np.float32)
+float_types = (float, np.float64, np.float32) + int_types
 
 """
 WFDB field specifications for each field. The indexes are the field
@@ -123,7 +123,7 @@ _rx_record = re.compile(
             "(?P<n_sig>\d+)[ \t]*",
             "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
             "(?P<sig_len>\d*)[ \t]*",
-            "(?P<base_time>\d*:?\d{,2}:?\d{,2}\.?\d*)[ \t]*",
+            "(?P<base_time>\d{,2}:?\d{,2}:?\d{,2}\.?\d{,6})[ \t]*",
             "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"]))
 
 # Signal Line Fields
@@ -422,7 +422,8 @@ class HeaderMixin(BaseHeaderMixin):
 
     def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
         """
-        Write a header file using the specified fields
+        Write a header file using the specified fields. Converts Record
+        attributes into appropriate wfdb format strings.
 
         Parameters
         ----------
@@ -442,12 +443,21 @@ class HeaderMixin(BaseHeaderMixin):
         for field in RECORD_SPECS.index:
             # If the field is being used, add it with its delimiter
             if field in rec_write_fields:
-                stringfield = str(getattr(self, field))
-                # If fs is float, check whether it as an integer
+                string_field = str(getattr(self, field))
+
+                # Certain fields need extra processing
+
                 if field == 'fs' and isinstance(self.fs, float):
                     if round(self.fs, 8) == float(int(self.fs)):
-                        stringfield = str(int(self.fs))
-                record_line += RECORD_SPECS.loc[field, 'delimiter'] + stringfield
+                        string_field = str(int(self.fs))
+                elif field == 'base_time' and '.' in string_field:
+                    string_field = string_field.rstrip('0')
+                elif field == 'base_date':
+                    string_field = '/'.join((string_field[8:],
+                                             string_field[5:7],
+                                             string_field[:4]))
+
+                record_line += RECORD_SPECS.loc[field, 'delimiter'] + string_field
 
         header_lines = [record_line]
 
@@ -478,17 +488,24 @@ class HeaderMixin(BaseHeaderMixin):
 
 class MultiHeaderMixin(BaseHeaderMixin):
     """
-    Mixin class with multi-segment header methods. Inherited by MultiRecord class.
+    Mixin class with multi-segment header methods. Inherited by
+    MultiRecord class.
     """
 
-    # Set defaults for fields needed to write the header if they have defaults.
-    # This is NOT called by rdheader. It is only called by the gateway wrsamp for convenience.
-    # It is also not called by wrhea (this may be changed in the future) since
-    # it is supposed to be an explicit function.
-
-    # Not responsible for initializing the
-    # attribute. That is done by the constructor.
     def set_defaults(self):
+        """
+        Set defaults for fields needed to write the header if they have
+        defaults.
+
+        This is NOT called by rdheader. It is only called by the gateway
+        wrsamp for convenience.
+
+        It is also not called by wrhea since it is supposed to be an
+        explicit function.
+
+        Not responsible for initializing the
+        attributes. That is done by the constructor.
+        """
         for field in self.get_write_fields():
             self.set_default(field)
 
@@ -630,9 +647,33 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         return sig_name
 
+def wfdb_strptime(time_string):
+    """
+    Given a time string in an acceptable wfdb format, return
+    a datetime.time object.
 
-# Read header file to get comment and non-comment lines
+    Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
+    """
+    n_colons = time_string.count(':')
+
+    if n_colons == 0:
+        time_fmt = '%S'
+    elif n_colons == 1:
+        time_fmt = '%M:%S'
+    elif n_colons == 2:
+        time_fmt = '%H:%M:%S'
+
+    if '.' in time_string:
+        time_fmt += '.%f'
+
+    return datetime.datetime.strptime(time_string, time_fmt).time()
+
+
 def get_header_lines(record_name, pb_dir):
+    """
+    Read a header file to get comment and non-comment lines
+
+    """
     # Read local file
     if pb_dir is None:
         with open(record_name + ".hea", 'r') as fp:
@@ -682,16 +723,24 @@ def _read_record_line(record_line):
         # mostly None)
         if record_fields[field] == '':
             record_fields[field] = RECORD_SPECS.loc[field, 'read_default']
-        # Typecast non-empty strings for numerical and date/time fields
+        # Typecast non-empty strings for non-string (numerical/datetime)
+        # fields
         else:
-            if RECORD_SPECS.loc[field, 'allowed_types'] is int_types:
+            if RECORD_SPECS.loc[field, 'allowed_types'] == int_types:
                 record_fields[field] = int(record_fields[field])
-            # fs may be read as float or int
-            elif field == 'fs':
-                fs = float(record_fields['fs'])
-                if round(fs, 8) == float(int(fs)):
-                    fs = int(fs)
-                record_fields['fs'] = fs
+            elif RECORD_SPECS.loc[field, 'allowed_types'] == float_types:
+                record_fields[field] = float(record_fields[field])
+                # cast fs to an int if it is close
+                if field == 'fs':
+                    fs = float(record_fields['fs'])
+                    if round(fs, 8) == float(int(fs)):
+                        fs = int(fs)
+                    record_fields['fs'] = fs
+            elif field == 'base_time':
+                record_fields['base_time'] = wfdb_strptime(record_fields['base_time'])
+            elif field == 'base_date':
+                record_fields['base_date'] = datetime.datetime.strptime(
+                    record_fields['base_date'], '%d/%m/%Y').date()
 
     return record_fields
 

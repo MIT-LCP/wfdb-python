@@ -272,10 +272,13 @@ class test_record():
         assert record.__eq__(record_pb)
         assert record.__eq__(record_write)
 
-    # Format 12 multi-samples per frame and skew/Selected Duration/Selected Channels/Physical
-    # Target file created with: rdsamp -r sample-data/03700181 -f 8 -t 128 -s 0
-    # 2 -P | cut -f 2- > io-4c
+
     def test_4c(self):
+        """
+        Format 12 multi-samples per frame and skew/Selected Duration/Selected Channels/Physical
+        Target file created with: rdsamp -r sample-data/03700181 -f 8 -t 128 -s 0
+        2 -P | cut -f 2- > io-4c
+        """
         sig, fields = wfdb.rdsamp('sample-data/03700181',
                              channels=[0, 2], sampfrom=1000, sampto=16000)
         sig_round = np.round(sig, decimals=8)
