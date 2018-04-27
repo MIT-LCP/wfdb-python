@@ -115,28 +115,26 @@ FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 # Regexp objects for reading headers
 
-# Record Line Fields
-_rx_record = re.compile(
-    ''.join(
-        [
-            "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
-            "(?P<n_sig>\d+)[ \t]*",
-            "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
-            "(?P<sig_len>\d*)[ \t]*",
-            "(?P<base_time>\d{,2}:?\d{,2}:?\d{,2}\.?\d{,6})[ \t]*",
-            "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"]))
+# Record line
+_rx_record = re.compile(''.join(
+    ["(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
+     "(?P<n_sig>\d+)[ \t]*",
+     "(?P<fs>\d*\.?\d*)/*(?P<counterfs>\d*\.?\d*)\(?(?P<base_counter>\d*\.?\d*)\)?[ \t]*",
+     "(?P<sig_len>\d*)[ \t]*",
+     "(?P<base_time>\d{,2}:?\d{,2}:?\d{,2}\.?\d{,6})[ \t]*",
+     "(?P<base_date>\d{,2}/?\d{,2}/?\d{,4})"])
+)
 
-# Signal Line Fields
-_rx_signal = re.compile(
-    ''.join(
-        [
-            "(?P<file_name>[-\w]+\.?[\w]*~?)[ \t]+(?P<fmt>\d+)x?"
-            "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
-            "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
-            "(?P<adc_res>\d*)[ \t]*(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*",
-            "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"]))
+# Signal line
+_rx_signal = re.compile(''.join(
+    ["(?P<file_name>~?[-\w]*\.?[\w]*)[ \t]+(?P<fmt>\d+)x?"
+     "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
+     "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?/?(?P<units>[\w\^\-\?%]*)[ \t]*",
+     "(?P<adc_res>\d*)[ \t]*(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*",
+     "(?P<checksum>-?\d*)[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"])
+)
 
-# Segment Line Fields
+# Segment line
 _rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 
 
@@ -253,6 +251,8 @@ class HeaderMixin(BaseHeaderMixin):
           be an explicit function.
         - This is not responsible for initializing the attributes. That
           is done by the constructor.
+
+        See also `set_p_features` and `set_d_features`.
 
         """
         rfields, sfields = self.get_write_fields()

@@ -1,6 +1,3 @@
-# set_p_features and set_d_features use characteristics of the p_signal or d_signal field to fill in other header fields.
-# These are separate from another method 'set_defaults' which the user may call to set default header fields
-
 import datetime
 import multiprocessing
 import posixpath
@@ -45,8 +42,9 @@ class BaseRecord(object):
         field : str
             The field name
         required_channels : list, optional
-            Used for signal specification fields. Species the channels
-            to check. Other channels can be None.
+            Used for signal specification fields. All channels are
+            checked for their integrity if present, but channels that do
+            not lie in this field may be None.
 
         Notes
         -----
@@ -233,6 +231,30 @@ class BaseRecord(object):
             if smooth_frames is False:
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
+    def _adjust_datetime(self, sampfrom):
+        """
+        Adjust date and time fields to reflect user input if possible.
+
+        Helper function for the `_arrange_fields` of both Record and
+        MultiRecord objects.
+        """
+        if sampfrom:
+            dt_seconds = sampfrom / self.fs
+            if self.base_date and self.base_time:
+                self.base_datetime = datetime.datetime.combine(self.base_date,
+                                                               self.base_time)
+                self.base_datetime += datetime.timedelta(seconds=dt_seconds)
+                self.base_date = self.base_datetime.date()
+                self.base_time = self.base_datetime.time()
+            # We can calculate the time even if there is no date
+            elif self.base_time:
+                tmp_datetime = datetime.datetime.combine(
+                    datetime.datetime.today().date(), self.base_time)
+                self.base_time = (tmp_datetime
+                                  + datetime.timedelta(seconds=dt_seconds)).time()
+            # Cannot calculate date or time if there is only date
+
+
 
 class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     """
@@ -389,22 +411,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.n_sig = len(channels)
             self.sig_len = self.d_signal.shape[0]
 
-        # Set and adjust time and date if possible
-        if sampfrom:
-            dt_seconds = sampfrom / self.fs
-            if self.base_date and self.base_time:
-                self.base_datetime = datetime.datetime.combine(self.base_date,
-                                                               self.base_time)
-                self.base_datetime += datetime.timedelta(seconds=dt_seconds)
-                self.base_date = self.base_datetime.date()
-                self.base_time = self.base_datetime.time()
-            # We can calculate the time even if there is no date
-            elif self.base_time:
-                tmp_datetime = datetime.datetime.combine(
-                    datetime.datetime.today().date(), self.base_time)
-                self.base_time = (tmp_datetime
-                                  + datetime.timedelta(seconds=dt_seconds)).time()
-            # Cannot calculate date or time if there is only date
+        # Adjust date and time if necessary
+        self._adjust_datetime(sampfrom=sampfrom)
 
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
@@ -473,24 +481,25 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for seg in self.segments:
             seg.wrsamp(write_dir=write_dir)
 
+    def _check_segment_cohesion(self):
+        """
+        Check the cohesion of the segments field with other fields used
+        to write the record
+        """
 
-    # Check the cohesion of the segments field with other fields used to write the record
-    def checksegmentcohesion(self):
-
-        # Check that n_seg is equal to the length of the segments field
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
-        for i in range(0, n_seg):
+        for i in range(n_seg):
             s = self.segments[i]
 
             # If segment 0 is a layout specification record, check that its file names are all == '~''
-            if i==0 and self.seg_len[0] == 0:
+            if i == 0 and self.seg_len[0] == 0:
                 for file_name in s.file_name:
                     if file_name != '~':
                         raise ValueError("Layout specification records must have all file_names named '~'")
 
-            # Check that sampling frequencies all match the one in the master header
+            # Sampling frequencies must all match the one in the master header
             if s.fs != self.fs:
                 raise ValueError("The 'fs' in each segment must match the overall record's 'fs'")
 
@@ -505,7 +514,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 
 
-    def _requiresegment_fieldsments(self, sampfrom, sampto, channels):
+    def _required_segments(self, sampfrom, sampto, channels):
         """
         Determine the segments and the samples within each segment that
         have to be read in a multi-segment record.
@@ -609,7 +618,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return required_channels
 
-    def _arrange_fields(self, seg_numbers, seg_ranges, channels):
+    def _arrange_fields(self, seg_numbers, seg_ranges, channels, sampfrom=0):
         """
         Arrange/edit object fields to reflect user channel and/or
         signal range inputs.
@@ -639,6 +648,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Update number of segments
         self.n_seg = len(self.segments)
 
+        # Adjust date and time if necessary
+        self._adjust_datetime(sampfrom=sampfrom)
 
     def multi_to_single(self, physical, return_res=64):
         """
@@ -690,6 +701,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # pass the test.
             if self.layout == 'variable':
                 for seg in self.segments[1:]:
+                    if seg is None:
+                        continue
                     segment_channels = get_wanted_channels(fields['sig_name'],
                                                            seg.sig_name,
                                                            pad=True)
@@ -699,6 +712,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                             if segment_channels[ch] is None:
                                 continue
                             if getattr(seg, attr)[segment_channels[ch]] != fields[attr][ch]:
+
                                 raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
 
             sig_attr = 'd_signal'
@@ -1110,10 +1124,11 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                                           pb_dir=pb_dir)
 
         # The segment numbers and samples within each segment to read.
-        seg_numbers, seg_ranges  = record._requiresegment_fieldsments(sampfrom, sampto,
-                                                        channels)
+        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto,
+                                                             channels)
         # The channels within each segment to read
-        seg_channels = record._get_required_channels(seg_numbers, channels, dirname, pb_dir)
+        seg_channels = record._get_required_channels(seg_numbers, channels,
+                                                     dirname, pb_dir)
 
         # Read the desired samples in the relevant segments
         for i in range(len(seg_numbers)):
@@ -1128,7 +1143,8 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                     channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
         # Arrange the fields of the overall object to reflect user input
-        record._arrange_fields(seg_numbers, seg_ranges, channels)
+        record._arrange_fields(seg_numbers=seg_numbers, seg_ranges=seg_ranges,
+                               channels=channels, sampfrom=sampfrom)
 
         # Convert object into a single segment Record object
         if m2s:
@@ -1246,8 +1262,8 @@ def get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
 
 
 def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
-    fmt=None, adc_gain=None, baseline=None, comments=None, base_time=None,
-    base_date=None, write_dir=''):
+           fmt=None, adc_gain=None, baseline=None, comments=None,
+           base_time=None, base_date=None, write_dir=''):
     """
     Write a single segment WFDB record, creating a WFDB header file and any
     associated dat files.
@@ -1324,7 +1340,8 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     if d_signal is not None:
         if fmt is None or adc_gain is None or baseline is None:
             raise Exception("When using d_signal, must also specify 'fmt', 'gain', and 'baseline' fields.")
-    # Depending on whether d_signal or p_signal was used, set other required features.
+    # Depending on whether d_signal or p_signal was used, set other
+    # required features.
     if p_signal is not None:
         # Create the Record object
         record = Record(record_name=record_name, p_signal=p_signal, fs=fs,
