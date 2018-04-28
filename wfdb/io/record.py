@@ -514,10 +514,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 
 
-    def _required_segments(self, sampfrom, sampto, channels):
+    def _required_segments(self, sampfrom, sampto):
         """
-        Determine the segments and the samples within each segment that
-        have to be read in a multi-segment record.
+        Determine the segments and the samples within each segment in a
+        multi-segment record, that lie within a sample range.
 
         Parameters
         ----------
@@ -525,9 +525,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             The starting sample number to read for each channel.
         sampto : int
             The sample number at which to stop reading for each channel.
-        channels : list, or 'all', optional
-            List of integer indices specifying the channels to be read. Leave as
-            'all' to read all channels.
+
         """
 
         # The starting segment with actual samples
@@ -594,7 +592,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Fixed layout. All channels are the same.
         if self.layout == 'fixed':
-            required_channels = [channels]*len(seg_numbers)
+            required_channels = [channels] * len(seg_numbers)
         # Variable layout: figure out channels by matching record names
         else:
             required_channels = []
@@ -603,8 +601,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # The wanted signals
             w_sig_names = [l_sig_names[c] for c in channels]
 
-            # For each segment ...
-            for i in range(0, len(seg_numbers)):
+            # For each segment
+            for i in range(len(seg_numbers)):
                 # Skip empty segments
                 if self.seg_name[seg_numbers[i]] == '~':
                     required_channels.append([])
@@ -624,18 +622,17 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         signal range inputs.
 
         """
-
         # Update seg_len values for relevant segments
-        for i in range(0, len(seg_numbers)):
+        for i in range(len(seg_numbers)):
             self.seg_len[seg_numbers[i]] = seg_ranges[i][1] - seg_ranges[i][0]
 
         # Update record specification parameters
-        self.n_sig = len(channels)
         self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
         if self.layout == 'fixed':
+            self.n_sig = len(channels)
             self.segments = self.segments[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_name = self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_len = self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
@@ -644,6 +641,34 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             self.segments = [self.segments[0]] + self.segments[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_name = [self.seg_name[0]] + self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_len = [self.seg_len[0]] + self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
+
+            # Update the layout specification segment. This must be
+            # done by checking existing channels of segments. Requested
+            # input channels is not enough on its own because not all
+            # signals may be present, depending on which section of the
+            # signal was read.
+
+            # The desired signal names
+            desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
+            contained_sig_names = []
+            for seg
+
+
+
+            for name in desired_sig_names:
+                if
+
+            self.n_sig =
+
+
+
+            # It's not as easy as this below...
+            self.n_sig = len(channels)
+            self.segments[0].n_sig = len(channels)
+            # Rearrange signal specification fields
+            for field in _header.SIGNAL_SPECS.index:
+                item = getattr(self.segments[0], field)
+                setattr(self.segments[0], field, [item[c] for c in channels])
 
         # Update number of segments
         self.n_seg = len(self.segments)
@@ -680,48 +705,73 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for attr in ['segments', 'seg_name', 'seg_len', 'n_seg']:
             del(fields[attr])
 
-        # Get the formats, signal names and units from the first segment
-        for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
-            fields[attr] = getattr(self.segments[0], attr)
 
-        # Figure out attribute to set, and dtype.
-        if physical:
-            sig_attr = 'p_signal'
-            if return_res == 64:
-                dtype = 'float64'
-            elif return_res == 32:
-                dtype = 'float32'
-            else:
-                dtype = 'float16'
-            nan_vals = self.n_sig * [np.nan]
+        # Figure out single segment fields to set for the new Record
+        if self.layout == 'fixed':
+            # Get the fields from the first segment
+            for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
+                fields[attr] = getattr(self.segments[0], attr)
         else:
-            # Figure out if this conversion can be performed. All
-            # signals must have the same fmt, gain, and baseline for
-            # all segments. Fixed layout signals automatically
-            # pass the test.
-            if self.layout == 'variable':
-                for seg in self.segments[1:]:
-                    if seg is None:
-                        continue
-                    segment_channels = get_wanted_channels(fields['sig_name'],
-                                                           seg.sig_name,
-                                                           pad=True)
-                    for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
-                        for ch in range(self.n_sig):
-                            # Skip if the signal is not contained in the segment
-                            if segment_channels[ch] is None:
-                                continue
-                            if getattr(seg, attr)[segment_channels[ch]] != fields[attr][ch]:
+            # Variable layout signals are more tricky. Must inspect
+            # all the segments.
 
+            # Coincidentally, figure out if this conversion can be
+            # performed. All signals of the same name must have the same
+            # fmt, gain, baseline, and units for all segments.
+
+            # The layout header should be updated at this point to
+            # reflect channels. We can depend on it for sig_name, but
+            # not for fmt, adc_gain, units, and baseline.
+
+            # These signal names will be the key
+            signal_names = self.segments[0].sig_name
+            n_sig = len(signal_names)
+
+            # This will be the field dictionary of copy over. Dictionary
+            # of lists, with keys==['fmt', 'adc_gain', 'baseline',
+            # 'units', 'sig_name']
+            test_fields = {'units': self.segments[0].units,
+                           'sig_name':self.segments[0].sig_name}
+
+            reference_fields = {'fmt':n_sig*[None], 'adc_gain':n_sig*[None], 'baseline':n_sig*[None],
+                                'units':n_sig*[None], 'sig_name':signal_names}
+
+            for seg in self.segments[1:]:
+                if seg is None:
+                    continue
+                # For each signal, check fmt, adc_gain, baseline, and units of each signal
+                for seg_ch in range(seg.n_sig):
+                    sig_name = seg.sig_name[seg_ch]
+                    # The overall channel
+                    ch = signal_names.index(sig_name)
+                    for field in reference_fields:
+                        item_ch = getattr(seg, field)[seg_ch]
+                        if reference_fields[field][ch] is None:
+                            reference_fields[field][ch] = item_ch
+                        else:
+                            if reference_fields[field][ch] != item_ch:
                                 raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
 
+            # At this point, the fields should be set for all channels
+            fields.update(reference_fields)
+
+        # Figure out signal attribute to set, and its dtype.
+        if physical:
+            sig_attr = 'p_signal'
+            # Figure out the largest required dtype
+            dtype = _signal.np_dtype(_signal.fmt_res(fields['fmt'],
+                                                       maxres=True),
+                                    discrete=False)
+            nan_vals = self.n_sig * [np.nan]
+        else:
             sig_attr = 'd_signal'
             # Figure out the largest required dtype
-            dtype = _signal.npdtype(_signal.wfdbfmtres(fields['fmt'],
+            dtype = _signal.np_dtype(_signal.fmt_res(fields['fmt'],
                                                        maxres=True),
                                     discrete=True)
             nan_vals = _signal.digi_nan(fields['fmt'])
 
+        # Create and set the full signal array
         combined_signal = np.zeros([self.sig_len, self.n_sig], dtype=dtype)
 
         # Start and end samples in the overall array to place the
@@ -735,6 +785,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             for i in range(self.n_seg):
                 combined_signal[start_samps[i]:end_samps[i], :] = getattr(self.segments[i], sig_attr)
         else:
+
+            # Consider the case where no signals are present. ie. only empty.
+
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
                 seg = self.segments[i]
@@ -763,6 +816,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for field in fields:
             setattr(record, field, fields[field])
         setattr(record, sig_attr, combined_signal)
+
+        record.set_init_values()
 
         return record
 
@@ -1124,8 +1179,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                                           pb_dir=pb_dir)
 
         # The segment numbers and samples within each segment to read.
-        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto,
-                                                             channels)
+        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
         seg_channels = record._get_required_channels(seg_numbers, channels,
                                                      dirname, pb_dir)
@@ -1142,7 +1196,8 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                     sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
                     channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
-        # Arrange the fields of the overall object to reflect user input
+        # Arrange the fields of the layout specification segment, and
+        # the overall object, to reflect user input.
         record._arrange_fields(seg_numbers=seg_numbers, seg_ranges=seg_ranges,
                                channels=channels, sampfrom=sampfrom)
 

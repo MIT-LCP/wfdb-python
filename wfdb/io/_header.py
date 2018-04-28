@@ -377,7 +377,7 @@ class HeaderMixin(BaseHeaderMixin):
 
             # Set more specific defaults if possible
             if field == 'adc_res' and self.fmt is not None:
-                self.adc_res = _signal.wfdbfmtres(self.fmt)
+                self.adc_res = _signal.fmt_res(self.fmt)
                 return
 
             setattr(self, field,

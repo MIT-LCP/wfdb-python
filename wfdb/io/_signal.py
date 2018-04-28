@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 from . import download
-
+import pdb
 # WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
 SIMPLE_FMTS = ['80', '16', '24', '32']
 SPECIAL_FMTS = ['212', '310', '311']
@@ -65,7 +65,7 @@ class SignalMixin(object):
                     raise ValueError('Length of channel '+str(ch)+'does not match samps_per_frame['+str(ch+']*sig_len'))
 
             # For each channel (if any), make sure the digital format has no values out of bounds
-            for ch in range(0, self.n_sig):
+            for ch in range(self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
 
@@ -97,7 +97,7 @@ class SignalMixin(object):
                 raise ValueError('sig_len and n_sig do not match shape of d_signal')
 
             # For each channel (if any), make sure the digital format has no values out of bounds
-            for ch in range(0, self.n_sig):
+            for ch in range(self.n_sig):
                 fmt = self.fmt[ch]
                 dmin, dmax = digi_bounds(self.fmt[ch])
 
@@ -327,7 +327,7 @@ class SignalMixin(object):
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(0, self.n_sig):
+                for ch in range(self.n_sig):
                     # nan locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
                     np.multiply(self.e_p_signal[ch], self.adc_gain[ch], self.e_p_signal[ch])
@@ -348,7 +348,7 @@ class SignalMixin(object):
         else:
             if expanded:
                 d_signal = []
-                for ch in range(0, self.n_sig):
+                for ch in range(self.n_sig):
                     # nan locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
                     ch_d_signal = self.e_p_signal.copy()
@@ -428,7 +428,7 @@ class SignalMixin(object):
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(0, self.n_sig):
+                for ch in range(self.n_sig):
                     # nan locations for the channel
                     ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
                     self.e_d_signal[ch] = self.e_d_signal[ch].astype(floatdtype, copy=False)
@@ -452,7 +452,7 @@ class SignalMixin(object):
         else:
             if expanded:
                 p_signal = []
-                for ch in range(0, self.n_sig):
+                for ch in range(self.n_sig):
                     # nan locations for the channel
                     ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
                     ch_p_signal = self.e_d_signal[ch].astype(floatdtype, copy=False)
@@ -488,7 +488,7 @@ class SignalMixin(object):
 
         dnans = digi_nan(self.fmt)
 
-        for ch in range(0, np.shape(self.p_signal)[1]):
+        for ch in range(np.shape(self.p_signal)[1]):
             # Get the minimum and maximum (valid) storage values
             dmin, dmax = digi_bounds(self.fmt[ch])
             # add 1 because the lowest value is used to store nans
@@ -677,7 +677,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
     skew = skew[:]
 
     # Set defaults for empty fields
-    for i in range(0, n_sig):
+    for i in range(n_sig):
         if byte_offset[i] == None:
             byte_offset[i] = 0
         if samps_per_frame[i] == None:
@@ -727,7 +727,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
     # Return uniform numpy array
     if smooth_frames or sum(samps_per_frame) == n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
-        max_dtype = npdtype(wfdbfmtres(fmt, maxres=True), discrete=True)
+        max_dtype = np_dtype(fmt_res(fmt, maxres=True), discrete=True)
         # Allocate signal array. Minimize dtype
         signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
 
@@ -1249,7 +1249,7 @@ def est_res(signals):
     res : list
         A list of estimated integer resolutions for each channel
     """
-    res_levels = np.power(2, np.arange(0,33))
+    res_levels = np.power(2, np.arange(0, 33))
     # Expanded sample signals. List of numpy arrays
     if isinstance(signals, list):
         n_sig = len(signals)
@@ -1315,11 +1315,13 @@ def wfdbfmt(res, single_fmt=True):
     else:
         return '32'
 
-# Return the resolution of the WFDB format(s).
-def wfdbfmtres(fmt, maxres=False):
 
+def fmt_res(fmt, maxres=False):
+    """
+    Return the resolution of the WFDB format(s).
+    """
     if isinstance(fmt, list):
-        res = [wfdbfmtres(f) for f in fmt]
+        res = [fmt_res(f) for f in fmt]
         if maxres is True:
             res = np.max(res)
         return res
@@ -1339,21 +1341,33 @@ def wfdbfmtres(fmt, maxres=False):
     else:
         raise ValueError('Invalid WFDB format.')
 
-# Given the resolution of a signal, return the minimum
-# dtype to store it
-def npdtype(res, discrete):
 
-    if not hasattr(res, '__index__') or res>64:
-        raise TypeError('res must be integer based and <=64')
+def np_dtype(res, discrete):
+    """
+    Given the resolution of a signal, return the minimum
+    dtype to store it
 
-    for npres in [8, 16, 32, 64]:
-        if res<=npres:
+    Parameters
+    ----------
+    res : int
+        The resolution.
+    discrete : bool
+        Whether the dtype is to be discrete or floating.
+    """
+    if not hasattr(res, '__index__') or res > 64:
+        raise TypeError('res must be integer based and <= 64')
+
+    for np_res in [8, 16, 32, 64]:
+        if res <= np_res:
             break
 
     if discrete is True:
-        return 'int'+str(npres)
+        return 'int' + str(np_res)
     else:
-        return 'float'+str(npres)
+        # No float8 dtype
+        if np_res == 8:
+            np_res = 16
+        return 'float' + str(np_res)
 
 
 def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
