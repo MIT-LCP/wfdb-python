@@ -743,7 +743,7 @@ def rd_segment(file_name, dirname, pb_dir, n_sig, fmt, sig_len, byte_offset,
     # Return uniform numpy array
     if smooth_frames or sum(samps_per_frame) == n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
-        max_dtype = np_dtype(fmt_res(fmt, maxres=True), discrete=True)
+        max_dtype = np_dtype(fmt_res(fmt, max_res=True), discrete=True)
         # Allocate signal array. Minimize dtype
         signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
 
@@ -1332,30 +1332,36 @@ def wfdbfmt(res, single_fmt=True):
         return '32'
 
 
-def fmt_res(fmt, maxres=False):
+def fmt_res(fmt, max_res=False):
     """
     Return the resolution of the WFDB format(s).
+
+    Parameters
+    ----------
+    fmt : str
+        The wfdb format. Can be a list of valid fmts. If it is a list,
+        and `max_res` is True, the list may contain None.
+    max_res : bool, optional
+        If given a list of fmts, whether to return the highest
+        resolution.
+
     """
     if isinstance(fmt, list):
-        res = [fmt_res(f) for f in fmt]
-        if maxres is True:
-            res = np.max(res)
+        if max_res:
+            # Allow None
+            res = np.max([fmt_res(f) for f in fmt if f is not None])
+        else:
+            res = [fmt_res(f) for f in fmt]
         return res
 
-    if fmt in ['8', '80']:
-        return 8
-    elif fmt in ['310', '311']:
-        return 10
-    elif fmt == '212':
-        return 12
-    elif fmt in ['16', '61']:
-        return 16
-    elif fmt == '24':
-        return 24
-    elif fmt == '32':
-        return 32
+    res = {'8':8, '80':8, '310':10, '311':10, '212':12, '16':16, '61':16,
+           '24':24, '32':32}
+
+    if fmt in res:
+        return res[fmt]
     else:
         raise ValueError('Invalid WFDB format.')
+
 
 
 def np_dtype(res, discrete):

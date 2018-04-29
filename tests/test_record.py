@@ -473,50 +473,33 @@ class test_record():
 
     def test_5f(self):
         """
-
-        Gotta write this
-
-
-        Multi-segment, variable layout, entire signal, digital
-
-        The reference signal creation cannot be made with rdsamp
-        directly because the wfdb c package (10.5.24) applies the single
-        adcgain and baseline values from the layout specification
-        header, which is undesired in multi-segment signals with
-        different adcgain/baseline values across segments.
+        Multi-segment, variable layout, selected duration, selected
+        channels, digital. There are two channels: PLETH, and II. Their
+        fmt, adc_gain, and baseline do not change between the segments.
 
         Target file created with:
-        ```
-        for i in {01..18}
-        do
-            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2- >> record-5e
-        done
-        ```
-
+            rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57 -f s3550 -t s7500 -s 0 1 | cut -f 2- | perl -p -e 's/-32768/  -128/g;' > record-5f
 
         """
-        sig, fields = wfdb.rdsamp('p000878-2137-10-26-16-57',
+        record = wfdb.rdrecord('sample-data/multi-segment/p000878/p000878-2137-10-26-16-57',
+                                sampfrom=3550, sampto=7500, channels=[0,1],
+                                physical=False)
+        sig = record.d_signal
+
+        # Compare data streaming from physiobank
+        record_pb = wfdb.rdrecord('p000878-2137-10-26-16-57',
                                   pb_dir='mimic3wdb/matched/p00/p000878/',
-                                  sampto=5000)
+                                  sampfrom=3550, sampto=7500, channels=[0,1],
+                                  physical=False)
         sig_target = np.genfromtxt('tests/target-output/record-5f')
 
         np.testing.assert_equal(sig, sig_target)
+        assert record.__eq__(record_pb)
 
 
-    # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical
-    # Target file created with: rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s -t 4000 -s 3 0 -P | cut -f 2- > target12
-    #def test_12(self):
-    #    record=rdsamp('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31', sampfrom=8750, sampto=500000)
-    #    sig_round = np.round(record.p_signal, decimals=8)
-    #    sig_target = np.genfromtxt('tests/target-output/target12')
-    #
-    #    assert np.array_equal(sig, sig_target)
-
-
-    # Cleanup written files
     @classmethod
-    def tearDownClass(self):
-
+    def tearDownClass(cls):
+        "Clean up written files"
         writefiles = ['03700181.dat','03700181.hea','100.atr','100.dat',
                       '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
                       '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',

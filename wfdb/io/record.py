@@ -2,7 +2,6 @@ import datetime
 import multiprocessing
 import posixpath
 import re
-import warnings
 
 import numpy as np
 import os
@@ -662,15 +661,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # Update the layout specification segment. At this point it
             # should match the full original header
 
-            # Forcing the signal specifications to match the input
-            # `channels` variable.
-            if force_channels:
-
             # Have to inspect existing channels of segments; requested
             # input channels will not be enough on its own because not
             # all signals may be present, depending on which section of
             # the signal was read.
-            else:
+            if not force_channels:
                 # The desired signal names.
                 desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
                 # Actual contained signal names of individual segments
@@ -686,15 +681,15 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 item = getattr(self.segments[0], field)
                 setattr(self.segments[0], field, [item[c] for c in channels])
 
-            self.segments[0].n_sig = self.n_sig = len(sig_name)
+            self.segments[0].n_sig = self.n_sig = len(channels)
+            if self.n_sig == 0:
+                print('No signals of the desired channels are contained in the specified sample range.')
 
         # Update record specification parameters
         self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
         self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
 
-        if self.n_sig == 0:
-            warnings.warn('No signals of the desired channels are contained in the specified sample range.')
 
     def multi_to_single(self, physical, return_res=64):
         """
@@ -708,8 +703,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         physical : bool
             Whether to convert the physical or digital signal.
         return_res : int, optional
-            The return resolution of the `p_signal` field. Options are 64, 32,
-            and 16.
+            The return resolution of the `p_signal` field. Options are:
+            64, 32, and 16.
 
         Returns
         -------
@@ -750,7 +745,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # This will be the field dictionary to copy over.
             reference_fields = {'fmt':n_sig*[None], 'adc_gain':n_sig*[None],
                                 'baseline':n_sig*[None],
-                                'units':n_sig*[None], }
+                                'units':n_sig*[None]}
 
             # For physical signals, mismatched fields will not be copied
             # over. For digital, mismatches will cause an exception.
@@ -786,20 +781,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if physical:
             sig_attr = 'p_signal'
             # Figure out the largest required dtype
-            dtype = _signal.np_dtype(_signal.fmt_res(fields['fmt'],
-                                                       maxres=True),
-                                    discrete=False)
-            nan_vals = self.n_sig * [np.nan]
+            dtype = _signal.np_dtype(return_res, discrete=False)
+            nan_vals = np.array([self.n_sig * [np.nan]], dtype=dtype)
         else:
             sig_attr = 'd_signal'
             # Figure out the largest required dtype
-            dtype = _signal.np_dtype(_signal.fmt_res(fields['fmt'],
-                                                       maxres=True),
-                                    discrete=True)
-            nan_vals = _signal.digi_nan(fields['fmt'])
+            dtype = _signal.np_dtype(return_res, discrete=True)
+            nan_vals = np.array([_signal.digi_nan(fields['fmt'])], dtype=dtype)
 
-        # Create and set the full signal array
-        combined_signal = np.zeros([self.sig_len, self.n_sig], dtype=dtype)
+        # Initialize the full signal array
+        combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
 
         # Start and end samples in the overall array to place the
         # segment samples into
@@ -815,24 +806,15 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
                 seg = self.segments[i]
-
-                # Empty segment
-                if seg is None:
-                    combined_signal[start_samps[i]:end_samps[i], :] = nan_vals
-                # Non-empty segment
-                else:
+                if seg is not None:
                     # Get the segment channels to copy over for each
                     # overall channel
                     segment_channels = get_wanted_channels(fields['sig_name'],
                                                            seg.sig_name,
                                                            pad=True)
                     for ch in range(self.n_sig):
-                        # Fill with invalids if segment does not contain
-                        # signal
-                        if segment_channels[ch] is None:
-                            combined_signal[start_samps[i]:end_samps[i], ch] = nan_vals[ch]
                         # Copy over relevant signal
-                        else:
+                        if segment_channels[ch] is not None:
                             combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)[:, segment_channels[ch]]
 
         # Create the single segment Record object and set attributes
@@ -841,10 +823,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             setattr(record, field, fields[field])
         setattr(record, sig_attr, combined_signal)
 
-        # Consider the case where no signals are present. ie. only empty.
-        # pdb.set_trace()
-        # print(sig_attr)
-        # print(getattr(record, sig_attr).dtype)
         # Use the signal to set record features
         if physical:
             record.set_p_features()
