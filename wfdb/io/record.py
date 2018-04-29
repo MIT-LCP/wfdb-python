@@ -2,6 +2,7 @@ import datetime
 import multiprocessing
 import posixpath
 import re
+import warnings
 
 import numpy as np
 import os
@@ -73,11 +74,11 @@ class BaseRecord(object):
 
         if field in ['d_signal', 'p_signal']:
             check_np_array(item=item, field_name=field, ndim=2,
-                           parent_class=(lambda f: np.integer if f == 'd_signal' else np.float64)(field))
+                           parent_class=(lambda f: np.integer if f == 'd_signal' else np.floating)(field))
         elif field in ['e_d_signal', 'e_p_signal']:
             for ch in range(len(item)):
                 check_np_array(item=item[ch], field_name=field,
-                               ndim=1, parent_class=(lambda f: np.integer if f == 'e_d_signal' else np.float64)(field),
+                               ndim=1, parent_class=(lambda f: np.integer if f == 'e_d_signal' else np.floating)(field),
                                channel_num=ch)
 
         # Record specification fields
@@ -372,10 +373,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         ----------
         channels : list
             List of channel numbers specified.
-        sampfrom : int
+        sampfrom : int, optional
             Starting sample number read.
-        expanded: bool
+        expanded : bool, optional
             Whether the record was read in expanded mode.
+
         """
 
         # Rearrange signal specification fields
@@ -616,18 +618,34 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return required_channels
 
-    def _arrange_fields(self, seg_numbers, seg_ranges, channels, sampfrom=0):
+    def _arrange_fields(self, seg_numbers, seg_ranges, channels,
+                        sampfrom=0, force_channels=True):
         """
         Arrange/edit object fields to reflect user channel and/or
-        signal range inputs.
+        signal range inputs. Updates layout specification header if
+        necessary.
+
+        Parameters
+        ----------
+        seg_numbers : list
+            List of integer segment numbers read.
+        seg_ranges: list
+            List of integer pairs, giving the sample ranges for each
+            segment number read.
+        channels : list
+            List of channel numbers specified
+        sampfrom : int
+            Starting sample read.
+        force_channels : bool, optional
+            Used when reading multi-segment variable layout records.
+            Whether to update the layout specification record to match
+            the input `channels` argument, or to omit channels in which
+            no read segment contains the signals.
 
         """
         # Update seg_len values for relevant segments
         for i in range(len(seg_numbers)):
             self.seg_len[seg_numbers[i]] = seg_ranges[i][1] - seg_ranges[i][0]
-
-        # Update record specification parameters
-        self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
@@ -637,44 +655,46 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             self.seg_name = self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_len = self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
         else:
-            # Keep the layout specifier segment
             self.segments = [self.segments[0]] + self.segments[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_name = [self.seg_name[0]] + self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
             self.seg_len = [self.seg_len[0]] + self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
 
-            # Update the layout specification segment. This must be
-            # done by checking existing channels of segments. Requested
-            # input channels is not enough on its own because not all
-            # signals may be present, depending on which section of the
-            # signal was read.
+            # Update the layout specification segment. At this point it
+            # should match the full original header
 
-            # The desired signal names
-            desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
-            contained_sig_names = []
-            for seg
+            # Forcing the signal specifications to match the input
+            # `channels` variable.
+            if force_channels:
 
+            # Have to inspect existing channels of segments; requested
+            # input channels will not be enough on its own because not
+            # all signals may be present, depending on which section of
+            # the signal was read.
+            else:
+                # The desired signal names.
+                desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
+                # Actual contained signal names of individual segments
+                #contained_sig_names = [seg.sig_name for seg in self.segments[1:]]
+                contained_sig_names = set([name for seg in self.segments[1:] if seg is not None for name in seg.sig_name])
+                # Remove non-present names. Keep the order.
+                sig_name = [name for name in desired_sig_names if name in contained_sig_names]
+                # Channel indices to keep for signal specification fields
+                channels = [self.segments[0].sig_name.index(name) for name in sig_name]
 
-
-            for name in desired_sig_names:
-                if
-
-            self.n_sig =
-
-
-
-            # It's not as easy as this below...
-            self.n_sig = len(channels)
-            self.segments[0].n_sig = len(channels)
             # Rearrange signal specification fields
             for field in _header.SIGNAL_SPECS.index:
                 item = getattr(self.segments[0], field)
                 setattr(self.segments[0], field, [item[c] for c in channels])
 
-        # Update number of segments
-        self.n_seg = len(self.segments)
+            self.segments[0].n_sig = self.n_sig = len(sig_name)
 
-        # Adjust date and time if necessary
+        # Update record specification parameters
+        self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
+        self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
+
+        if self.n_sig == 0:
+            warnings.warn('No signals of the desired channels are contained in the specified sample range.')
 
     def multi_to_single(self, physical, return_res=64):
         """
@@ -705,19 +725,19 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for attr in ['segments', 'seg_name', 'seg_len', 'n_seg']:
             del(fields[attr])
 
-
         # Figure out single segment fields to set for the new Record
         if self.layout == 'fixed':
             # Get the fields from the first segment
             for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
                 fields[attr] = getattr(self.segments[0], attr)
         else:
-            # Variable layout signals are more tricky. Must inspect
-            # all the segments.
+            # For variable layout records, inspect the segments for the
+            # attribute values.
 
-            # Coincidentally, figure out if this conversion can be
-            # performed. All signals of the same name must have the same
-            # fmt, gain, baseline, and units for all segments.
+            # Coincidentally, if physical=False, figure out if this
+            # conversion can be performed. All signals of the same name
+            # must have the same fmt, gain, baseline, and units for all
+            # segments.
 
             # The layout header should be updated at this point to
             # reflect channels. We can depend on it for sig_name, but
@@ -727,33 +747,40 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             signal_names = self.segments[0].sig_name
             n_sig = len(signal_names)
 
-            # This will be the field dictionary of copy over. Dictionary
-            # of lists, with keys==['fmt', 'adc_gain', 'baseline',
-            # 'units', 'sig_name']
-            test_fields = {'units': self.segments[0].units,
-                           'sig_name':self.segments[0].sig_name}
+            # This will be the field dictionary to copy over.
+            reference_fields = {'fmt':n_sig*[None], 'adc_gain':n_sig*[None],
+                                'baseline':n_sig*[None],
+                                'units':n_sig*[None], }
 
-            reference_fields = {'fmt':n_sig*[None], 'adc_gain':n_sig*[None], 'baseline':n_sig*[None],
-                                'units':n_sig*[None], 'sig_name':signal_names}
-
+            # For physical signals, mismatched fields will not be copied
+            # over. For digital, mismatches will cause an exception.
+            mismatched_fields = []
             for seg in self.segments[1:]:
                 if seg is None:
                     continue
-                # For each signal, check fmt, adc_gain, baseline, and units of each signal
+                # For each signal, check fmt, adc_gain, baseline, and
+                # units of each signal
                 for seg_ch in range(seg.n_sig):
                     sig_name = seg.sig_name[seg_ch]
                     # The overall channel
                     ch = signal_names.index(sig_name)
+
                     for field in reference_fields:
                         item_ch = getattr(seg, field)[seg_ch]
                         if reference_fields[field][ch] is None:
                             reference_fields[field][ch] = item_ch
-                        else:
-                            if reference_fields[field][ch] != item_ch:
+                        # mismatch case
+                        elif reference_fields[field][ch] != item_ch:
+                            if physical:
+                                mismatched_fields.append(field)
+                            else:
                                 raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
-
+            # Remove mismatched signal fields for physical signals
+            for field in set(mismatched_fields):
+                del(reference_fields[field])
             # At this point, the fields should be set for all channels
             fields.update(reference_fields)
+            fields['sig_name'] = signal_names
 
         # Figure out signal attribute to set, and its dtype.
         if physical:
@@ -785,9 +812,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             for i in range(self.n_seg):
                 combined_signal[start_samps[i]:end_samps[i], :] = getattr(self.segments[i], sig_attr)
         else:
-
-            # Consider the case where no signals are present. ie. only empty.
-
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
                 seg = self.segments[i]
@@ -817,9 +841,18 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             setattr(record, field, fields[field])
         setattr(record, sig_attr, combined_signal)
 
-        record.set_init_values()
+        # Consider the case where no signals are present. ie. only empty.
+        # pdb.set_trace()
+        # print(sig_attr)
+        # print(getattr(record, sig_attr).dtype)
+        # Use the signal to set record features
+        if physical:
+            record.set_p_features()
+        else:
+            record.set_d_features()
 
         return record
+
 
 # ---------------------- Type Specifications ------------------------- #
 
@@ -905,7 +938,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
     ndim : int
         The required number of dimensions
     parent_class : type
-        The parent class of the dtype. ie. np.integer, np.float64.
+        The parent class of the dtype. ie. np.integer, np.floating.
     channel_num : int, optional
         If not None, indicates that the item passed in is a subelement
         of a list. Indicate this in the error message if triggered.
@@ -920,7 +953,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
     # Check dtype
     if not np.issubdtype(item.dtype, parent_class):
-        error_msg = 'Field `%s` must have a dtype that subclasses %s' (field_name, parent_class)
+        error_msg = 'Field `%s` must have a dtype that subclasses %s' % (field_name, parent_class)
         if channel_num is not None:
             error_msg = ('Channel %d of f' % channel_num) + error_msg[1:]
         raise TypeError(error_msg)
@@ -1030,7 +1063,7 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
 
 def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
              physical=True, pb_dir=None, m2s=True, smooth_frames=True,
-             ignore_skew=False, return_res=64):
+             ignore_skew=False, return_res=64, force_channels=True):
     """
     Read a WFDB record and return the signal and record descriptors as
     attributes in a Record or MultiRecord object.
@@ -1080,6 +1113,12 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         32, 16, and 8, where the value represents the numpy int or float
         dtype. Note that the value cannot be 8 when physical is True
         since there is no float8 format.
+    force_channels : bool, optional
+        Used when reading multi-segment variable layout records. Whether
+        to update the layout specification record, and the converted
+        Record object if `m2s` is True, to match the input `channels`
+        argument, or to omit channels in which no read segment contains
+        the signals.
 
     Returns
     -------
@@ -1199,7 +1238,8 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         # Arrange the fields of the layout specification segment, and
         # the overall object, to reflect user input.
         record._arrange_fields(seg_numbers=seg_numbers, seg_ranges=seg_ranges,
-                               channels=channels, sampfrom=sampfrom)
+                               channels=channels, sampfrom=sampfrom,
+                               force_channels=force_channels)
 
         # Convert object into a single segment Record object
         if m2s:

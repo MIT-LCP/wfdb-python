@@ -473,6 +473,10 @@ class test_record():
 
     def test_5f(self):
         """
+
+        Gotta write this
+
+
         Multi-segment, variable layout, entire signal, digital
 
         The reference signal creation cannot be made with rdsamp
@@ -491,11 +495,12 @@ class test_record():
 
 
         """
-        record = wfdb.rdrecord('p000878-2137-10-26-16-57',
-                               pb_dir='mimic3wdb/matched/p00/p000878/', sampto=5000)
+        sig, fields = wfdb.rdsamp('p000878-2137-10-26-16-57',
+                                  pb_dir='mimic3wdb/matched/p00/p000878/',
+                                  sampto=5000)
+        sig_target = np.genfromtxt('tests/target-output/record-5f')
 
-
-
+        np.testing.assert_equal(sig, sig_target)
 
 
     # Test 12 - Multi-segment variable layout/Selected duration/Selected Channels/Physical

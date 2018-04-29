@@ -75,7 +75,7 @@ class SignalMixin(object):
                     raise IndexError("Channel "+str(ch)+" contain values outside allowed range ["+str(dmin)+", "+str(dmax)+"] for fmt "+str(fmt))
 
             # Ensure that the checksums and initial value fields match the digital signal (if the fields are present)
-            if self.n_sig>0:
+            if self.n_sig > 0:
                 if 'checksum' in write_fields:
                     realchecksum = self.calc_checksum(expanded)
                     if self.checksum != realchecksum:
@@ -122,20 +122,30 @@ class SignalMixin(object):
 
     def set_p_features(self, do_dac=False, expanded=False):
         """
-        Use properties of the p_signal (expanded=False) or e_p_signal field to set other fields:
-          - n_sig
-          - sig_len
-        If expanded=True, samps_per_frame is also required.
+        Use properties of the physical signal field to set the following
+        features: n_sig, sig_len.
 
-        If do_dac == True, the (e_)_d_signal field will be used to perform digital to analogue conversion
-        to set the (e_)p_signal field, before (e_)p_signal is used.
+        Parameters
+        ----------
+        do_dac : bool
+            Whether to use the digital signal field to perform dac
+            conversion to get the physical signal field beforehand.
+        expanded : bool
+            Whether to use the `e_p_signal` or `p_signal` field. If
+            True, the `samps_per_frame` attribute is also required.
+
+        Notes
+        -----
         Regarding dac conversion:
-          - fmt, gain, and baseline must all be set in order to perform dac.
+          - fmt, gain, and baseline must all be set in order to perform
+            dac.
           - Unlike with adc, there is no way to infer these fields.
-          - Using the fmt, gain and baseline fields, dac is performed, and (e_)p_signal is set.
+          - Using the fmt, gain and baseline fields, dac is performed,
+            and (e_)p_signal is set.
 
         *Developer note: Seems this function will be very infrequently used.
          The set_d_features function seems far more useful.
+
         """
 
         if expanded:
@@ -171,17 +181,23 @@ class SignalMixin(object):
 
     def set_d_features(self, do_adc=False, single_fmt=True, expanded=False):
         """
-        Use properties of the (e_)d_signal field to set other fields:
-        - n_sig
-        - sig_len
-        - init_value
-        - checksum,
-        - *(fmt, adc_gain, baseline)
+        Use properties of the digital signal field to set the following
+        features: n_sig, sig_len, init_value, checksum, and possibly
+        *(fmt, adc_gain, baseline).
 
-        If `do_adc`, the `(e_)p_signal` field will first be used to perform
-        analogue to digital conversion to set the `(e_)d_signal`
-        field, before `(e_)d_signal` is used.
+        Parameters
+        ----------
+        do_adc : bools
+            Whether to use the physical signal field to perform adc
+            conversion to get the digital signal field beforehand.
+        single_fmt : bool
+            Whether to use a single digital format during adc, if it is
+            performed.
+        expanded : bool
+            Whether to use the `e_d_signal` or `d_signal` field.
 
+        Notes
+        -----
         Regarding adc conversion:
         - If fmt is unset:
           - Neither adc_gain nor baseline may be set. If the digital values
