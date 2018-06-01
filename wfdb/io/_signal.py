@@ -488,13 +488,13 @@ class SignalMixin(object):
 
     def calc_adc_params(self):
         """
-        Compute appropriate gain and baseline parameters given the physical
-        signal and the fmts.
+        Compute appropriate adc_gain and baseline parameters given the
+        physical signal and the fmts.
 
-        digital - baseline / gain = physical
-        physical * gain + baseline = digital
+        digital - baseline / adc_gain = physical
+        physical * adc_gain + baseline = digital
         """
-        gains = []
+        adc_gains = []
         baselines = []
 
         # min and max ignoring nans, unless whole channel is nan.
@@ -518,34 +518,47 @@ class SignalMixin(object):
 
             # If the entire signal is nan, just put any.
             if pmin == np.nan:
-                gain = 1
+                adc_gain = 1
                 baseline = 1
-            # If the signal is just one value, store all values as digital 1.
+            # If the signal is just one value, store all values as 1.
             elif pmin == pmax:
                 if pmin == 0:
-                    gain = 1
+                    adc_gain = 1
                     baseline = 1
                 else:
-                    gain = 1 / pmin
+                    adc_gain = 1 / pmin
                     baseline = 0
-            # Regular mixed signal case
-            # Todo:
+            # Regular varied signal case. Map pmax->dmax, pmin->dmin
             else:
-                gain = (dmax-dmin) / (pmax-pmin)
-                baseline = dmin - gain*pmin
+                # The equation is: p = (d - b) / g
+                # pmax maps to dmax, and pmin maps to dmin. Gradient
+                # will be close to delta(d) / delta(p), since intercept
+                # baseline has to be an integer.
+                adc_gain = (dmax-dmin) / (pmax-pmin)
+                baseline = dmin - adc_gain*pmin
 
-            # What about roundoff error? Make sure values don't map to beyond
-            # range.
-            baseline = int(baseline)
+                # The baseline needs to be an integer
+                if pmin > 0:
+                    baseline = int(np.ceil(baseline))
+                else:
+                    baseline = int(np.floor(baseline))
+
+                # We set the gain to map pmin to dmin, and p=0 to
+                # baseline.
+
+                # This up/down round logic of baseline is to ensure
+                # there is no overshoot of dmax. Now pmax will map to
+                # dmax or dmax-1 which is also fine.
+                adc_gain = (dmin - baseline) / pmin
 
             # WFDB library limits...
-            if abs(gain)>214748364 or abs(baseline)>2147483648:
+            if abs(adc_gain)>214748364 or abs(baseline)>2147483648:
                 raise Exception('adc_gain and baseline must have magnitudes < 214748364')
 
-            gains.append(gain)
+            adc_gains.append(adc_gain)
             baselines.append(baseline)
 
-        return (gains, baselines)
+        return (adc_gains, baselines)
 
 
     def convert_dtype(self, physical, return_res, smooth_frames):
