@@ -552,8 +552,8 @@ class SignalMixin(object):
                 adc_gain = (dmin - baseline) / pmin
 
             # WFDB library limits...
-            if abs(adc_gain)>214748364 or abs(baseline)>2147483648:
-                raise Exception('adc_gain and baseline must have magnitudes < 214748364')
+            if abs(adc_gain)>2147483648 or abs(baseline)>2147483648:
+                raise Exception('adc_gain and baseline must have magnitudes < 2147483648')
 
             adc_gains.append(adc_gain)
             baselines.append(baseline)
