@@ -549,7 +549,11 @@ class SignalMixin(object):
                 # This up/down round logic of baseline is to ensure
                 # there is no overshoot of dmax. Now pmax will map to
                 # dmax or dmax-1 which is also fine.
-                adc_gain = (dmin - baseline) / pmin
+
+                # In case where pmin == 0 and dmin == baseline,
+                # adc_gain is already correct. Avoid dividing by 0.
+                if dmin != baseline:
+                    adc_gain = (dmin - baseline) / pmin
 
             # WFDB library limits...
             if abs(adc_gain)>2147483648 or abs(baseline)>2147483648:
