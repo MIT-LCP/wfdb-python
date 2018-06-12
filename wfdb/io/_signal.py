@@ -514,6 +514,8 @@ class SignalMixin(object):
             pmin = minvals[ch]
             pmax = maxvals[ch]
 
+            if pmax == np.inf:
+                raise ValueError('Signal contains inf. Cannot convert.')
             # map values using full digital range.
 
             # If the entire signal is nan, just put any.
@@ -536,7 +538,6 @@ class SignalMixin(object):
                 # baseline has to be an integer.
                 adc_gain = (dmax-dmin) / (pmax-pmin)
                 baseline = dmin - adc_gain*pmin
-
                 # The baseline needs to be an integer
                 if pmin > 0:
                     baseline = int(np.ceil(baseline))
