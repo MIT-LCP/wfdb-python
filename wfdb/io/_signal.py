@@ -497,6 +497,9 @@ class SignalMixin(object):
         adc_gains = []
         baselines = []
 
+        if np.where(np.isinf(self.p_signal))[0].size:
+            raise ValueError('Signal contains inf. Cannot convert.')
+
         # min and max ignoring nans, unless whole channel is nan.
         # Should suppress warning message.
         minvals = np.nanmin(self.p_signal, axis=0)
@@ -514,8 +517,6 @@ class SignalMixin(object):
             pmin = minvals[ch]
             pmax = maxvals[ch]
 
-            if pmax == np.inf:
-                raise ValueError('Signal contains inf. Cannot convert.')
             # map values using full digital range.
 
             # If the entire signal is nan, just put any.
