@@ -42,8 +42,6 @@ class SignalMixin(object):
         self.wr_dat_files(expanded=expanded, write_dir=write_dir)
 
 
-
-
     def check_sig_cohesion(self, write_fields, expanded):
         """
         Check the cohesion of the d_signal/e_d_signal field with the other
@@ -488,78 +486,94 @@ class SignalMixin(object):
 
     def calc_adc_params(self):
         """
-        Compute appropriate adc_gain and baseline parameters given the
-        physical signal and the fmts.
+        Compute appropriate adc_gain and baseline parameters for adc
+        conversion, given the physical signal and the fmts.
 
-        digital - baseline / adc_gain = physical
-        physical * adc_gain + baseline = digital
+        Returns
+        -------
+        adc_gains : list
+            List of calculated `adc_gain` values for each channel.
+        baselines : list
+            List of calculated `baseline` values for each channel.
+
+        Notes
+        -----
+        This is the mapping equation:
+            `digital - baseline / adc_gain = physical`
+            `physical * adc_gain + baseline = digital`
+
+        The original WFDB library stores `baseline` as int32.
+        Constrain abs(adc_gain) <= 2**31 == 2147483648
+
+        This function does carefully deal with overflow for calculated
+        int32 `baseline` values, but does not consider over/underflow
+        for calculated float `adc_gain` values.
+
         """
         adc_gains = []
         baselines = []
 
         if np.where(np.isinf(self.p_signal))[0].size:
-            raise ValueError('Signal contains inf. Cannot convert.')
+            raise ValueError('Signal contains inf. Cannot perform adc.')
 
         # min and max ignoring nans, unless whole channel is nan.
         # Should suppress warning message.
         minvals = np.nanmin(self.p_signal, axis=0)
         maxvals = np.nanmax(self.p_signal, axis=0)
 
-        dnans = digi_nan(self.fmt)
-
         for ch in range(np.shape(self.p_signal)[1]):
             # Get the minimum and maximum (valid) storage values
             dmin, dmax = digi_bounds(self.fmt[ch])
             # add 1 because the lowest value is used to store nans
             dmin = dmin + 1
-            dnan = dnans[ch]
 
             pmin = minvals[ch]
             pmax = maxvals[ch]
 
-            # map values using full digital range.
+            # Figure out digital samples used to store physical samples
 
-            # If the entire signal is nan, just put any.
+            # If the entire signal is nan, gain/baseline won't be used
             if pmin == np.nan:
                 adc_gain = 1
                 baseline = 1
-            # If the signal is just one value, store all values as 1.
+            # If the signal is just one value, store one digital value.
             elif pmin == pmax:
                 if pmin == 0:
                     adc_gain = 1
                     baseline = 1
                 else:
-                    adc_gain = 1 / pmin
+                    # All digital values are +1 or -1. Keep adc_gain > 0
+                    adc_gain = abs(1 / pmin)
                     baseline = 0
-            # Regular varied signal case. Map pmax->dmax, pmin->dmin
+            # Regular varied signal case.
             else:
                 # The equation is: p = (d - b) / g
-                # pmax maps to dmax, and pmin maps to dmin. Gradient
-                # will be close to delta(d) / delta(p), since intercept
-                # baseline has to be an integer.
+                # Approximately, pmax maps to dmax, and pmin maps to
+                # dmin. Gradient will be equal to, or close to
+                # delta(d) / delta(p), since intercept baseline has
+                # to be an integer.
                 adc_gain = (dmax-dmin) / (pmax-pmin)
                 baseline = dmin - adc_gain*pmin
-                # The baseline needs to be an integer
+                # Make adjustments for baseline to be an integer
+
+                # This up/down round logic of baseline is to ensure
+                # there is no overshoot of dmax. Now pmax will map
+                # to dmax or dmax-1 which is also fine.
                 if pmin > 0:
                     baseline = int(np.ceil(baseline))
                 else:
                     baseline = int(np.floor(baseline))
 
-                # We set the gain to map pmin to dmin, and p=0 to
+                # Set the gain to map pmin to dmin, and p==0 to
                 # baseline.
-
-                # This up/down round logic of baseline is to ensure
-                # there is no overshoot of dmax. Now pmax will map to
-                # dmax or dmax-1 which is also fine.
-
-                # In case where pmin == 0 and dmin == baseline,
+                # In the case where pmin == 0 and dmin == baseline,
                 # adc_gain is already correct. Avoid dividing by 0.
                 if dmin != baseline:
                     adc_gain = (dmin - baseline) / pmin
 
-            # WFDB library limits...
-            if abs(adc_gain)>2147483648 or abs(baseline)>2147483648:
-                raise Exception('adc_gain and baseline must have magnitudes < 2147483648')
+            # Safety check for WFDB library limit.
+            if abs(baseline)>2147483648:
+                raise Exception('baseline must have magnitude < 2147483648')
 
             adc_gains.append(adc_gain)
             baselines.append(baseline)
@@ -1311,7 +1325,7 @@ def est_res(signals):
             res.append(0)
         else:
             nlevels = 1 + (sortedsig[-1]-sortedsig[0])/min_inc
-            if nlevels>=res_levels[-1]:
+            if nlevels >= res_levels[-1]:
                 res.append(32)
             else:
                 res.append(np.where(res_levels>=nlevels)[0][0])
