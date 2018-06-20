@@ -48,7 +48,7 @@ def stream_header(record_name, pb_dir):
     return (header_lines, comment_lines)
 
 
-def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, datatypes):
+def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, dtype):
     """
     Read certain bytes from a dat file from physiobank
 
@@ -59,7 +59,7 @@ def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, datatypes):
 
     # Specify the byte range
     end_byte = start_byte + byte_count - 1
-    headers = {"Range":"bytes=" + str(start_byte)+"-"+str(end_byte),
+    headers = {"Range":"bytes=%d-%d" % (start_byte, end_byte),
                'Accept-Encoding': '*/*'}
 
     # Get the content
@@ -69,7 +69,7 @@ def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, datatypes):
     response.raise_for_status()
 
     # Convert to numpy array
-    sig_bytes = np.fromstring(response.content, dtype=np.dtype(datatypes[fmt]))
+    sig_bytes = np.fromstring(response.content, dtype=dtype)
 
     return sig_bytes
 
@@ -83,16 +83,14 @@ def stream_annotation(file_name, pb_dir):
     url = posixpath.join(db_index_url, pb_dir, file_name)
 
     # Get the content
-    r = requests.get(url)
+    response = requests.get(url)
     # Raise HTTPError if invalid url
-    r.raise_for_status()
-
-    annbytes = r.content
+    response.raise_for_status()
 
     # Convert to numpy array
-    annbytes = np.fromstring(annbytes, dtype = np.dtype('<u1'))
+    ann_bytes = np.fromstring(response.content, dtype=np.dtype('<u1'))
 
-    return annbytes
+    return ann_bytes
 
 
 def get_dbs():

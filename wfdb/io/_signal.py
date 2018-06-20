@@ -741,10 +741,19 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
               samps_per_frame, skew, sampfrom, sampto, channels,
               smooth_frames, ignore_skew):
     """
-    Read the samples from a single segment record's associated dat file(s)
-    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew' are
-    user desired input fields.
-    All other input arguments are specifications of the segment
+    Read the samples from a single segment record's associated dat
+    file(s)
+
+    Parameters
+    ----------
+
+
+    Notes
+    -----
+    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
+    are user desired input fields. All other parameters are
+    specifications of the segment
+
     """
 
     # Avoid changing outer variables
@@ -794,10 +803,10 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
     # Wanted dat channels, relative to the dat file itself
     r_w_channel =  {}
     # The channels in the final output array that correspond to the read channels in each dat file
-    out_datchannel = {}
+    out_dat_channel = {}
     for fn in w_channel:
         r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
-        out_datchannel[fn] = [channels.index(c) for c in w_channel[fn]]
+        out_dat_channel[fn] = [channels.index(c) for c in w_channel[fn]]
 
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
@@ -809,13 +818,15 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            signals[:, out_datchannel[fn]] = rddat(fn, dir_name, pb_dir, w_fmt[fn], len(datchannel[fn]),
-                sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
+            signals[:, out_dat_channel[fn]] = rddat(fn, dir_name, pb_dir,
+                w_fmt[fn], len(datchannel[fn]), sig_len, w_byte_offset[fn],
+                w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
+                smooth_frames)[:, r_w_channel[fn]]
 
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
     else:
-        signals=[None]*len(channels)
+        signals = [None] * len(channels)
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
@@ -823,8 +834,8 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
                 sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
 
             # Copy over the wanted signals
-            for cn in range(len(out_datchannel[fn])):
-                signals[out_datchannel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
+            for cn in range(len(out_dat_channel[fn])):
+                signals[out_dat_channel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
 
     return signals
 
@@ -839,7 +850,7 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
     Parameters
     ----------
     file_name : str
-        The name of the dat file.
+        The name of the dat file to be read.
     dir_name : str
         The full directory where the dat file is located, if the dat
         file is local.
@@ -883,18 +894,18 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
     read_len = sampto - sampfrom
 
     # Calculate parameters used to read and process the dat file
-    start_byte, n_read_samples, block_floor_samples, extra_flat_samples, nanreplace = calc_read_params(fmt, sig_len, byte_offset,
+    start_byte, n_read_samples, block_floor_samples, extra_flat_samples, nanreplace = _dat_read_params(fmt, sig_len, byte_offset,
                                                                                                 skew, tsamps_per_frame,
                                                                                                 sampfrom, sampto)
 
     # Number of bytes to be read from the dat file
-    total_read_bytes = requiredbytenum('read', fmt, n_read_samples)
+    total_read_bytes = _required_byte_num('read', fmt, n_read_samples)
 
     # Total samples to be processed in intermediate step. Includes extra padded samples beyond dat file
     total_process_samples = n_read_samples + extra_flat_samples
 
     # Total number of bytes to be processed in intermediate step.
-    total_process_bytes = requiredbytenum('read', fmt, total_process_samples)
+    total_process_bytes = _required_byte_num('read', fmt, total_process_samples)
 
     # Get the intermediate bytes or samples to process. Bit of a discrepancy. Recall special formats
     # load uint8 bytes, other formats already load samples.
@@ -902,16 +913,17 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
     # Read values from dat file, and append bytes/samples if needed.
     if extra_flat_samples:
         if fmt in SPECIAL_FMTS:
-            # Extra number of bytes to append onto the bytes read from the dat file.
+            # Extra number of bytes to append onto the bytes read from
+            # the dat file.
             n_extra_bytes = total_process_bytes - total_read_bytes
 
-            sig_bytes = np.concatenate((get_dat_bytes(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
+            sig_bytes = np.concatenate((_rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
                                       np.zeros(n_extra_bytes, dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
         else:
-            sig_bytes = np.concatenate((get_dat_bytes(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
+            sig_bytes = np.concatenate((_rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
                                       np.zeros(extra_flat_samples, dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
     else:
-        sig_bytes = get_dat_bytes(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples)
+        sig_bytes = _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples)
 
     # Continue to process the read values into proper samples
 
@@ -935,7 +947,7 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
         # Reshape into multiple channels
         sig = sig_bytes.reshape(-1, n_sig)
         # Skew the signal
-        sig = skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace)
+        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace)
 
     # Extra frames present to be smoothed. Obtain averaged uniform numpy array
     elif smooth_frames:
@@ -954,7 +966,7 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
                     startind = np.sum(samps_per_frame[:ch])
                 sig[:,ch] = [np.average(sig_bytes[ind:ind+samps_per_frame[ch]]) for ind in range(startind,len(sig_bytes),tsamps_per_frame)]
         # Skew the signal
-        sig = skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace)
+        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace)
 
     # Extra frames present without wanting smoothing. Return all expanded samples.
     else:
@@ -966,16 +978,19 @@ def rddat(file_name, dir_name, pb_dir, fmt, n_sig,
             ch_indices = np.concatenate([np.array(range(samps_per_frame[ch])) + sum([0]+samps_per_frame[:ch]) + tsamps_per_frame*framenum for framenum in range(int(len(sig_bytes)/tsamps_per_frame))])
             sig.append(sig_bytes[ch_indices])
         # Skew the signal
-        sig = skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace, samps_per_frame)
+        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace, samps_per_frame)
 
     # Integrity check of signal shape after reading
-    checksigdims(sig, read_len, n_sig, samps_per_frame)
+    _check_sig_dims(sig, read_len, n_sig, samps_per_frame)
 
     return sig
 
-def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom, sampto):
+
+def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
+                     sampfrom, sampto):
     """
-    Calculate parameters used to read and process the dat file
+    Calculate the parameters used to read and process a dat file, given
+    its layout, and the desired sample range.
 
     Returns
     -------
@@ -993,6 +1008,19 @@ def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom
         The number of samples to replace with nan at the end of each signal
         due to skew wanting samples beyond the file
 
+    Returns
+    -------
+    start_byte : int
+        The starting byte to read from
+    n_read_samples : int
+
+
+    block_floor_samples
+
+    extra_flat_samples
+
+    nanreplace)
+
 
     Examples
     --------
@@ -1001,6 +1029,7 @@ def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom
     sampfrom=50, sampto=100 --> read_len = 50, n_sampread = 50*t, extralen = 5, nanreplace = [0, 2, 4, 5]
     sampfrom=0, sampto=50 --> read_len = 50, n_sampread = 55*t, extralen = 0, nanreplace = [0, 0, 0, 0]
     sampfrom=95, sampto=99 --> read_len = 4, n_sampread = 5*t, extralen = 4, nanreplace = [0, 1, 3, 4]
+
     """
 
     # First flat sample number to read (if all channels were flattened)
@@ -1042,110 +1071,143 @@ def calc_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom
     # Calculate this using the above statement case: if (sampto + max(skew))>sig_len:
     nanreplace = [max(0, sampto + s - sig_len) for s in skew]
 
-    return (start_byte, n_read_samples, block_floor_samples, extra_flat_samples, nanreplace)
+    return (start_byte, n_read_samples, block_floor_samples,
+            extra_flat_samples, nanreplace)
 
 
-def requiredbytenum(mode, fmt, n_samp):
+def _required_byte_num(mode, fmt, n_samp):
     """
-    Determine how many signal bytes are needed to read a file, or how
-    many should be written to a file, for special formats.
-
-    It would be nice if read and write were the same, but fmt 311 for
-    n_extra == 2 ruins it.
+    Determine how many signal bytes are needed to read or write a
+    special format dat file.
 
     Parameters
     ----------
     mode : str
-        'read' or 'write'
-    fmt:
-        The wfdb format
+        Whether the file is to be read or written: 'read' or 'write'.
+    fmt : str
+        The wfdb dat format
     n_samp : int
         The number of samples
+
+    Returns
+    -------
+    n_bytes : int
+        The number of bytes required to read or write the file
+
+    Notes
+    -----
+    Read and write require the same number in most cases. An exception
+    is fmt 311 for n_extra==2.
 
     """
 
     if fmt == '212':
-        nbytes = math.ceil(n_samp*1.5)
+        n_bytes = math.ceil(n_samp*1.5)
     elif fmt in ['310', '311']:
         n_extra = n_samp % 3
 
         if n_extra == 2:
             if fmt == '310':
-                nbytes = upround(n_samp * 4/3, 4)
+                n_bytes = upround(n_samp * 4/3, 4)
             # 311
             else:
                 if mode == 'read':
-                    nbytes = math.ceil(n_samp * 4/3)
+                    n_bytes = math.ceil(n_samp * 4/3)
                 # Have to write more bytes for wfdb c to work
                 else:
-                    nbytes = upround(n_samp * 4/3, 4)
+                    n_bytes = upround(n_samp * 4/3, 4)
         # 0 or 1
         else:
-            nbytes = math.ceil(n_samp * 4/3 )
+            n_bytes = math.ceil(n_samp * 4/3 )
     else:
-        nbytes = n_samp * BYTES_PER_SAMPLE[fmt]
+        n_bytes = n_samp * BYTES_PER_SAMPLE[fmt]
 
-    return int(nbytes)
+    return int(n_bytes)
 
 
-def get_dat_bytes(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
+def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     """
-    Read bytes from a dat file, either local or remote, into a numpy array.
+    Read data from a dat file, either local or remote, into a 1d numpy
+    array.
+
     Slightly misleading function name. Does not return bytes object.
-    Output argument dtype varies depending on fmt. Non-special fmts are
-    read in their final required format. Special format are read as uint8.
+
+    This is the lowest level dat reading function, and is called by
+    `rddat`.
 
     Parameters
     ----------
+    file_name : str
+        The name of the dat file to be read.
+    dir_name : str
+        The full directory where the dat file is located, if the dat
+        file is local.
+    pb_dir : str
+        The physiobank directory where the dat file is located, if the
+        dat file is remote.
+    fmt : str
+        The format of the dat file
+    start_byte : int
+        The starting byte number to read from.
     n_samp : int
-        The total number of samples to read. Does NOT need to create whole blocks
-      for special format. Any number of samples should be readable. But see below*.
-    - start_byte: The starting byte to read from. * See below.
+        The total number of samples to read. Does NOT need to create
+        whole blocks for special format. Any number of samples should be
+        readable.
 
-    * n_samp and start_byte should make it so that the bytes are read from the start
-      of a byte block, even if sampfrom points into the middle of one. This will not
-      be checked here. calc_read_params should ensure it.
+    Returns
+    -------
+    sig_bytes : numpy array
+        The dtype varies depending on fmt. Non-special fmts are read in
+        their final required format. Special format are read as uint8.
+
+    Notes
+    -----
+    `n_samp` and `start_byte` should make it so that the bytes are read
+    from the start of a byte block, even if sampfrom points into the middle of one.
+
+    This will not
+      be checked here. `_dat_read_params` should ensure it.
+
     """
 
-    # elementcount is the number of elements to read using np.fromfile (for local files)
-    # bytecount is the number of bytes to read (for streaming files)
+    # element_count is the number of elements to read using np.fromfile (for local files)
+    # byte_count is the number of bytes to read (for streaming files)
 
     if fmt == '212':
-        bytecount = requiredbytenum('read', '212', n_samp)
-        elementcount = bytecount
+        byte_count = _required_byte_num('read', '212', n_samp)
+        element_count = byte_count
     elif fmt in ['310', '311']:
-        bytecount = requiredbytenum('read', fmt, n_samp)
-        elementcount = bytecount
+        byte_count = _required_byte_num('read', fmt, n_samp)
+        element_count = byte_count
     else:
-        elementcount = n_samp
-        bytecount = n_samp*BYTES_PER_SAMPLE[fmt]
+        element_count = n_samp
+        byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
     # Local dat file
     if pb_dir is None:
-        fp = open(os.path.join(dir_name, file_name), 'rb')
-        fp.seek(start_byte)
-
-        # Read file using corresponding dtype
-        sig_bytes = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=elementcount)
-
-        fp.close()
-
+        with open(os.path.join(dir_name, file_name), 'rb') as fp:
+            fp.seek(start_byte)
+            sig_bytes = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+                                    count=element_count)
     # Stream dat file from physiobank
-    # Same output as above np.fromfile.
     else:
-        sig_bytes = download.stream_dat(file_name, pb_dir, fmt, bytecount, start_byte, DATA_LOAD_TYPES)
+        sig_bytes = download.stream_dat(file_name, pb_dir, fmt, byte_count,
+                                        start_byte,
+                                        np.dtype(DATA_LOAD_TYPES[fmt]))
 
     return sig_bytes
 
 
 def bytes_to_samples(sig_bytes, n_samp, fmt):
     """
-    Converts loaded uint8 blocks into samples for special formats
+    Convert uint8 blocks into samples for special dat formats.
 
     Parameters
     ----------
-    sig_bytes :
-        The uint8 sample blocks
+    sig_bytes : numpy array
+        The uint8 data blocks
+    n_samp : int
+
 
     """
     if fmt == '212':
@@ -1233,12 +1295,25 @@ def bytes_to_samples(sig_bytes, n_samp, fmt):
     return sig
 
 
-def skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace, samps_per_frame=None):
+def _skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace, samps_per_frame=None):
     """
     Skew the signal, insert nans and shave off end of array if needed.
 
-    fmt is just for the correct nan value.
-    samps_per_frame is only used for skewing expanded signals.
+    Parameters
+    ----------
+    sig : numpy array
+        The original signal
+    skew : list
+        List of samples to skew for each signal
+    n_sig : int
+        The number of signals
+
+
+    Notes
+    -----
+    `fmt` is just for the correct nan value.
+    `samps_per_frame` is only used for skewing expanded signals.
+
     """
     if max(skew)>0:
 
@@ -1274,8 +1349,11 @@ def skew_sig(sig, skew, n_sig, read_len, fmt, nanreplace, samps_per_frame=None):
     return sig
 
 
-# Integrity check of signal shape after reading
-def checksigdims(sig, read_len, n_sig, samps_per_frame):
+def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
+    """
+    Integrity check of a signal's shape after reading.
+
+    """
     if isinstance(sig, np.ndarray):
         if sig.shape != (read_len, n_sig):
             raise ValueError('Samples were not loaded correctly')
@@ -1285,8 +1363,6 @@ def checksigdims(sig, read_len, n_sig, samps_per_frame):
         for ch in range(n_sig):
             if len(sig[ch]) != samps_per_frame[ch] * read_len:
                 raise ValueError('Samples were not loaded correctly')
-
-
 
 
 #------------------- /Reading Signals -------------------#
