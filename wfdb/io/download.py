@@ -48,32 +48,36 @@ def stream_header(record_name, pb_dir):
     return (header_lines, comment_lines)
 
 
-# Read certain bytes from a dat file from physiobank
-def stream_dat(file_name, pb_dir, fmt, bytecount, startbyte, datatypes):
+def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, datatypes):
+    """
+    Read certain bytes from a dat file from physiobank
+
+    """
 
     # Full url of dat file
     url = posixpath.join(db_index_url, pb_dir, file_name)
 
     # Specify the byte range
-    endbyte = startbyte + bytecount-1
-    headers = {"Range": "bytes="+str(startbyte)+"-"+str(endbyte),
+    end_byte = start_byte + byte_count - 1
+    headers = {"Range":"bytes=" + str(start_byte)+"-"+str(end_byte),
                'Accept-Encoding': '*/*'}
 
     # Get the content
-    r = requests.get(url, headers=headers, stream=True)
+    response = requests.get(url, headers=headers, stream=True)
 
     # Raise HTTPError if invalid url
-    r.raise_for_status()
-
-    sigbytes = r.content
+    response.raise_for_status()
 
     # Convert to numpy array
-    sigbytes = np.fromstring(sigbytes, dtype = np.dtype(datatypes[fmt]))
+    sig_bytes = np.fromstring(response.content, dtype=np.dtype(datatypes[fmt]))
 
-    return sigbytes
+    return sig_bytes
 
-# Read an entire annotation file from physiobank
+
 def stream_annotation(file_name, pb_dir):
+    """
+    Read an entire annotation file from physiobank
+    """
 
     # Full url of annotation file
     url = posixpath.join(db_index_url, pb_dir, file_name)
