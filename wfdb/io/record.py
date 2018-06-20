@@ -787,7 +787,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             sig_attr = 'd_signal'
             # Figure out the largest required dtype
             dtype = _signal.np_dtype(return_res, discrete=True)
-            nan_vals = np.array([_signal.digi_nan(fields['fmt'])], dtype=dtype)
+            nan_vals = np.array([_signal._digi_nan(fields['fmt'])], dtype=dtype)
 
         # Initialize the full signal array
         combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)

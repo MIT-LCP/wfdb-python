@@ -48,9 +48,27 @@ def stream_header(record_name, pb_dir):
     return (header_lines, comment_lines)
 
 
-def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, dtype):
+def stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     """
-    Read certain bytes from a dat file from physiobank
+    Stream data from a remote dat file, into a 1d numpy array.
+
+    Parameters
+    ----------
+    file_name : str
+        The name of the dat file to be read.
+    pb_dir : str
+        The physiobank directory where the dat file is located.
+    byte_count : int
+        The number of bytes to be read.
+    start_byte : int
+        The starting byte number to read from.
+    dtype : str
+        The numpy dtype to load the data into.
+
+    Returns
+    -------
+    sig_data : numpy array
+        The data read from the dat file.
 
     """
 
@@ -69,16 +87,23 @@ def stream_dat(file_name, pb_dir, fmt, byte_count, start_byte, dtype):
     response.raise_for_status()
 
     # Convert to numpy array
-    sig_bytes = np.fromstring(response.content, dtype=dtype)
+    sig_data = np.fromstring(response.content, dtype=dtype)
 
-    return sig_bytes
+    return sig_data
 
 
 def stream_annotation(file_name, pb_dir):
     """
-    Read an entire annotation file from physiobank
-    """
+    Stream an entire remote annotation file from physiobank
 
+    Parameters
+    ----------
+    file_name : str
+        The name of the annotation file to be read.
+    pb_dir : str
+        The physiobank directory where the annotation file is located.
+
+    """
     # Full url of annotation file
     url = posixpath.join(db_index_url, pb_dir, file_name)
 
@@ -88,9 +113,9 @@ def stream_annotation(file_name, pb_dir):
     response.raise_for_status()
 
     # Convert to numpy array
-    ann_bytes = np.fromstring(response.content, dtype=np.dtype('<u1'))
+    ann_data = np.fromstring(response.content, dtype=np.dtype('<u1'))
 
-    return ann_bytes
+    return ann_data
 
 
 def get_dbs():
@@ -136,12 +161,12 @@ def get_record_list(db_dir, records='all'):
 
     # Check for a RECORDS file
     if records == 'all':
-        r = requests.get(posixpath.join(db_url, 'RECORDS'))
-        if r.status_code == 404:
-            raise ValueError('The database '+db_url+' has no WFDB files to download')
+        response = requests.get(posixpath.join(db_url, 'RECORDS'))
+        if response.status_code == 404:
+            raise ValueError('The database %s has no WFDB files to download' % db_url)
 
         # Get each line as a string
-        recordlist = r.content.decode('ascii').splitlines()
+        recordlist = response.content.decode('ascii').splitlines()
     # Otherwise the records are input manually
     else:
         recordlist = records
@@ -161,7 +186,7 @@ def get_annotators(db_dir, annotators):
             if annotators == 'all':
                 return
             else:
-                raise ValueError('The database '+db_url+' has no annotation files to download')
+                raise ValueError('The database %s has no annotation files to download' % db_url)
         # Make sure the input annotators are present in the database
         annlist = r.content.decode('ascii').splitlines()
         annlist = [a.split('\t')[0] for a in annlist]
@@ -177,13 +202,15 @@ def get_annotators(db_dir, annotators):
             # user input ones. Check validity.
             for a in annotators:
                 if a not in annlist:
-                    raise ValueError('The database contains no annotators with extension: '+a)
+                    raise ValueError('The database contains no annotators with extension: %s' % a)
 
     return annotators
 
 
-# Make any required local directories
 def make_local_dirs(dl_dir, dlinputs, keep_subdirs):
+    """
+    Make any required local directories to prepare for downloading
+    """
 
     # Make the local download dir if it doesn't exist
     if not os.path.isdir(dl_dir):
@@ -209,13 +236,13 @@ def dl_pb_file(inputs):
     # Full url of file
     url = posixpath.join(db_index_url, db, subdir, basefile)
 
-    # Get the request header
-    rh = requests.head(url, headers={'Accept-Encoding': 'identity'})
+    # Send a head request
+    response = requests.head(url, headers={'Accept-Encoding': 'identity'})
     # Raise HTTPError if invalid url
-    rh.raise_for_status()
+    response.raise_for_status()
 
     # Supposed size of the file
-    onlinefilesize = int(rh.headers['content-length'])
+    remote_file_size = int(response.headers['content-length'])
 
     # Figure out where the file should be locally
     if keep_subdirs:
@@ -223,43 +250,53 @@ def dl_pb_file(inputs):
     else:
         dldir = dl_dir
 
-    localfile = os.path.join(dldir, basefile)
+    local_file = os.path.join(dldir, basefile)
 
     # The file exists locally.
-    if os.path.isfile(localfile):
+    if os.path.isfile(local_file):
         # Redownload regardless
         if overwrite:
-            dl_full_file(url, localfile)
+            dl_full_file(url, local_file)
         # Process accordingly.
         else:
-            localfilesize = os.path.getsize(localfile)
+            local_file_size = os.path.getsize(local_file)
             # Local file is smaller than it should be. Append it.
-            if localfilesize < onlinefilesize:
-                print('Detected partially downloaded file: '+localfile+' Appending file...')
-                headers = {"Range": "bytes="+str(localfilesize)+"-", 'Accept-Encoding': '*/*'}
+            if local_file_size < remote_file_size:
+                print('Detected partially downloaded file: %s Appending file...' % local_file)
+                headers = {"Range": "bytes="+str(local_file_size)+"-", 'Accept-Encoding': '*/*'}
                 r = requests.get(url, headers=headers, stream=True)
                 print('headers: ', headers)
                 print('r content length: ', len(r.content))
-                with open(localfile, "ba") as writefile:
+                with open(local_file, "ba") as writefile:
                     writefile.write(r.content)
                 print('Done appending.')
             # Local file is larger than it should be. Redownload.
-            elif localfilesize > onlinefilesize:
-                dl_full_file(url, localfile)
+            elif local_file_size > remote_file_size:
+                dl_full_file(url, local_file)
             # If they're the same size, do nothing.
 
     # The file doesn't exist. Download it.
     else:
-        dl_full_file(url, localfile)
+        dl_full_file(url, local_file)
 
     return
 
 
-def dl_full_file(url, localfile):
-    # Download a file. No checks.
-    r = requests.get(url)
-    with open(localfile, "wb") as writefile:
-        writefile.write(r.content)
+def dl_full_file(url, save_file_name):
+    """
+    Download a file. No checks are performed.
+
+    Parameters
+    ----------
+    url : str
+        The url of the file to download
+    save_file_name : str
+        The name to save the file as
+
+    """
+    response = requests.get(url)
+    with open(save_file_name, "wb") as writefile:
+        writefile.write(response.content)
 
     return
 

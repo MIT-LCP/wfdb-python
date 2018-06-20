@@ -8,21 +8,26 @@ import pdb
 
 MAX_I32 = 2147483647
 MIN_I32 = -2147483648
-# WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
-SIMPLE_FMTS = ['80', '16', '24', '32']
-SPECIAL_FMTS = ['212', '310', '311']
-DAT_FMTS = SIMPLE_FMTS + SPECIAL_FMTS
 
-# Bytes required to hold each sample (including wasted space) for
-# different wfdb formats
-BYTES_PER_SAMPLE = {'8': 1, '16': 2, '24': 3, '32': 4, '61': 2,
-                  '80': 1, '160': 2, '212': 1.5, '310': 4 / 3., '311': 4 / 3.}
 
-# Data type objects for each format to load. Doesn't directly correspond
-# for final 3 formats.
+# Formats in which all samples align with byte boundaries
+ALIGNED_FMTS = ['8', '16', '24', '32', '61', '80', '160']
+# Formats in which not all samples align with byte boundaries
+UNALIGNED_FMTS = ['212', '310', '311']
+# Formats which are stored in offset binary form
+OFFSET_FMTS = ['80', '160']
+# All WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
+DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS
+
+# Bytes required to hold each sample (including wasted space) for each
+# wfdb formats
+BYTES_PER_SAMPLE = {'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, '80': 1,
+                    '160': 2, '212': 1.5, '310': 4 / 3., '311': 4 / 3.}
+
+# Numpy dtypes used to load dat files of each format.
 DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
-             '61': '>i2', '80': '<u1', '160': '<u2',
-             '212': '<u1', '310': '<u1', '311': '<u1'}
+                   '61': '>i2', '80': '<u1', '160': '<u2', '212': '<u1',
+                   '310': '<u1', '311': '<u1'}
 
 
 class SignalMixin(object):
@@ -348,7 +353,7 @@ class SignalMixin(object):
         """
 
         # The digital nan values for each channel
-        dnans = digi_nan(self.fmt)
+        d_nans = _digi_nan(self.fmt)
 
         # To do: choose the minimum return res needed
         intdtype = 'int64'
@@ -359,10 +364,13 @@ class SignalMixin(object):
                 for ch in range(self.n_sig):
                     # nan locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
-                    np.multiply(self.e_p_signal[ch], self.adc_gain[ch], self.e_p_signal[ch])
-                    np.add(e_p_signal[ch], self.baseline[ch], self.e_p_signal[ch])
-                    self.e_p_signal[ch] = self.e_p_signal[ch].astype(intdtype, copy=False)
-                    self.e_p_signal[ch][ch_nanlocs] = dnans[ch]
+                    np.multiply(self.e_p_signal[ch], self.adc_gain[ch],
+                                self.e_p_signal[ch])
+                    np.add(e_p_signal[ch], self.baseline[ch],
+                           self.e_p_signal[ch])
+                    self.e_p_signal[ch] = self.e_p_signal[ch].astype(intdtype,
+                                                                     copy=False)
+                    self.e_p_signal[ch][ch_nanlocs] = d_nans[ch]
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
@@ -384,7 +392,7 @@ class SignalMixin(object):
                     np.multiply(ch_d_signal, self.adc_gain[ch], ch_d_signal)
                     np.add(ch_d_signal, self.baseline[ch], ch_d_signal)
                     ch_d_signal = ch_d_signal.astype(intdtype, copy=False)
-                    ch_d_signal[ch_nanlocs] = dnans[ch]
+                    ch_d_signal[ch_nanlocs] = d_nans[ch]
                     d_signal.append(ch_d_signal)
 
             else:
@@ -398,7 +406,7 @@ class SignalMixin(object):
                 if nanlocs.any():
                     for ch in range(d_signal.shape[1]):
                         if nanlocs[:,ch].any():
-                            d_signal[nanlocs[:,ch],ch] = dnans[ch]
+                            d_signal[nanlocs[:,ch],ch] = d_nans[ch]
 
             return d_signal
 
@@ -406,13 +414,14 @@ class SignalMixin(object):
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
         Performs the digital to analogue conversion of the signal stored
-        in d_signal if expanded is False, or e_d_signal if expanded is True.
+        in `d_signal` if expanded is False, or `e_d_signal` if expanded
+        is True.
 
         The d_signal/e_d_signal, fmt, gain, and baseline fields must all be
         valid.
 
-        If inplace is True, the dac will be performed inplace on the variable,
-        the p_signal/e_p_signal attribute will be set, and the
+        If inplace is True, the dac will be performed inplace on the
+        variable, the p_signal/e_p_signal attribute will be set, and the
         d_signal/e_d_signal field will be set to None.
 
         Parameters
@@ -444,7 +453,7 @@ class SignalMixin(object):
         """
 
         # The digital nan values for each channel
-        dnans = digi_nan(self.fmt)
+        d_nans = _digi_nan(self.fmt)
 
         # Get the appropriate float dtype
         if return_res == 64:
@@ -459,7 +468,7 @@ class SignalMixin(object):
             if expanded:
                 for ch in range(self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
+                    ch_nanlocs = self.e_d_signal[ch] == d_nans[ch]
                     self.e_d_signal[ch] = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(self.e_d_signal[ch], self.baseline[ch], self.e_d_signal[ch])
                     np.divide(self.e_d_signal[ch], self.adc_gain[ch], self.e_d_signal[ch])
@@ -467,7 +476,7 @@ class SignalMixin(object):
                 self.e_p_signal = self.e_d_signal
                 self.e_d_signal = None
             else:
-                nanlocs = self.d_signal == dnans
+                nanlocs = self.d_signal == d_nans
                 # Do float conversion immediately to avoid potential under/overflow
                 # of efficient int dtype
                 self.d_signal = self.d_signal.astype(floatdtype, copy=False)
@@ -483,14 +492,14 @@ class SignalMixin(object):
                 p_signal = []
                 for ch in range(self.n_sig):
                     # nan locations for the channel
-                    ch_nanlocs = self.e_d_signal[ch] == dnans[ch]
+                    ch_nanlocs = self.e_d_signal[ch] == d_nans[ch]
                     ch_p_signal = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
                     np.divide(ch_p_signal, self.adc_gain[ch], ch_p_signal)
                     ch_p_signal[ch_nanlocs] = np.nan
                     p_signal.append(ch_p_signal)
             else:
-                nanlocs = self.d_signal == dnans
+                nanlocs = self.d_signal == d_nans
                 p_signal = self.d_signal.astype(floatdtype, copy=False)
                 np.subtract(p_signal, self.baseline, p_signal)
                 np.divide(p_signal, self.adc_gain, p_signal)
@@ -894,96 +903,111 @@ def rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
     read_len = sampto - sampfrom
 
     # Calculate parameters used to read and process the dat file
-    start_byte, n_read_samples, block_floor_samples, extra_flat_samples, nan_replace = _dat_read_params(fmt, sig_len, byte_offset,
-                                                                                                skew, tsamps_per_frame,
-                                                                                                sampfrom, sampto)
+    (start_byte, n_read_samples, block_floor_samples,
+     extra_flat_samples, nan_replace) = _dat_read_params(fmt, sig_len,
+                                                         byte_offset, skew,
+                                                         tsamps_per_frame,
+                                                         sampfrom, sampto)
 
     # Number of bytes to be read from the dat file
     total_read_bytes = _required_byte_num('read', fmt, n_read_samples)
 
-    # Total samples to be processed in intermediate step. Includes extra padded samples beyond dat file
+    # Total samples to be processed in intermediate step. Includes extra
+    # padded samples beyond dat file
     total_process_samples = n_read_samples + extra_flat_samples
 
     # Total number of bytes to be processed in intermediate step.
     total_process_bytes = _required_byte_num('read', fmt, total_process_samples)
 
-    # Get the intermediate bytes or samples to process. Bit of a discrepancy. Recall special formats
-    # load uint8 bytes, other formats already load samples.
+    # Get the intermediate bytes or samples to process. Bit of a
+    # discrepancy. Recall special formats load uint8 bytes, other formats
+    # already load samples.
 
-    # Read values from dat file, and append bytes/samples if needed.
+    # Read values from dat file. Append bytes/samples if needed.
     if extra_flat_samples:
-        if fmt in SPECIAL_FMTS:
+        if fmt in UNALIGNED_FMTS:
             # Extra number of bytes to append onto the bytes read from
             # the dat file.
             n_extra_bytes = total_process_bytes - total_read_bytes
 
-            sig_bytes = np.concatenate((_rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
-                                      np.zeros(n_extra_bytes, dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
+            sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
+                                                     pb_dir, fmt, start_byte,
+                                                     n_read_samples),
+                                        np.zeros(n_extra_bytes,
+                                                 dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
         else:
-            sig_bytes = np.concatenate((_rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples),
-                                      np.zeros(extra_flat_samples, dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
+            sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
+                                                     pb_dir, fmt, start_byte,
+                                                     n_read_samples),
+                                        np.zeros(extra_flat_samples,
+                                                 dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
     else:
-        sig_bytes = _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_read_samples)
+        sig_data = _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte,
+                                 n_read_samples)
 
-    # Continue to process the read values into proper samples
+    # Finish processing the read data into proper samples if not already
 
-    # For special fmts, Turn the bytes into actual samples
-    if fmt in SPECIAL_FMTS:
-        sig_bytes = _bytes_to_samples(sig_bytes, total_process_samples, fmt)
+    # For unaligned fmts, turn the uint8 blocks into actual samples
+    if fmt in UNALIGNED_FMTS:
+        sig_data = _blocks_to_samples(sig_data, total_process_samples, fmt)
         # Remove extra leading sample read within the byte block if any
         if block_floor_samples:
-            sig_bytes = sig_bytes[block_floor_samples:]
-    # Adjust for byte offset formats
-    elif fmt == '80':
-        sig_bytes = (sig_bytes.astype('int16') - 128).astype('int8')
-    elif fmt == '160':
-        sig_bytes = (sig_bytes.astype('int32') - 32768).astype('int16')
+            sig_data = sig_data[block_floor_samples:]
 
-    # At this point, dtype of sig_bytes is the minimum integer format required for storing
-    # final samples.
+    # Adjust samples values for byte offset formats
+    if fmt in OFFSET_FMTS:
+        if fmt == '80':
+            sig_data = (sig_data.astype('int16') - 128).astype('int8')
+        elif fmt == '160':
+            sig_data = (sig_data.astype('int32') - 32768).astype('int16')
+
+    # At this point, dtype of sig_data is the minimum integer format
+    # required for storing the final digital samples.
 
     # No extra samples/frame. Obtain original uniform numpy array
-    if tsamps_per_frame==n_sig:
+    if tsamps_per_frame == n_sig:
         # Reshape into multiple channels
-        sig = sig_bytes.reshape(-1, n_sig)
+        signal = sig_data.reshape(-1, n_sig)
         # Skew the signal
-        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace)
-
+        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace)
     # Extra frames present to be smoothed. Obtain averaged uniform numpy array
     elif smooth_frames:
-
         # Allocate memory for smoothed signal.
-        sig = np.zeros((int(len(sig_bytes)/tsamps_per_frame) , n_sig), dtype=sig_bytes.dtype)
+        signal = np.zeros((int(len(sig_data) / tsamps_per_frame) , n_sig),
+                       dtype=sig_data.dtype)
 
         # Transfer and average samples
         for ch in range(n_sig):
             if samps_per_frame[ch] == 1:
-                sig[:, ch] = sig_bytes[sum(([0] + samps_per_frame)[:ch + 1])::tsamps_per_frame]
+                signal[:, ch] = sig_data[sum(([0] + samps_per_frame)[:ch + 1])::tsamps_per_frame]
             else:
                 if ch == 0:
                     startind = 0
                 else:
                     startind = np.sum(samps_per_frame[:ch])
-                sig[:,ch] = [np.average(sig_bytes[ind:ind+samps_per_frame[ch]]) for ind in range(startind,len(sig_bytes),tsamps_per_frame)]
+                signal[:,ch] = [np.average(sig_data[ind:ind+samps_per_frame[ch]]) for ind in range(startind,len(sig_data),tsamps_per_frame)]
         # Skew the signal
-        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace)
+        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace)
 
-    # Extra frames present without wanting smoothing. Return all expanded samples.
+    # Extra frames present without wanting smoothing. Return all
+    # expanded samples.
     else:
         # List of 1d numpy arrays
-        sig=[]
+        signal = []
         # Transfer over samples
         for ch in range(n_sig):
             # Indices of the flat signal that belong to the channel
-            ch_indices = np.concatenate([np.array(range(samps_per_frame[ch])) + sum([0]+samps_per_frame[:ch]) + tsamps_per_frame*framenum for framenum in range(int(len(sig_bytes)/tsamps_per_frame))])
-            sig.append(sig_bytes[ch_indices])
+            ch_indices = np.concatenate([np.array(range(samps_per_frame[ch]))
+                                         + sum([0] + samps_per_frame[:ch])
+                                         + tsamps_per_frame * framenum for framenum in range(int(len(sig_data)/tsamps_per_frame))])
+            signal.append(sig_data[ch_indices])
         # Skew the signal
-        sig = _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
+        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
 
     # Integrity check of signal shape after reading
-    _check_sig_dims(sig, read_len, n_sig, samps_per_frame)
+    _check_sig_dims(signal, read_len, n_sig, samps_per_frame)
 
-    return sig
+    return signal
 
 
 def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
@@ -1039,8 +1063,9 @@ def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
     start_flat_sample = sampfrom * tsamps_per_frame
 
     # Calculate the last flat sample number to read.
-    # Cannot exceed sig_len * tsamps_per_frame, the number of samples stored in the file.
-    # If extra 'samples' are desired by the skew, keep track.
+    # Cannot exceed sig_len * tsamps_per_frame, the number of samples
+    # stored in the file. If extra 'samples' are desired by the skew,
+    # keep track.
     # Where was the -sampfrom derived from? Why was it in the formula?
     if (sampto + max(skew)) > sig_len:
         end_flat_sample = sig_len * tsamps_per_frame
@@ -1079,16 +1104,16 @@ def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
 def _required_byte_num(mode, fmt, n_samp):
     """
     Determine how many signal bytes are needed to read or write a
-    special format dat file.
+    number of desired samples from a dat file.
 
     Parameters
     ----------
     mode : str
         Whether the file is to be read or written: 'read' or 'write'.
     fmt : str
-        The wfdb dat format
+        The wfdb dat format.
     n_samp : int
-        The number of samples
+        The number of samples wanted.
 
     Returns
     -------
@@ -1131,7 +1156,8 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     Read data from a dat file, either local or remote, into a 1d numpy
     array.
 
-    This is the lowest level dat reading function, and is called by
+    This is the lowest level dat reading function (along with
+    `stream_dat` which this function may call), and is called by
     `rd_dat_signals`.
 
     Parameters
@@ -1155,9 +1181,10 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
 
     Returns
     -------
-    sig_bytes : numpy array
-        The dtype varies depending on fmt. Non-special fmts are read in
-        their final required format. Special format are read as uint8.
+    sig_data : numpy array
+        The data read from the dat file. The dtype varies depending on
+        fmt. Byte aligned fmts are read in their final required format.
+        Unaligned formats are read as uint8 to be further processed.
 
     Notes
     -----
@@ -1168,8 +1195,8 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     """
 
     # element_count is the number of elements to read using np.fromfile
-    # (for local files)
-    # byte_count is the number of bytes to read (for streaming files)
+    # for local files
+    # byte_count is the number of bytes to read for streaming files
     if fmt == '212':
         byte_count = _required_byte_num('read', '212', n_samp)
         element_count = byte_count
@@ -1184,26 +1211,25 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     if pb_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
-            sig_bytes = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+            sig_data = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
                                     count=element_count)
     # Stream dat file from physiobank
     else:
-        sig_bytes = download.stream_dat(file_name, pb_dir, fmt, byte_count,
-                                        start_byte,
-                                        np.dtype(DATA_LOAD_TYPES[fmt]))
+        sig_data = download.stream_dat(file_name, pb_dir, byte_count,
+                                       start_byte,
+                                       np.dtype(DATA_LOAD_TYPES[fmt]))
 
-    return sig_bytes
+    return sig_data
 
 
-def _bytes_to_samples(sig_bytes, n_samp, fmt):
+def _blocks_to_samples(sig_data, n_samp, fmt):
     """
-    Convert uint8 blocks into samples for special dat formats.
+    Convert uint8 blocks into signal samples for unaligned dat formats.
 
     Parameters
     ----------
-    sig_bytes : numpy array
-        The uint8 data blocks. Note, not a bytes object, but a numpy
-        array with dtype='uint8'
+    sig_data : numpy array
+        The uint8 data blocks.
     n_samp : int
         The number of samples contained in the bytes
 
@@ -1218,19 +1244,20 @@ def _bytes_to_samples(sig_bytes, n_samp, fmt):
         if n_samp % 2:
             n_samp += 1
             added_samps = 1
-            sig_bytes = np.append(sig_bytes, np.zeros(1, dtype='uint8'))
+            sig_data = np.append(sig_data, np.zeros(1, dtype='uint8'))
         else:
             added_samps = 0
 
-        sig_bytes = sig_bytes.astype('int16')
+        sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
         # One sample pair is stored in one byte triplet.
 
         # Even numbered samples
-        sig[0::2] = sig_bytes[0::3] + 256 * np.bitwise_and(sig_bytes[1::3], 0x0f)
-        # Odd numbered samples (len(sig) always >1 due to processing of whole blocks)
-        sig[1::2] = sig_bytes[2::3] + 256*np.bitwise_and(sig_bytes[1::3] >> 4, 0x0f)
+        sig[0::2] = sig_data[0::3] + 256 * np.bitwise_and(sig_data[1::3], 0x0f)
+        # Odd numbered samples (len(sig) always > 1 due to processing of
+        # whole blocks)
+        sig[1::2] = sig_data[2::3] + 256*np.bitwise_and(sig_data[1::3] >> 4, 0x0f)
 
         # Remove trailing sample read within the byte block if
         # originally odd sampled
@@ -1246,22 +1273,23 @@ def _bytes_to_samples(sig_bytes, n_samp, fmt):
         if n_samp % 3:
             n_samp = upround(n_samp,3)
             added_samps = n_samp % 3
-            sig_bytes = np.append(sig_bytes, np.zeros(added_samps, dtype='uint8'))
+            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
         else:
             added_samps = 0
 
-        sig_bytes = sig_bytes.astype('int16')
+        sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
         # One sample triplet is stored in one byte quartet
         # First sample is 7 msb of first byte and 3 lsb of second byte.
-        sig[0::3] = (sig_bytes[0::4] >> 1)[0:len(sig[0::3])] + 128 * np.bitwise_and(sig_bytes[1::4], 0x07)[0:len(sig[0::3])]
+        sig[0::3] = (sig_data[0::4] >> 1)[0:len(sig[0::3])] + 128 * np.bitwise_and(sig_data[1::4], 0x07)[0:len(sig[0::3])]
         # Second signal is 7 msb of third byte and 3 lsb of forth byte
-        sig[1::3] = (sig_bytes[2::4] >> 1)[0:len(sig[1::3])] + 128 * np.bitwise_and(sig_bytes[3::4], 0x07)[0:len(sig[1::3])]
+        sig[1::3] = (sig_data[2::4] >> 1)[0:len(sig[1::3])] + 128 * np.bitwise_and(sig_data[3::4], 0x07)[0:len(sig[1::3])]
         # Third signal is 5 msb of second byte and 5 msb of forth byte
-        sig[2::3] = np.bitwise_and((sig_bytes[1::4] >> 3), 0x1f)[0:len(sig[2::3])] + 32 * np.bitwise_and(sig_bytes[3::4] >> 3, 0x1f)[0:len(sig[2::3])]
+        sig[2::3] = np.bitwise_and((sig_data[1::4] >> 3), 0x1f)[0:len(sig[2::3])] + 32 * np.bitwise_and(sig_data[3::4] >> 3, 0x1f)[0:len(sig[2::3])]
 
-        # Remove trailing samples read within the byte block if originally not 3n sampled
+        # Remove trailing samples read within the byte block if
+        # originally not 3n sampled
         if added_samps:
             sig = sig[:-added_samps]
 
@@ -1274,22 +1302,23 @@ def _bytes_to_samples(sig_bytes, n_samp, fmt):
         if n_samp % 3:
             n_samp = upround(n_samp,3)
             added_samps = n_samp % 3
-            sig_bytes = np.append(sig_bytes, np.zeros(added_samps, dtype='uint8'))
+            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
         else:
             added_samps = 0
 
-        sig_bytes = sig_bytes.astype('int16')
+        sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
         # One sample triplet is stored in one byte quartet
         # First sample is first byte and 2 lsb of second byte.
-        sig[0::3] = sig_bytes[0::4][0:len(sig[0::3])] + 256 * np.bitwise_and(sig_bytes[1::4], 0x03)[0:len(sig[0::3])]
+        sig[0::3] = sig_data[0::4][0:len(sig[0::3])] + 256 * np.bitwise_and(sig_data[1::4], 0x03)[0:len(sig[0::3])]
         # Second sample is 6 msb of second byte and 4 lsb of third byte
-        sig[1::3] = (sig_bytes[1::4] >> 2)[0:len(sig[1::3])] + 64 * np.bitwise_and(sig_bytes[2::4], 0x0f)[0:len(sig[1::3])]
+        sig[1::3] = (sig_data[1::4] >> 2)[0:len(sig[1::3])] + 64 * np.bitwise_and(sig_data[2::4], 0x0f)[0:len(sig[1::3])]
         # Third sample is 4 msb of third byte and 6 msb of forth byte
-        sig[2::3] = (sig_bytes[2::4] >> 4)[0:len(sig[2::3])] + 16 * np.bitwise_and(sig_bytes[3::4], 0x7f)[0:len(sig[2::3])]
+        sig[2::3] = (sig_data[2::4] >> 4)[0:len(sig[2::3])] + 16 * np.bitwise_and(sig_data[3::4], 0x7f)[0:len(sig[2::3])]
 
-        # Remove trailing samples read within the byte block if originally not 3n sampled
+        # Remove trailing samples read within the byte block if
+        # originally not 3n sampled
         if added_samps:
             sig = sig[:-added_samps]
 
@@ -1335,7 +1364,7 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
             # Insert nans where skewed signal overran dat file
             for ch in range(n_sig):
                 if nan_replace[ch]>0:
-                    sig[ch][-nan_replace[ch]:] = digi_nan(fmt)
+                    sig[ch][-nan_replace[ch]:] = _digi_nan(fmt)
         # Uniform array
         else:
             # Shift the channel samples
@@ -1348,7 +1377,7 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
             # Insert nans where skewed signal overran dat file
             for ch in range(n_sig):
                 if nan_replace[ch]>0:
-                    sig[-nan_replace[ch]:, ch] = digi_nan(fmt)
+                    sig[-nan_replace[ch]:, ch] = _digi_nan(fmt)
 
     return sig
 
@@ -1398,7 +1427,7 @@ def _digi_bounds(fmt):
         return (-2147483648, 2147483647)
 
 
-def digi_nan(fmt):
+def _digi_nan(fmt):
     """
     Return the wfdb digital value used to store nan for the format type.
 
@@ -1409,7 +1438,7 @@ def digi_nan(fmt):
 
     """
     if isinstance(fmt, list):
-        return [digi_nan(f) for f in fmt]
+        return [_digi_nan(f) for f in fmt]
 
     if fmt == '80':
         return -128
@@ -1586,7 +1615,8 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
     if expanded:
         n_sig = len(e_d_signal)
         sig_len = int(len(e_d_signal[0])/samps_per_frame[0])
-        # Effectively create MxN signal, with extra frame samples acting like extra channels
+        # Effectively create MxN signal, with extra frame samples acting
+        # like extra channels
         d_signal = np.zeros((sig_len, sum(samps_per_frame)), dtype = 'int64')
         # Counter for channel number
         expand_ch = 0
@@ -1606,14 +1636,17 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         # Concatenate into 1D
         d_signal = d_signal.reshape(-1)
         # Convert to un_signed 8 bit dtype to write
-        bwrite = d_signal.astype('uint8')
+        b_write = d_signal.astype('uint8')
 
     elif fmt == '212':
-        # Each sample is represented by a 12 bit two's complement amplitude.
-        # The first sample is obtained from the 12 least significant bits of the first byte pair (stored least significant byte first).
-        # The second sample is formed from the 4 remaining bits of the first byte pair (which are the 4 high bits of the 12-bit sample)
-        # and the next byte (which contains the remaining 8 bits of the second sample).
-        # The process is repeated for each successive pair of samples.
+        # Each sample is represented by a 12 bit two's complement
+        # amplitude. The first sample is obtained from the 12 least
+        # significant bits of the first byte pair (stored least
+        # significant byte first). The second sample is formed from the
+        # 4 remaining bits of the first byte pair (which are the 4 high
+        # bits of the 12-bit sample) and the next byte (which contains
+        # the remaining 8 bits of the second sample). The process is
+        # repeated for each successive pair of samples.
 
         # convert to 12 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 4096
@@ -1625,26 +1658,27 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         # use this for byte processing
         processn_samp = n_samp
 
-        # Odd numbered number of samples. Fill in extra blank for following byte calculation.
+        # Odd numbered number of samples. Fill in extra blank for
+        # following byte calculation.
         if processn_samp % 2:
             d_signal = np.concatenate([d_signal, np.array([0])])
             processn_samp +=1
 
         # The individual bytes to write
-        bwrite = np.zeros([int(1.5*processn_samp)], dtype = 'uint8')
+        b_write = np.zeros([int(1.5*processn_samp)], dtype = 'uint8')
 
         # Fill in the byte triplets
 
         # Triplet 1 from lowest 8 bits of sample 1
-        bwrite[0::3] = d_signal[0::2] & 255
+        b_write[0::3] = d_signal[0::2] & 255
         # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
-        bwrite[1::3] = ((d_signal[0::2] & 3840) >> 8) + ((d_signal[1::2] & 3840) >> 4)
+        b_write[1::3] = ((d_signal[0::2] & 3840) >> 8) + ((d_signal[1::2] & 3840) >> 4)
         # Triplet 3 from lowest 8 bits of sample 2
-        bwrite[2::3] = d_signal[1::2] & 255
+        b_write[2::3] = d_signal[1::2] & 255
 
         # If we added an extra sample for byte calculation, remove the last byte (don't write)
         if n_samp % 2:
-            bwrite = bwrite[:-1]
+            b_write = b_write[:-1]
 
     elif fmt == '16':
         # convert to 16 bit two's complement
@@ -1655,10 +1689,10 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
-        bwrite = np.concatenate((b1, b2), axis=1)
-        bwrite = bwrite.reshape((1,-1))[0]
+        b_write = np.concatenate((b1, b2), axis=1)
+        b_write = b_write.reshape((1,-1))[0]
         # Convert to un_signed 8 bit dtype to write
-        bwrite = bwrite.astype('uint8')
+        b_write = b_write.astype('uint8')
     elif fmt == '24':
         # convert to 24 bit two's complement
         d_signal[d_signal<0] = d_signal[d_signal<0] + 16777216
@@ -1670,10 +1704,10 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
         b3 = b3.reshape((-1, 1))
-        bwrite = np.concatenate((b1, b2, b3), axis=1)
-        bwrite = bwrite.reshape((1,-1))[0]
+        b_write = np.concatenate((b1, b2, b3), axis=1)
+        b_write = b_write.reshape((1,-1))[0]
         # Convert to un_signed 8 bit dtype to write
-        bwrite = bwrite.astype('uint8')
+        b_write = b_write.astype('uint8')
 
     elif fmt == '32':
         # convert to 32 bit two's complement
@@ -1688,24 +1722,21 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         b2 = b2.reshape((-1, 1))
         b3 = b3.reshape((-1, 1))
         b4 = b4.reshape((-1, 1))
-        bwrite = np.concatenate((b1, b2, b3, b4), axis=1)
-        bwrite = bwrite.reshape((1,-1))[0]
+        b_write = np.concatenate((b1, b2, b3, b4), axis=1)
+        b_write = b_write.reshape((1,-1))[0]
         # Convert to un_signed 8 bit dtype to write
-        bwrite = bwrite.astype('uint8')
+        b_write = b_write.astype('uint8')
     else:
         raise ValueError('This library currently only supports writing the following formats: 80, 16, 24, 32')
 
     # Byte offset in the file
     if byte_offset is not None and byte_offset>0:
         print('Writing file '+file_name+' with '+str(byte_offset)+' empty leading bytes')
-        bwrite = np.append(np.zeros(byte_offset, dtype = 'uint8'), bwrite)
+        b_write = np.append(np.zeros(byte_offset, dtype = 'uint8'), b_write)
 
-    f=open(os.path.join(write_dir, file_name),'wb')
-
-    # Write the file
-    bwrite.tofile(f)
-
-    f.close()
+    # Write the bytes to the file
+    with open(os.path.join(write_dir, file_name),'wb') as f:
+        b_write.tofile(f)
 
 
 def describe_list_indices(full_list):
