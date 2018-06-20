@@ -4,6 +4,9 @@ import os
 
 from . import download
 import pdb
+
+MAX_I32 = 2147483647
+MIN_I32 = -2147483648
 # WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
 SIMPLE_FMTS = ['80', '16', '24', '32']
 SPECIAL_FMTS = ['212', '310', '311']
@@ -548,10 +551,13 @@ class SignalMixin(object):
             # Regular varied signal case.
             else:
                 # The equation is: p = (d - b) / g
+
                 # Approximately, pmax maps to dmax, and pmin maps to
                 # dmin. Gradient will be equal to, or close to
                 # delta(d) / delta(p), since intercept baseline has
                 # to be an integer.
+
+                # Constraint: baseline must be between +/- 2**31
                 adc_gain = (dmax-dmin) / (pmax-pmin)
                 baseline = dmin - adc_gain*pmin
                 # Make adjustments for baseline to be an integer
@@ -571,9 +577,18 @@ class SignalMixin(object):
                 if dmin != baseline:
                     adc_gain = (dmin - baseline) / pmin
 
-            # Safety check for WFDB library limit.
-            if abs(baseline)>2147483648:
-                raise Exception('baseline must have magnitude < 2147483648')
+            # Remap signal if baseline exceeds boundaries.
+            # This may happen if pmax < 0
+            if baseline > MAX_I32:
+                # pmin maps to dmin, baseline maps to 2**31 - 1
+                # pmax will map to a lower value than before
+                adc_gain = (MAX_I32) - dmin / abs(pmin)
+                baseline = MAX_I32
+            # This may happen if pmin > 0
+            elif baseline < MIN_I32:
+                # pmax maps to dmax, baseline maps to -2**31 + 1
+                adc_gain = (dmax - MIN_I32) / pmax
+                baseline = MIN_I32
 
             adc_gains.append(adc_gain)
             baselines.append(baseline)
@@ -1232,13 +1247,16 @@ dataloadtypes = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
 #------------------- /Reading Signals -------------------#
 
 
-# Return min and max digital values for each format type. Accepts lists.
+
 def digi_bounds(fmt):
+    """
+    Return min and max digital values for each format type.
+    Accepts lists.
+
+    """
     if isinstance(fmt, list):
         digibounds = []
-        for f in fmt:
-            digibounds.append(digi_bounds(f))
-        return digibounds
+        return [digi_bounds(f) for f in fmt]
 
     if fmt == '80':
         return (-128, 127)
@@ -1254,10 +1272,7 @@ def digi_bounds(fmt):
 # Return nan value for the format type(s).
 def digi_nan(fmt):
     if isinstance(fmt, list):
-        diginans = []
-        for f in fmt:
-            diginans.append(digi_nan(f))
-        return diginans
+        return [digi_nan(f) for f in fmt]
 
     if fmt == '80':
         return -128
@@ -1333,7 +1348,6 @@ def est_res(signals):
     return res
 
 
-
 def wfdbfmt(res, single_fmt=True):
     """
     Return the most suitable wfdb format(s) to use given signal
@@ -1394,7 +1408,6 @@ def fmt_res(fmt, max_res=False):
         return res[fmt]
     else:
         raise ValueError('Invalid WFDB format.')
-
 
 
 def np_dtype(res, discrete):
