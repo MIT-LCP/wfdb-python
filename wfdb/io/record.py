@@ -570,7 +570,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return (seg_numbers, readsamps)
 
 
-    def _get_required_channels(self, seg_numbers, channels, dirname, pb_dir):
+    def _get_required_channels(self, seg_numbers, channels, dir_name, pb_dir):
         """
         Get the channel numbers to be read from each specified segment,
         given the channel numbers specified for the entire record.
@@ -610,7 +610,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 else:
                     # Get the signal names of the current segment
                     s_sig_names = rdheader(
-                        os.path.join(dirname, self.seg_name[seg_numbers[i]]),
+                        os.path.join(dir_name, self.seg_name[seg_numbers[i]]),
                         pb_dir=pb_dir).sig_name
                     required_channels.append(get_wanted_channels(
                         w_sig_names, s_sig_names))
@@ -939,6 +939,14 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
 #------------------------- Reading Records --------------------------- #
 
+def infer_sig_len(file_name, pb_dir):
+    """
+    Infer the length of a signal
+    """
+
+
+    return
+
 def rdheader(record_name, pb_dir=None, rd_segments=False):
     """
     Read a WFDB header file and return a `Record` or `MultiRecord`
@@ -947,16 +955,18 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     Parameters
     ----------
     record_name : str
-        The name of the WFDB record to be read (without any file extensions).
-        If the argument contains any path delimiter characters, the argument
-        will be interpreted as PATH/baserecord and the header file will be
-        searched for in the local path.
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pb_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
     pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
-        directory from which to find the required record files.
+        Option used to stream data from Physiobank. The Physiobank
+        database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
         pb_dir='mitdb'.
-
     rd_segments : bool, optional
         Used when reading multi-segment headers. If True, segment headers will
         also be read (into the record object's `segments` field).
@@ -964,8 +974,8 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     Returns
     -------
     record : Record or MultiRecord
-        The wfdb Record or MultiRecord object representing the contents of the
-        header read.
+        The wfdb Record or MultiRecord object representing the contents
+        of the header read.
 
     Examples
     --------
@@ -973,12 +983,15 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
                                    channels = [1,3])
 
     """
+    dir_name, base_record_name = os.path.split(record_name)
+    dir_name = os.path.abspath(dir_name)
 
     # Read the header file. Separate comment and non-comment lines
-    header_lines, comment_lines = _header.get_header_lines(record_name, pb_dir)
+    header_lines, comment_lines = _header._read_header_lines(base_record_name,
+                                                             dir_name, pb_dir)
 
     # Get fields from record line
-    record_fields = _header._read_record_line(header_lines[0])
+    record_fields = _header._parse_record_line(header_lines[0])
 
     # Single segment header - Process signal specification lines
     if record_fields['n_seg'] is None:
@@ -988,7 +1001,7 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
         # There are signals
         if len(header_lines)>1:
             # Read the fields from the signal lines
-            signal_fields = _header._read_signal_lines(header_lines[1:])
+            signal_fields = _header._parse_signal_lines(header_lines[1:])
             # Set the object's signal fields
             for field in signal_fields:
                 setattr(record, field, signal_fields[field])
@@ -1021,12 +1034,11 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
         if rd_segments:
             record.segments = []
             # Get the base record name (could be empty)
-            dirname = os.path.split(record_name)[0]
             for s in record.seg_name:
                 if s == '~':
                     record.segments.append(None)
                 else:
-                    record.segments.append(rdheader(os.path.join(dirname, s),
+                    record.segments.append(rdheader(os.path.join(dir_name, s),
                                                     pb_dir))
             # Fill in the sig_name attribute
             record.sig_name = record.get_sig_name()
@@ -1039,7 +1051,7 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
     return record
 
 
-def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
+def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
              physical=True, pb_dir=None, m2s=True, smooth_frames=True,
              ignore_skew=False, return_res=64, force_channels=True):
     """
@@ -1049,18 +1061,21 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     Parameters
     ----------
     record_name : str
-        The name of the WFDB record to be read (without any file
-        extensions). If the argument contains any path delimiter
-        characters, the argument will be interpreted as PATH/baserecord
-        and the data files will be searched for in the local path.
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pb_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, or 'end', optional
         The sample number at which to stop reading for all channels.
-        Leave as 'end' to read the entire duration.
+        Reads the entire duration by default.
     channels : list, or 'all', optional
         List of integer indices specifying the channels to be read.
-        Leave as 'all' to read all channels.
+        Reads all channels by default.
     physical : bool, optional
         Specifies whether to return signals in physical units in the
         `p_signal` field (True), or digital units in the `d_signal`
@@ -1124,15 +1139,22 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
     """
 
-    dirname, base_record_name = os.path.split(record_name)
+    dir_name, base_record_name = os.path.split(record_name)
+    dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
     record = rdheader(record_name, pb_dir=pb_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
-    if sampto == 'end':
+    if sampto is None:
+        # If the header does not contain the signal length, figure it
+        # out from the dat file. This is only possible for single
+        # segment records.
+        if record.sig_len is None:
+            record.sig_len = _infer_sig_len(None, None)
         sampto = record.sig_len
-    if channels == 'all':
+
+    if channels is None:
         channels = list(range(record.n_sig))
 
     # Ensure that input fields are valid for the record
@@ -1142,11 +1164,17 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     # A single segment record
     if isinstance(record, Record):
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smooth_frames or max([record.samps_per_frame[c] for c in channels])==1:
-            # Read signals from the associated dat files that contain wanted channels
-            record.d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
-                                                  record.byte_offset, record.samps_per_frame, record.skew,
-                                                  sampfrom, sampto, channels, smooth_frames, ignore_skew)
+        if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
+            # Read signals from the associated dat files that contain
+            # wanted channels
+            record.d_signal = _signal._rd_segment(record.file_name, dir_name,
+                                                  pb_dir, record.fmt,
+                                                  record.n_sig, record.sig_len,
+                                                  record.byte_offset,
+                                                  record.samps_per_frame,
+                                                  record.skew, sampfrom, sampto,
+                                                  channels, smooth_frames,
+                                                  ignore_skew)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1159,9 +1187,15 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = _signal.rd_segment(record.file_name, dirname, pb_dir, record.n_sig, record.fmt, record.sig_len,
-                                                    record.byte_offset, record.samps_per_frame, record.skew,
-                                                    sampfrom, sampto, channels, smooth_frames, ignore_skew)
+            record.e_d_signal = _signal._rd_segment(record.file_name, dir_name,
+                                                    pb_dir, record.fmt,
+                                                    record.n_sig,
+                                                    record.sig_len,
+                                                    record.byte_offset,
+                                                    record.samps_per_frame,
+                                                    record.skew, sampfrom,
+                                                    sampto, channels,
+                                                    smooth_frames, ignore_skew)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1191,7 +1225,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
 
         # Variable layout, read the layout specification header
         if record.layout == 'variable':
-            record.segments[0] = rdheader(os.path.join(dirname,
+            record.segments[0] = rdheader(os.path.join(dir_name,
                                                        record.seg_name[0]),
                                           pb_dir=pb_dir)
 
@@ -1199,7 +1233,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
         seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
         seg_channels = record._get_required_channels(seg_numbers, channels,
-                                                     dirname, pb_dir)
+                                                     dir_name, pb_dir)
 
         # Read the desired samples in the relevant segments
         for i in range(len(seg_numbers)):
@@ -1209,7 +1243,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
                 record.segments[seg_num] = None
             else:
                 record.segments[seg_num] = rdrecord(
-                    os.path.join(dirname, record.seg_name[seg_num]),
+                    os.path.join(dir_name, record.seg_name[seg_num]),
                     sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
                     channels=seg_channels[i], physical=physical, pb_dir=pb_dir)
 
@@ -1231,7 +1265,7 @@ def rdrecord(record_name, sampfrom=0, sampto='end', channels='all',
     return record
 
 
-def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
+def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
     """
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.
@@ -1247,10 +1281,10 @@ def rdsamp(record_name, sampfrom=0, sampto='end', channels='all', pb_dir=None):
         The starting sample number to read for all channels.
     sampto : int, or 'end', optional
         The sample number at which to stop reading for all channels.
-        Leave as 'end' to read the entire duration.
+        Reads the entire duration by default.
     channels : list, or 'all', optional
         List of integer indices specifying the channels to be read.
-        Leave as 'all' to read all channels.
+        Reads all channels by default.
     pb_dir : str, optional
         Option used to stream data from Physiobank. The Physiobank
         database directory from which to find the required record files.
@@ -1531,14 +1565,14 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
                 rec = rec + rec[:-1]
             # If MIT format, have to figure out all associated files
             allfiles.append(rec+'.hea')
-            dirname, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pb_dir=posixpath.join(db_dir, dirname))
+            dir_name, baserecname = os.path.split(rec)
+            record = rdheader(baserecname, pb_dir=posixpath.join(db_dir, dir_name))
 
             # Single segment record
             if isinstance(record, Record):
                 # Add all dat files of the segment
                 for file in (record.file_name if record.file_name else []):
-                    allfiles.append(posixpath.join(dirname, file))
+                    allfiles.append(posixpath.join(dir_name, file))
 
             # Multi segment record
             else:
@@ -1547,14 +1581,14 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
                     if seg == '~':
                         continue
                     # Add the header
-                    allfiles.append(posixpath.join(dirname, seg+'.hea'))
+                    allfiles.append(posixpath.join(dir_name, seg+'.hea'))
                     # Layout specifier has no dat files
                     if seg.endswith('_layout'):
                         continue
                     # Add all dat files of the segment
-                    recseg = rdheader(seg, pb_dir=posixpath.join(db_dir, dirname))
+                    recseg = rdheader(seg, pb_dir=posixpath.join(db_dir, dir_name))
                     for file in recseg.file_name:
-                        allfiles.append(posixpath.join(dirname, file))
+                        allfiles.append(posixpath.join(dir_name, file))
         # check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:

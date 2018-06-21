@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+import pdb
 
 import numpy as np
 import pandas as pd
@@ -8,7 +9,6 @@ import pandas as pd
 from . import download
 from . import _signal
 
-import pdb
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
 float_types = (float, np.float64, np.float32) + int_types
 
@@ -672,14 +672,37 @@ def wfdb_strptime(time_string):
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
-def get_header_lines(record_name, pb_dir):
+def _read_header_lines(base_record_name, dir_name, pb_dir):
     """
-    Read a header file to get comment and non-comment lines
+    Read the lines in a local or remote header file.
+
+    Parameters
+    ----------
+    base_record_name : str
+        The base name of the WFDB record to be read, without any file
+        extensions.
+    dir_name : str
+        The local directory location of the header file. This parameter
+        is ignored if `pb_dir` is set.
+    pb_dir : str
+        Option used to stream data from Physiobank. The Physiobank
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
+        pb_dir='mitdb'.
+
+    Returns
+    -------
+    header_lines : list
+        List of strings corresponding to the header lines.
+    comment_lines : list
+        List of strings corresponding to the comment lines.
 
     """
+    file_name = base_record_name + '.hea'
+
     # Read local file
     if pb_dir is None:
-        with open(record_name + ".hea", 'r') as fp:
+        with open(os.path.join(dir_name, file_name), 'r') as fp:
             # Record line followed by signal/segment lines if any
             header_lines = []
             # Comment lines
@@ -701,12 +724,13 @@ def get_header_lines(record_name, pb_dir):
                         header_lines.append(line)
     # Read online header file
     else:
-        header_lines, comment_lines = download.stream_header(record_name, pb_dir)
+        header_lines, comment_lines = download._stream_header(file_name,
+                                                              pb_dir)
 
     return header_lines, comment_lines
 
 
-def _read_record_line(record_line):
+def _parse_record_line(record_line):
     """
     Extract fields from a record line string into a dictionary
 
@@ -753,7 +777,7 @@ def _read_record_line(record_line):
     return record_fields
 
 
-def _read_signal_lines(signal_lines):
+def _parse_signal_lines(signal_lines):
     """
     Extract fields from a list of signal line strings into a dictionary.
 

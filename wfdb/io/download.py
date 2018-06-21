@@ -10,13 +10,22 @@ db_index_url = 'http://physionet.org/physiobank/database/'
 
 
 
-def stream_header(record_name, pb_dir):
+def _stream_header(file_name, pb_dir):
     """
-    Read a header file from physiobank
+    Stream the lines of a remote header file.
+
+    Parameters
+    ----------
+    file_name : str
+
+    pb_dir : str
+        The Physiobank database directory from which to find the
+        required header file. eg. For file '100.hea' in
+        'http://physionet.org/physiobank/database/mitdb', pb_dir='mitdb'.
 
     """
     # Full url of header location
-    url = posixpath.join(db_index_url, pb_dir, record_name+'.hea')
+    url = posixpath.join(db_index_url, pb_dir, file_name)
     r = requests.get(url)
 
     # Raise HTTPError if invalid url
@@ -48,7 +57,7 @@ def stream_header(record_name, pb_dir):
     return (header_lines, comment_lines)
 
 
-def stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
+def _stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     """
     Stream data from a remote dat file, into a 1d numpy array.
 
@@ -92,7 +101,7 @@ def stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     return sig_data
 
 
-def stream_annotation(file_name, pb_dir):
+def _stream_annotation(file_name, pb_dir):
     """
     Stream an entire remote annotation file from physiobank
 

@@ -1330,7 +1330,7 @@ def load_byte_pairs(record_name, extension, pb_dir):
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # physiobank file
     else:
-        filebytes = download.stream_annotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
+        filebytes = download._stream_annotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
 
     return filebytes
 
@@ -1341,7 +1341,9 @@ def proc_ann_bytes(filebytes, sampto):
     sample, label_store, subtype, chan, num, aux_note = [], [], [], [], [], []
 
     # Indexing Variables
-    # Total number of sample from beginning of record. Annotation bytes only store sample_diff
+
+    # Total number of sample from beginning of record. Annotation bytes
+    # only store sample_diff
     sample_total = 0
     # Byte pair index
     bpi = 0

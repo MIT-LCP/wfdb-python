@@ -1,6 +1,7 @@
 import math
-import numpy as np
 import os
+
+import numpy as np
 
 from . import download
 import pdb
@@ -247,7 +248,7 @@ class SignalMixin(object):
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions.
                     res = est_res(self.e_p_signal)
-                    self.fmt = wfdbfmt(res, single_fmt)
+                    self.fmt = _wfdb_fmt(res, single_fmt)
                 # If there is a fmt set
                 else:
                     self.check_field('fmt', 'all')
@@ -283,7 +284,7 @@ class SignalMixin(object):
                         raise Exception('If fmt is not set, gain and baseline may not be set either.')
                     # Choose appropriate fmts based on estimated signal resolutions.
                     res = est_res(self.p_signal)
-                    self.fmt = wfdbfmt(res, single_fmt)
+                    self.fmt = _wfdb_fmt(res, single_fmt)
                     # Calculate and set optimal gain and baseline values to convert physical signals
                     self.adc_gain, self.baseline = self.calc_adc_params()
 
@@ -746,16 +747,54 @@ class SignalMixin(object):
 
 #------------------- Reading Signals -------------------#
 
-def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
-              samps_per_frame, skew, sampfrom, sampto, channels,
-              smooth_frames, ignore_skew):
+def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
+                samps_per_frame, skew, sampfrom, sampto, channels,
+                smooth_frames, ignore_skew):
     """
-    Read the samples from a single segment record's associated dat
-    file(s)
+    Read the digital samples from a single segment record's associated
+    dat file(s).
 
     Parameters
     ----------
+    file_name : list
+        The names of the dat files to be read.
+    dir_name : str
+        The full directory where the dat file(s) are located, if the dat
+        file(s) are local.
+    pb_dir : str
+        The physiobank directory where the dat file(s) are located, if
+        the dat file(s) are remote.
+    fmt : list
+        The formats of the dat files
+    n_sig : int
+        The number of signals contained in the dat file
+    sig_len : int
+        The signal length (per channel) of the dat file
+    byte_offset : int
+        The byte offset of the dat file
+    samps_per_frame : list
+        The samples/frame for each signal of the dat file
+    skew : list
+        The skew for the signals of the dat file
+    sampfrom : int
+        The starting sample number to be read from the signals
+    sampto : int
+        The final sample number to be read from the signals
+    smooth_frames : bool
+        Whether to smooth channels with multiple samples/frame
+    ignore_skew : bool, optional
+        Used when reading records with at least one skewed signal.
+        Specifies whether to apply the skew to align the signals in the
+        output variable (False), or to ignore the skew field and load in
+        all values contained in the dat files unaligned (True).
 
+    Returns
+    -------
+    signals : numpy array, or list
+        The signals read from the dat file(s). A 2d numpy array is
+        returned if the signals have uniform samples/frame or if
+        `smooth_frames` is True. Otherwise a list of 1d numpy arrays
+        is returned.
 
     Notes
     -----
@@ -821,13 +860,13 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
     # Return uniform numpy array
     if smooth_frames or sum(samps_per_frame) == n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
-        max_dtype = np_dtype(fmt_res(fmt, max_res=True), discrete=True)
+        max_dtype = np_dtype(_fmt_res(fmt, max_res=True), discrete=True)
         # Allocate signal array. Minimize dtype
         signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            signals[:, out_dat_channel[fn]] = rd_dat_signals(fn, dir_name, pb_dir,
+            signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name, pb_dir,
                 w_fmt[fn], len(datchannel[fn]), sig_len, w_byte_offset[fn],
                 w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
                 smooth_frames)[:, r_w_channel[fn]]
@@ -839,8 +878,10 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
-            datsignals = rd_dat_signals(fn, dir_name, pb_dir, w_fmt[fn], len(datchannel[fn]),
-                sig_len, w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto, smooth_frames)
+            datsignals = _rd_dat_signals(fn, dir_name, pb_dir, w_fmt[fn],
+                len(datchannel[fn]), sig_len, w_byte_offset[fn],
+                w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
+                smooth_frames)
 
             # Copy over the wanted signals
             for cn in range(len(out_dat_channel[fn])):
@@ -849,51 +890,27 @@ def rd_segment(file_name, dir_name, pb_dir, n_sig, fmt, sig_len, byte_offset,
     return signals
 
 
-def rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
+def _rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
                    byte_offset, samps_per_frame, skew, sampfrom, sampto,
                    smooth_frames):
     """
-    Read signals from a WFDB dat file. Returns all channels.
-
+    Read all signals from a WFDB dat file.
 
     Parameters
     ----------
     file_name : str
-        The name of the dat file to be read.
-    dir_name : str
-        The full directory where the dat file is located, if the dat
-        file is local.
-    pb_dir : str
-        The physiobank directory where the dat file is located, if the
-        dat file is remote.
-    fmt : str
-        The format of the dat file
-    n_sig : int
-        The number of signals contained in the dat file
-    sig_len : int
-        The signal length (per channel) of the dat file
-    byte_offset : int
-        The byte offset of the dat file
-    samps_per_frame : list
-        The samples/frame for each signal of the dat file
-    skew : list
-        The skew for the signals of the dat file
-    sampfrom : int
-        The starting sample number to be read from the signals
-    sampto : int
-        The final sample number to be read from the signals
-    smooth_frames : bool
-        Whether to smooth channels with multiple samples/frame
+        The name of the dat file
+    * other params
+        See docstring for `_rd_segment`.
 
     Returns
     -------
-    signal : numpy array
-        The read signal
+    signals : numpy array, or list
+        See docstring for `_rd_segment`.
 
     Notes
     -----
-    `sampfrom`, `sampto`, and `smooth_frames` are user desired
-    input fields. All other fields specify the file parameters.
+    See docstring notes for `_rd_segment`.
 
     """
 
@@ -917,7 +934,8 @@ def rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
     total_process_samples = n_read_samples + extra_flat_samples
 
     # Total number of bytes to be processed in intermediate step.
-    total_process_bytes = _required_byte_num('read', fmt, total_process_samples)
+    total_process_bytes = _required_byte_num('read', fmt,
+                                             total_process_samples)
 
     # Get the intermediate bytes or samples to process. Bit of a
     # discrepancy. Recall special formats load uint8 bytes, other formats
@@ -1157,27 +1175,19 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     array.
 
     This is the lowest level dat reading function (along with
-    `stream_dat` which this function may call), and is called by
-    `rd_dat_signals`.
+    `_stream_dat` which this function may call), and is called by
+    `_rd_dat_signals`.
 
     Parameters
     ----------
-    file_name : str
-        The name of the dat file to be read.
-    dir_name : str
-        The full directory where the dat file is located, if the dat
-        file is local.
-    pb_dir : str
-        The physiobank directory where the dat file is located, if the
-        dat file is remote.
-    fmt : str
-        The format of the dat file
     start_byte : int
         The starting byte number to read from.
     n_samp : int
         The total number of samples to read. Does NOT need to create
         whole blocks for special format. Any number of samples should be
         readable.
+    * other params
+        See docstring for `_rd_dat_signals`
 
     Returns
     -------
@@ -1188,9 +1198,7 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
 
     Notes
     -----
-    `n_samp` and `start_byte` should be such  that the bytes are read
-    from the start of a byte block. This will not be checked here.
-    `_dat_read_params` should ensure it.
+    See docstring notes for `_rd_dat_signals`
 
     """
 
@@ -1212,12 +1220,12 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
             sig_data = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
-                                    count=element_count)
+                                   count=element_count)
     # Stream dat file from physiobank
     else:
-        sig_data = download.stream_dat(file_name, pb_dir, byte_count,
-                                       start_byte,
-                                       np.dtype(DATA_LOAD_TYPES[fmt]))
+        sig_data = download._stream_dat(file_name, pb_dir, byte_count,
+                                        start_byte,
+                                        np.dtype(DATA_LOAD_TYPES[fmt]))
 
     return sig_data
 
@@ -1462,8 +1470,6 @@ def _digi_nan(fmt):
 
 def est_res(signals):
     """
-    def est_res(signals):
-
     Estimate the resolution of each signal in a multi-channel signal in
     bits. Maximum of 32 bits.
 
@@ -1476,8 +1482,9 @@ def est_res(signals):
 
     Returns
     -------
-    res : list
+    bit_res : list
         A list of estimated integer resolutions for each channel
+
     """
     res_levels = np.power(2, np.arange(0, 33))
     # Expanded sample signals. List of numpy arrays
@@ -1514,40 +1521,46 @@ def est_res(signals):
     return res
 
 
-def wfdbfmt(res, single_fmt=True):
+def _wfdb_fmt(bit_res, single_fmt=True):
     """
     Return the most suitable wfdb format(s) to use given signal
     resolutions.
-    If single_fmt is True, the format for the maximum resolution will be returned.
 
     Parameters
+    ----------
+    bit_res : int, or list
+        The resolution of the signal, or a list of resolutions, in bits.
+    single_fmt : bool, optional
+        Whether to return the format for the maximum resolution signal.
+
+    Returns
+    -------
+    fmt : str or list
+        The most suitable wfdb format(s) used to encode the signal(s).
 
     """
-    if isinstance(res, list):
+    if isinstance(bit_res, list):
         # Return a single format
         if single_fmt:
-            res = [max(res)]*len(res)
+            bit_res = [max(bit_res)] * len(bit_res)
 
-        fmts = []
-        for r in res:
-            fmts.append(wfdbfmt(r))
-        return fmts
+        return [wfdb_fmt(r) for r in bit_res]
 
-    if res<=8:
+    if bit_res <= 8:
         return '80'
-    elif res<=12:
+    elif bit_res <= 12:
         return '212'
-    elif res<=16:
+    elif bit_res <= 16:
         return '16'
-    elif res<=24:
+    elif bit_res <= 24:
         return '24'
     else:
         return '32'
 
 
-def fmt_res(fmt, max_res=False):
+def _fmt_res(fmt, max_res=False):
     """
-    Return the resolution of the WFDB format(s).
+    Return the resolution of the WFDB dat format(s).
 
     Parameters
     ----------
@@ -1558,50 +1571,53 @@ def fmt_res(fmt, max_res=False):
         If given a list of fmts, whether to return the highest
         resolution.
 
+    Returns
+    -------
+    bit_res : int, or list
+        The resolution(s) of the dat format(s) in bits.
+
     """
     if isinstance(fmt, list):
         if max_res:
             # Allow None
-            res = np.max([fmt_res(f) for f in fmt if f is not None])
+            bit_res = np.max([_fmt_res(f) for f in fmt if f is not None])
         else:
-            res = [fmt_res(f) for f in fmt]
-        return res
+            bit_res = [_fmt_res(f) for f in fmt]
+        return bit_res
 
-    res = {'8':8, '80':8, '310':10, '311':10, '212':12, '16':16, '61':16,
-           '24':24, '32':32}
-
-    if fmt in res:
-        return res[fmt]
-    else:
-        raise ValueError('Invalid WFDB format.')
+    return BYTES_PER_SAMPLE[fmt] * 8
 
 
-def np_dtype(res, discrete):
+def np_dtype(bit_res, discrete):
     """
-    Given the resolution of a signal, return the minimum
-    dtype to store it
+    Given the bit resolution of a signal, return the minimum numpy dtype
+    used to store it.
 
     Parameters
     ----------
-    res : int
-        The resolution.
+    bit_res : int
+        The bit resolution.
     discrete : bool
-        Whether the dtype is to be discrete or floating.
+        Whether the dtype is to be int or float.
+
+    Returns
+    -------
+    dtype : str
+        String numpy dtype used to store the signal of the given
+        resolution
+
     """
-    if not hasattr(res, '__index__') or res > 64:
-        raise TypeError('res must be integer based and <= 64')
+    bit_res = min(bit_res, 64)
 
     for np_res in [8, 16, 32, 64]:
-        if res <= np_res:
+        if bit_res <= np_res:
             break
 
     if discrete is True:
         return 'int' + str(np_res)
     else:
         # No float8 dtype
-        if np_res == 8:
-            np_res = 16
-        return 'float' + str(np_res)
+        return 'float' + str(max(np_res, 16))
 
 
 def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
