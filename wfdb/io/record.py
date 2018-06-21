@@ -1541,7 +1541,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
 
     """
     # Full url physiobank database
-    db_url = posixpath.join(download.DB_INDEX_URL, db_dir)
+    db_url = posixpath.join(download.config.db_index_url, db_dir)
     # Check if the database is valid
     r = requests.get(db_url)
     r.raise_for_status()
@@ -1592,7 +1592,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = posixpath.join(download.DB_INDEX_URL, db_dir, annfile)
+                url = posixpath.join(download.config.db_index_url, db_dir, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:

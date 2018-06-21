@@ -1813,7 +1813,6 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pb_dir=None):
     if pb_dir is None:
         file_size = os.path.getsize(os.path.join(dir_name, file_name))
     else:
-        url = posixpath.join(db_index_url, pb_dir, file_name)
         file_size = download._remote_file_size(file_name=file_name,
                                                pb_dir=pb_dir)
 

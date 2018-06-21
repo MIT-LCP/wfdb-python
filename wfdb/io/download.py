@@ -6,7 +6,30 @@ import posixpath
 import requests
 
 
-DB_INDEX_URL = 'http://physionet.org/physiobank/database/'
+# The physiobank index url
+PB_INDEX_URL = 'http://physionet.org/physiobank/database/'
+
+class Config(object):
+    pass
+
+# The configuration database index url. Uses physiobank index by default.
+config = Config()
+config.db_index_url = PB_INDEX_URL
+
+
+def set_db_index_url(db_index_url=PB_INDEX_URL):
+    """
+    Set the database index url to a custom value, to stream remote
+    files from another location.
+
+    Parameters
+    ----------
+    db_index_url : str, optional
+        The desired new database index url. Leave as default to reset
+        to the physiobank index url.
+
+    """
+    config.db_index_url = db_index_url
 
 
 def _remote_file_size(url=None, file_name=None, pb_dir=None):
@@ -34,7 +57,7 @@ def _remote_file_size(url=None, file_name=None, pb_dir=None):
 
     # Option to construct the url
     if file_name and pb_dir:
-        url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+        url = posixpath.join(config.db_index_url, pb_dir, file_name)
 
     response = requests.head(url, headers={'Accept-Encoding': 'identity'})
     # Raise HTTPError if invalid url
@@ -60,7 +83,7 @@ def _stream_header(file_name, pb_dir):
 
     """
     # Full url of header location
-    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+    url = posixpath.join(config.db_index_url, pb_dir, file_name)
     response = requests.get(url)
 
     # Raise HTTPError if invalid url
@@ -117,7 +140,7 @@ def _stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     """
 
     # Full url of dat file
-    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+    url = posixpath.join(config.db_index_url, pb_dir, file_name)
 
     # Specify the byte range
     end_byte = start_byte + byte_count - 1
@@ -149,7 +172,7 @@ def _stream_annotation(file_name, pb_dir):
 
     """
     # Full url of annotation file
-    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+    url = posixpath.join(config.db_index_url, pb_dir, file_name)
 
     # Get the content
     response = requests.get(url)
@@ -171,7 +194,7 @@ def get_dbs():
     >>> dbs = get_dbs()
 
     """
-    url = posixpath.join(DB_INDEX_URL, 'DBS')
+    url = posixpath.join(config.db_index_url, 'DBS')
     response = requests.get(url)
 
     dbs = response.content.decode('ascii').splitlines()
@@ -201,7 +224,7 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url physiobank database
-    db_url = posixpath.join(DB_INDEX_URL, db_dir)
+    db_url = posixpath.join(config.db_index_url, db_dir)
 
     # Check for a RECORDS file
     if records == 'all':
@@ -221,7 +244,7 @@ def get_record_list(db_dir, records='all'):
 def get_annotators(db_dir, annotators):
 
     # Full url physiobank database
-    db_url = posixpath.join(DB_INDEX_URL, db_dir)
+    db_url = posixpath.join(config.db_index_url, db_dir)
 
     if annotators is not None:
         # Check for an ANNOTATORS file
@@ -283,7 +306,7 @@ def dl_pb_file(inputs):
     basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
     # Full url of file
-    url = posixpath.join(DB_INDEX_URL, db, subdir, basefile)
+    url = posixpath.join(config.db_index_url, db, subdir, basefile)
 
     # Supposed size of the file
     remote_file_size = _remote_file_size(url)
@@ -381,7 +404,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
 
     # Full url physiobank database
-    db_url = posixpath.join(DB_INDEX_URL, db)
+    db_url = posixpath.join(config.db_index_url, db)
     # Check if the database is valid
     response = requests.get(db_url)
     response.raise_for_status()
