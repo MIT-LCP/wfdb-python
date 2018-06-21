@@ -8,11 +8,12 @@ import wfdb
 
 class TestRecord():
     """
-    Testing read and write of wfdb records, including Physionet
-    streaming.
+    Test read and write of single segment wfdb records, including
+    Physionet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
+
     """
 
     # ----------------------- 1. Basic Tests -----------------------#
@@ -60,8 +61,15 @@ class TestRecord():
                                         pb_dir='challenge/2015/training',
                                         sampfrom=12500, sampto=40000,
                                         channels=[2, 0])
+
+        # Option of selecting channels by name
+        sig_named, fields_named = wfdb.rdsamp('sample-data/a103l',
+                                              sampfrom=12500, sampto=40000,
+                                              channel_names=['PLETH', 'II'])
+
         assert np.array_equal(sig_round, sig_target)
         assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_named) and fields == fields_named
 
     def test_1c(self):
         """
@@ -154,12 +162,19 @@ class TestRecord():
         # original physiobank record
         del(record.comments[0])
 
+        # Option of selecting channels by name
+        record_named = wfdb.rdrecord('sample-data/100', sampfrom=1,
+                                     sampto=10800, channel_names=['V5'],
+                                     physical=False)
+        del(record_named.comments[0])
+
         # Test file writing
         record.wrsamp()
         record_write = wfdb.rdrecord('100', physical=False)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pb)
+        assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
     def test_2c(self):
@@ -373,68 +388,110 @@ class TestRecord():
         assert np.array_equal(sig_round, sig_target)
 
 
-    # ----------------------- 5. Multi-segment ----------------------- #
+    @classmethod
+    def tearDownClass(cls):
+        "Clean up written files"
+        writefiles = ['03700181.dat','03700181.hea','100.atr','100.dat',
+                      '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
+                      '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
+                      's0010_re.hea','s0010_re.xyz','test01_00s.dat',
+                      'test01_00s.hea','test01_00s_skewframe.hea']
 
-    def test_5a(self):
-        """
-        Multi-segment, variable layout, selected duration, samples read
-        from one segment only.
+        for file in writefiles:
+            if os.path.isfile(file):
+                os.remove(file)
 
-        Target file created with:
-            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428365 -t s14428375 -P | cut -f 2- > record-5a
-        """
-        record = wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
-                               sampfrom=14428365, sampto=14428375)
-        sig_round = np.round(record.p_signal, decimals=8)
-        sig_target = np.genfromtxt('tests/target-output/record-5a')
 
-        np.testing.assert_equal(sig_round, sig_target)
+class TestMultiRecord():
+    """
+    Test read and write of multi segment wfdb records, including
+    Physionet streaming.
 
-    def test_5b(self):
-        """
-        Multi-segment, variable layout, selected duration, samples read
-        from several segments.
+    Target files created using the original WFDB Software Package
+    version 10.5.24
 
-        Target file created with:
-        rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > record-5b
-        """
-        record = wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
-                               sampfrom=14428364, sampto=14428375)
-        sig_round = np.round(record.p_signal, decimals=8)
-        sig_target = np.genfromtxt('tests/target-output/record-5b')
+    """
 
-        np.testing.assert_equal(sig_round, sig_target)
-
-    def test_5c(self):
+    def test_multi_fixed_a(self):
         """
         Multi-segment, fixed layout, read entire signal.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/fixed1/v102s -P | cut -f 2- > record-5c
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -P | cut -f 2- > record-multi-fixed-a
         """
         record = wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s')
         sig_round = np.round(record.p_signal, decimals=8)
-        sig_target = np.genfromtxt('tests/target-output/record-5c')
+        sig_target = np.genfromtxt('tests/target-output/record-multi-fixed-a')
 
         np.testing.assert_equal(sig_round, sig_target)
 
-    def test_5d(self):
+    def test_multi_fixed_b(self):
         """
         Multi-segment, fixed layout, selected duration, samples read
         from one segment.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2- > record-5d
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2- > record-multi-fixed-b
         """
         record = wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s',
                                sampto=75000)
         sig_round = np.round(record.p_signal, decimals=8)
-        sig_target = np.genfromtxt('tests/target-output/record-5d')
+        sig_target = np.genfromtxt('tests/target-output/record-multi-fixed-b')
 
         np.testing.assert_equal(sig_round, sig_target)
 
+    def test_multi_fixed_c(self):
+        """
+        Multi-segment, fixed layout, selected duration and channels,
+        samples read from multiple segments
 
-    def test_5e(self):
+        Target file created with:
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -f s70000 -t s80000 -s 1 0 3 -P | cut -f 2- > record-multi-fixed-c
+        """
+        record = wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s',
+                               sampfrom=70000, sampto=80000, channels=[1, 0, 3])
+        sig_round = np.round(record.p_signal, decimals=8)
+        sig_target = np.genfromtxt('tests/target-output/record-multi-fixed-c')
+
+        # Option of selecting channels by name
+        record_named = wfdb.rdrecord('sample-data/multi-segment/fixed1/v102s',
+                                     sampfrom=70000, sampto=80000,
+                                     channel_names=['V', 'II', 'RESP'])
+
+        np.testing.assert_equal(sig_round, sig_target)
+        assert record.__eq__(record_named)
+
+    def test_multi_variable_a(self):
+        """
+        Multi-segment, variable layout, selected duration, samples read
+        from one segment only.
+
+        Target file created with:
+            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428365 -t s14428375 -P | cut -f 2- > record-multi-variable-a
+        """
+        record = wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
+                               sampfrom=14428365, sampto=14428375)
+        sig_round = np.round(record.p_signal, decimals=8)
+        sig_target = np.genfromtxt('tests/target-output/record-multi-variable-a')
+
+        np.testing.assert_equal(sig_round, sig_target)
+
+    def test_multi_variable_b(self):
+        """
+        Multi-segment, variable layout, selected duration, samples read
+        from several segments.
+
+        Target file created with:
+        rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > record-multi-variable-b
+        """
+        record = wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
+                               sampfrom=14428364, sampto=14428375)
+        sig_round = np.round(record.p_signal, decimals=8)
+        sig_target = np.genfromtxt('tests/target-output/record-multi-variable-b')
+
+        np.testing.assert_equal(sig_round, sig_target)
+
+    def test_multi_variable_c(self):
         """
         Multi-segment, variable layout, entire signal, physical
 
@@ -448,7 +505,7 @@ class TestRecord():
         ```
         for i in {01..18}
         do
-            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2- >> record-5e
+            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2- >> record-multi-variable-c
         done
         ```
 
@@ -463,52 +520,45 @@ class TestRecord():
 
         sig_target_a = np.full((25740,3), np.nan)
         sig_target_b = np.concatenate(
-            (np.genfromtxt('tests/target-output/record-5e', skip_footer=97500),
+            (np.genfromtxt('tests/target-output/record-multi-variable-c', skip_footer=97500),
              np.full((420000, 1), np.nan)), axis=1)
-        sig_target_c = np.genfromtxt('tests/target-output/record-5e',
+        sig_target_c = np.genfromtxt('tests/target-output/record-multi-variable-c',
                                      skip_header=420000)
         sig_target = np.concatenate((sig_target_a, sig_target_b, sig_target_c))
 
         np.testing.assert_equal(sig_round, sig_target)
 
-    def test_5f(self):
+    def test_multi_variable_d(self):
         """
         Multi-segment, variable layout, selected duration, selected
         channels, digital. There are two channels: PLETH, and II. Their
         fmt, adc_gain, and baseline do not change between the segments.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57 -f s3550 -t s7500 -s 0 1 | cut -f 2- | perl -p -e 's/-32768/  -128/g;' > record-5f
+            rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57 -f s3550 -t s7500 -s 0 1 | cut -f 2- | perl -p -e 's/-32768/  -128/g;' > record-multi-variable-d
 
         """
         record = wfdb.rdrecord('sample-data/multi-segment/p000878/p000878-2137-10-26-16-57',
-                                sampfrom=3550, sampto=7500, channels=[0,1],
+                                sampfrom=3550, sampto=7500, channels=[0, 1],
                                 physical=False)
         sig = record.d_signal
 
         # Compare data streaming from physiobank
         record_pb = wfdb.rdrecord('p000878-2137-10-26-16-57',
                                   pb_dir='mimic3wdb/matched/p00/p000878/',
-                                  sampfrom=3550, sampto=7500, channels=[0,1],
+                                  sampfrom=3550, sampto=7500, channels=[0, 1],
                                   physical=False)
-        sig_target = np.genfromtxt('tests/target-output/record-5f')
+        sig_target = np.genfromtxt('tests/target-output/record-multi-variable-d')
+
+        # Option of selecting channels by name
+        record_named = wfdb.rdrecord('sample-data/multi-segment/p000878/p000878-2137-10-26-16-57',
+                                     sampfrom=3550, sampto=7500, physical=False,
+                                     channel_names=['PLETH', 'II'])
+
 
         np.testing.assert_equal(sig, sig_target)
         assert record.__eq__(record_pb)
-
-
-    @classmethod
-    def tearDownClass(cls):
-        "Clean up written files"
-        writefiles = ['03700181.dat','03700181.hea','100.atr','100.dat',
-                      '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
-                      '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
-                      's0010_re.hea','s0010_re.xyz','test01_00s.dat',
-                      'test01_00s.hea','test01_00s_skewframe.hea']
-
-        for file in writefiles:
-            if os.path.isfile(file):
-                os.remove(file)
+        assert record.__eq__(record_named)
 
 
 class TestSignal():

@@ -199,7 +199,6 @@ class BaseRecord(object):
             raise TypeError('sampfrom must be an integer')
         if not hasattr(sampto, '__index__'):
             raise TypeError('sampto must be an integer')
-
         if not isinstance(channels, list):
             raise TypeError('channels must be a list of integers')
 
@@ -216,10 +215,11 @@ class BaseRecord(object):
             raise ValueError('sampto must be greater than sampfrom')
 
         # Channel Ranges
-        if min(channels) < 0:
-            raise ValueError('Input channels must all be non-negative integers')
-        if max(channels) > self.n_sig - 1:
-            raise ValueError('Input channels must all be lower than the total number of channels')
+        if len(channels):
+            if min(channels) < 0:
+                raise ValueError('Input channels must all be non-negative integers')
+            if max(channels) > self.n_sig - 1:
+                raise ValueError('Input channels must all be lower than the total number of channels')
 
         if return_res not in [64, 32, 16, 8]:
             raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
@@ -230,6 +230,7 @@ class BaseRecord(object):
         if isinstance(self, MultiRecord):
             if smooth_frames is False:
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
+
 
     def _adjust_datetime(self, sampfrom):
         """
@@ -315,11 +316,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.block_size = block_size
 
     # Equal comparison operator for objects of this type
-    def __eq__(self, other):
+    def __eq__(self, other, verbose=False):
         att1 = self.__dict__
         att2 = other.__dict__
 
         if set(att1.keys()) != set(att2.keys()):
+            if verbose:
+                print('Attributes members mismatch.')
             return False
 
         for k in att1.keys():
@@ -328,13 +331,17 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             v2 = att2[k]
 
             if type(v1) != type(v2):
+                if verbose:
+                    print('Mismatch in attribute: %s' % k, v1, v2)
                 return False
 
             if type(v1) == np.ndarray:
-                if not np.array_equal(v1, v2):
-                    return False
+                # Necessary for nans
+                np.testing.assert_array_equal(v1, v2)
             else:
                 if v1 != v2:
+                    if verbose:
+                        print('Mismatch in attribute: %s' % k, v1, v2)
                     return False
 
         return True
@@ -570,7 +577,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return (seg_numbers, readsamps)
 
 
-    def _get_required_channels(self, seg_numbers, channels, dir_name, pb_dir):
+    def _required_channels(self, seg_numbers, channels, dir_name, pb_dir):
         """
         Get the channel numbers to be read from each specified segment,
         given the channel numbers specified for the entire record.
@@ -612,7 +619,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     s_sig_names = rdheader(
                         os.path.join(dir_name, self.seg_name[seg_numbers[i]]),
                         pb_dir=pb_dir).sig_name
-                    required_channels.append(get_wanted_channels(
+                    required_channels.append(_get_wanted_channels(
                         w_sig_names, s_sig_names))
 
         return required_channels
@@ -809,7 +816,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 if seg is not None:
                     # Get the segment channels to copy over for each
                     # overall channel
-                    segment_channels = get_wanted_channels(fields['sig_name'],
+                    segment_channels = _get_wanted_channels(fields['sig_name'],
                                                            seg.sig_name,
                                                            pad=True)
                     for ch in range(self.n_sig):
@@ -1046,7 +1053,8 @@ def rdheader(record_name, pb_dir=None, rd_segments=False):
 
 def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
              physical=True, pb_dir=None, m2s=True, smooth_frames=True,
-             ignore_skew=False, return_res=64, force_channels=True):
+             ignore_skew=False, return_res=64, force_channels=True,
+             channel_names=None, warn_empty=False):
     """
     Read a WFDB record and return the signal and record descriptors as
     attributes in a Record or MultiRecord object.
@@ -1105,6 +1113,13 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         Record object if `m2s` is True, to match the input `channels`
         argument, or to omit channels in which no read segment contains
         the signals.
+    channel_names : list, optional
+        List of channel names to return. If this parameter is specified,
+        it takes precedence over `channels`.
+    warn_empty : bool, optional
+        Whether to display a warning if the specified channel indices
+        or names are not contained in the record, and no signal is
+        returned.
 
     Returns
     -------
@@ -1128,7 +1143,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     Examples
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
-                               channels=[1,3])
+                               channels=[1, 3])
 
     """
 
@@ -1153,15 +1168,56 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                     dir_name=dir_name, pb_dir=pb_dir)
         sampto = record.sig_len
 
-    if channels is None:
+    # channel_names takes precedence over channels
+    if channel_names is not None:
+        # Figure out the channel indices matching the record, if any.
+        if isinstance(record, Record):
+            reference_record = record
+        else:
+            if record.layout == 'fixed':
+                # Find the first non-empty segment to get the signal
+                # names
+                first_seg_name = [n for n in record.seg_name if n != '~'][0]
+                reference_record = rdheader(os.path.join(dir_name,
+                                                         record.seg_name[0]),
+                                            pb_dir=pb_dir)
+            else:
+                # Use the layout specification header to get the signal
+                # names
+                reference_record = rdheader(os.path.join(dir_name,
+                                                         record.seg_name[0]),
+                                            pb_dir=pb_dir)
+
+        channels = _get_wanted_channels(wanted_sig_names=channel_names,
+                                       record_sig_names=reference_record.sig_name)
+
+    elif channels is None:
         channels = list(range(record.n_sig))
 
     # Ensure that input fields are valid for the record
     record.check_read_inputs(sampfrom, sampto, channels, physical,
                              smooth_frames, return_res)
 
+    # If the signal doesn't have the specified channels, there will be
+    # no signal. Recall that `rdsamp` is not called on segments of multi
+    # segment records if the channels are not present, so this won't
+    # break anything.
+    if not len(channels):
+        old_record = record
+        record = Record()
+        for attr in _header.RECORD_SPECS.index:
+            if attr == 'n_seg':
+                continue
+            elif attr in ['n_sig', 'sig_len']:
+                setattr(record, attr, 0)
+            else:
+                setattr(record, attr, getattr(old_record, attr))
+        if warn_empty:
+            print('None of the specified signals were contained in the record')
+
     # A single segment record
-    if isinstance(record, Record):
+    elif isinstance(record, Record):
+
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
             # Read signals from the associated dat files that contain
@@ -1231,8 +1287,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         # The segment numbers and samples within each segment to read.
         seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
-        seg_channels = record._get_required_channels(seg_numbers, channels,
-                                                     dir_name, pb_dir)
+        seg_channels = record._required_channels(seg_numbers, channels,
+                                                 dir_name, pb_dir)
 
         # Read the desired samples in the relevant segments
         for i in range(len(seg_numbers)):
@@ -1264,7 +1320,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     return record
 
 
-def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
+def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None,
+           channel_names=None, warn_empty=False):
     """
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.
@@ -1289,6 +1346,13 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
         database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
         pb_dir='mitdb'.
+    channel_names : list, optional
+        List of channel names to return. If this parameter is specified,
+        it takes precedence over `channels`.
+    warn_empty : bool, optional
+        Whether to display a warning if the specified channel indices
+        or names are not contained in the record, and no signal is
+        returned.
 
     Returns
     -------
@@ -1326,7 +1390,8 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
     """
     record = rdrecord(record_name=record_name, sampfrom=sampfrom,
                       sampto=sampto, channels=channels, physical=True,
-                      pb_dir=pb_dir, m2s=True)
+                      pb_dir=pb_dir, m2s=True, channel_names=channel_names,
+                      warn_empty=warn_empty)
 
     signals = record.p_signal
     fields = {}
@@ -1337,7 +1402,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
     return signals, fields
 
 
-def get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
+def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
     """
     Given some wanted signal names, and the signal names contained in a
     record, return the indices of the record channels that intersect.
