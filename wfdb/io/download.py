@@ -6,9 +6,44 @@ import posixpath
 import requests
 
 
-db_index_url = 'http://physionet.org/physiobank/database/'
+DB_INDEX_URL = 'http://physionet.org/physiobank/database/'
 
 
+def _remote_file_size(url=None, file_name=None, pb_dir=None):
+    """
+    Get the remote file size in bytes
+
+    Parameters
+    ----------
+    url : str, optional
+        The full url of the file. Use this option to explicitly
+        state the full url.
+    file_name : str, optional
+        The base file name. Use this argument along with pb_dir if you
+        want the full url to be constructed.
+    pb_dir : str, optional
+        The base file name. Use this argument along with file_name if
+        you want the full url to be constructed.
+
+    Returns
+    -------
+    remote_file_size : int
+        Size of the file in bytes
+
+    """
+
+    # Option to construct the url
+    if file_name and pb_dir:
+        url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+
+    response = requests.head(url, headers={'Accept-Encoding': 'identity'})
+    # Raise HTTPError if invalid url
+    response.raise_for_status()
+
+    # Supposed size of the file
+    remote_file_size = int(response.headers['content-length'])
+
+    return remote_file_size
 
 def _stream_header(file_name, pb_dir):
     """
@@ -25,14 +60,14 @@ def _stream_header(file_name, pb_dir):
 
     """
     # Full url of header location
-    url = posixpath.join(db_index_url, pb_dir, file_name)
-    r = requests.get(url)
+    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
+    response = requests.get(url)
 
     # Raise HTTPError if invalid url
-    r.raise_for_status()
+    response.raise_for_status()
 
     # Get each line as a string
-    filelines = r.content.decode('iso-8859-1').splitlines()
+    filelines = response.content.decode('iso-8859-1').splitlines()
 
     # Separate content into header and comment lines
     header_lines = []
@@ -82,7 +117,7 @@ def _stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     """
 
     # Full url of dat file
-    url = posixpath.join(db_index_url, pb_dir, file_name)
+    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
 
     # Specify the byte range
     end_byte = start_byte + byte_count - 1
@@ -114,7 +149,7 @@ def _stream_annotation(file_name, pb_dir):
 
     """
     # Full url of annotation file
-    url = posixpath.join(db_index_url, pb_dir, file_name)
+    url = posixpath.join(DB_INDEX_URL, pb_dir, file_name)
 
     # Get the content
     response = requests.get(url)
@@ -136,10 +171,10 @@ def get_dbs():
     >>> dbs = get_dbs()
 
     """
-    url = posixpath.join(db_index_url, 'DBS')
-    r = requests.get(url)
+    url = posixpath.join(DB_INDEX_URL, 'DBS')
+    response = requests.get(url)
 
-    dbs = r.content.decode('ascii').splitlines()
+    dbs = response.content.decode('ascii').splitlines()
     dbs = [re.sub('\t{2,}', '\t', line).split('\t') for line in dbs]
 
     return dbs
@@ -166,7 +201,7 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url physiobank database
-    db_url = posixpath.join(db_index_url, db_dir)
+    db_url = posixpath.join(DB_INDEX_URL, db_dir)
 
     # Check for a RECORDS file
     if records == 'all':
@@ -175,18 +210,18 @@ def get_record_list(db_dir, records='all'):
             raise ValueError('The database %s has no WFDB files to download' % db_url)
 
         # Get each line as a string
-        recordlist = response.content.decode('ascii').splitlines()
+        record_list = response.content.decode('ascii').splitlines()
     # Otherwise the records are input manually
     else:
-        recordlist = records
+        record_list = records
 
-    return recordlist
+    return record_list
 
 
 def get_annotators(db_dir, annotators):
 
     # Full url physiobank database
-    db_url = posixpath.join(db_index_url, db_dir)
+    db_url = posixpath.join(DB_INDEX_URL, db_dir)
 
     if annotators is not None:
         # Check for an ANNOTATORS file
@@ -197,26 +232,26 @@ def get_annotators(db_dir, annotators):
             else:
                 raise ValueError('The database %s has no annotation files to download' % db_url)
         # Make sure the input annotators are present in the database
-        annlist = r.content.decode('ascii').splitlines()
-        annlist = [a.split('\t')[0] for a in annlist]
+        ann_list = r.content.decode('ascii').splitlines()
+        ann_list = [a.split('\t')[0] for a in ann_list]
 
         # Get the annotation file types required
         if annotators == 'all':
             # all possible ones
-            annotators = annlist
+            annotators = ann_list
         else:
             # In case they didn't input a list
             if type(annotators) == str:
                 annotators = [annotators]
             # user input ones. Check validity.
             for a in annotators:
-                if a not in annlist:
+                if a not in ann_list:
                     raise ValueError('The database contains no annotators with extension: %s' % a)
 
     return annotators
 
 
-def make_local_dirs(dl_dir, dlinputs, keep_subdirs):
+def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
     """
     Make any required local directories to prepare for downloading
     """
@@ -224,34 +259,34 @@ def make_local_dirs(dl_dir, dlinputs, keep_subdirs):
     # Make the local download dir if it doesn't exist
     if not os.path.isdir(dl_dir):
         os.makedirs(dl_dir)
-        print("Created local base download directory: ", dl_dir)
+        print('Created local base download directory: %s' % dl_dir)
     # Create all required local subdirectories
     # This must be out of dl_pb_file to
     # avoid clash in multiprocessing
     if keep_subdirs:
-        dldirs = set([os.path.join(dl_dir, d[1]) for d in dlinputs])
-        for d in dldirs:
+        dl_dirs = set([os.path.join(dl_dir, d[1]) for d in dl_inputs])
+        for d in dl_dirs:
             if not os.path.isdir(d):
                 os.makedirs(d)
     return
 
 
 def dl_pb_file(inputs):
-    # Download a file from physiobank
-    # The input args are to be unpacked for the use of multiprocessing
+    """
+    Download a file from physiobank.
+
+    The input args are to be unpacked for the use of multiprocessing
+    map, because python2 doesn't have starmap...
+
+    """
 
     basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
     # Full url of file
-    url = posixpath.join(db_index_url, db, subdir, basefile)
-
-    # Send a head request
-    response = requests.head(url, headers={'Accept-Encoding': 'identity'})
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    url = posixpath.join(DB_INDEX_URL, db, subdir, basefile)
 
     # Supposed size of the file
-    remote_file_size = int(response.headers['content-length'])
+    remote_file_size = _remote_file_size(url)
 
     # Figure out where the file should be locally
     if keep_subdirs:
@@ -276,7 +311,7 @@ def dl_pb_file(inputs):
                 r = requests.get(url, headers=headers, stream=True)
                 print('headers: ', headers)
                 print('r content length: ', len(r.content))
-                with open(local_file, "ba") as writefile:
+                with open(local_file, 'ba') as writefile:
                     writefile.write(r.content)
                 print('Done appending.')
             # Local file is larger than it should be. Redownload.
@@ -304,7 +339,7 @@ def dl_full_file(url, save_file_name):
 
     """
     response = requests.get(url)
-    with open(save_file_name, "wb") as writefile:
+    with open(save_file_name, 'wb') as writefile:
         writefile.write(response.content)
 
     return
@@ -346,22 +381,22 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
 
     # Full url physiobank database
-    db_url = posixpath.join(db_index_url, db)
+    db_url = posixpath.join(DB_INDEX_URL, db)
     # Check if the database is valid
-    r = requests.get(db_url)
-    r.raise_for_status()
+    response = requests.get(db_url)
+    response.raise_for_status()
 
     # Construct the urls to download
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in files]
+    dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db, dl_dir, keep_subdirs, overwrite) for file in files]
 
     # Make any required local directories
-    make_local_dirs(dl_dir, dlinputs, keep_subdirs)
+    make_local_dirs(dl_dir, dl_inputs, keep_subdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
-    pool.map(dl_pb_file, dlinputs)
+    pool.map(dl_pb_file, dl_inputs)
     print('Finished downloading files')
 
     return

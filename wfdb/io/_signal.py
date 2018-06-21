@@ -21,9 +21,13 @@ OFFSET_FMTS = ['80', '160']
 DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS
 
 # Bytes required to hold each sample (including wasted space) for each
-# wfdb formats
+# wfdb dat formats
 BYTES_PER_SAMPLE = {'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, '80': 1,
                     '160': 2, '212': 1.5, '310': 4 / 3., '311': 4 / 3.}
+
+# The bit resolution of each wfdb dat format
+BIT_RES = {'8': 8, '16': 16, '24': 24, '32': 32, '61': 16, '80': 8,
+           '160': 16, '212': 12, '310': 10, '311': 10}
 
 # Numpy dtypes used to load dat files of each format.
 DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
@@ -860,7 +864,7 @@ def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
     # Return uniform numpy array
     if smooth_frames or sum(samps_per_frame) == n_sig:
         # Figure out the largest required dtype for the segment to minimize memory usage
-        max_dtype = np_dtype(_fmt_res(fmt, max_res=True), discrete=True)
+        max_dtype = _np_dtype(_fmt_res(fmt, max_res=True), discrete=True)
         # Allocate signal array. Minimize dtype
         signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
 
@@ -1560,7 +1564,8 @@ def _wfdb_fmt(bit_res, single_fmt=True):
 
 def _fmt_res(fmt, max_res=False):
     """
-    Return the resolution of the WFDB dat format(s).
+    Return the resolution of the WFDB dat format(s). Uses the BIT_RES
+    dictionary, but accepts lists and other options.
 
     Parameters
     ----------
@@ -1585,10 +1590,10 @@ def _fmt_res(fmt, max_res=False):
             bit_res = [_fmt_res(f) for f in fmt]
         return bit_res
 
-    return BYTES_PER_SAMPLE[fmt] * 8
+    return BIT_RES[fmt]
 
 
-def np_dtype(bit_res, discrete):
+def _np_dtype(bit_res, discrete):
     """
     Given the bit resolution of a signal, return the minimum numpy dtype
     used to store it.
@@ -1786,6 +1791,35 @@ def describe_list_indices(full_list):
             element_indices[item].append(i)
     return unique_elements, element_indices
 
+
+def _infer_sig_len(file_name, fmt, n_sig, dir_name, pb_dir=None):
+    """
+    Infer the length of a signal from a dat file.
+
+    Parameters
+    ----------
+    file_name : str
+        Name of the dat file
+    fmt : str
+        WFDB fmt of the dat file
+    n_sig : int
+        Number of signals contained in the dat file
+
+    Notes
+    -----
+    sig_len * n_sig * bytes_per_sample == file_size
+
+    """
+    if pb_dir is None:
+        file_size = os.path.getsize(os.path.join(dir_name, file_name))
+    else:
+        url = posixpath.join(db_index_url, pb_dir, file_name)
+        file_size = download._remote_file_size(file_name=file_name,
+                                               pb_dir=pb_dir)
+
+    sig_len = int(file_size / (BYTES_PER_SAMPLE[fmt] * n_sig))
+
+    return sig_len
 
 def downround(x, base):
     """

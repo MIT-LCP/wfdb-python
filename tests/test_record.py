@@ -6,7 +6,7 @@ import numpy as np
 import wfdb
 
 
-class test_record():
+class TestRecord():
     """
     Testing read and write of wfdb records, including Physionet
     streaming.
@@ -511,7 +511,25 @@ class test_record():
                 os.remove(file)
 
 
-class test_download():
+class TestSignal():
+    """
+    For lower level signal tests
+
+    """
+    def test_infer_sig_len(self):
+        """
+        Infer the signal length of a record without the sig_len header
+        Read two headers. The records should be the same.
+        """
+
+        record = wfdb.rdrecord('sample-data/100')
+        record_2 = wfdb.rdrecord('sample-data/100-no-len')
+        record_2.record_name = '100'
+
+        assert record_2.__eq__(record)
+
+
+class TestDownload():
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
     def test_dl_database_no_dat_file(self):

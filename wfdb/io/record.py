@@ -781,12 +781,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if physical:
             sig_attr = 'p_signal'
             # Figure out the largest required dtype
-            dtype = _signal.np_dtype(return_res, discrete=False)
+            dtype = _signal._np_dtype(return_res, discrete=False)
             nan_vals = np.array([self.n_sig * [np.nan]], dtype=dtype)
         else:
             sig_attr = 'd_signal'
             # Figure out the largest required dtype
-            dtype = _signal.np_dtype(return_res, discrete=True)
+            dtype = _signal._np_dtype(return_res, discrete=True)
             nan_vals = np.array([_signal._digi_nan(fields['fmt'])], dtype=dtype)
 
         # Initialize the full signal array
@@ -939,13 +939,6 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
 #------------------------- Reading Records --------------------------- #
 
-def infer_sig_len(file_name, pb_dir):
-    """
-    Infer the length of a signal
-    """
-
-
-    return
 
 def rdheader(record_name, pb_dir=None, rd_segments=False):
     """
@@ -1073,7 +1066,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     sampto : int, or 'end', optional
         The sample number at which to stop reading for all channels.
         Reads the entire duration by default.
-    channels : list, or 'all', optional
+    channels : list, optional
         List of integer indices specifying the channels to be read.
         Reads all channels by default.
     physical : bool, optional
@@ -1148,10 +1141,16 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     # Set defaults for sampto and channels input variables
     if sampto is None:
         # If the header does not contain the signal length, figure it
-        # out from the dat file. This is only possible for single
-        # segment records.
+        # out from the first dat file. This is only possible for single
+        # segment records. If there are no signals, sig_len is 0.
         if record.sig_len is None:
-            record.sig_len = _infer_sig_len(None, None)
+            if record.n_sig == 0:
+                record.sig_len = 0
+            else:
+                record.sig_len = _signal._infer_sig_len(
+                    file_name=record.file_name[0], fmt=record.fmt[0],
+                    n_sig=record.file_name.count(record.file_name[0]),
+                    dir_name=dir_name, pb_dir=pb_dir)
         sampto = record.sig_len
 
     if channels is None:
@@ -1282,7 +1281,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pb_dir=None):
     sampto : int, or 'end', optional
         The sample number at which to stop reading for all channels.
         Reads the entire duration by default.
-    channels : list, or 'all', optional
+    channels : list, optional
         List of integer indices specifying the channels to be read.
         Reads all channels by default.
     pb_dir : str, optional
@@ -1495,7 +1494,7 @@ def is_monotonic(full_list):
     return True
 
 def dl_database(db_dir, dl_dir, records='all', annotators='all',
-                keep_subdirs=True, overwrite = False):
+                keep_subdirs=True, overwrite=False):
     """
     Download WFDB record (and optionally annotation) files from a
     Physiobank database. The database must contain a 'RECORDS' file in
@@ -1542,7 +1541,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
 
     """
     # Full url physiobank database
-    db_url = posixpath.join(download.db_index_url, db_dir)
+    db_url = posixpath.join(download.DB_INDEX_URL, db_dir)
     # Check if the database is valid
     r = requests.get(db_url)
     r.raise_for_status()
@@ -1593,7 +1592,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         if annotators is not None:
             for a in annotators:
                 annfile = rec+'.'+a
-                url = posixpath.join(download.db_index_url, db_dir, annfile)
+                url = posixpath.join(download.DB_INDEX_URL, db_dir, annfile)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
