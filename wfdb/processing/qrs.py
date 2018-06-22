@@ -1,6 +1,7 @@
 import copy
-import numpy as np
+import pdb
 
+import numpy as np
 from scipy import signal
 from sklearn.preprocessing import normalize
 
@@ -146,7 +147,8 @@ class XQRS(object):
 
     def _bandpass(self, fc_low=5, fc_high=20):
         """
-        Apply a bandpass filter onto the signal, and save the filtered signal.
+        Apply a bandpass filter onto the signal, and save the filtered
+        signal.
         """
         self.fc_low = fc_low
         self.fc_high = fc_high
@@ -162,23 +164,27 @@ class XQRS(object):
 
     def _mwi(self):
         """
-        Apply moving wave integration with a ricker (Mexican hat) wavelet onto
-        the filtered signal, and save the square of the integrated signal.
+        Apply moving wave integration (mwi) with a ricker (Mexican hat)
+        wavelet onto the filtered signal, and save the square of the
+        integrated signal.
 
         The width of the hat is equal to the qrs width
 
-        Also find all local peaks in the mwi signal.
+        After integration, find all local peaks in the mwi signal.
         """
-        b = signal.ricker(self.qrs_width, 4)
-        self.sig_i = signal.filtfilt(b, [1], self.sig_f, axis=0) ** 2
+        wavelet_filter = signal.ricker(self.qrs_width, 8)
 
-        # Save the mwi gain  (x2 due to double filtering) and the total gain
-        # from raw to mwi
-        self.mwi_gain = get_filter_gain(b, [1],
+        self.sig_i = signal.filtfilt(wavelet_filter, [1], self.sig_f,
+                                     axis=0) ** 2
+
+        # Save the mwi gain (x2 due to double filtering) and the total
+        # gain from raw to mwi
+        self.mwi_gain = get_filter_gain(wavelet_filter, [1],
                          np.mean([self.fc_low, self.fc_high]), self.fs) * 2
         self.transform_gain = self.filter_gain * self.mwi_gain
         self.peak_inds_i = find_local_peaks(self.sig_i, radius=self.qrs_radius)
         self.n_peaks_i = len(self.peak_inds_i)
+
 
     def _learn_init_params(self, n_calib_beats=8):
         """

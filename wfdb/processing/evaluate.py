@@ -380,7 +380,7 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
     return comparitor
 
 
-def benchmark_mitdb(detector, verbose=False):
+def benchmark_mitdb(detector, verbose=False, print_results=False):
     """
     Benchmark a qrs detector against mitdb's records.
 
@@ -390,11 +390,15 @@ def benchmark_mitdb(detector, verbose=False):
         The detector function.
     verbose : bool, optional
         The verbose option of the detector function.
+    print_results : bool, optional
+        Whether to print the overall performance, and the results for
+        each record.
 
     Returns
     -------
-    comparitors : list
-        List of Comparitor objects run on the records.
+    comparitors : dictionary
+        Dictionary of Comparitor objects run on the records, keyed on
+        the record names.
     specificity : float
         Aggregate specificity.
     positive_predictivity : float
@@ -434,7 +438,17 @@ def benchmark_mitdb(detector, verbose=False):
     false_positive_rate = np.mean(
         [c.false_positive_rate for c in comparitors])
 
+    comparitors = dict(zip(record_list, comparitors))
+
     print('Benchmark complete')
+
+    if print_results:
+        print('\nOverall MITDB Performance - Specificity: %.4f, Positive Predictivity: %.4f, False Positive Rate: %.4f\n'
+              % (specificity, positive_predictivity, false_positive_rate))
+        for record_name in record_list:
+            print('Record %s:' % record_name)
+            comparitors[record_name].print_summary()
+            print('\n\n')
 
     return comparitors, specificity, positive_predictivity, false_positive_rate
 
@@ -451,5 +465,6 @@ def benchmark_mitdb_record(rec, detector, verbose):
     comparitor = compare_annotations(ref_sample=ann_ref.sample[1:],
                                      test_sample=qrs_inds,
                                      window_width=int(0.1 * fields['fs']))
-    print('Finished record %s' % rec)
+    if verbose:
+        print('Finished record %s' % rec)
     return comparitor
