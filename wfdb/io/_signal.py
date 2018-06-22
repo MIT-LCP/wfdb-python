@@ -1506,17 +1506,20 @@ def est_res(signals):
         # Estimate the number of steps as the range divided by the
         # minimum increment.
         if isinstance(signals, list):
-            sortedsig = np.sort(signals[ch])
+            sorted_sig = np.sort(np.unique(signals[ch]))
         else:
-            sortedsig = np.sort(signals[:,ch])
+            if signals.ndim == 1:
+                sorted_sig = np.sort(np.unique(signals))
+            else:
+                sorted_sig = np.sort(np.unique(signals[:,ch]))
 
-        min_inc = min(np.diff(sortedsig))
+        min_inc = min(np.diff(sorted_sig))
 
         if min_inc == 0:
             # Case where signal is flat. Resolution is 0.
             res.append(0)
         else:
-            nlevels = 1 + (sortedsig[-1]-sortedsig[0])/min_inc
+            nlevels = 1 + (sorted_sig[-1]-sorted_sig[0]) / min_inc
             if nlevels >= res_levels[-1]:
                 res.append(32)
             else:
