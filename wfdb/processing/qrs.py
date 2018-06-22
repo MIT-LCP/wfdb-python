@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+
 from scipy import signal
 from sklearn.preprocessing import normalize
 
@@ -28,7 +29,8 @@ class XQRS(object):
     - Conduct learning if specified, to initialize running
       parameters of noise and qrs amplitudes, the qrs detection
       threshold, and recent rr intervals. If learning is unspecified
-      or fails, use default parameters.
+      or fails, use default parameters. See the docstring for the
+      `_learn_init_params` method of this class for details.
     - Run the main detection. Iterate through the local maxima of
       the mwi signal. For each local maxima:
 
@@ -221,12 +223,13 @@ class XQRS(object):
         # Find the local peaks of the signal.
         peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
 
-        peak_inds_f_r = np.where(peak_inds_f > self.qrs_width)[0]
-        peak_inds_f_l = np.where(peak_inds_f <= self.sig_len - self.qrs_width)[0]
+        # Peak numbers at least qrs_width away from signal boundaries
+        peak_nums_r = np.where(peak_inds_f > self.qrs_width)[0]
+        peak_nums_l = np.where(peak_inds_f <= self.sig_len - self.qrs_width)[0]
 
         # Skip if no peaks in range
-        if (not peak_inds_f.size or not peak_inds_f_r.size
-                                 or not peak_inds_f_l.size):
+        if (not peak_inds_f.size or not peak_nums_r.size
+                                 or not peak_nums_l.size):
             if self.verbose:
                 print('Failed to find %d beats during learning.'
                       % n_calib_beats)
@@ -235,7 +238,7 @@ class XQRS(object):
 
         # Go through the peaks and find qrs peaks and noise peaks.
         # only inspect peaks with at least qrs_radius around either side
-        for peak_num in range(peak_inds_f_r[0], peak_inds_f_l[0]):
+        for peak_num in range(peak_nums_r[0], peak_nums_l[-1]):
             i = peak_inds_f[peak_num]
             # Calculate cross-correlation between the filtered signal
             # segment and a ricker wavelet
@@ -291,6 +294,7 @@ class XQRS(object):
                                   noise_amp_recent=noise_amp,
                                   rr_recent=rr_recent,
                                   last_qrs_ind=last_qrs_ind)
+            self.learned_init_params = True
 
         # Failed to find enough calibration beats. Use default values.
         else:
@@ -347,6 +351,8 @@ class XQRS(object):
                               noise_amp_recent=noise_amp,
                               rr_recent=rr_recent,
                               last_qrs_ind=last_qrs_ind)
+
+        self.learned_init_params = False
 
     def _is_qrs(self, peak_num, backsearch=False):
         """
