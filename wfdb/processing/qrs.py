@@ -172,7 +172,7 @@ class XQRS(object):
 
         After integration, find all local peaks in the mwi signal.
         """
-        wavelet_filter = signal.ricker(self.qrs_width, 8)
+        wavelet_filter = signal.ricker(self.qrs_width, 4)
 
         self.sig_i = signal.filtfilt(wavelet_filter, [1], self.sig_f,
                                      axis=0) ** 2
