@@ -145,7 +145,7 @@ def _stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     # Specify the byte range
     end_byte = start_byte + byte_count - 1
     headers = {"Range":"bytes=%d-%d" % (start_byte, end_byte),
-               'Accept-Encoding': '*/*'}
+               'Accept-Encoding': '*'}
 
     # Get the content
     response = requests.get(url, headers=headers, stream=True)
@@ -330,7 +330,7 @@ def dl_pb_file(inputs):
             # Local file is smaller than it should be. Append it.
             if local_file_size < remote_file_size:
                 print('Detected partially downloaded file: %s Appending file...' % local_file)
-                headers = {"Range": "bytes="+str(local_file_size)+"-", 'Accept-Encoding': '*/*'}
+                headers = {"Range": "bytes="+str(local_file_size)+"-", 'Accept-Encoding': '*'}
                 r = requests.get(url, headers=headers, stream=True)
                 print('headers: ', headers)
                 print('r content length: ', len(r.content))
