@@ -498,7 +498,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
-        for i in range(n_seg):
+        for i in range(self.n_seg):
             s = self.segments[i]
 
             # If segment 0 is a layout specification record, check that its file names are all == '~''
@@ -1618,7 +1618,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
 
     # All files to download (relative to the database's home directory)
     allfiles = []
-
+    nested_records = []
     for rec in recordlist:
         # Check out whether each record is in MIT or EDF format
         if rec.endswith('.edf'):
@@ -1626,33 +1626,38 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         else:
             # May be pointing to directory
             if rec.endswith('/'):
-                rec = rec + rec[:-1]
-            # If MIT format, have to figure out all associated files
-            allfiles.append(rec+'.hea')
-            dir_name, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pb_dir=posixpath.join(db_dir, dir_name))
-
-            # Single segment record
-            if isinstance(record, Record):
-                # Add all dat files of the segment
-                for file in (record.file_name if record.file_name else []):
-                    allfiles.append(posixpath.join(dir_name, file))
-
-            # Multi segment record
+                nested_records += [posixpath.join(rec, sr) for sr in download.get_record_list(
+                        posixpath.join(db_dir, rec))]
             else:
-                for seg in record.seg_name:
-                    # Skip empty segments
-                    if seg == '~':
-                        continue
-                    # Add the header
-                    allfiles.append(posixpath.join(dir_name, seg+'.hea'))
-                    # Layout specifier has no dat files
-                    if seg.endswith('_layout'):
-                        continue
-                    # Add all dat files of the segment
-                    recseg = rdheader(seg, pb_dir=posixpath.join(db_dir, dir_name))
-                    for file in recseg.file_name:
-                        allfiles.append(posixpath.join(dir_name, file))
+                nested_records.append(rec)
+
+    for rec in nested_records:
+        # If MIT format, have to figure out all associated files
+        allfiles.append(rec+'.hea')
+        dir_name, baserecname = os.path.split(rec)
+        record = rdheader(baserecname, pb_dir=posixpath.join(db_dir, dir_name))
+
+        # Single segment record
+        if isinstance(record, Record):
+            # Add all dat files of the segment
+            for file in (record.file_name if record.file_name else []):
+                allfiles.append(posixpath.join(dir_name, file))
+
+        # Multi segment record
+        else:
+            for seg in record.seg_name:
+                # Skip empty segments
+                if seg == '~':
+                    continue
+                # Add the header
+                allfiles.append(posixpath.join(dir_name, seg+'.hea'))
+                # Layout specifier has no dat files
+                if seg.endswith('_layout'):
+                    continue
+                # Add all dat files of the segment
+                recseg = rdheader(seg, pb_dir=posixpath.join(db_dir, dir_name))
+                for file in recseg.file_name:
+                    allfiles.append(posixpath.join(dir_name, file))
         # check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
