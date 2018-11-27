@@ -781,7 +781,7 @@ class Annotation(object):
     def get_contained_labels(self, inplace=True):
         """
         Get the set of unique labels contained in this annotation.
-        Returns a pandas dataframe or sets the __contained__ labels
+        Returns a pandas dataframe or sets the contained_labels
         attribute of the object.
 
 
@@ -827,18 +827,26 @@ class Annotation(object):
         if self.label_store is not None:
             index_vals = set(self.label_store)
             reset_index = False
+            counts = np.unique(self.label_store, return_counts=True)
         elif self.symbol is not None:
             index_vals = set(self.symbol)
             label_map.set_index(label_map['symbol'].values, inplace=True)
             reset_index = True
+            counts = np.unique(self.symbol, return_counts=True)
         elif self.description is not None:
             index_vals = set(self.description)
             label_map.set_index(label_map['description'].values, inplace=True)
             reset_index = True
+            counts = np.unique(self.description, return_counts=True)
         else:
             raise Exception('No annotation labels contained in object')
 
         contained_labels = label_map.loc[index_vals, :]
+
+        # Add the counts
+        for i in range(len(counts[0])):
+            contained_labels.loc[counts[0][i], 'n_occurrences'] = counts[1][i]
+        contained_labels['n_occurrences'] = pd.to_numeric(contained_labels['n_occurrences'], downcast='integer')
 
         if reset_index:
             contained_labels.set_index(contained_labels['label_store'].values,
@@ -1220,7 +1228,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
         If True, assign a summary table of the set of annotation labels
         contained in the file to the 'contained_labels' attribute of the
         returned object. This table will contain the columns:
-        ['label_store', 'symbol', 'description', 'n_occurences']
+        ['label_store', 'symbol', 'description', 'n_occurrences']
 
     Returns
     -------
