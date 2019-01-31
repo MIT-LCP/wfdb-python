@@ -210,8 +210,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
             # Plot the annotation symbols if any
             if ann_sym is not None and ann_sym[ch] is not None:
                 for i, s in enumerate(ann_sym[ch]):
-                    axes[ch].annotate(s, (ann_samp[ch][i] / downsample_factor,
-                                          y[i]))
+                    axes[ch].annotate(s + '\n', (ann_samp[ch][i] / downsample_factor,
+                                                 y[i]), va='center', ha='center', fontsize=12.5)
 
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
