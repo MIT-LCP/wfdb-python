@@ -12,7 +12,7 @@ from ..io.annotation import Annotation
 def plot_items(signal=None, ann_samp=None, ann_sym=None, ann_aux = None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
-               ecg_grids=[], figsize=None, return_fig=False):
+               ecg_grids=[], figsize=None, return_fig=False, plot_n=False):
     """
     Subplot individual channels of signals and/or annotations.
 
@@ -79,7 +79,11 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, ann_aux = None, fs=None
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
     return_fig : bool, optional
         Whether the figure is to be returned as an output argument.
-
+    plot_n: bool, optional
+        Only used if plot_sym is set to True. By default, plot_wfdb only annotates
+        the abnormal beats. The beats marked but not annotated are then interpreted
+        as normal. If plot_n is set to True, annotations on the N beats will also
+        be plotted
     Returns
     -------
     figure : matplotlib figure, optional
@@ -109,7 +113,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, ann_aux = None, fs=None
 
     if ann_samp is not None:
         plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs,
-                        time_units, ann_style, axes)
+                        time_units, ann_style, axes, plot_n=plot_n)
 
     if ecg_grids:
         plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes)
@@ -179,7 +183,7 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
 
 
 def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time_units,
-                    ann_style, axes):
+                    ann_style, axes, plot_n=False):
     "Plot annotations, possibly overlaid on signals"
     # Extend annotation style if necesary
     if len(ann_style) == 1:
@@ -189,8 +193,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time
     if time_units == 'samples':
         downsample_factor = 1
     else:
-        downsample_factor = {'seconds':float(fs), 'minutes':float(fs)*60,
-                             'hours':float(fs)*3600}[time_units]
+        downsample_factor = {'seconds' : float(fs), 'minutes' : float(fs)*60,
+                             'hours' : float(fs)*3600}[time_units]
 
     # Plot the annotations
     for ch in range(n_annot):
@@ -208,8 +212,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time
                 else:
                     y = signal[ann_samp[ch], ch]
 
-                    max_y = np.max(signal[:,ch])
-                    min_y = np.min(signal[:,ch])
+                    max_y = np.max(signal[:, ch])
+                    min_y = np.min(signal[:, ch])
             else:
                 y = np.zeros(len(ann_samp[ch]))
                 max_y = min_y = 0
@@ -219,7 +223,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time
             # Plot the annotation symbols if any
             if ann_sym is not None and ann_sym[ch] is not None:
                 for i, s in enumerate(ann_sym[ch]):
-                    axes[ch].annotate(s + '\n', (ann_samp[ch][i] / downsample_factor,
+                    if s != 'N' or plot_n:
+                        axes[ch].annotate(s + '\n', (ann_samp[ch][i] / downsample_factor,
                                                  y[i]), va='center', ha='center', fontsize=12.5)
 
             if ann_aux is not None and ann_aux[ch] is not None:
@@ -229,11 +234,11 @@ def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time
                     axes[ch].annotate(' ' + s, (ann_samp[ch][i] / downsample_factor,
                                                  min_y), va='top', fontsize=12.5)
 
+
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     "Add ecg grids to the axes"
     if ecg_grids == 'all':
         ecg_grids = range(0, len(axes))
-
 
     for ch in ecg_grids:
         # Get the initial plot limits
@@ -370,7 +375,7 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
 
 def plot_wfdb(record=None, annotation=None, plot_sym=False,
               time_units='samples', title=None, sig_style=[''],
-              ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
+              ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False, plot_n=False):
     """
     Subplot individual channels of a wfdb record and/or annotation.
 
@@ -423,7 +428,11 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
     return_fig : bool, optional
         Whether the figure is to be returned as an output argument.
-
+    plot_n: bool, optional
+        Only used if plot_sym is set to True. By default, plot_wfdb only annotates
+        the abnormal beats. The beats marked but not annotated are then interpreted
+        as normal. If plot_n is set to True, annotations on the N beats will also
+        be plotted
     Returns
     -------
     figure : matplotlib figure, optional
@@ -450,7 +459,7 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                       ylabel=ylabel, title=(title or record_name),
                       sig_style=sig_style,
                       ann_style=ann_style, ecg_grids=ecg_grids,
-                      figsize=figsize, return_fig=return_fig)
+                      figsize=figsize, return_fig=return_fig, plot_n=plot_n)
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
     """
