@@ -8,7 +8,7 @@ from ..io._signal import downround, upround
 from ..io.annotation import Annotation
 
 
-def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
+def plot_items(signal=None, ann_samp=None, ann_sym=None, ann_aux = None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
                ecg_grids=[], figsize=None, return_fig=False):
@@ -107,7 +107,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
 
     if ann_samp is not None:
-        plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs,
+        plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs,
                         time_units, ann_style, axes)
 
     if ecg_grids:
@@ -177,7 +177,7 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
             axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3)
 
 
-def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
+def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time_units,
                     ann_style, axes):
     "Plot annotations, possibly overlaid on signals"
     # Extend annotation style if necesary
@@ -194,16 +194,24 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
     # Plot the annotations
     for ch in range(n_annot):
         if ann_samp[ch] is not None and len(ann_samp[ch]):
+
             # Figure out the y values to plot on a channel basis
 
             # 1 dimensional signals
             if n_sig > ch:
                 if signal.ndim == 1:
                     y = signal[ann_samp[ch]]
+
+                    max_y = np.max(signal)
+                    min_y = np.min(signal)
                 else:
                     y = signal[ann_samp[ch], ch]
+
+                    max_y = np.max(signal[:,ch])
+                    min_y = np.min(signal[:,ch])
             else:
                 y = np.zeros(len(ann_samp[ch]))
+                max_y = min_y = 0
 
             axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch])
 
@@ -213,6 +221,12 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                     axes[ch].annotate(s + '\n', (ann_samp[ch][i] / downsample_factor,
                                                  y[i]), va='center', ha='center', fontsize=12.5)
 
+            if ann_aux is not None and ann_aux[ch] is not None:
+                for i, s in enumerate(ann_aux[ch]):
+                    axes[ch].vlines(ann_samp[ch][i] / downsample_factor,
+                                        min_y,max_y)
+                    axes[ch].annotate(' ' + s, (ann_samp[ch][i] / downsample_factor,
+                                                 min_y), va='top', fontsize=12.5)
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     "Add ecg grids to the axes"
@@ -401,12 +415,12 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                        figsize=(10,4), ecg_grids='all')
 
     """
-    (signal, ann_samp, ann_sym, fs,
+    (signal, ann_samp, ann_sym, ann_aux, fs,
         ylabel, record_name, sig_units) = get_wfdb_plot_items(record=record,
                                                    annotation=annotation,
                                                    plot_sym=plot_sym)
 
-    return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
+    return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, ann_aux=ann_aux, fs=fs,
                       time_units=time_units, sig_name=None, sig_units=sig_units,
                       ylabel=ylabel, title=(title or record_name),
                       sig_style=sig_style,
@@ -450,10 +464,13 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
 
         if plot_sym:
             ann_sym = n_ann_chans * [None]
+            ann_aux = n_ann_chans * [None]
             for ch in ann_chans:
                 ann_sym[ch] = [annotation.symbol[ci] for ci in chan_inds[ch]]
+                ann_aux[ch] = [annotation.aux_note[ci] for ci in chan_inds[ch] if annotation.aux_note[ci]]
         else:
             ann_sym = None
+            ann_aux = None
 
         # Try to get fs from annotation if not already in record
         if fs is None:
@@ -463,6 +480,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     else:
         ann_samp = None
         ann_sym = None
+        ann_aux = None
 
     # Cleaning: remove empty channels and set labels and styles.
 
@@ -506,7 +524,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
             ann_sym = [a for a in ann_sym if a]
         ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
 
-    return signal, ann_samp, ann_sym, fs, ylabel, record_name, sig_units
+    return signal, ann_samp, ann_sym, ann_aux,fs, ylabel, record_name, sig_units
 
 
 def plot_all_records(directory=''):
