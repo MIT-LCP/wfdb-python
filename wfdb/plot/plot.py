@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import os
 
@@ -249,20 +250,37 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
 
         for tick in minor_ticks_x:
             axes[ch].plot([tick, tick], [min_y,  max_y], c='#ededed',
-                          marker='|', zorder=1)
-        for tick in major_ticks_x:
-            axes[ch].plot([tick, tick], [min_y, max_y], c='#bababa',
-                          marker='|', zorder=2)
+                          marker='|', zorder=0)
         for tick in minor_ticks_y:
             axes[ch].plot([min_x, max_x], [tick, tick], c='#ededed',
-                          marker='_', zorder=1)
+                          marker='_', zorder=0)
+        for tick in major_ticks_x:
+            axes[ch].plot([tick, tick], [min_y, max_y], c='#bababa',
+                          marker='|', zorder=0)
         for tick in major_ticks_y:
             axes[ch].plot([min_x, max_x], [tick, tick], c='#bababa',
-                          marker='_', zorder=2)
+                          marker='_', zorder=0)
+
+        # max_time_in_seconds = auto_xlims[1] * {'seconds':1,'minutes':60,'hours':3600,'samples':1/fs}[time_units]
+        #
+        # majorx, majory, minorx, minory = calc_ecg_grid_intervals(fs, units[ch], time_units)
+        #
+        # mticker.MultipleLocator.MAXTICKS = int(1e10)
+        #
+        # axes[ch].xaxis.set_major_locator(mticker.MultipleLocator(base=majorx))
+        # axes[ch].yaxis.set_major_locator(mticker.MultipleLocator(base=majory))
+        #
+        # if max_time_in_seconds < 30:
+        #     axes[ch].xaxis.set_minor_locator(mticker.MultipleLocator(base=minorx))
+        #     axes[ch].yaxis.set_minor_locator(mticker.MultipleLocator(base=minory))
+        #
+        # axes[ch].grid(ls='-', color='#bababa', linewidth=1)
+        # # axes[ch].grid(which="minor", ls=':', color='#ededed', linewidth=1)
 
         # Plotting the lines changes the graph. Set the limits back
         axes[ch].set_xlim(auto_xlims)
         axes[ch].set_ylim(auto_ylims)
+
 
 def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
@@ -273,32 +291,7 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
 
     10 mm is equal to 1mV in voltage.
     """
-    # Get the grid interval of the x axis
-    if time_units == 'samples':
-        majorx = 0.2 * fs
-        minorx = 0.04 * fs
-    elif time_units == 'seconds':
-        majorx = 0.2
-        minorx = 0.04
-    elif time_units == 'minutes':
-        majorx = 0.2 / 60
-        minorx = 0.04/60
-    elif time_units == 'hours':
-        majorx = 0.2 / 3600
-        minorx = 0.04 / 3600
-
-    # Get the grid interval of the y axis
-    if sig_units.lower()=='uv':
-        majory = 500
-        minory = 125
-    elif sig_units.lower()=='mv':
-        majory = 0.5
-        minory = 0.125
-    elif sig_units.lower()=='v':
-        majory = 0.0005
-        minory = 0.000125
-    else:
-        raise ValueError('Signal units must be uV, mV, or V to plot ECG grids.')
+    majorx, majory, minorx, minory = calc_ecg_grid_intervals(fs, sig_units, time_units)
 
     major_ticks_x = np.arange(0, upround(maxt, majorx) + 0.0001, majorx)
     minor_ticks_x = np.arange(0, upround(maxt, majorx) + 0.0001, minorx)
@@ -309,6 +302,38 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
                               upround(maxsig, majory) + 0.0001, minory)
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
+
+
+def calc_ecg_grid_intervals(fs, sig_units, time_units):
+    """
+    Get the grid interval of the x and y axis
+    """
+    # Get the grid interval of the x axis
+    if time_units == 'samples':
+        majorx = 0.2 * fs
+        minorx = 0.04 * fs
+    elif time_units == 'seconds':
+        majorx = 0.2
+        minorx = 0.04
+    elif time_units == 'minutes':
+        majorx = 0.2 / 60
+        minorx = 0.04 / 60
+    elif time_units == 'hours':
+        majorx = 0.2 / 3600
+        minorx = 0.04 / 3600
+    # Get the grid interval of the y axis
+    if sig_units.lower() == 'uv':
+        majory = 500
+        minory = 125
+    elif sig_units.lower() == 'mv':
+        majory = 0.5
+        minory = 0.125
+    elif sig_units.lower() == 'v':
+        majory = 0.0005
+        minory = 0.000125
+    else:
+        raise ValueError('Signal units must be uV, mV, or V to plot ECG grids.')
+    return majorx, majory, minorx, minory
 
 
 def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
