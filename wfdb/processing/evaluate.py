@@ -81,7 +81,7 @@ class Comparitor(object):
         fp = 10
         fn = 30
 
-        specificity = 470 / 500
+        sensitivity = 470 / 500
         positive_predictivity = 470 / 480
         false_positive_rate = 10 / 480
 
@@ -111,7 +111,7 @@ class Comparitor(object):
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.specificity = float(self.tp) / self.n_ref
+        self.sensitivity = float(self.tp) / self.n_ref
         self.positive_predictivity = float(self.tp) / self.n_test
         self.false_positive_rate = float(self.fp) / self.n_test
 
@@ -243,7 +243,7 @@ class Comparitor(object):
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.specificity = self.tp / self.n_ref
+        self.sensitivity = self.tp / self.n_ref
         self.positive_predictivity = self.tp / self.n_test
         self.false_positive_rate = self.fp / self.n_test
 
@@ -253,8 +253,8 @@ class Comparitor(object):
         print('False Positives (unmatched test samples: %d' % self.fp)
         print('False Negatives (unmatched reference samples): %d\n' % self.fn)
 
-        print('Specificity: %.4f (%d/%d)'
-            % (self.specificity, self.tp, self.n_ref))
+        print('Sensitivity: %.4f (%d/%d)'
+            % (self.sensitivity, self.tp, self.n_ref))
         print('Positive Predictivity: %.4f (%d/%d)'
             % (self.positive_predictivity, self.tp, self.n_test))
         print('False Positive Rate: %.4f (%d/%d)'
@@ -400,8 +400,8 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
     comparitors : dictionary
         Dictionary of Comparitor objects run on the records, keyed on
         the record names.
-    specificity : float
-        Aggregate specificity.
+    sensitivity : float
+        Aggregate sensitivity.
     positive_predictivity : float
         Aggregate positive_predictivity.
     false_positive_rate : float
@@ -433,7 +433,7 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
         comparitors = p.starmap(benchmark_mitdb_record, args)
 
     # Calculate aggregate stats
-    specificity = np.mean([c.specificity for c in comparitors])
+    sensitivity = np.mean([c.sensitivity for c in comparitors])
     positive_predictivity = np.mean(
         [c.positive_predictivity for c in comparitors])
     false_positive_rate = np.mean(
@@ -444,14 +444,14 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
     print('Benchmark complete')
 
     if print_results:
-        print('\nOverall MITDB Performance - Specificity: %.4f, Positive Predictivity: %.4f, False Positive Rate: %.4f\n'
-              % (specificity, positive_predictivity, false_positive_rate))
+        print('\nOverall MITDB Performance - Sensitivity: %.4f, Positive Predictivity: %.4f, False Positive Rate: %.4f\n'
+              % (sensitivity, positive_predictivity, false_positive_rate))
         for record_name in record_list:
             print('Record %s:' % record_name)
             comparitors[record_name].print_summary()
             print('\n\n')
 
-    return comparitors, specificity, positive_predictivity, false_positive_rate
+    return comparitors, sensitivity, positive_predictivity, false_positive_rate
 
 
 def benchmark_mitdb_record(rec, detector, verbose):
