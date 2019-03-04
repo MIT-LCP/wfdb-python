@@ -300,8 +300,8 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
-                 title):
+def label_figure(axes, n_subplots, time_units, sig_name, sig_units, 
+                 xlabel, ylabel, title):
     "Add title, and axes labels"
     if title:
         axes[0].set_title(title)
