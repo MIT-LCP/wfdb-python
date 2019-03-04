@@ -10,8 +10,8 @@ from ..io.annotation import Annotation
 
 def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
-               ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
-               ecg_grids=[], figsize=None, return_fig=False):
+               xlabel=None, ylabel=None, title=None, sig_style=[''],
+               ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
     """
     Subplot individual channels of signals and/or annotations.
 
@@ -54,6 +54,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
         parameter is required for plotting ecg grids.
+    xlabel : list, optional
+        A list of strings specifying the final x labels to be used. If this
+        option is present, no 'time/'`time_units` is used.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -114,13 +117,13 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes)
 
     # Add title and axis labels.
-    label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
-                 title)
+    label_figure(axes, n_subplots, time_units, sig_name, sig_units, xlabel,
+                 ylabel, title)
 
     plt.show(fig)
 
-    if return_fig:
-        return fig
+    if return_fig_axes:
+        return fig, axes
 
 def get_plot_dims(signal, ann_samp):
     "Figure out the number of plot channels"
@@ -326,7 +329,11 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
 
-    axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+    if not xlabel:
+        axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+    else:
+        for ch in range(n_subplots):
+            axes[ch].set_xlabel(xlabel[ch])
 
 
 def plot_wfdb(record=None, annotation=None, plot_sym=False,
