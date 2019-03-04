@@ -228,12 +228,13 @@ def plot_annotation(ann_samp, n_annot, ann_sym, ann_aux, signal, n_sig, fs, time
                                                  y[i]), va='center', ha='center', fontsize=12.5)
 
             if ann_aux is not None and ann_aux[ch] is not None:
-                for i, s in enumerate(ann_aux[ch]):
-                    axes[ch].vlines(ann_samp[ch][i] / downsample_factor,
-                                        min_y,max_y)
-                    axes[ch].annotate(' ' + s, (ann_samp[ch][i] / downsample_factor,
-                                                 min_y), va='top', fontsize=12.5)
 
+                for i, s in enumerate(ann_aux[ch]):
+                    if ann_aux[ch][i]:
+                        axes[ch].vlines(ann_samp[ch][i] / downsample_factor,
+                                            min_y,max_y)
+                        axes[ch].annotate(' ' + s, (ann_samp[ch][i] / downsample_factor,
+                                                     min_y), va='top', fontsize=12.5)
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     "Add ecg grids to the axes"
@@ -501,7 +502,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
             ann_aux = n_ann_chans * [None]
             for ch in ann_chans:
                 ann_sym[ch] = [annotation.symbol[ci] for ci in chan_inds[ch]]
-                ann_aux[ch] = [annotation.aux_note[ci] for ci in chan_inds[ch] if annotation.aux_note[ci]]
+                ann_aux[ch] = [annotation.aux_note[ci] for ci in chan_inds[ch]]
         else:
             ann_sym = None
             ann_aux = None
