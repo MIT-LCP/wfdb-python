@@ -117,10 +117,10 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
                  title)
 
-    plt.show()
-
     if return_fig:
         return fig
+
+    plt.show()
 
 def get_plot_dims(signal, ann_samp):
     "Figure out the number of plot channels"
