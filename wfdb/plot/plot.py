@@ -428,8 +428,8 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
             raise ValueError('The record has no signal to plot')
 
         fs = record.fs
-        sig_name = record.sig_name
-        sig_units = record.units
+        sig_name = [str(s) for s in record.sig_name]
+        sig_units = [str(s) for s in record.units]
         record_name = 'Record: %s' % record.record_name
         ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
