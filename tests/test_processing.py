@@ -118,6 +118,6 @@ class test_qrs():
                                                     xqrs.qrs_inds,
                                                     int(0.1 * fields['fs']))
 
-        assert comparitor.specificity > 0.99
+        assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
         assert comparitor.false_positive_rate < 0.01
