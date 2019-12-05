@@ -83,7 +83,6 @@ class Comparitor(object):
 
         sensitivity = 470 / 500
         positive_predictivity = 470 / 480
-        false_positive_rate = 10 / 480
 
         """
         # Reference annotation indices that were detected
@@ -111,9 +110,8 @@ class Comparitor(object):
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.sensitivity = float(self.tp) / self.n_ref
+        self.sensitivity = float(self.tp) / float(self.tp + self.fn)
         self.positive_predictivity = float(self.tp) / self.n_test
-        self.false_positive_rate = float(self.fp) / self.n_test
 
     def compare(self):
         """
@@ -235,17 +233,8 @@ class Comparitor(object):
         """
         Print summary metrics of the annotation comparisons.
         """
-        # True positives = matched reference samples
-        self.tp = len(self.matched_ref_inds)
-        # False positives = extra test samples not matched
-        self.fp = self.n_test - self.tp
-        # False negatives = undetected reference samples
-        self.fn = self.n_ref - self.tp
-        # No tn attribute
-
-        self.sensitivity = self.tp / self.n_ref
-        self.positive_predictivity = self.tp / self.n_test
-        self.false_positive_rate = self.fp / self.n_test
+        if not hasattr(self, sensitivity):
+            self._calc_stats()
 
         print('%d reference annotations, %d test annotations\n'
             % (self.n_ref, self.n_test))
@@ -257,8 +246,6 @@ class Comparitor(object):
             % (self.sensitivity, self.tp, self.n_ref))
         print('Positive Predictivity: %.4f (%d/%d)'
             % (self.positive_predictivity, self.tp, self.n_test))
-        print('False Positive Rate: %.4f (%d/%d)'
-            % (self.false_positive_rate, self.fp, self.n_test))
 
 
     def plot(self, sig_style='', title=None, figsize=None,
@@ -404,8 +391,6 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
         Aggregate sensitivity.
     positive_predictivity : float
         Aggregate positive_predictivity.
-    false_positive_rate : float
-        Aggregate false_positive_rate.
 
     Notes
     -----
@@ -418,7 +403,7 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
     >>> import wfdb
     >> from wfdb.processing import benchmark_mitdb, xqrs_detect
 
-    >>> comparitors, spec, pp, fpr = benchmark_mitdb(xqrs_detect)
+    >>> comparitors, spec, pp = benchmark_mitdb(xqrs_detect)
 
     """
     record_list = get_record_list('mitdb')
@@ -436,22 +421,20 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
     sensitivity = np.mean([c.sensitivity for c in comparitors])
     positive_predictivity = np.mean(
         [c.positive_predictivity for c in comparitors])
-    false_positive_rate = np.mean(
-        [c.false_positive_rate for c in comparitors])
 
     comparitors = dict(zip(record_list, comparitors))
 
     print('Benchmark complete')
 
     if print_results:
-        print('\nOverall MITDB Performance - Sensitivity: %.4f, Positive Predictivity: %.4f, False Positive Rate: %.4f\n'
-              % (sensitivity, positive_predictivity, false_positive_rate))
+        print('\nOverall MITDB Performance - Sensitivity: %.4f, Positive Predictivity: %.4f\n'
+              % (sensitivity, positive_predictivity))
         for record_name in record_list:
             print('Record %s:' % record_name)
             comparitors[record_name].print_summary()
             print('\n\n')
 
-    return comparitors, sensitivity, positive_predictivity, false_positive_rate
+    return comparitors, sensitivity, positive_predictivity
 
 
 def benchmark_mitdb_record(rec, detector, verbose):

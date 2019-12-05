@@ -120,4 +120,3 @@ class test_qrs():
 
         assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
-        assert comparitor.false_positive_rate < 0.01
