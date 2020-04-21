@@ -239,7 +239,7 @@ class Comparitor(object):
         print('%d reference annotations, %d test annotations\n'
             % (self.n_ref, self.n_test))
         print('True Positives (matched samples): %d' % self.tp)
-        print('False Positives (unmatched test samples: %d' % self.fp)
+        print('False Positives (unmatched test samples): %d' % self.fp)
         print('False Negatives (unmatched reference samples): %d\n' % self.fn)
 
         print('Sensitivity: %.4f (%d/%d)'
