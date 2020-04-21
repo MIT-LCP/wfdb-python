@@ -81,7 +81,8 @@ class XQRS(object):
             Parameters
             ----------
             hr_init : int or float, optional
-                Initial heart rate in beats per minute. Used for
+                Initial heart rate in beats per minute. Used for calculating
+                recent rr intervals. 
             hr_max : int or float, optional
                 Hard maximum heart rate between two beats, in beats per
                 minute. Used for refractory period.
@@ -105,7 +106,7 @@ class XQRS(object):
 
             """
             if hr_min < 0:
-                raise ValueError("'hr_min' must be <= 0")
+                raise ValueError("'hr_min' must be >= 0")
 
             if not hr_min < hr_init < hr_max:
                 raise ValueError("'hr_min' < 'hr_init' < 'hr_max' must be True")
