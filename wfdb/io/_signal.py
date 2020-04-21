@@ -1551,7 +1551,7 @@ def _wfdb_fmt(bit_res, single_fmt=True):
         if single_fmt:
             bit_res = [max(bit_res)] * len(bit_res)
 
-        return [wfdb_fmt(r) for r in bit_res]
+        return [_wfdb_fmt(r) for r in bit_res]
 
     if bit_res <= 8:
         return '80'
