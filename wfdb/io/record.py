@@ -1443,7 +1443,8 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     ----------
     record_name : str
         The string name of the WFDB record to be written (without any file
-        extensions).
+        extensions). Must not contain any "." since this would indicate an
+        EDF file which is not compatible at this point.
     fs : int, or float
         The sampling frequency of the record.
     units : list
@@ -1505,6 +1506,9 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
 
     """
 
+    # Check for valid record name
+    if '.' in record_name: 
+        raise Exception("Record name must not contain '.'")
     # Check input field combinations
     if p_signal is not None and d_signal is not None:
         raise Exception('Must only give one of the inputs: p_signal or d_signal')
