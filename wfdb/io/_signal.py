@@ -1232,8 +1232,8 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
                 frames = int(usablebytes/12)
                 rawbytes = rawdatamap[:usablebytes]
                 sig_data = np.lib.stride_tricks.as_strided(rawbytes.view(np.int32),
-                                      strides=(12,3,),
-                                      shape=(frames,4))
+                                                           strides=(12,3,),
+                                                           shape=(frames,4))
             else:
                 sig_data = np.fromfile(fp, 
                                        dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
