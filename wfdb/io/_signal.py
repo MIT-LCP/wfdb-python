@@ -1223,7 +1223,6 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     if pb_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
-
             # Numpy doesn't really like 24-bit data but we can make it work
             if DATA_LOAD_TYPES[fmt] == '<i3':
                 rawdatamap = np.memmap(fp,
