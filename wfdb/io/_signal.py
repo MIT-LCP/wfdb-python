@@ -1223,8 +1223,21 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
     if pb_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
-            sig_data = np.fromfile(fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
-                                   count=element_count)
+            # Numpy doesn't really like 24-bit data but we can make it work
+            if DATA_LOAD_TYPES[fmt] == '<i3':
+                rawdatamap = np.memmap(fp,
+                                       dtype=np.dtype('u1'),
+                                       mode='r')
+                usablebytes = rawdatamap.shape[0]-rawdatamap.shape[0]%12
+                frames = int(usablebytes/12)
+                rawbytes = rawdatamap[:usablebytes]
+                sig_data = np.lib.stride_tricks.as_strided(rawbytes.view(np.int32),
+                                                           strides=(12,3,),
+                                                           shape=(frames,4))
+            else:
+                sig_data = np.fromfile(fp, 
+                                       dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+                                       count=element_count)
     # Stream dat file from physiobank
     else:
         sig_data = download._stream_dat(file_name, pb_dir, byte_count,
