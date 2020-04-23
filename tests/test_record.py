@@ -124,7 +124,7 @@ class TestRecord():
         Format 24, entire signal, digital.
 
         Target file created with:
-            rdsamp -r sample-data/earndb | cut -f 2- > record-1e
+            rdsamp -r sample-data/n8_evoked_raw_95_F1_R9 | cut -f 2- > record-1e
         """
         record = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
         sig = record.d_signal
