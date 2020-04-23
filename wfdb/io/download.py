@@ -154,7 +154,12 @@ def _stream_dat(file_name, pb_dir, byte_count, start_byte, dtype):
     response.raise_for_status()
 
     # Convert to numpy array
-    sig_data = np.fromstring(response.content, dtype=dtype)
+    if dtype == '<i3':
+        # Convert 24-bit to 16-bit then proceed
+        temp_data = np.frombuffer(response.content, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
+        sig_data = np.fromstring(temp_data, dtype='i2')
+    else:
+        sig_data = np.fromstring(response.content, dtype=dtype)
 
     return sig_data
 

@@ -119,6 +119,29 @@ class TestRecord():
         assert np.array_equal(sig_round, sig_target)
         assert np.array_equal(sig, sig_pb) and fields == fields_pb
 
+    def test_1e(self):
+        """
+        Format 24, entire signal, digital.
+
+        Target file created with:
+            rdsamp -r sample-data/earndb | cut -f 2- > record-1e
+        """
+        record = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
+        sig = record.d_signal
+        sig_target = np.genfromtxt('tests/target-output/record-1e')
+
+        # Compare data streaming from physiobank
+        record_pb = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False,
+                                  pb_dir='earndb/raw/N8')
+
+        # Test file writing
+        record_2 = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
+        record_2.wrsamp()
+        record_write = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
+
+        assert np.array_equal(sig, sig_target)
+        assert record.__eq__(record_pb)
+        assert record_2.__eq__(record_write)
 
     # ------------------ 2. Special format records ------------------ #
 
