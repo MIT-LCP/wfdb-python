@@ -1225,10 +1225,10 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
             fp.seek(start_byte)
             # Numpy doesn't really like 24-bit data but we can make it work
             if DATA_LOAD_TYPES[fmt] == '<i3':
-                rawdatamap = np.memmap(fp,
-                                       dtype=np.dtype('i2'),
-                                       mode='r')
-                temp_data = np.frombuffer(rawdatamap, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
+                raw_data_map = np.memmap(fp,
+                                         dtype=np.dtype('i2'),
+                                         mode='r')
+                temp_data = np.frombuffer(raw_data_map, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
                 sig_data = np.fromstring(temp_data, dtype='i2')
             else:
                 sig_data = np.fromfile(fp, 
