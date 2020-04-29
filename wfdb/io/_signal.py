@@ -38,6 +38,7 @@ DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
 class SignalMixin(object):
     """
     Mixin class with signal methods. Inherited by Record class.
+    
     """
 
     def wr_dats(self, expanded, write_dir):
@@ -70,7 +71,8 @@ class SignalMixin(object):
     def check_sig_cohesion(self, write_fields, expanded):
         """
         Check the cohesion of the d_signal/e_d_signal field with the other
-        fields used to write the record
+        fields used to write the record.
+
         """
         # Using list of arrays e_d_signal
         if expanded:
@@ -656,6 +658,7 @@ class SignalMixin(object):
         """
         Calculate the checksum(s) of the d_signal (expanded=False)
         or e_d_signal field (expanded=True)
+
         """
         if expanded:
             cs = [int(np.sum(self.e_d_signal[ch]) % 65536) for ch in range(self.n_sig)]
@@ -705,10 +708,12 @@ class SignalMixin(object):
         Convert expanded signals with different samples/frame into
         a uniform numpy array.
 
-        Input parameters
-        - sigtype (default='physical'): Specifies whether to mooth
-          the e_p_signal field ('physical'), or the e_d_signal
-          field ('digital').
+        Parameters
+        ----------
+        sigtype (default='physical') : str 
+            Specifies whether to mooth the e_p_signal field ('physical'), or the e_d_signal
+            field ('digital')
+
         """
         spf = self.samps_per_frame[:]
         for ch in range(len(spf)):
@@ -1366,7 +1371,6 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
     n_sig : int
         The number of signals
 
-
     Notes
     -----
     `fmt` is just for the correct nan value.
@@ -1778,6 +1782,8 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
 
 def describe_list_indices(full_list):
     """
+    Describe the indices of the given list.
+
     Parameters
     ----------
     full_list : list
@@ -1839,6 +1845,7 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
 def downround(x, base):
     """
     Round <x> down to nearest <base>
+
     """
     return base * math.floor(float(x)/base)
 
@@ -1846,5 +1853,6 @@ def downround(x, base):
 def upround(x, base):
     """
     Round <x> up to nearest <base>
+
     """
     return base * math.ceil(float(x)/base)

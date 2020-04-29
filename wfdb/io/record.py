@@ -871,7 +871,7 @@ def get_version(pn_dir):
     contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
     version_number = [v for v in contents if 'Version:' in v]
     version_number = version_number[0].split(':')[-1].strip().split('<')[0]
-    
+
     return version_number
 
 def _check_item_type(item, field_name, allowed_types, expect_list=False,
