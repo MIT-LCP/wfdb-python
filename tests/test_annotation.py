@@ -62,18 +62,18 @@ class test_annotation():
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('100', 'atr', pb_dir='mitdb', return_label_elements=['label_store', 'symbol'])
-        pbannotation.aux_note[0] = '(N'
-        pbannotation.create_label_map()
+        pn_annotation = wfdb.rdann('100', 'atr', pn_dir='mitdb', return_label_elements=['label_store', 'symbol'])
+        pn_annotation.aux_note[0] = '(N'
+        pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True)
-        writeannotation = wfdb.rdann('100', 'atr', return_label_elements=['label_store', 'symbol'])
-        writeannotation.create_label_map()
+        write_annotation = wfdb.rdann('100', 'atr', return_label_elements=['label_store', 'symbol'])
+        write_annotation.create_label_map()
 
         assert (comp == [True] * 6)
-        assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(writeannotation)
+        assert annotation.__eq__(pn_annotation)
+        assert annotation.__eq__(write_annotation)
 
     def test_2(self):
         """
@@ -117,17 +117,17 @@ class test_annotation():
                 np.array_equal(annotation.num, target_num),
                 annotation.aux_note == target_aux_note]
         # Test file streaming
-        pbannotation = wfdb.rdann('12726', 'anI', pb_dir='prcp', return_label_elements=['label_store', 'symbol'])
-        pbannotation.create_label_map()
+        pn_annotation = wfdb.rdann('12726', 'anI', pn_dir='prcp', return_label_elements=['label_store', 'symbol'])
+        pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True)
-        writeannotation = wfdb.rdann('12726', 'anI', return_label_elements=['label_store', 'symbol'])
-        writeannotation.create_label_map()
+        write_annotation = wfdb.rdann('12726', 'anI', return_label_elements=['label_store', 'symbol'])
+        write_annotation.create_label_map()
 
         assert (comp == [True] * 6)
-        assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(writeannotation)
+        assert annotation.__eq__(pn_annotation)
+        assert annotation.__eq__(write_annotation)
 
     def test_3(self):
         """
@@ -172,14 +172,14 @@ class test_annotation():
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pbannotation = wfdb.rdann('1003', 'atr', pb_dir='challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
-        pbannotation.create_label_map()
+        pn_annotation = wfdb.rdann('1003', 'atr', pn_dir='challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
+        pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True)
-        writeannotation = wfdb.rdann('1003', 'atr', return_label_elements=['label_store', 'symbol'])
-        writeannotation.create_label_map()
+        write_annotation = wfdb.rdann('1003', 'atr', return_label_elements=['label_store', 'symbol'])
+        write_annotation.create_label_map()
 
         assert (comp == [True] * 6)
-        assert annotation.__eq__(pbannotation)
-        assert annotation.__eq__(writeannotation)
+        assert annotation.__eq__(pn_annotation)
+        assert annotation.__eq__(write_annotation)

@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import re
+import posixpath
 
 from . import download
 from . import _header
@@ -1141,7 +1142,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
     Examples
     --------
     >>> # Read an annotation as an Annotation object
-    >>> annotation = wfdb.rdann('b001', 'atr', pb_dir='cebsdb')
+    >>> annotation = wfdb.rdann('b001', 'atr', pn_dir='cebsdb')
     >>> # Write a copy of the annotation file
     >>> wfdb.wrann('b001', 'cpy', annotation.sample, annotation.symbol)
 
@@ -1194,7 +1195,7 @@ def show_ann_classes():
 
 # todo: return as df option?
 def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
-          pb_dir=None, return_label_elements=['symbol'],
+          pn_dir=None, return_label_elements=['symbol'],
           summarize_labels=False):
     """
     Read a WFDB annotation file record_name.extension and return an
@@ -1215,11 +1216,11 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
     shift_samps : bool, optional
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
-    pb_dir : str, optional
-        Option used to stream data from Physiobank. The Physiobank database
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet database
         directory from which to find the required annotation file. eg. For
-        record '100' in 'http://physionet.org/physiobank/database/mitdb':
-        pb_dir='mitdb'.
+        record '100' in 'http://physionet.org/content/mitdb':
+        pn_dir='mitdb'.
     return_label_elements : list, optional
         The label elements that are to be returned from reading the annotation
         file. A list with at least one of the following options: 'symbol',
@@ -1249,12 +1250,17 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
     >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=300000)
 
     """
+    if (pn_dir is not None) and ('.' not in pn_dir):
+        dir_list = pn_dir.split(os.sep)
+        pn_dir = posixpath.join(dir_list[0],
+                                record.get_version(dir_list[0]),
+                                *dir_list[1:])
 
     return_label_elements = check_read_inputs(sampfrom, sampto,
                                               return_label_elements)
 
     # Read the file in byte pairs
-    filebytes = load_byte_pairs(record_name, extension, pb_dir)
+    filebytes = load_byte_pairs(record_name, extension, pn_dir)
 
     # Get wfdb annotation fields from the file bytes
     (sample, label_store, subtype,
@@ -1283,7 +1289,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
     # annotation file
     if fs is None:
         try:
-            rec = record.rdheader(record_name, pb_dir)
+            rec = record.rdheader(record_name, pn_dir)
             fs = rec.fs
         except:
             pass
@@ -1331,14 +1337,14 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
     return return_label_elements
 
 # Load the annotation file 1 byte at a time and arrange in pairs
-def load_byte_pairs(record_name, extension, pb_dir):
+def load_byte_pairs(record_name, extension, pn_dir):
     # local file
-    if pb_dir is None:
+    if pn_dir is None:
         with open(record_name + '.' + extension, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
-    # physiobank file
+    # Physionet file
     else:
-        filebytes = download._stream_annotation(record_name+'.'+extension, pb_dir).reshape([-1, 2])
+        filebytes = download._stream_annotation(record_name+'.'+extension, pn_dir).reshape([-1, 2])
 
     return filebytes
 
