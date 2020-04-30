@@ -25,6 +25,7 @@ python:
 
 # command to install dependencies
 install:
+  - export PYTHONPATH=$PYTHONPATH:$(pwd)
   - pip install .
 
 # command to run tests

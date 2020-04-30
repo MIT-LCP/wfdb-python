@@ -419,7 +419,8 @@ class TestRecord(unittest.TestCase):
                       '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
                       '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
                       's0010_re.hea','s0010_re.xyz','test01_00s.dat',
-                      'test01_00s.hea','test01_00s_skewframe.hea']
+                      'test01_00s.hea','test01_00s_skewframe.hea',
+                      'n8_evoked_raw_95_F1_R9.dat', 'n8_evoked_raw_95_F1_R9.hea']
 
         for file in writefiles:
             if os.path.isfile(file):
