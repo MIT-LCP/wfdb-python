@@ -402,14 +402,14 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     """
     (signal, ann_samp, ann_sym, fs,
-        ylabel, record_name) = get_wfdb_plot_items(record=record,
-                                                   annotation=annotation,
-                                                   plot_sym=plot_sym)
+        ylabel, record_name, sig_units) = get_wfdb_plot_items(record=record,
+                                                              annotation=annotation,
+                                                              plot_sym=plot_sym)
 
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
                       time_units=time_units, ylabel=ylabel,
                       title=(title or record_name),
-                      sig_style=sig_style,
+                      sig_style=sig_style, sig_units=sig_units,
                       ann_style=ann_style, ecg_grids=ecg_grids,
                       figsize=figsize, return_fig=return_fig)
 
@@ -433,7 +433,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         record_name = 'Record: %s' % record.record_name
         ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
-        signal = fs = ylabel = record_name = None
+        signal = fs = ylabel = record_name = sig_units = None
 
     # Get annotation attributes
     if annotation:
@@ -507,7 +507,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
             ann_sym = [a for a in ann_sym if a]
         ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
 
-    return signal, ann_samp, ann_sym, fs, ylabel, record_name
+    return signal, ann_samp, ann_sym, fs, ylabel, record_name, sig_units
 
 
 def plot_all_records(directory=''):
