@@ -172,7 +172,7 @@ class test_annotation():
                 annotation.aux_note == target_aux_note]
 
         # Test file streaming
-        pn_annotation = wfdb.rdann('1003', 'atr', pn_dir='challenge/2014/set-p2', return_label_elements=['label_store', 'symbol'])
+        pn_annotation = wfdb.rdann('1003', 'atr', pn_dir='challenge-2014/set-p2', return_label_elements=['label_store', 'symbol'])
         pn_annotation.create_label_map()
 
         # Test file writing
