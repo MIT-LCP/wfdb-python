@@ -672,7 +672,7 @@ def wfdb_strptime(time_string):
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
-def _read_header_lines(base_record_name, dir_name, pb_dir):
+def _read_header_lines(base_record_name, dir_name, pn_dir):
     """
     Read the lines in a local or remote header file.
 
@@ -683,12 +683,12 @@ def _read_header_lines(base_record_name, dir_name, pb_dir):
         extensions.
     dir_name : str
         The local directory location of the header file. This parameter
-        is ignored if `pb_dir` is set.
-    pb_dir : str
-        Option used to stream data from Physiobank. The Physiobank
+        is ignored if `pn_dir` is set.
+    pn_dir : str
+        Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
-        eg. For record '100' in 'http://physionet.org/physiobank/database/mitdb'
-        pb_dir='mitdb'.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
 
     Returns
     -------
@@ -701,7 +701,7 @@ def _read_header_lines(base_record_name, dir_name, pb_dir):
     file_name = base_record_name + '.hea'
 
     # Read local file
-    if pb_dir is None:
+    if pn_dir is None:
         with open(os.path.join(dir_name, file_name), 'r') as fp:
             # Record line followed by signal/segment lines if any
             header_lines = []
@@ -725,7 +725,7 @@ def _read_header_lines(base_record_name, dir_name, pb_dir):
     # Read online header file
     else:
         header_lines, comment_lines = download._stream_header(file_name,
-                                                              pb_dir)
+                                                              pn_dir)
 
     return header_lines, comment_lines
 

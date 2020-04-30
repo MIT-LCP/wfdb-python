@@ -1185,7 +1185,6 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     qrs_locs : numpy array
         Detected qrs locations
 
-
     Notes
     -----
     This function should not be used for signals with fs <= 50Hz
@@ -1210,11 +1209,11 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
       non-qrs peaks as in the main detection phase, without saving the qrs
       locations. During this phase, running parameters of recent intervals
       and peak/qrs thresholds are adjusted.
-    - Run the detection::
+    - Run the detection:
         if a sample is bigger than its immediate neighbors and larger
         than the peak detection threshold, it is a peak.
             if it is further than RRmin from the previous qrs, and is a
-            *primary peak.
+            primary peak.
                 if it is further than 2 standard deviations from the
                 previous qrs, do a backsearch for a missed low amplitude
                 beat
@@ -1229,7 +1228,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
             lower the peak detection threshold if the last peak found
             was more than RRmax ago, and not already at its minimum.
 
-    *A peak is secondary if there is a larger peak within its neighborhood
+    A peak is secondary if there is a larger peak within its neighborhood
     (time +- rrmin), or if it has been identified as a T-wave associated with a
     previous primary peak. A peak is primary if it is largest in its neighborhood,
     or if the only larger peaks are secondary.

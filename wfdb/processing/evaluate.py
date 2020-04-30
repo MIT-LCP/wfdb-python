@@ -233,7 +233,7 @@ class Comparitor(object):
         """
         Print summary metrics of the annotation comparisons.
         """
-        if not hasattr(self, sensitivity):
+        if not hasattr(self, 'sensitivity'):
             self._calc_stats()
 
         print('%d reference annotations, %d test annotations\n'
@@ -441,8 +441,8 @@ def benchmark_mitdb_record(rec, detector, verbose):
     """
     Benchmark a single mitdb record
     """
-    sig, fields = rdsamp(rec, pb_dir='mitdb', channels=[0])
-    ann_ref = rdann(rec, pb_dir='mitdb', extension='atr')
+    sig, fields = rdsamp(rec, pn_dir='mitdb', channels=[0])
+    ann_ref = rdann(rec, pn_dir='mitdb', extension='atr')
 
     qrs_inds = detector(sig=sig[:,0], fs=fields['fs'], verbose=verbose)
 

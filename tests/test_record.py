@@ -1,12 +1,13 @@
 import os
 import shutil
+import unittest
 
 import numpy as np
 
 import wfdb
 
 
-class TestRecord():
+class TestRecord(unittest.TestCase):
     """
     Test read and write of single segment wfdb records, including
     Physionet streaming.
@@ -29,9 +30,9 @@ class TestRecord():
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-1a')
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('test01_00s', physical=False,
-                                  pb_dir='macecgdb')
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('test01_00s', physical=False,
+                                  pn_dir='macecgdb')
 
         # Test file writing
         record_2 = wfdb.rdrecord('sample-data/test01_00s', physical=False)
@@ -40,7 +41,7 @@ class TestRecord():
         record_write = wfdb.rdrecord('test01_00s', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
     def test_1b(self):
@@ -56,9 +57,9 @@ class TestRecord():
         sig_round = np.round(sig, decimals=8)
         sig_target = np.genfromtxt('tests/target-output/record-1b')
 
-        # Compare data streaming from physiobank
-        sig_pb, fields_pb = wfdb.rdsamp('a103l',
-                                        pb_dir='challenge/2015/training',
+        # Compare data streaming from Physionet
+        sig_pn, fields_pn = wfdb.rdsamp('a103l',
+                                        pn_dir='challenge-2015/training',
                                         sampfrom=12500, sampto=40000,
                                         channels=[2, 0])
 
@@ -68,7 +69,7 @@ class TestRecord():
                                               channel_names=['PLETH', 'II'])
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_pn) and fields == fields_pn
         assert np.array_equal(sig, sig_named) and fields == fields_named
 
     def test_1c(self):
@@ -84,8 +85,8 @@ class TestRecord():
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-1c')
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('a103l', pb_dir='challenge/2015/training',
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('a103l', pn_dir='challenge-2015/training',
                                   sampfrom=20000, channels=[0, 1],
                                   physical=False)
 
@@ -94,7 +95,7 @@ class TestRecord():
         record_write = wfdb.rdrecord('a103l', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
     def test_1d(self):
@@ -110,14 +111,14 @@ class TestRecord():
         sig_target = np.genfromtxt('tests/target-output/record-1d')
         sig_target = sig_target.reshape(len(sig_target), 1)
 
-        # Compare data streaming from physiobank
-        sig_pb, fields_pb = wfdb.rdsamp('3000003_0003',
-                                        pb_dir='mimic2wdb/30/3000003/',
+        # Compare data streaming from Physionet
+        sig_pn, fields_pn = wfdb.rdsamp('3000003_0003',
+                                        pn_dir='mimic3wdb/30/3000003/',
                                         sampfrom=125, sampto=1000,
                                         channels=[1])
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
     def test_1e(self):
         """
@@ -130,9 +131,9 @@ class TestRecord():
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-1e')
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False,
-                                  pb_dir='earndb/raw/N8')
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False,
+                                  pn_dir='earndb/raw/N8')
 
         # Test file writing
         record_2 = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
@@ -140,7 +141,7 @@ class TestRecord():
         record_write = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
     # ------------------ 2. Special format records ------------------ #
@@ -156,14 +157,14 @@ class TestRecord():
         sig_round = np.round(sig, decimals=8)
         sig_target = np.genfromtxt('tests/target-output/record-2a')
 
-        # Compare data streaming from physiobank
-        sig_pb, fields_pb = wfdb.rdsamp('100', pb_dir = 'mitdb')
+        # Compare data streaming from Physionet
+        sig_pn, fields_pn = wfdb.rdsamp('100', pn_dir = 'mitdb')
         # This comment line was manually added and is not present in the
-        # original physiobank record
+        # original Physionet record
         del(fields['comments'][0])
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
     def test_2b(self):
         """
@@ -178,11 +179,11 @@ class TestRecord():
         sig_target = np.genfromtxt('tests/target-output/record-2b')
         sig_target = sig_target.reshape(len(sig_target), 1)
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('100', sampfrom=1, sampto=10800,
-                                  channels=[1], physical=False, pb_dir='mitdb')
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('100', sampfrom=1, sampto=10800,
+                                  channels=[1], physical=False, pn_dir='mitdb')
         # This comment line was manually added and is not present in the
-        # original physiobank record
+        # original Physionet record
         del(record.comments[0])
 
         # Option of selecting channels by name
@@ -196,7 +197,7 @@ class TestRecord():
         record_write = wfdb.rdrecord('100', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
@@ -261,16 +262,16 @@ class TestRecord():
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-3a')
 
-        # Compare data streaming from physiobank
-        record_pb= wfdb.rdrecord('s0010_re', physical=False,
-                                 pb_dir='ptbdb/patient001')
+        # Compare data streaming from Physionet
+        record_pn= wfdb.rdrecord('s0010_re', physical=False,
+                                 pn_dir='ptbdb/patient001')
 
         # Test file writing
         record.wrsamp()
         record_write = wfdb.rdrecord('s0010_re', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
     def test_3b(self):
@@ -285,14 +286,14 @@ class TestRecord():
         sig_round = np.round(sig, decimals=8)
         sig_target = np.genfromtxt('tests/target-output/record-3b')
 
-        # Compare data streaming from physiobank
-        sig_pb, fields_pb = wfdb.rdsamp('s0010_re', sampfrom=5000,
-                                        pb_dir='ptbdb/patient001',
+        # Compare data streaming from Physionet
+        sig_pn, fields_pn = wfdb.rdsamp('s0010_re', sampfrom=5000,
+                                        pn_dir='ptbdb/patient001',
                                         sampto=38000,
                                         channels=[13, 0, 4, 8, 3])
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
 
     # -------------- 4. Skew and multiple samples/frame -------------- #
@@ -342,9 +343,9 @@ class TestRecord():
         # NANs for end of skewed channels only.
         sig_target = np.genfromtxt('tests/target-output/record-4b')
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('03700181', physical=False,
-                                  pb_dir='mimicdb/037')
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('03700181', physical=False,
+                                  pn_dir='mimicdb/037')
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
@@ -355,7 +356,7 @@ class TestRecord():
         record_write = wfdb.rdrecord('03700181', physical=False)
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
     def test_4c(self):
@@ -371,8 +372,8 @@ class TestRecord():
         sig_round = np.round(sig, decimals=8)
         sig_target = np.genfromtxt('tests/target-output/record-4c')
 
-        # Compare data streaming from physiobank
-        sig_pb, fields_pb = wfdb.rdsamp('03700181', pb_dir='mimicdb/037',
+        # Compare data streaming from Physionet
+        sig_pn, fields_pn = wfdb.rdsamp('03700181', pn_dir='mimicdb/037',
                                         channels=[0, 2], sampfrom=1000,
                                         sampto=16000)
 
@@ -386,7 +387,7 @@ class TestRecord():
                                             sampfrom=1000, sampto=16000)
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pb) and fields == fields_pb
+        assert np.array_equal(sig, sig_pn) and fields == fields_pn
         assert np.array_equal(sig, writesig) and fields == writefields
 
     def test_4d(self):
@@ -418,14 +419,15 @@ class TestRecord():
                       '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
                       '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
                       's0010_re.hea','s0010_re.xyz','test01_00s.dat',
-                      'test01_00s.hea','test01_00s_skewframe.hea']
+                      'test01_00s.hea','test01_00s_skewframe.hea',
+                      'n8_evoked_raw_95_F1_R9.dat', 'n8_evoked_raw_95_F1_R9.hea']
 
         for file in writefiles:
             if os.path.isfile(file):
                 os.remove(file)
 
 
-class TestMultiRecord():
+class TestMultiRecord(unittest.TestCase):
     """
     Test read and write of multi segment wfdb records, including
     Physionet streaming.
@@ -566,9 +568,9 @@ class TestMultiRecord():
                                 physical=False)
         sig = record.d_signal
 
-        # Compare data streaming from physiobank
-        record_pb = wfdb.rdrecord('p000878-2137-10-26-16-57',
-                                  pb_dir='mimic3wdb/matched/p00/p000878/',
+        # Compare data streaming from Physionet
+        record_pn = wfdb.rdrecord('p000878-2137-10-26-16-57',
+                                  pn_dir='mimic3wdb/matched/p00/p000878/',
                                   sampfrom=3550, sampto=7500, channels=[0, 1],
                                   physical=False)
         sig_target = np.genfromtxt('tests/target-output/record-multi-variable-d')
@@ -580,11 +582,11 @@ class TestMultiRecord():
 
 
         np.testing.assert_equal(sig, sig_target)
-        assert record.__eq__(record_pb)
+        assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
 
 
-class TestSignal():
+class TestSignal(unittest.TestCase):
     """
     For lower level signal tests
 
@@ -602,7 +604,7 @@ class TestSignal():
         assert record_2.__eq__(record)
 
 
-class TestDownload():
+class TestDownload(unittest.TestCase):
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
     def test_dl_database_no_dat_file(self):
@@ -617,3 +619,7 @@ class TestDownload():
     def tearDownClass(self):
         if os.path.isdir('./download-tests/'):
             shutil.rmtree('./download-tests/')
+
+if __name__ == "__main__":
+    unittest.main()
+    print("Everything passed!")

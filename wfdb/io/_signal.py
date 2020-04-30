@@ -38,6 +38,7 @@ DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
 class SignalMixin(object):
     """
     Mixin class with signal methods. Inherited by Record class.
+    
     """
 
     def wr_dats(self, expanded, write_dir):
@@ -70,7 +71,8 @@ class SignalMixin(object):
     def check_sig_cohesion(self, write_fields, expanded):
         """
         Check the cohesion of the d_signal/e_d_signal field with the other
-        fields used to write the record
+        fields used to write the record.
+
         """
         # Using list of arrays e_d_signal
         if expanded:
@@ -656,6 +658,7 @@ class SignalMixin(object):
         """
         Calculate the checksum(s) of the d_signal (expanded=False)
         or e_d_signal field (expanded=True)
+
         """
         if expanded:
             cs = [int(np.sum(self.e_d_signal[ch]) % 65536) for ch in range(self.n_sig)]
@@ -705,10 +708,12 @@ class SignalMixin(object):
         Convert expanded signals with different samples/frame into
         a uniform numpy array.
 
-        Input parameters
-        - sigtype (default='physical'): Specifies whether to mooth
-          the e_p_signal field ('physical'), or the e_d_signal
-          field ('digital').
+        Parameters
+        ----------
+        sigtype (default='physical') : str 
+            Specifies whether to mooth the e_p_signal field ('physical'), or the e_d_signal
+            field ('digital')
+
         """
         spf = self.samps_per_frame[:]
         for ch in range(len(spf)):
@@ -751,7 +756,7 @@ class SignalMixin(object):
 
 #------------------- Reading Signals -------------------#
 
-def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
+def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 samps_per_frame, skew, sampfrom, sampto, channels,
                 smooth_frames, ignore_skew):
     """
@@ -765,8 +770,8 @@ def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
     dir_name : str
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
-    pb_dir : str
-        The physiobank directory where the dat file(s) are located, if
+    pn_dir : str
+        The Physionet directory where the dat file(s) are located, if
         the dat file(s) are remote.
     fmt : list
         The formats of the dat files
@@ -870,7 +875,7 @@ def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name, pb_dir,
+            signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name, pn_dir,
                 w_fmt[fn], len(datchannel[fn]), sig_len, w_byte_offset[fn],
                 w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
                 smooth_frames)[:, r_w_channel[fn]]
@@ -882,7 +887,7 @@ def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
-            datsignals = _rd_dat_signals(fn, dir_name, pb_dir, w_fmt[fn],
+            datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
                 len(datchannel[fn]), sig_len, w_byte_offset[fn],
                 w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
                 smooth_frames)
@@ -894,7 +899,7 @@ def _rd_segment(file_name, dir_name, pb_dir, fmt, n_sig, sig_len, byte_offset,
     return signals
 
 
-def _rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
+def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
                    byte_offset, samps_per_frame, skew, sampfrom, sampto,
                    smooth_frames):
     """
@@ -953,18 +958,18 @@ def _rd_dat_signals(file_name, dir_name, pb_dir, fmt, n_sig, sig_len,
             n_extra_bytes = total_process_bytes - total_read_bytes
 
             sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
-                                                     pb_dir, fmt, start_byte,
+                                                     pn_dir, fmt, start_byte,
                                                      n_read_samples),
                                         np.zeros(n_extra_bytes,
                                                  dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
         else:
             sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
-                                                     pb_dir, fmt, start_byte,
+                                                     pn_dir, fmt, start_byte,
                                                      n_read_samples),
                                         np.zeros(extra_flat_samples,
                                                  dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
     else:
-        sig_data = _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte,
+        sig_data = _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte,
                                  n_read_samples)
 
     # Finish processing the read data into proper samples if not already
@@ -1173,7 +1178,7 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
+def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
     """
     Read data from a dat file, either local or remote, into a 1d numpy
     array.
@@ -1220,7 +1225,7 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
     # Local dat file
-    if pb_dir is None:
+    if pn_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
             # Numpy doesn't really like 24-bit data but we can make it work
@@ -1234,14 +1239,14 @@ def _rd_dat_file(file_name, dir_name, pb_dir, fmt, start_byte, n_samp):
                 sig_data = np.fromfile(fp, 
                                        dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
                                        count=element_count)
-    # Stream dat file from physiobank
+    # Stream dat file from Physionet
     else:
         if DATA_LOAD_TYPES[fmt] == '<i3':
             dtype_in = '<i3'
         else:
             dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
 
-        sig_data = download._stream_dat(file_name, pb_dir, byte_count,
+        sig_data = download._stream_dat(file_name, pn_dir, byte_count,
                                         start_byte, dtype_in)
 
     return sig_data
@@ -1365,7 +1370,6 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
         List of samples to skew for each signal
     n_sig : int
         The number of signals
-
 
     Notes
     -----
@@ -1778,6 +1782,8 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
 
 def describe_list_indices(full_list):
     """
+    Describe the indices of the given list.
+
     Parameters
     ----------
     full_list : list
@@ -1808,7 +1814,7 @@ def describe_list_indices(full_list):
     return unique_elements, element_indices
 
 
-def _infer_sig_len(file_name, fmt, n_sig, dir_name, pb_dir=None):
+def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
     """
     Infer the length of a signal from a dat file.
 
@@ -1826,11 +1832,11 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pb_dir=None):
     sig_len * n_sig * bytes_per_sample == file_size
 
     """
-    if pb_dir is None:
+    if pn_dir is None:
         file_size = os.path.getsize(os.path.join(dir_name, file_name))
     else:
         file_size = download._remote_file_size(file_name=file_name,
-                                               pb_dir=pb_dir)
+                                               pn_dir=pn_dir)
 
     sig_len = int(file_size / (BYTES_PER_SAMPLE[fmt] * n_sig))
 
@@ -1839,6 +1845,7 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pb_dir=None):
 def downround(x, base):
     """
     Round <x> down to nearest <base>
+
     """
     return base * math.floor(float(x)/base)
 
@@ -1846,5 +1853,6 @@ def downround(x, base):
 def upround(x, base):
     """
     Round <x> up to nearest <base>
+
     """
     return base * math.ceil(float(x)/base)
