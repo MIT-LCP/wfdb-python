@@ -1640,74 +1640,86 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
 
     """
     # Full url Physionet database
-    db_dir = posixpath.join(db_dir, get_version(db_dir))
+    if os.sep in db_dir:
+        dir_list = db_dir.split(os.sep)
+        db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+    else:
+        db_dir = posixpath.join(db_dir, get_version(db_dir))
     db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + os.sep
     # Check if the database is valid
     r = requests.get(db_url)
     r.raise_for_status()
 
     # Get the list of records
-    recordlist = download.get_record_list(db_dir, records)
+    record_list = download.get_record_list(db_dir, records)
     # Get the annotator extensions
     annotators = download.get_annotators(db_dir, annotators)
 
     # All files to download (relative to the database's home directory)
-    allfiles = []
+    all_files = []
+    nested_records = []
 
-    for rec in recordlist:
+    for rec in record_list:
+        print('Generating record list for: ' + rec)
         # Check out whether each record is in MIT or EDF format
         if rec.endswith('.edf'):
-            allfiles.append(rec)
+            all_files.append(rec)
         else:
             # May be pointing to directory
-            if rec.endswith('/'):
-                rec = rec + rec[:-1]
-            # If MIT format, have to figure out all associated files
-            allfiles.append(rec+'.hea')
-            dir_name, baserecname = os.path.split(rec)
-            record = rdheader(baserecname, pn_dir=posixpath.join(db_dir, dir_name))
-
-            # Single segment record
-            if isinstance(record, Record):
-                # Add all dat files of the segment
-                for file in (record.file_name if record.file_name else []):
-                    allfiles.append(posixpath.join(dir_name, file))
-
-            # Multi segment record
+            if rec.endswith(os.sep):
+                nested_records += [posixpath.join(rec, sr) for sr in download.get_record_list(posixpath.join(db_dir, rec))]
             else:
-                for seg in record.seg_name:
-                    # Skip empty segments
-                    if seg == '~':
-                        continue
-                    # Add the header
-                    allfiles.append(posixpath.join(dir_name, seg+'.hea'))
-                    # Layout specifier has no dat files
-                    if seg.endswith('_layout'):
-                        continue
-                    # Add all dat files of the segment
-                    recseg = rdheader(seg, pn_dir=posixpath.join(db_dir, dir_name))
-                    for file in recseg.file_name:
-                        allfiles.append(posixpath.join(dir_name, file))
-        # check whether the record has any requested annotation files
+                nested_records.append(rec)
+
+    for rec in nested_records:
+        print('Generating list of all files for: ' + rec)
+        # If MIT format, have to figure out all associated files
+        all_files.append(rec+'.hea')
+        dir_name, base_rec_name = os.path.split(rec)
+        record = rdheader(base_rec_name, pn_dir=posixpath.join(db_dir, dir_name))
+
+        # Single segment record
+        if isinstance(record, Record):
+            # Add all dat files of the segment
+            for file in (record.file_name if record.file_name else []):
+                all_files.append(posixpath.join(dir_name, file))
+
+        # Multi segment record
+        else:
+            for seg in record.seg_name:
+                # Skip empty segments
+                if seg == '~':
+                    continue
+                # Add the header
+                all_files.append(posixpath.join(dir_name, seg+'.hea'))
+                # Layout specifier has no dat files
+                if seg.endswith('_layout'):
+                    continue
+                # Add all dat files of the segment
+                rec_seg = rdheader(seg, pn_dir=posixpath.join(db_dir, dir_name))
+                for file in rec_seg.file_name:
+                    all_files.append(posixpath.join(dir_name, file))
+
+        # Check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
-                annfile = rec+'.'+a
-                url = posixpath.join(download.config.db_index_url, db_dir, annfile)
+                ann_file = rec+'.'+a
+                url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
-                    allfiles.append(annfile)
+                    all_files.append(ann_file)
 
-    dlinputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in allfiles]
+    dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in all_files]
 
     # Make any required local directories
-    download.make_local_dirs(dl_dir, dlinputs, keep_subdirs)
+    download.make_local_dirs(dl_dir, dl_inputs, keep_subdirs)
 
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
-    pool.map(download.dl_pn_file, dlinputs)
+    pool.map(download.dl_pn_file, dl_inputs)
     print('Finished downloading files')
 
     return
