@@ -351,6 +351,15 @@ class HeaderMixin(BaseHeaderMixin):
         Not responsible for initializing the attribute. That is done by 
         the constructor.
 
+        Parameters
+        ----------
+        field : str
+            The desired attribute of the object.
+
+        Returns
+        -------
+        N/A
+
         """
 
         # Record specification fields
@@ -389,6 +398,14 @@ class HeaderMixin(BaseHeaderMixin):
     def check_field_cohesion(self, rec_write_fields, sig_write_fields):
         """
         Check the cohesion of fields used to write the header.
+
+        Parameters
+        ----------
+        rec_write_fields : list
+            List of record specification fields to write.
+        sig_write_fields : dict
+            Dictionary of signal specification fields to write, values
+            being equal to a list of channels to write for each field.
 
         """
         # If there are no signal specification fields, there is nothing to check.
@@ -429,14 +446,13 @@ class HeaderMixin(BaseHeaderMixin):
 
         Parameters
         ----------
-
         rec_write_fields : list
-            List of record specification fields to write
+            List of record specification fields to write.
         sig_write_fields : dict
             Dictionary of signal specification fields to write, values
             being equal to a list of channels to write for each field.
         write_dir : str
-            The directory in which to write the header file
+            The directory in which to write the header file.
 
         """
         # Create record specification line
@@ -501,16 +517,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def set_defaults(self):
         """
         Set defaults for fields needed to write the header if they have
-        defaults.
-
-        This is NOT called by rdheader. It is only called by the gateway
-        wrsamp for convenience.
-
-        It is also not called by wrhea since it is supposed to be an
-        explicit function.
-
-        Not responsible for initializing the
-        attributes. That is done by the constructor.
+        defaults. This is NOT called by rdheader. It is only called by the 
+        gateway wrsamp for convenience. It is also not called by wrheader since 
+        it is supposed to be an explicit function. Not responsible for 
+        initializing the attributes. That is done by the constructor.
 
         """
         for field in self.get_write_fields():
@@ -577,6 +587,15 @@ class MultiHeaderMixin(BaseHeaderMixin):
         """
         Set a field to its default value if there is a default.
 
+        Parameters
+        ----------
+        field : str
+            The desired attribute of the object.
+
+        Returns
+        -------
+        N/A        
+
         """
 
         # Record specification fields
@@ -607,7 +626,15 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     def wr_header_file(self, write_fields, write_dir):
         """
-        Write a header file using the specified fields
+        Write a header file using the specified fields.
+
+        Parameters
+        ----------
+        write_fields : list
+            All the default required fields, the user defined fields,
+            and their dependencies.  
+        write_dir : str
+            The output directory in which the header is written.
 
         """
         # Create record specification line
@@ -644,6 +671,17 @@ class MultiHeaderMixin(BaseHeaderMixin):
         (or a dictionary of segment numbers for a list of signals).
         Only works if information about the segments has been read in.
 
+        Parameters
+        ----------
+        sig_name : str, list
+            The name of the signals to be segmented.
+
+        Returns
+        -------
+        sig_dict : dict
+            Segments for each desired signal.
+        sig_segs : list
+            Segments for the desired signal.
         """
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
@@ -653,16 +691,16 @@ class MultiHeaderMixin(BaseHeaderMixin):
             sig_name = self.get_sig_name()
 
         if isinstance(sig_name, list):
-            sigdict = {}
+            sig_dict = {}
             for sig in sig_name:
-                sigdict[sig] = self.get_sig_segments(sig)
-            return sigdict
+                sig_dict[sig] = self.get_sig_segments(sig)
+            return sig_dict
         elif isinstance(sig_name, str):
-            sigsegs = []
+            sig_segs = []
             for i in range(self.n_seg):
                 if self.seg_name[i] != '~' and sig_name in self.segments[i].sig_name:
-                    sigsegs.append(i)
-            return sigsegs
+                    sig_segs.append(i)
+            return sig_segs
         else:
             raise TypeError('sig_name must be a string or a list of strings')
 
@@ -670,6 +708,11 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def get_sig_name(self):
         """
         Get the signal names for the entire record.
+
+        Returns
+        -------
+        sig_name : str, list
+            The name of the signals to be segmented.
 
         """
         if self.segments is None:
@@ -691,6 +734,16 @@ def wfdb_strptime(time_string):
     a datetime.time object.
 
     Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
+
+    Parameters
+    ----------
+    time_string : str
+        The time to be converted to a datetime.time object.
+
+    Returns
+    -------
+    datetime.time object
+        The time converted from str format.
 
     """
     n_colons = time_string.count(':')
@@ -770,6 +823,16 @@ def _parse_record_line(record_line):
     """
     Extract fields from a record line string into a dictionary.
 
+    Parameters
+    ----------
+    record_line : str
+        The name of the record line that will be used to extact fields.
+
+    Returns
+    -------
+    record_fields : dict
+        The fields for the given record line.
+
     """
     # Dictionary for record fields
     record_fields = {}
@@ -816,6 +879,16 @@ def _parse_record_line(record_line):
 def _parse_signal_lines(signal_lines):
     """
     Extract fields from a list of signal line strings into a dictionary.
+
+    Parameters
+    ----------
+    signal_lines : list
+        The name of the signal line that will be used to extact fields.
+
+    Returns
+    -------
+    signal_fields : dict
+        The fields for the given signal line.
 
     """
     n_sig = len(signal_lines)
@@ -864,6 +937,16 @@ def _read_segment_lines(segment_lines):
     """
     Extract fields from segment line strings into a dictionary.
 
+    Parameters
+    ----------
+    segment_line : list
+        The name of the segment line that will be used to extact fields.
+
+    Returns
+    -------
+    segment_fields : dict
+        The fields for the given segment line.
+
     """
     # Dictionary for segment fields
     segment_fields = {}
@@ -886,6 +969,13 @@ def _read_segment_lines(segment_lines):
 def lines_to_file(file_name, write_dir, lines):
     """
     Write each line in a list of strings to a text file.
+
+    Parameters
+    ----------
+    write_dir : str
+        The output directory in which the header is written.
+    lines : list
+        The lines to be written to the text file.
 
     """
     f = open(os.path.join(write_dir, file_name), 'w')
