@@ -141,7 +141,8 @@ _rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
 class BaseHeaderMixin(object):
     """
     Mixin class with multi-segment header methods. Inherited by Record and
-    MultiRecord classes
+    MultiRecord classes.
+    
     """
 
     def get_write_subset(self, spec_type):
@@ -236,6 +237,7 @@ class BaseHeaderMixin(object):
 class HeaderMixin(BaseHeaderMixin):
     """
     Mixin class with single-segment header methods. Inherited by Record class.
+
     """
 
     def set_defaults(self):
@@ -307,8 +309,7 @@ class HeaderMixin(BaseHeaderMixin):
         """
         Get the list of fields used to write the header, separating
         record and signal specification fields. Returns the default
-        required fields, the user defined fields,
-        and their dependencies.
+        required fields, the user defined fields, and their dependencies.
 
         Does NOT include `d_signal` or `e_d_signal`.
 
@@ -347,8 +348,9 @@ class HeaderMixin(BaseHeaderMixin):
         Set the object's attribute to its default value if it is missing
         and there is a default.
 
-        Not responsible for initializing the
-        attribute. That is done by the constructor.
+        Not responsible for initializing the attribute. That is done by 
+        the constructor.
+
         """
 
         # Record specification fields
@@ -386,7 +388,7 @@ class HeaderMixin(BaseHeaderMixin):
 
     def check_field_cohesion(self, rec_write_fields, sig_write_fields):
         """
-        Check the cohesion of fields used to write the header
+        Check the cohesion of fields used to write the header.
 
         """
         # If there are no signal specification fields, there is nothing to check.
@@ -493,6 +495,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
     """
     Mixin class with multi-segment header methods. Inherited by
     MultiRecord class.
+
     """
 
     def set_defaults(self):
@@ -508,13 +511,30 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         Not responsible for initializing the
         attributes. That is done by the constructor.
+
         """
         for field in self.get_write_fields():
             self.set_default(field)
 
-    # Write a wfdb header file. The signals or segments are not used.
     def wrheader(self, write_dir=''):
+        """
+        Write a multi-segment wfdb header file. The signals or segments are 
+        not used. Before writing:
+        - Get the fields used to write the header for this instance.
+        - Check each required field.
+        - Check that the fields are cohesive with one another.
 
+        Parameters
+        ----------
+        write_dir : str, optional
+            The output directory in which the header is written.
+
+        Notes
+        -----
+        This function does NOT call `set_defaults`. Essential fields
+        must be set beforehand.
+
+        """
         # Get all the fields used to write the header
         write_fields = self.get_write_fields()
 
@@ -533,8 +553,12 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def get_write_fields(self):
         """
         Get the list of fields used to write the multi-segment header.
-        Returns the default required fields, the user defined fields,
-        and their dependencies.
+
+        Returns
+        -------
+        write_fields : list
+            All the default required fields, the user defined fields,
+            and their dependencies.
 
         """
 
@@ -549,8 +573,11 @@ class MultiHeaderMixin(BaseHeaderMixin):
             write_fields.append('comments')
         return write_fields
 
-    # Set a field to its default value if there is a default.
     def set_default(self, field):
+        """
+        Set a field to its default value if there is a default.
+
+        """
 
         # Record specification fields
         if field in RECORD_SPECS:
@@ -561,8 +588,11 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
 
 
-    # Check the cohesion of fields used to write the header
     def check_field_cohesion(self):
+        """
+        Check the cohesion of fields used to write the header.
+
+        """
 
         # The length of seg_name and seg_len must match n_seg
         for f in ['seg_name', 'seg_len']:
@@ -611,8 +641,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def get_sig_segments(self, sig_name=None):
         """
         Get a list of the segment numbers that contain a particular signal
-        (or a dictionary of segment numbers for a list of signals)
-        Only works if information about the segments has been read in
+        (or a dictionary of segment numbers for a list of signals).
+        Only works if information about the segments has been read in.
+
         """
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
@@ -635,8 +666,12 @@ class MultiHeaderMixin(BaseHeaderMixin):
         else:
             raise TypeError('sig_name must be a string or a list of strings')
 
-    # Get the signal names for the entire record
+
     def get_sig_name(self):
+        """
+        Get the signal names for the entire record.
+
+        """
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
 
@@ -656,6 +691,7 @@ def wfdb_strptime(time_string):
     a datetime.time object.
 
     Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
+
     """
     n_colons = time_string.count(':')
 
@@ -732,7 +768,7 @@ def _read_header_lines(base_record_name, dir_name, pn_dir):
 
 def _parse_record_line(record_line):
     """
-    Extract fields from a record line string into a dictionary
+    Extract fields from a record line string into a dictionary.
 
     """
     # Dictionary for record fields
@@ -826,7 +862,7 @@ def _parse_signal_lines(signal_lines):
 
 def _read_segment_lines(segment_lines):
     """
-    Extract fields from segment line strings into a dictionary
+    Extract fields from segment line strings into a dictionary.
 
     """
     # Dictionary for segment fields
@@ -848,7 +884,10 @@ def _read_segment_lines(segment_lines):
 
 
 def lines_to_file(file_name, write_dir, lines):
-    # Write each line in a list of strings to a text file
+    """
+    Write each line in a list of strings to a text file.
+
+    """
     f = open(os.path.join(write_dir, file_name), 'w')
     for l in lines:
         f.write("%s\n" % l)

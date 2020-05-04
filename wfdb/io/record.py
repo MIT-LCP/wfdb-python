@@ -480,6 +480,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         """
         Write a multi-segment header, along with headers and dat files
         for all segments, from this object.
+
+        Parameters
+        ----------
+        write_dir : str, optional
+            The directory in which to write the files.
+
         """
         # Perform field validity and cohesion checks, and write the
         # header file.
