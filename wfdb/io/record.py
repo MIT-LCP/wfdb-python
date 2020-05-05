@@ -349,7 +349,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     def wrsamp(self, expanded=False, write_dir=''):
         """
-        Write a wfdb header file and any associated dat files from this
+        Write a WFDB header file and any associated dat files from this
         object.
 
         Parameters
@@ -721,7 +721,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         Returns
         -------
-        record : wfdb Record
+        record : WFDB Record
             The single segment record created.
 
         """
@@ -848,7 +848,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 # ---------------------- Type Specifications ------------------------- #
 
 
-# Allowed types of wfdb header fields, and also attributes defined in
+# Allowed types of WFDB header fields, and also attributes defined in
 # this library
 ALLOWED_TYPES = dict([[index, _header.FIELD_SPECS.loc[index, 'allowed_types']] for index in _header.FIELD_SPECS.index])
 ALLOWED_TYPES.update({'comments': (str,), 'p_signal': (np.ndarray,),
@@ -999,7 +999,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     Returns
     -------
     record : Record or MultiRecord
-        The wfdb Record or MultiRecord object representing the contents
+        The WFDB Record or MultiRecord object representing the contents
         of the header read.
 
     Examples
@@ -1117,8 +1117,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         pn_dir='mitdb'.
     m2s : bool, optional
         Used when reading multi-segment records. Specifies whether to
-        directly return a wfdb MultiRecord object (False), or to convert
-        it into and return a wfdb Record object (True).
+        directly return a WFDB MultiRecord object (False), or to convert
+        it into and return a WFDB Record object (True).
     smooth_frames : bool, optional
         Used when reading records with signals having multiple samples
         per frame. Specifies whether to smooth the samples in signals
@@ -1153,7 +1153,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     Returns
     -------
     record : Record or MultiRecord
-        The wfdb Record or MultiRecord object representing the contents
+        The WFDB Record or MultiRecord object representing the contents
         of the record read.
 
     Notes
@@ -1746,7 +1746,7 @@ unit_scale = {
 
 
 """
-Signal classes that wfdb signals should fall under. The indexes are the
+Signal classes that WFDB signals should fall under. The indexes are the
 abbreviated class names.
 
 Parameters

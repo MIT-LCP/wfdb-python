@@ -42,7 +42,7 @@ def rdtff(file_name, cut_end=False):
     know the number of samples/escape sequences beforehand, so the file
     is inefficiently parsed a small chunk at a time.
 
-    It is recommended that you convert your tff files to wfdb format.
+    It is recommended that you convert your tff files to WFDB format.
 
     """
     file_size = os.path.getsize(file_name)

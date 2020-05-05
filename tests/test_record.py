@@ -9,7 +9,7 @@ import wfdb
 
 class TestRecord(unittest.TestCase):
     """
-    Test read and write of single segment wfdb records, including
+    Test read and write of single segment WFDB records, including
     Physionet streaming.
 
     Target files created using the original WFDB Software Package
@@ -429,7 +429,7 @@ class TestRecord(unittest.TestCase):
 
 class TestMultiRecord(unittest.TestCase):
     """
-    Test read and write of multi segment wfdb records, including
+    Test read and write of multi segment WFDB records, including
     Physionet streaming.
 
     Target files created using the original WFDB Software Package
@@ -521,7 +521,7 @@ class TestMultiRecord(unittest.TestCase):
         Multi-segment, variable layout, entire signal, physical
 
         The reference signal creation cannot be made with rdsamp
-        directly because the wfdb c package (10.5.24) applies the single
+        directly because the WFDB c package (10.5.24) applies the single
         adcgain and baseline values from the layout specification
         header, which is undesired in multi-segment signals with
         different adcgain/baseline values across segments.

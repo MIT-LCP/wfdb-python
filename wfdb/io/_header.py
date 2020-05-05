@@ -109,7 +109,7 @@ SEGMENT_SPECS = pd.DataFrame(
     ]
 )
 
-# Specifications of all wfdb header fields, except for comments
+# Specifications of all WFDB header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 
@@ -265,7 +265,7 @@ class HeaderMixin(BaseHeaderMixin):
 
     def wrheader(self, write_dir=''):
         """
-        Write a wfdb header file. The signals are not used. Before
+        Write a WFDB header file. The signals are not used. Before
         writing:
         - Get the fields used to write the header for this instance.
         - Check each required field.
@@ -442,7 +442,7 @@ class HeaderMixin(BaseHeaderMixin):
     def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
         """
         Write a header file using the specified fields. Converts Record
-        attributes into appropriate wfdb format strings.
+        attributes into appropriate WFDB format strings.
 
         Parameters
         ----------
@@ -528,7 +528,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     def wrheader(self, write_dir=''):
         """
-        Write a multi-segment wfdb header file. The signals or segments are 
+        Write a multi-segment WFDB header file. The signals or segments are 
         not used. Before writing:
         - Get the fields used to write the header for this instance.
         - Check each required field.
@@ -730,7 +730,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
 def wfdb_strptime(time_string):
     """
-    Given a time string in an acceptable wfdb format, return
+    Given a time string in an acceptable WFDB format, return
     a datetime.time object.
 
     Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
@@ -868,7 +868,7 @@ def _parse_record_line(record_line):
                 record_fields['base_date'] = datetime.datetime.strptime(
                     record_fields['base_date'], '%d/%m/%Y').date()
 
-    # This is not a standard wfdb field, but is useful to set.
+    # This is not a standard WFDB field, but is useful to set.
     if record_fields['base_date'] and record_fields['base_time']:
         record_fields['base_datetime'] = datetime.datetime.combine(
             record_fields['base_date'], record_fields['base_time'])

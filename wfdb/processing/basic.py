@@ -100,8 +100,8 @@ def resample_singlechan(x, ann, fs, fs_target):
     ----------
     x: ndarray
         The signal array
-    ann : wfdb Annotation
-        The wfdb annotation object
+    ann : WFDB Annotation
+        The WFDB annotation object
     fs : int, or float
         The original frequency
     fs_target : int, or float
@@ -111,7 +111,7 @@ def resample_singlechan(x, ann, fs, fs_target):
     -------
     resampled_x : ndarray
         Array of the resampled signal values
-    resampled_ann : wfdb Annotation
+    resampled_ann : WFDB Annotation
         Annotation containing resampled annotation locations
 
     """
@@ -142,8 +142,8 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     ----------
     xs: ndarray
         The signal array
-    ann : wfdb Annotation
-        The wfdb annotation object
+    ann : WFDB Annotation
+        The WFDB annotation object
     fs : int, or float
         The original frequency
     fs_target : int, or float
@@ -155,7 +155,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     -------
     resampled_xs : ndarray
         Array of the resampled signal values
-    resampled_ann : wfdb Annotation
+    resampled_ann : WFDB Annotation
         Annotation containing resampled annotation locations
 
     """

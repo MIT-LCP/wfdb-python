@@ -1127,7 +1127,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
                 QRSa=750, QRSamin=130):
     """
     Detect qrs locations in a single channel ecg. Functionally, a direct port
-    of the gqrs algorithm from the original wfdb package. Accepts either a
+    of the gqrs algorithm from the original WFDB package. Accepts either a
     physical signal, or a digital signal with known adc_gain and adc_zero.
 
     See the notes below for a summary of the program. This algorithm is not

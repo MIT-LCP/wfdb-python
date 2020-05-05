@@ -333,10 +333,10 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
               time_units='samples', title=None, sig_style=[''],
               ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
     """
-    Subplot individual channels of a wfdb record and/or annotation.
+    Subplot individual channels of a WFDB record and/or annotation.
 
     This function implements the base functionality of the `plot_items`
-    function, while allowing direct input of wfdb objects.
+    function, while allowing direct input of WFDB objects.
 
     If the record object is input, the function will extract from it:
       - signal values, from the `p_signal` (priority) or `d_signal` attribute
@@ -353,9 +353,9 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     Parameters
     ----------
-    record : wfdb Record, optional
+    record : WFDB Record, optional
         The Record object to be plotted
-    annotation : wfdb Annotation, optional
+    annotation : WFDB Annotation, optional
         The Annotation object to be plotted
     plot_sym : bool, optional
         Whether to plot the annotation symbols on the graph.
@@ -416,7 +416,7 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
     """
-    Get items to plot from wfdb objects
+    Get items to plot from WFDB objects
     """
     # Get record attributes
     if record:
@@ -512,7 +512,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
 
 def plot_all_records(directory=''):
     """
-    Plot all wfdb records in a directory (by finding header files), one at
+    Plot all WFDB records in a directory (by finding header files), one at
     a time, until the 'enter' key is pressed.
 
     Parameters
