@@ -123,7 +123,42 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     plt.show()
 
 def get_plot_dims(signal, ann_samp):
-    "Figure out the number of plot channels"
+    """
+    Figure out the number of plot channels.
+
+    Parameters
+    ----------
+    signal : 1d or 2d numpy array, optional
+        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
+        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
+        represent time and channel number respectively.
+    ann_samp: list, optional
+        A list of annotation locations to plot, with each list item
+        corresponding to a different channel. List items may be:
+
+        - 1d numpy array, with values representing sample indices. Empty
+          arrays are skipped.
+        - list, with values representing sample indices. Empty lists
+          are skipped.
+        - None. For channels in which nothing is to be plotted.
+
+        If `signal` is defined, the annotation locations will be overlaid on
+        the signals, with the list index corresponding to the signal channel.
+        The length of `annotation` does not have to match the number of
+        channels of `signal`.
+
+    Returns
+    -------
+    sig_len : int
+        The signal length (per channel) of the dat file.
+    n_sig : int
+        The number of signals contained in the dat file.
+    n_annot : int
+        The number of annotations contained in the dat file.
+    int
+        The max between number of signals and annotations.
+
+    """
     if signal is not None:
         if signal.ndim == 1:
             sig_len = len(signal)
@@ -144,7 +179,24 @@ def get_plot_dims(signal, ann_samp):
 
 
 def create_figure(n_subplots, figsize):
-    "Create the plot figure and subplot axes"
+    """
+    Create the plot figure and subplot axes.
+
+    Parameters
+    ----------
+    n_subplots : int
+        The number of subplots to generate.
+    figsize : tuple
+        The figure's width, height in inches. 
+
+    Returns
+    -------
+    fig : matplotlib plot object
+        The entire figure that will hold each subplot.
+    axes : list
+        The information needed for each subplot.
+
+    """
     fig = plt.figure(figsize=figsize)
     axes = []
 
@@ -155,7 +207,31 @@ def create_figure(n_subplots, figsize):
 
 
 def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
-    "Plot signal channels"
+    """
+    Plot signal channels.
+
+    Parameters
+    ----------
+    signal : ndarray
+        Tranformed expanded signal into uniform signal.
+    sig_len : int
+        The signal length (per channel) of the dat file.
+    n_sig : int
+        The number of signals contained in the dat file.
+    fs : float
+        The sampling frequency of the record.
+    time_units : str
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    sig_style : list, optional
+        A list of strings, specifying the style of the matplotlib plot
+        for each signal channel. The list length should match the number
+        of signal channels. If the list has a length of 1, the style
+        will be used for all channels.
+    axes : list
+        The information needed for each subplot.
+    
+    """
 
     # Extend signal style if necesary
     if len(sig_style) == 1:
@@ -179,8 +255,37 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
 
 def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                     ann_style, axes):
-    "Plot annotations, possibly overlaid on signals"
-    # Extend annotation style if necesary
+    """
+    Plot annotations, possibly overlaid on signals.
+    ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
+
+    ann_samp : list
+        The values of the annotation locations.
+    n_annot : int
+        The number of annotations contained in the dat file.
+    ann_sym : list
+        The values of the annotation symbol locations.
+    signal : ndarray
+        Tranformed expanded signal into uniform signal.
+    sig_len : int
+        The signal length (per channel) of the dat file.
+    n_sig : int
+        The number of signals contained in the dat file.
+    fs : float
+        The sampling frequency of the record.
+    time_units : str
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    sig_style : list, optional
+        A list of strings, specifying the style of the matplotlib plot
+        for each signal channel. The list length should match the number
+        of signal channels. If the list has a length of 1, the style
+        will be used for all channels.
+    axes : list
+        The information needed for each subplot.
+
+    """
+    # Extend annotation style if necessary
     if len(ann_style) == 1:
         ann_style = n_annot * ann_style
 
@@ -215,7 +320,24 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
 
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
-    "Add ecg grids to the axes"
+    """
+    Add ecg grids to the axes.
+    
+    Parameters
+    ----------
+    ecg_grids : list, str
+        Whether to add a grid for all the plots ('all') or not.
+    fs : float
+        The sampling frequency of the record.
+    units : list
+        The units used for plotting each signal.
+    time_units : str
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    axes : list
+        The information needed for each subplot.
+
+    """
     if ecg_grids == 'all':
         ecg_grids = range(0, len(axes))
 
@@ -252,12 +374,40 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
 
 def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
-    Calculate tick intervals for ecg grids
+    Calculate tick intervals for ecg grids.
 
-    - 5mm 0.2s major grids, 0.04s minor grids
-    - 0.5mV major grids, 0.125 minor grids
+    - 5mm 0.2s major grids, 0.04s minor grids.
+    - 0.5mV major grids, 0.125 minor grids.
 
     10 mm is equal to 1mV in voltage.
+
+    Parameters
+    ----------
+    minsig : float
+        The min value of the signal.
+    maxsig : float
+        The max value of the signal.
+    sig_units : list
+        The units used for plotting each signal.
+    fs : float
+        The sampling frequency of the record.
+    maxt : float
+        The max time of the signal.
+    time_units : str
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+
+    Returns
+    -------
+    major_ticks_x : ndarray
+        The locations of the major ticks on the x-axis.
+    minor_ticks_x : ndarray
+        The locations of the minor ticks on the x-axis.
+    major_ticks_y : ndarray
+        The locations of the major ticks on the y-axis.
+    minor_ticks_y : ndarray
+        The locations of the minor ticks on the y-axis.
+
     """
     # Get the grid interval of the x axis
     if time_units == 'samples':
@@ -299,7 +449,32 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
 
 def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
                  title):
-    "Add title, and axes labels"
+    """
+    Add title, and axes labels.
+
+    Parameters
+    ----------
+    axes : list
+        The information needed for each subplot.
+    n_subplots : int
+        The number of subplots to generate.
+    time_units : str, optional
+        The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
+        and 'hours'.
+    sig_name : list, optional
+        A list of strings specifying the signal names. Used with `sig_units`
+        to form y labels, if `ylabel` is not set.
+    sig_units : list, optional
+        A list of strings specifying the units of each signal channel. Used
+        with `sig_name` to form y labels, if `ylabel` is not set. This
+        parameter is required for plotting ecg grids.
+    ylabel : list, optional
+        A list of strings specifying the final y labels. If this option is
+        present, `sig_name` and `sig_units` will not be used for labels.
+    title : str, optional
+        The title of the graph.
+
+    """
     if title:
         axes[0].set_title(title)
 
@@ -416,7 +591,58 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
     """
-    Get items to plot from WFDB objects
+    Get items to plot from WFDB objects.
+
+    Parameters
+    ----------
+    record : WFDB Record
+        The Record object to be plotted
+    annotation : WFDB Annotation
+        The Annotation object to be plotted
+    plot_sym : bool
+        Whether to plot the annotation symbols on the graph.
+
+    Returns
+    -------
+    signal : 1d or 2d numpy array
+        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
+        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
+        represent time and channel number respectively.
+    ann_samp: list
+        A list of annotation locations to plot, with each list item
+        corresponding to a different channel. List items may be:
+
+        - 1d numpy array, with values representing sample indices. Empty
+          arrays are skipped.
+        - list, with values representing sample indices. Empty lists
+          are skipped.
+        - None. For channels in which nothing is to be plotted.
+
+        If `signal` is defined, the annotation locations will be overlaid on
+        the signals, with the list index corresponding to the signal channel.
+        The length of `annotation` does not have to match the number of
+        channels of `signal`.
+    ann_sym: list
+        A list of annotation symbols to plot, with each list item
+        corresponding to a different channel. List items should be lists of
+        strings. The symbols are plotted over the corresponding `ann_samp`
+        index locations.
+    fs : int or float
+        The sampling frequency of the signals and/or annotations. Used to
+        calculate time intervals if `time_units` is not 'samples'. Also
+        required for plotting ecg grids.
+    ylabel : list
+        A list of strings specifying the final y labels. If this option is
+        present, `sig_name` and `sig_units` will not be used for labels.
+    record_name : str
+        The string name of the WFDB record to be written (without any file
+        extensions). Must not contain any "." since this would indicate an
+        EDF file which is not compatible at this point.
+    sig_units : list
+        A list of strings specifying the units of each signal channel. Used
+        with `sig_name` to form y labels, if `ylabel` is not set. This
+        parameter is required for plotting ecg grids.
+
     """
     # Get record attributes
     if record:
