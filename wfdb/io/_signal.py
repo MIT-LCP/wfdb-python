@@ -366,7 +366,7 @@ class SignalMixin(object):
 
         Returns
         -------
-        d_signal : numpy array, optional
+        d_signal : ndarray, optional
             The digital conversion of the signal. Either a 2d numpy
             array or a list of 1d numpy arrays.
 
@@ -471,7 +471,7 @@ class SignalMixin(object):
 
         Returns
         -------
-        p_signal : numpy array, optional
+        p_signal : ndarray, optional
             The physical conversion of the signal. Either a 2d numpy
             array or a list of 1d numpy arrays.
 
@@ -788,7 +788,7 @@ class SignalMixin(object):
 
         Returns
         -------
-        signal : numpy array
+        signal : ndarray
             Tranformed expanded signal into uniform signal.
 
         """
@@ -876,7 +876,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
     Returns
     -------
-    signals : numpy array, or list
+    signals : ndarray, or list
         The signals read from the dat file(s). A 2d numpy array is
         returned if the signals have uniform samples/frame or if
         `smooth_frames` is True. Otherwise a list of 1d numpy arrays
@@ -1013,7 +1013,7 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
 
     Returns
     -------
-    signal : numpy array, or list
+    signal : ndarray, or list
         The signals read from the dat file(s). A 2d numpy array is
         returned if the signals have uniform samples/frame or if
         `smooth_frames` is True. Otherwise a list of 1d numpy arrays
@@ -1312,7 +1312,7 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
 
     Returns
     -------
-    sig_data : numpy array
+    sig_data : ndarray
         The data read from the dat file. The dtype varies depending on
         fmt. Byte aligned fmts are read in their final required format.
         Unaligned formats are read as uint8 to be further processed.
@@ -1372,7 +1372,7 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
     Parameters
     ----------
-    sig_data : numpy array
+    sig_data : ndarray
         The uint8 data blocks.
     n_samp : int
         The number of samples contained in the bytes.
@@ -1381,7 +1381,7 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
     Returns
     -------
-    sig : numpy array
+    sig : ndarray
         The numpy array of digital samples.
 
     """
@@ -1480,7 +1480,7 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         The original signal.
     skew : list
         List of samples to skew for each signal.
@@ -1497,7 +1497,7 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
 
     Returns
     -------
-    sig : numpy array
+    sig : ndarray
         The new skewed and trimmed signal.
 
     Notes
@@ -1546,7 +1546,7 @@ def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         The original signal.
     read_len : int
         The signal length to read per channel. Calculated 
@@ -1646,7 +1646,7 @@ def est_res(signals):
 
     Parameters
     ----------
-    signals : numpy array, or list
+    signals : ndarray, or list
         A 2d numpy array representing a uniform multichannel signal, or
         a list of 1d numpy arrays representing multiple channels of
         signals with different numbers of samples per frame.
@@ -1807,7 +1807,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
         Name of the dat file.
     fmt : str
         WFDB fmt of the dat file.
-    d_signal : numpy array
+    d_signal : ndarray
         The digital conversion of the signal. Either a 2d numpy
         array or a list of 1d numpy arrays.
     byte_offset : int
@@ -1815,7 +1815,7 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
     expanded : bool, optional
         Whether to transform the `e_d_signal` attribute (True) or
         the `d_signal` attribute (False).
-    d_signal : numpy array, optional
+    d_signal : ndarray, optional
         The expanded digital conversion of the signal. Either a 2d numpy
         array or a list of 1d numpy arrays.
     samps_per_frame : list, optional

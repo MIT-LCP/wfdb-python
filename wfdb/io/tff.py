@@ -26,13 +26,13 @@ def rdtff(file_name, cut_end=False):
 
     Returns
     -------
-    signal : numpy array
+    signal : ndarray
         A 2d numpy array storing the physical signals from the record.
     fields : dict
         A dictionary containing several key attributes of the read record.
-    markers : numpy array
+    markers : ndarray
         A 1d numpy array storing the marker locations.
-    triggers : numpy array
+    triggers : ndarray
         A 1d numpy array storing the trigger locations.
 
     Notes

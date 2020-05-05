@@ -10,14 +10,14 @@ def resample_ann(resampled_t, ann_sample):
 
     Parameters
     ----------
-    resampled_t : numpy array
+    resampled_t : ndarray
         Array of signal locations as returned by scipy.signal.resample
-    ann_sample : numpy array
+    ann_sample : ndarray
         Array of annotation locations
 
     Returns
     -------
-    resampled_ann_sample : numpy array
+    resampled_ann_sample : ndarray
         Array of resampled annotation locations
 
     """
@@ -63,7 +63,7 @@ def resample_sig(x, fs, fs_target):
 
     Parameters
     ----------
-    x : numpy array
+    x : ndarray
         Array containing the signal
     fs : int, or float
         The original sampling frequency
@@ -72,9 +72,9 @@ def resample_sig(x, fs, fs_target):
 
     Returns
     -------
-    resampled_x : numpy array
+    resampled_x : ndarray
         Array of the resampled signal values
-    resampled_t : numpy array
+    resampled_t : ndarray
         Array of the resampled signal locations
 
     """
@@ -98,7 +98,7 @@ def resample_singlechan(x, ann, fs, fs_target):
 
     Parameters
     ----------
-    x: numpy array
+    x: ndarray
         The signal array
     ann : wfdb Annotation
         The wfdb annotation object
@@ -109,7 +109,7 @@ def resample_singlechan(x, ann, fs, fs_target):
 
     Returns
     -------
-    resampled_x : numpy array
+    resampled_x : ndarray
         Array of the resampled signal values
     resampled_ann : wfdb Annotation
         Annotation containing resampled annotation locations
@@ -140,7 +140,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
 
     Parameters
     ----------
-    xs: numpy array
+    xs: ndarray
         The signal array
     ann : wfdb Annotation
         The wfdb annotation object
@@ -153,7 +153,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
 
     Returns
     -------
-    resampled_xs : numpy array
+    resampled_xs : ndarray
         Array of the resampled signal values
     resampled_ann : wfdb Annotation
         Annotation containing resampled annotation locations
@@ -191,7 +191,7 @@ def normalize_bound(sig, lb=0, ub=1):
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         Original signal to be normalized
     lb : int, or float
         Lower bound
@@ -200,7 +200,7 @@ def normalize_bound(sig, lb=0, ub=1):
 
     Returns
     -------
-    x_normalized : numpy array
+    x_normalized : ndarray
         Normalized signal
 
     """
@@ -219,7 +219,7 @@ def smooth(sig, window_size):
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         The signal to smooth.
     window_size : int
         The width of the moving average filter.

@@ -45,18 +45,18 @@ class Annotation(object):
             annotation is associated with.
         extension : str
             The file extension of the file the annotation is stored in.
-        sample : numpy array
+        sample : ndarray
             A numpy array containing the annotation locations in samples relative to
             the beginning of the record.
         symbol : list, or numpy array, optional
             The symbols used to display the annotation labels. List or numpy array.
             If this field is present, `label_store` must not be present.
-        subtype : numpy array, optional
+        subtype : ndarray, optional
             A numpy array containing the marked class/category of each annotation.
-        chan : numpy array, optional
+        chan : ndarray, optional
             A numpy array containing the signal channel associated with each
             annotation.
-        num : numpy array, optional
+        num : ndarray, optional
             A numpy array containing the labelled annotation number for each
             annotation.
         aux_note : list, optional
@@ -64,7 +64,7 @@ class Annotation(object):
             annotations without notes) for each annotation.
         fs : int, or float, optional
             The sampling frequency of the record.
-        label_store : numpy array, optional
+        label_store : ndarray, optional
             The integer value used to store/encode each annotation label
         description : list, optional
             A list containing the descriptive string of each annotation label.
@@ -733,7 +733,7 @@ class Annotation(object):
 
         Returns
         -------
-        list, numpy array
+        list, ndarray
             All of the bytes to be written to the annotation file.
 
         """
@@ -773,7 +773,7 @@ class Annotation(object):
 
         Returns
         -------
-        list, numpy array
+        list, ndarray
             All of the bytes to be written to the annotation file.
 
         """
@@ -809,7 +809,7 @@ class Annotation(object):
 
         Returns
         -------
-        list, numpy array
+        list, ndarray
             All of the bytes to be written to the annotation file.
 
         """
@@ -1174,7 +1174,7 @@ def isblank(x):
 
     Parameters
     ----------
-    x : numpy array, list
+    x : ndarray, list
         The item to be checked.
     
     Returns
@@ -1247,7 +1247,7 @@ def field2bytes(field, value):
 
     Returns
     -------
-    data_bytes : list, numpy array
+    data_bytes : list, ndarray
         All of the bytes to be written to the annotation file.
 
     """
@@ -1323,24 +1323,24 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
         extensions).
     extension : str
         The string annotation file extension.
-    sample : numpy array
+    sample : ndarray
         A numpy array containing the annotation locations in samples relative to
         the beginning of the record.
     symbol : list, or numpy array, optional
         The symbols used to display the annotation labels. List or numpy array.
         If this field is present, `label_store` must not be present.
-    subtype : numpy array, optional
+    subtype : ndarray, optional
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array, optional
+    chan : ndarray, optional
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array, optional
+    num : ndarray, optional
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list, optional
         A list containing the auxiliary information string (or None for
         annotations without notes) for each annotation.
-    label_store : numpy array, optional
+    label_store : ndarray, optional
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
@@ -1650,19 +1650,19 @@ def proc_ann_bytes(filebytes, sampto):
     
     Returns
     -------
-    sample : numpy array
+    sample : ndarray
         A numpy array containing the annotation locations in samples relative to
         the beginning of the record.
-    label_store : numpy array
+    label_store : ndarray
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
-    subtype : numpy array
+    subtype : ndarray
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array
+    chan : ndarray
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array
+    num : ndarray
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list
@@ -1735,7 +1735,7 @@ def proc_core_fields(filebytes, bpi):
     -------
     sample_diff : 
         The sample difference.
-    label_store : numpy array
+    label_store : ndarray
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
@@ -1779,7 +1779,7 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
 
     Parameters
     ----------
-    label_store : numpy array
+    label_store : ndarray
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
@@ -1787,12 +1787,12 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
         The input filestream converted to bytes.
     bpi : int
         The index to start the conversion.
-    subtype : numpy array
+    subtype : ndarray
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array
+    chan : ndarray
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array
+    num : ndarray
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list
@@ -1803,12 +1803,12 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
 
     Returns
     -------
-    subtype : numpy array
+    subtype : ndarray
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array
+    chan : ndarray
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array
+    num : ndarray
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list
@@ -1868,12 +1868,12 @@ def update_extra_fields(subtype, chan, num, aux_note, update):
 
     Parameters
     ----------
-    subtype : numpy array
+    subtype : ndarray
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array
+    chan : ndarray
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array
+    num : ndarray
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list
@@ -1884,12 +1884,12 @@ def update_extra_fields(subtype, chan, num, aux_note, update):
 
     Returns
     -------
-    subtype : numpy array
+    subtype : ndarray
         A numpy array containing the marked class/category of each annotation.
-    chan : numpy array
+    chan : ndarray
         A numpy array containing the signal channel associated with each
         annotation.
-    num : numpy array
+    num : ndarray
         A numpy array containing the labelled annotation number for each
         annotation.
     aux_note : list
@@ -1933,10 +1933,10 @@ def get_special_inds(sample, label_store, aux_note):
 
     Parameters
     ----------
-    sample : numpy array
+    sample : ndarray
         A numpy array containing the annotation locations in samples relative to
         the beginning of the record.
-    label_store : numpy array
+    label_store : ndarray
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.

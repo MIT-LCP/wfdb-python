@@ -609,7 +609,7 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         The input ecg signal to apply the qrs detection on.
     fs : int or float
         The sampling frequency of the input signal.
@@ -632,7 +632,7 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
 
     Returns
     -------
-    qrs_inds : numpy array
+    qrs_inds : ndarray
         The indices of the detected qrs complexes
 
     Examples
@@ -1182,7 +1182,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
 
     Returns
     -------
-    qrs_locs : numpy array
+    qrs_locs : ndarray
         Detected qrs locations
 
     Notes

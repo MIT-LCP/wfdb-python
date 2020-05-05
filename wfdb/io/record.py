@@ -941,7 +941,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
     Parameters
     ----------
-    item : numpy array
+    item : ndarray
         The numpy array to check
     field_name : str
         The name of the field to check
@@ -1388,7 +1388,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
 
     Returns
     -------
-    signals : numpy array
+    signals : ndarray
         A 2d numpy array storing the physical signals from the record.
     fields : dict
         A dictionary containing several key attributes of the read
@@ -1487,7 +1487,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         A list of strings giving the units of each signal channel.
     sig_name :
         A list of strings giving the signal name of each signal channel.
-    p_signal : numpy array, optional
+    p_signal : ndarray, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         physical signal values intended to be written. Either p_signal or
         d_signal must be set, but not both. If p_signal is set, this method will
@@ -1495,7 +1495,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         digital values to the dat file(s). If fmt is set, gain and baseline must
         be set or unset together. If fmt is unset, gain and baseline must both
         be unset.
-    d_signal : numpy array, optional
+    d_signal : ndarray, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         digital signal values intended to be directly written to the dat
         file(s). The dtype must be an integer type. Either p_signal or d_signal

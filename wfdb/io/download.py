@@ -38,7 +38,7 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
 
 def _remote_file_size(url=None, file_name=None, pn_dir=None):
     """
-    Get the remote file size in bytes
+    Get the remote file size in bytes.
 
     Parameters
     ----------
@@ -55,7 +55,7 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     Returns
     -------
     remote_file_size : int
-        Size of the file in bytes
+        Size of the file in bytes.
 
     """
 
@@ -79,11 +79,18 @@ def _stream_header(file_name, pn_dir):
     Parameters
     ----------
     file_name : str
-
+        The name of the headerr file to be read.
     pn_dir : str
         The Physionet database directory from which to find the
         required header file. eg. For file '100.hea' in
         'http://physionet.org/content/mitdb', pn_dir='mitdb'.
+
+    Returns
+    -------
+    header_lines : list
+        All of the traditional header lines.
+    comment_lines : list
+        All of the comment header lines.
 
     """
     # Full url of header location
@@ -138,7 +145,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
 
     Returns
     -------
-    sig_data : numpy array
+    sig_data : ndarray
         The data read from the dat file.
 
     """
@@ -170,7 +177,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
 
 def _stream_annotation(file_name, pn_dir):
     """
-    Stream an entire remote annotation file from Physionet
+    Stream an entire remote annotation file from Physionet.
 
     Parameters
     ----------
@@ -178,6 +185,11 @@ def _stream_annotation(file_name, pn_dir):
         The name of the annotation file to be read.
     pn_dir : str
         The Physionet directory where the annotation file is located.
+
+    Returns
+    -------
+    ann_data : ndarray
+        The resulting data stream in numpy array format.
 
     """
     # Full url of annotation file
@@ -197,7 +209,12 @@ def _stream_annotation(file_name, pn_dir):
 def get_dbs():
     """
     Get a list of all the Physiobank databases available.
-    * Will soon be replaced by equivalent link on Physionet
+    * Will soon be replaced by equivalent link on Physionet.
+
+    Returns
+    -------
+    dbs : list
+        All of the databases currently available for analysis.
 
     Examples
     --------
@@ -225,8 +242,13 @@ def get_record_list(db_dir, records='all'):
         The database directory, usually the same as the database slug.
         The location to look for a RECORDS file.
     records : list, optional
-        A Option used when this function acts as a helper function.
+        An option used when this function acts as a helper function.
         Leave as default 'all' to get all records.
+
+    Returns
+    -------
+    record_list : list
+        All of the possible record names for the input database.
 
     Examples
     --------
@@ -255,6 +277,28 @@ def get_record_list(db_dir, records='all'):
 
 
 def get_annotators(db_dir, annotators):
+    """
+    Get a list of annotators belonging to a database.
+
+    Parameters
+    ----------
+    db_dir : str
+        The database directory, usually the same as the database slug.
+        The location to look for a ANNOTATORS file.
+    annotators : list, str
+        Determines from which records to get the annotators from. Leave as 
+        default 'all' to get all annotators.
+
+    Returns
+    -------
+    annotators : list
+        All of the possible annotators for the input database.
+
+    Examples
+    --------
+    >>> wfdb.get_annotators('mitdb')
+
+    """
 
     # Full url Physionet database
     db_url = posixpath.join(config.db_index_url, db_dir)
@@ -289,7 +333,23 @@ def get_annotators(db_dir, annotators):
 
 def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
     """
-    Make any required local directories to prepare for downloading
+    Make any required local directories to prepare for downloading.
+
+    Parameters
+    ----------
+    dl_dir : str
+        The full local directory path in which to download the files.
+    dl_inputs : list
+        The desired input names for creating the directories.
+    keep_subdirs : bool
+        Whether to keep the relative subdirectories of downloaded files as they
+        are organized in Physionet (True), or to download all files into the
+        same base directory (False).
+
+    Returns
+    -------
+    N/A
+
     """
 
     # Make the local download dir if it doesn't exist
@@ -309,10 +369,19 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
 
 def dl_pn_file(inputs):
     """
-    Download a file from Physionet.
+    Download a file from Physionet. The input args are to be unpacked 
+    for the use of multiprocessing map, because python2 doesn't have starmap.
 
-    The input args are to be unpacked for the use of multiprocessing
-    map, because python2 doesn't have starmap...
+    Parameters
+    ----------
+    inputs : list
+        All of the required information needed to download a file 
+        from Physionet: 
+        [basefile, subdir, db, dl_dir, keep_subdirs, overwrite].
+
+    Returns
+    -------
+    N/A
 
     """
 
@@ -369,9 +438,13 @@ def dl_full_file(url, save_file_name):
     Parameters
     ----------
     url : str
-        The url of the file to download
+        The url of the file to download.
     save_file_name : str
-        The name to save the file as
+        The name to save the file as.
+
+    Returns
+    -------
+    N/A
 
     """
     response = requests.get(url)
@@ -407,6 +480,10 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
         will be redownloaded. If the local file is smaller, the file will be
         assumed to be partially downloaded and the remaining bytes will be
         downloaded and appended.
+
+    Returns
+    -------
+    N/A
 
     Examples
     --------

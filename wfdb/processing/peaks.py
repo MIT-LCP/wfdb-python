@@ -19,9 +19,9 @@ def find_peaks(sig):
 
     Returns
     -------
-    hard_peaks : numpy array
+    hard_peaks : ndarray
         Array containing the indices of the hard peaks:
-    soft_peaks : numpy array
+    soft_peaks : ndarray
         Array containing the indices of the soft peaks
 
     """
@@ -66,7 +66,7 @@ def find_local_peaks(sig, radius):
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         1d numpy array of the signal.
     radius : int
         The radius in which to search for defining local maxima.
@@ -111,7 +111,7 @@ def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
 
     Parameters
     ----------
-    sig : numpy array
+    sig : ndarray
         The 1d signal array
     peak_inds : np array
         Array of the original peak indices
@@ -135,7 +135,7 @@ def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
 
     Returns
     -------
-    corrected_peak_inds : numpy array
+    corrected_peak_inds : ndarray
         Array of the corrected peak indices
 
 

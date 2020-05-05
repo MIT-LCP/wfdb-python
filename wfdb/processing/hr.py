@@ -9,14 +9,14 @@ def compute_hr(sig_len, qrs_inds, fs):
     ----------
     sig_len : int
         The length of the corresponding signal
-    qrs_inds : numpy array
+    qrs_inds : ndarray
         The qrs index locations
     fs : int, or float
         The corresponding signal's sampling frequency.
 
     Returns
     -------
-    heart_rate : numpy array
+    heart_rate : ndarray
         An array of the instantaneous heart rate, with the length of the
         corresponding signal. Contains numpy.nan where heart rate could
         not be computed.
@@ -48,7 +48,7 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
 
     Parameters
     ----------
-    qrs_locs : numpy array
+    qrs_locs : ndarray
         1d array of qrs locations.
     fs : float, optional
         Sampling frequency of the original signal. Needed if
@@ -68,7 +68,7 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
 
     Returns
     -------
-    rr : numpy array
+    rr : ndarray
         Array of rr intervals.
 
     """
@@ -101,7 +101,7 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
 
     Parameters
     ----------
-    rr : numpy array
+    rr : ndarray
         Array of rr intervals.
     fs : int, or float
         The corresponding signal's sampling frequency. Required if

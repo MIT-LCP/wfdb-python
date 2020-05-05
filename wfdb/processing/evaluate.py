@@ -39,9 +39,9 @@ class Comparitor(object):
         """
         Parameters
         ----------
-        ref_sample : numpy array
+        ref_sample : ndarray
             An array of the reference sample locations
-        test_sample : numpy array
+        test_sample : ndarray
             An array of the comparison sample locations
         window_width : int
             The width of the window
