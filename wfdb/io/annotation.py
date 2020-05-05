@@ -25,6 +25,45 @@ class Annotation(object):
     text used to label annotations that are not one of these codes should go in
     the 'aux_note' field rather than the 'sym' field.
 
+    Attributes
+    ----------
+    record_name : str
+        The base file name (without extension) of the record that the
+        annotation is associated with.
+    extension : str
+        The file extension of the file the annotation is stored in.
+    sample : ndarray
+        A numpy array containing the annotation locations in samples relative to
+        the beginning of the record.
+    symbol : list, or numpy array, optional
+        The symbols used to display the annotation labels. List or numpy array.
+        If this field is present, `label_store` must not be present.
+    subtype : ndarray, optional
+        A numpy array containing the marked class/category of each annotation.
+    chan : ndarray, optional
+        A numpy array containing the signal channel associated with each
+        annotation.
+    num : ndarray, optional
+        A numpy array containing the labelled annotation number for each
+        annotation.
+    aux_note : list, optional
+        A list containing the auxiliary information string (or None for
+        annotations without notes) for each annotation.
+    fs : int, or float, optional
+        The sampling frequency of the record.
+    label_store : ndarray, optional
+        The integer value used to store/encode each annotation label
+    description : list, optional
+        A list containing the descriptive string of each annotation label.
+    custom_labels : pandas dataframe, optional
+        The custom annotation labels defined in the annotation file. Maps
+        the relationship between the three label fields. The data type is a
+        pandas DataFrame with three columns:
+        ['label_store', 'symbol', 'description'].
+    contained_labels : pandas dataframe, optional
+        The unique labels contained in this annotation. Same structure as
+        `custom_labels`.
+
     Examples
     --------
     >>> ann1 = wfdb.Annotation(record_name='rec1', extension='atr',
@@ -37,47 +76,7 @@ class Annotation(object):
                  subtype=None, chan=None, num=None, aux_note=None, fs=None,
                  label_store=None, description=None, custom_labels=None,
                  contained_labels=None):
-        """
-        Parameters
-        ----------
-        record_name : str
-            The base file name (without extension) of the record that the
-            annotation is associated with.
-        extension : str
-            The file extension of the file the annotation is stored in.
-        sample : ndarray
-            A numpy array containing the annotation locations in samples relative to
-            the beginning of the record.
-        symbol : list, or numpy array, optional
-            The symbols used to display the annotation labels. List or numpy array.
-            If this field is present, `label_store` must not be present.
-        subtype : ndarray, optional
-            A numpy array containing the marked class/category of each annotation.
-        chan : ndarray, optional
-            A numpy array containing the signal channel associated with each
-            annotation.
-        num : ndarray, optional
-            A numpy array containing the labelled annotation number for each
-            annotation.
-        aux_note : list, optional
-            A list containing the auxiliary information string (or None for
-            annotations without notes) for each annotation.
-        fs : int, or float, optional
-            The sampling frequency of the record.
-        label_store : ndarray, optional
-            The integer value used to store/encode each annotation label
-        description : list, optional
-            A list containing the descriptive string of each annotation label.
-        custom_labels : pandas dataframe, optional
-            The custom annotation labels defined in the annotation file. Maps
-            the relationship between the three label fields. The data type is a
-            pandas DataFrame with three columns:
-            ['label_store', 'symbol', 'description'].
-        contained_labels : pandas dataframe, optional
-            The unique labels contained in this annotation. Same structure as
-            `custom_labels`.
 
-        """
         self.record_name = record_name
         self.extension = extension
 

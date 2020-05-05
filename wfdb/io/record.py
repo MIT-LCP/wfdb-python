@@ -16,6 +16,39 @@ import pdb
 
 
 class BaseRecord(object):
+    """
+    The base WFDB class extended by the Record and MultiRecord classes.
+    
+    Attributes
+    ----------
+    record_name : str
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    n_sig : int
+        Total number of signals.
+    fs : int, or float
+        The sampling frequency of the record.
+    counter_freq : float
+        The frequency used to start counting.
+    base_counter : float
+        The counter used at the start of the file.
+    sig_len : int
+        The total length of the signal.
+    base_time : str, optional
+        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
+    base_date : str, optional
+        A string of the record's start date in 'DD/MM/YYYY' format.
+    comments : list, optional
+        A list of string comments to be written to the header file.
+    sig_name : str
+        A list of strings giving the signal name of each signal channel.
+
+    """
     # The base WFDB class extended by the Record and MultiRecord classes.
     def __init__(self, record_name=None, n_sig=None,
                  fs=None, counter_freq=None, base_counter=None,
@@ -271,6 +304,85 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     In addition, the d_signal and p_signal attributes store the digital and
     physical signals of WFDB records with at least one channel.
 
+    Attributes
+    ----------
+    p_signal : ndarray
+        An (MxN) 2d numpy array, where M is the signal length. Gives the
+        physical signal values intended to be written. Either p_signal or
+        d_signal must be set, but not both. If p_signal is set, this method will
+        use it to perform analogue-digital conversion, writing the resultant
+        digital values to the dat file(s). If fmt is set, gain and baseline must
+        be set or unset together. If fmt is unset, gain and baseline must both
+        be unset.
+    d_signal : ndarray
+        An (MxN) 2d numpy array, where M is the signal length. Gives the
+        digital signal values intended to be directly written to the dat
+        file(s). The dtype must be an integer type. Either p_signal or d_signal
+        must be set, but not both. In addition, if d_signal is set, fmt, gain
+        and baseline must also all be set.
+    p_signal : ndarray
+        The expanded physical conversion of the signal. Either a 2d numpy
+        array or a list of 1d numpy arrays.
+    e_d_signal : ndarray
+        The expanded digital conversion of the signal. Either a 2d numpy
+        array or a list of 1d numpy arrays.
+    record_name : str
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    n_sig : int
+        Total number of signals.
+    fs : float
+        The sampling frequency of the record.
+    counter_freq : float
+        The frequency used to start counting.
+    base_counter : float
+        The counter used at the start of the file.
+    sig_len : int
+        The total length of the signal.
+    base_time : str
+        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
+    base_date : str
+        A string of the record's start date in 'DD/MM/YYYY' format.
+    file_name : str
+        The name of the file used for analysis.
+    fmt : list
+        A list of strings giving the WFDB format of each file used to store each
+        channel. Accepted formats are: '80','212",'16','24', and '32'. There are
+        other WFDB formats as specified by:
+        https://www.physionet.org/physiotools/wag/signal-5.htm
+        but this library will not write (though it will read) those file types.
+    samps_per_frame : int
+        The total number of samples per frame.
+    skew : float
+        The offset used to allign signals.
+    byte_offset
+        The byte offset used to allign signals.
+    adc_gain : list
+        A list of numbers specifying the ADC gain.
+    baseline : list
+        A list of integers specifying the digital baseline.
+    units : list
+        A list of strings giving the units of each signal channel.  
+    adc_res: int
+        The value produced by the ADC given a given volt input.  
+    adc_zero: int
+        The value produced by the ADC given a 0 volt input.
+    init_value : list
+        The initial value of the signal.
+    checksum : list, int
+        The checksum of the signal.
+    block_size : str
+        The dimensions of the field data.
+    sig_name :
+        A list of strings giving the signal name of each signal channel.
+    comments : list, optional
+        A list of string comments to be written to the header file.
+
     Examples
     --------
     >>> record = wfdb.Record(record_name='r1', fs=250, n_sig=2, sig_len=1000,
@@ -317,6 +429,22 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other, verbose=False):
+        """
+        Equal comparison operator for objects of this type.
+
+        Parameters
+        ----------
+        other : object
+            The object that is being compared to self.
+        verbose : bool, optional
+            Whether to print details about equality (True) or not (False).
+
+        Returns
+        -------
+        bool
+            Determines if the objects are equal (True) or not equal (False).
+
+        """
         att1 = self.__dict__
         att2 = other.__dict__
 
@@ -443,6 +571,24 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     to return a single segment representation of the record as a Record object.
     The resulting Record object will have its 'p_signal' field set.
 
+    Parameters
+    ----------
+    segments
+    layout
+    record_name
+    n_sig
+    fs
+    counter_freq
+    base_counter
+    sig_len
+    base_time
+    base_date
+    seg_name
+    seg_len
+    comments
+    sig_name
+    sig_segments
+
     Examples
     --------
     >>> record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=8,
@@ -498,7 +644,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def _check_segment_cohesion(self):
         """
         Check the cohesion of the segments field with other fields used
-        to write the record
+        to write the record.
+
         """
 
         if self.n_seg != len(self.segments):
@@ -539,6 +686,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             The starting sample number to read for each channel.
         sampto : int
             The sample number at which to stop reading for each channel.
+
+        Returns
+        -------
+        seg_numbers : list
+            List of segment numbers to read.
+        readsamps
 
         """
 
@@ -595,6 +748,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         channels : list
             The channel indices to read for the whole record. Same one
             specified by user input.
+        dir_name : str
+            The local directory location of the header file. This parameter
+            is ignored if `pn_dir` is set.
+        pn_dir : str
+            Option used to stream data from Physionet. The Physionet
+            database directory from which to find the required record files.
+            eg. For record '100' in 'http://physionet.org/content/mitdb'
+            pn_dir='mitdb'.
 
         Returns
         -------
@@ -870,6 +1031,12 @@ def get_version(pn_dir):
         The Physionet database directory from which to find the
         required version number. eg. For the project 'mitdb' in
         'http://physionet.org/content/mitdb', pn_dir='mitdb'.
+
+    Returns
+    -------
+    version_number : str
+        The version number of the most recent database.
+
     """
     db_dir = pn_dir.split(os.sep)[0]
     url = posixpath.join(download.PN_CONTENT_URL, db_dir)
@@ -1393,10 +1560,10 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
     fields : dict
         A dictionary containing several key attributes of the read
         record:
-          - fs: The sampling frequency of the record
-          - units: The units for each channel
-          - sig_name: The signal name for each channel
-          - comments: Any comments written in the header
+          - fs: The sampling frequency of the record.
+          - units: The units for each channel.
+          - sig_name: The signal name for each channel.
+          - comments: Any comments written in the header.
 
     Notes
     -----
@@ -1454,10 +1621,6 @@ def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
         of elements and the wanted channels. If True, pads missing
         signals with None.
 
-    Returns
-    -------
-    wanted_channel_inds
-
     """
     if pad:
         return [record_sig_names.index(s) if s in record_sig_names else None for s in wanted_sig_names]
@@ -1485,7 +1648,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         The sampling frequency of the record.
     units : list
         A list of strings giving the units of each signal channel.
-    sig_name :
+    sig_name : list, str
         A list of strings giving the signal name of each signal channel.
     p_signal : ndarray, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
@@ -1585,6 +1748,17 @@ def is_monotonic(full_list):
     elements are clustered together.
 
     ie. [5,5,3,4] is, [5,3,5] is not.
+
+    Parameters
+    ----------
+    full_list : list
+        The input elements used for the analysis.
+
+    Returns
+    -------
+    bool
+        Whether the elements are monotonic (True) or not (False).
+
     """
     prev_elements = set({full_list[0]})
     prev_item = full_list[0]
@@ -1639,6 +1813,10 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         file is smaller, the file will be assumed to be partially
         downloaded and the remaining bytes will be downloaded and
         appended.
+
+    Returns
+    -------
+    N/A
 
     Examples
     --------
