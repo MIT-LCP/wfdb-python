@@ -8,9 +8,9 @@ def compute_hr(sig_len, qrs_inds, fs):
     Parameters
     ----------
     sig_len : int
-        The length of the corresponding signal
+        The length of the corresponding signal.
     qrs_inds : ndarray
-        The qrs index locations
+        The qrs index locations.
     fs : int, or float
         The corresponding signal's sampling frequency.
 
@@ -119,7 +119,7 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
     Returns
     -------
     mean_hr : float
-        The mean heart rate in beats per minute
+        The mean heart rate in beats per minute.
 
     """
     if not len(rr):
