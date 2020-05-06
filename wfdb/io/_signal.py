@@ -21,11 +21,11 @@ OFFSET_FMTS = ['80', '160']
 DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS
 
 # Bytes required to hold each sample (including wasted space) for each
-# wfdb dat formats
+# WFDB dat formats
 BYTES_PER_SAMPLE = {'8': 1, '16': 2, '24': 3, '32': 4, '61': 2, '80': 1,
                     '160': 2, '212': 1.5, '310': 4 / 3., '311': 4 / 3.}
 
-# The bit resolution of each wfdb dat format
+# The bit resolution of each WFDB dat format
 BIT_RES = {'8': 8, '16': 16, '24': 24, '32': 32, '61': 16, '80': 8,
            '160': 16, '212': 12, '310': 10, '311': 10}
 
@@ -42,8 +42,19 @@ class SignalMixin(object):
     """
 
     def wr_dats(self, expanded, write_dir):
-        # Write all dat files associated with a record
-        # expanded=True to use e_d_signal instead of d_signal
+        """
+        Write all dat files associated with a record
+        expanded=True to use e_d_signal instead of d_signal.
+
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to transform the `e_d_signal` attribute (True) or
+            the `d_signal` attribute (False).
+        write_dir : str
+            The directory to write the output file to.
+
+        """
 
         if not self.n_sig:
             return
@@ -72,6 +83,14 @@ class SignalMixin(object):
         """
         Check the cohesion of the d_signal/e_d_signal field with the other
         fields used to write the record.
+
+        Parameters
+        ----------
+        write_fields : list
+            All the fields used to write the header.
+        expanded : bool
+            Whether to transform the `e_d_signal` attribute (True) or
+            the `d_signal` attribute (False).
 
         """
         # Using list of arrays e_d_signal
@@ -155,9 +174,10 @@ class SignalMixin(object):
         do_dac : bool
             Whether to use the digital signal field to perform dac
             conversion to get the physical signal field beforehand.
-        expanded : bool
-            Whether to use the `e_p_signal` or `p_signal` field. If
-            True, the `samps_per_frame` attribute is also required.
+        expanded : bool, optional
+            Whether to transform the `e_p_signal` attribute (True) or
+            the `p_signal` attribute (False). If True, the `samps_per_frame` 
+            attribute is also required.
 
         Notes
         -----
@@ -218,8 +238,9 @@ class SignalMixin(object):
         single_fmt : bool
             Whether to use a single digital format during adc, if it is
             performed.
-        expanded : bool
-            Whether to use the `e_d_signal` or `d_signal` field.
+        expanded : bool, optional
+            Whether to transform the `e_p_signal` attribute (True) or
+            the `p_signal` attribute (False).
 
         Notes
         -----
@@ -345,7 +366,7 @@ class SignalMixin(object):
 
         Returns
         -------
-        d_signal : numpy array, optional
+        d_signal : ndarray, optional
             The digital conversion of the signal. Either a 2d numpy
             array or a list of 1d numpy arrays.
 
@@ -359,7 +380,7 @@ class SignalMixin(object):
 
         """
 
-        # The digital nan values for each channel
+        # The digital NAN values for each channel
         d_nans = _digi_nan(self.fmt)
 
         # To do: choose the minimum return res needed
@@ -369,7 +390,7 @@ class SignalMixin(object):
         if inplace:
             if expanded:
                 for ch in range(self.n_sig):
-                    # nan locations for the channel
+                    # NAN locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
                     np.multiply(self.e_p_signal[ch], self.adc_gain[ch],
                                 self.e_p_signal[ch])
@@ -393,7 +414,7 @@ class SignalMixin(object):
             if expanded:
                 d_signal = []
                 for ch in range(self.n_sig):
-                    # nan locations for the channel
+                    # NAN locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
                     ch_d_signal = self.e_p_signal.copy()
                     np.multiply(ch_d_signal, self.adc_gain[ch], ch_d_signal)
@@ -436,6 +457,11 @@ class SignalMixin(object):
         expanded : bool, optional
             Whether to transform the `e_d_signal attribute` (True) or
             the `d_signal` attribute (False).
+        return_res : int, optional
+            The numpy array dtype of the returned signals. Options are: 64,
+            32, 16, and 8, where the value represents the numpy int or float
+            dtype. Note that the value cannot be 8 when physical is True
+            since there is no float8 format.       
         inplace : bool, optional
             Whether to automatically set the object's corresponding
             physical signal attribute and set the digital signal
@@ -445,7 +471,7 @@ class SignalMixin(object):
 
         Returns
         -------
-        p_signal : numpy array, optional
+        p_signal : ndarray, optional
             The physical conversion of the signal. Either a 2d numpy
             array or a list of 1d numpy arrays.
 
@@ -459,7 +485,7 @@ class SignalMixin(object):
 
         """
 
-        # The digital nan values for each channel
+        # The digital NAN values for each channel
         d_nans = _digi_nan(self.fmt)
 
         # Get the appropriate float dtype
@@ -474,7 +500,7 @@ class SignalMixin(object):
         if inplace:
             if expanded:
                 for ch in range(self.n_sig):
-                    # nan locations for the channel
+                    # NAN locations for the channel
                     ch_nanlocs = self.e_d_signal[ch] == d_nans[ch]
                     self.e_d_signal[ch] = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(self.e_d_signal[ch], self.baseline[ch], self.e_d_signal[ch])
@@ -498,7 +524,7 @@ class SignalMixin(object):
             if expanded:
                 p_signal = []
                 for ch in range(self.n_sig):
-                    # nan locations for the channel
+                    # NAN locations for the channel
                     ch_nanlocs = self.e_d_signal[ch] == d_nans[ch]
                     ch_p_signal = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
@@ -534,7 +560,7 @@ class SignalMixin(object):
             `physical * adc_gain + baseline = digital`
 
         The original WFDB library stores `baseline` as int32.
-        Constrain abs(adc_gain) <= 2**31 == 2147483648
+        Constrain abs(adc_gain) <= 2**31 == 2147483648.
 
         This function does carefully deal with overflow for calculated
         int32 `baseline` values, but does not consider over/underflow
@@ -547,7 +573,7 @@ class SignalMixin(object):
         if np.where(np.isinf(self.p_signal))[0].size:
             raise ValueError('Signal contains inf. Cannot perform adc.')
 
-        # min and max ignoring nans, unless whole channel is nan.
+        # min and max ignoring nans, unless whole channel is NAN.
         # Should suppress warning message.
         minvals = np.nanmin(self.p_signal, axis=0)
         maxvals = np.nanmax(self.p_signal, axis=0)
@@ -563,7 +589,7 @@ class SignalMixin(object):
 
             # Figure out digital samples used to store physical samples
 
-            # If the entire signal is nan, gain/baseline won't be used
+            # If the entire signal is NAN, gain/baseline won't be used
             if pmin == np.nan:
                 adc_gain = 1
                 baseline = 1
@@ -625,39 +651,77 @@ class SignalMixin(object):
 
 
     def convert_dtype(self, physical, return_res, smooth_frames):
+        """
+        Convert the dtype of the signal.
+
+        Parameters
+        ----------
+        physical : bool
+            Specifies whether to return dtype in physical (float) units in the
+            `p_signal` field (True), or digital (int) units in the `d_signal`
+            field (False).
+        return_res : int
+            The numpy array dtype of the returned signals. Options are: 64,
+            32, 16, and 8, where the value represents the numpy int or float
+            dtype. Note that the value cannot be 8 when physical is True
+            since there is no float8 format.
+        smooth_frames : bool
+            Used when reading records with signals having multiple samples
+            per frame. Specifies whether to smooth the samples in signals
+            with more than one sample per frame and return an (MxN) uniform
+            numpy array as the `d_signal` or `p_signal` field (True), or to
+            return a list of 1d numpy arrays containing every expanded
+            sample as the `e_d_signal` or `e_p_signal` field (False).
+
+        Returns
+        -------
+        N/A
+
+        """
+
         if physical is True:
-            returndtype = 'float'+str(return_res)
+            return_dtype = 'float'+str(return_res)
             if smooth_frames is True:
-                currentdtype = self.p_signal.dtype
-                if currentdtype != returndtype:
-                    self.p_signal = self.p_signal.astype(returndtype, copy=False)
+                current_dtype = self.p_signal.dtype
+                if current_dtype != return_dtype:
+                    self.p_signal = self.p_signal.astype(return_dtype, copy=False)
             else:
                 for ch in range(self.n_sig):
-                    if self.e_p_signal[ch].dtype != returndtype:
-                        self.e_p_signal[ch] = self.e_p_signal[ch].astype(returndtype, copy=False)
+                    if self.e_p_signal[ch].dtype != return_dtype:
+                        self.e_p_signal[ch] = self.e_p_signal[ch].astype(return_dtype, copy=False)
         else:
-            returndtype = 'int'+str(return_res)
+            return_dtype = 'int'+str(return_res)
             if smooth_frames is True:
-                currentdtype = self.d_signal.dtype
-                if currentdtype != returndtype:
+                current_dtype = self.d_signal.dtype
+                if current_dtype != return_dtype:
                     # Do not allow changing integer dtype to lower value due to over/underflow
-                    if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                    if int(str(current_dtype)[3:])>int(str(return_dtype)[3:]):
                         raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
-                    self.d_signal = self.d_signal.astype(returndtype, copy=False)
+                    self.d_signal = self.d_signal.astype(return_dtype, copy=False)
             else:
                 for ch in range(self.n_sig):
-                    currentdtype = self.e_d_signal[ch].dtype
-                    if currentdtype != returndtype:
+                    current_dtype = self.e_d_signal[ch].dtype
+                    if current_dtype != return_dtype:
                         # Do not allow changing integer dtype to lower value due to over/underflow
-                        if int(str(currentdtype)[3:])>int(str(returndtype)[3:]):
+                        if int(str(current_dtype)[3:])>int(str(return_dtype)[3:]):
                             raise Exception('Cannot convert digital samples to lower dtype. Risk of overflow/underflow.')
-                        self.e_d_signal[ch] = self.e_d_signal[ch].astype(returndtype, copy=False)
+                        self.e_d_signal[ch] = self.e_d_signal[ch].astype(return_dtype, copy=False)
         return
 
     def calc_checksum(self, expanded=False):
         """
-        Calculate the checksum(s) of the d_signal (expanded=False)
-        or e_d_signal field (expanded=True)
+        Calculate the checksum(s) of the input signal.
+
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to transform the `e_d_signal` attribute (True) or
+            the `d_signal` attribute (False).
+
+        Returns
+        -------
+        cs : list
+            The resulting checksum-ed signal.
 
         """
         if expanded:
@@ -669,7 +733,15 @@ class SignalMixin(object):
 
     def wr_dat_files(self, expanded=False, write_dir=''):
         """
-        Write each of the specified dat files
+        Write each of the specified dat files.
+
+        Parameters
+        ----------
+        expanded : bool, optional
+            Whether to transform the `e_d_signal` attribute (True) or
+            the `d_signal` attribute (False).
+        write_dir : str, optional
+            The directory to write the output file to.
 
         """
         # Get the set of dat files to be written, and
@@ -712,7 +784,12 @@ class SignalMixin(object):
         ----------
         sigtype (default='physical') : str 
             Specifies whether to mooth the e_p_signal field ('physical'), or the e_d_signal
-            field ('digital')
+            field ('digital').
+
+        Returns
+        -------
+        signal : ndarray
+            Tranformed expanded signal into uniform signal.
 
         """
         spf = self.samps_per_frame[:]
@@ -774,23 +851,23 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         The Physionet directory where the dat file(s) are located, if
         the dat file(s) are remote.
     fmt : list
-        The formats of the dat files
+        The formats of the dat files.
     n_sig : int
-        The number of signals contained in the dat file
+        The number of signals contained in the dat file.
     sig_len : int
-        The signal length (per channel) of the dat file
+        The signal length (per channel) of the dat file.
     byte_offset : int
-        The byte offset of the dat file
+        The byte offset of the dat file.
     samps_per_frame : list
-        The samples/frame for each signal of the dat file
+        The samples/frame for each signal of the dat file.
     skew : list
-        The skew for the signals of the dat file
+        The skew for the signals of the dat file.
     sampfrom : int
-        The starting sample number to be read from the signals
+        The starting sample number to be read from the signals.
     sampto : int
-        The final sample number to be read from the signals
+        The final sample number to be read from the signals.
     smooth_frames : bool
-        Whether to smooth channels with multiple samples/frame
+        Whether to smooth channels with multiple samples/frame.
     ignore_skew : bool, optional
         Used when reading records with at least one skewed signal.
         Specifies whether to apply the skew to align the signals in the
@@ -799,7 +876,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
     Returns
     -------
-    signals : numpy array, or list
+    signals : ndarray, or list
         The signals read from the dat file(s). A 2d numpy array is
         returned if the signals have uniform samples/frame or if
         `smooth_frames` is True. Otherwise a list of 1d numpy arrays
@@ -809,7 +886,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     -----
     'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
     are user desired input fields. All other parameters are
-    specifications of the segment
+    specifications of the segment.
 
     """
 
@@ -908,18 +985,45 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     Parameters
     ----------
     file_name : str
-        The name of the dat file
-    * other params
-        See docstring for `_rd_segment`.
+        The name of the dat file.
+    dir_name : str
+        The full directory where the dat file(s) are located, if the dat
+        file(s) are local.
+    pn_dir : str
+        The Physionet directory where the dat file(s) are located, if
+        the dat file(s) are remote.
+    fmt : list
+        The formats of the dat files.
+    n_sig : int
+        The number of signals contained in the dat file.
+    sig_len : int
+        The signal length (per channel) of the dat file.
+    byte_offset : int
+        The byte offset of the dat file.
+    samps_per_frame : list
+        The samples/frame for each signal of the dat file.
+    skew : list
+        The skew for the signals of the dat file.
+    sampfrom : int
+        The starting sample number to be read from the signals.
+    sampto : int
+        The final sample number to be read from the signals.
+    smooth_frames : bool
+        Whether to smooth channels with multiple samples/frame.
 
     Returns
     -------
-    signals : numpy array, or list
-        See docstring for `_rd_segment`.
+    signal : ndarray, or list
+        The signals read from the dat file(s). A 2d numpy array is
+        returned if the signals have uniform samples/frame or if
+        `smooth_frames` is True. Otherwise a list of 1d numpy arrays
+        is returned.
 
     Notes
     -----
-    See docstring notes for `_rd_segment`.
+    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
+    are user desired input fields. All other parameters are
+    specifications of the segment.
 
     """
 
@@ -1046,19 +1150,19 @@ def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
     Parameters
     ----------
     fmt : str
-        The format of the dat file
+        The format of the dat file.
     sig_len : int
-        The signal length (per channel) of the dat file
+        The signal length (per channel) of the dat file.
     byte_offset : int
-        The byte offset of the dat file
+        The byte offset of the dat file.
     skew : list
-        The skew for the signals of the dat file
+        The skew for the signals of the dat file.
     tsamps_per_frame : int
-        The total samples/frame for all channels of the dat file
+        The total samples/frame for all channels of the dat file.
     sampfrom : int
-        The starting sample number to be read from the signals
+        The starting sample number to be read from the signals.
     sampto : int
-        The final sample number to be read from the signals
+        The final sample number to be read from the signals.
 
     Returns
     -------
@@ -1073,7 +1177,7 @@ def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
     extra_flat_samples : int
         The extra samples desired beyond what is contained in the file.
     nan_replace : list
-        The number of samples to replace with nan at the end of each
+        The number of samples to replace with NAN at the end of each
         signal, due to skew wanting samples beyond the file.
 
     Examples
@@ -1120,7 +1224,7 @@ def _dat_read_params(fmt, sig_len, byte_offset, skew, tsamps_per_frame,
     # The number of samples to read
     n_read_samples = end_flat_sample - start_flat_sample
 
-    # The number of samples to replace with nan at the end of each signal
+    # The number of samples to replace with NAN at the end of each signal
     # due to skew wanting samples beyond the file
     nan_replace = [max(0, sampto + s - sig_len) for s in skew]
 
@@ -1138,14 +1242,14 @@ def _required_byte_num(mode, fmt, n_samp):
     mode : str
         Whether the file is to be read or written: 'read' or 'write'.
     fmt : str
-        The wfdb dat format.
+        The WFDB dat format.
     n_samp : int
         The number of samples wanted.
 
     Returns
     -------
     n_bytes : int
-        The number of bytes required to read or write the file
+        The number of bytes required to read or write the file.
 
     Notes
     -----
@@ -1166,7 +1270,7 @@ def _required_byte_num(mode, fmt, n_samp):
             else:
                 if mode == 'read':
                     n_bytes = math.ceil(n_samp * 4/3)
-                # Have to write more bytes for wfdb c to work
+                # Have to write more bytes for WFDB c to work
                 else:
                     n_bytes = upround(n_samp * 4/3, 4)
         # 0 or 1
@@ -1189,25 +1293,35 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
 
     Parameters
     ----------
+    file_name : str
+        The name of the dat file.
+    dir_name : str
+        The full directory where the dat file(s) are located, if the dat
+        file(s) are local.
+    pn_dir : str
+        The Physionet directory where the dat file(s) are located, if
+        the dat file(s) are remote.
+    fmt : list
+        The formats of the dat files.
     start_byte : int
         The starting byte number to read from.
     n_samp : int
         The total number of samples to read. Does NOT need to create
         whole blocks for special format. Any number of samples should be
         readable.
-    * other params
-        See docstring for `_rd_dat_signals`
 
     Returns
     -------
-    sig_data : numpy array
+    sig_data : ndarray
         The data read from the dat file. The dtype varies depending on
         fmt. Byte aligned fmts are read in their final required format.
         Unaligned formats are read as uint8 to be further processed.
 
     Notes
     -----
-    See docstring notes for `_rd_dat_signals`
+    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
+    are user desired input fields. All other parameters are
+    specifications of the segment.
 
     """
 
@@ -1258,15 +1372,17 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
     Parameters
     ----------
-    sig_data : numpy array
+    sig_data : ndarray
         The uint8 data blocks.
     n_samp : int
-        The number of samples contained in the bytes
+        The number of samples contained in the bytes.
+    fmt : list
+        The formats of the dat files.
 
     Returns
     -------
-    signal : numpy array
-        The numpy array of digital samples
+    sig : ndarray
+        The numpy array of digital samples.
 
     """
     if fmt == '212':
@@ -1360,20 +1476,33 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
 def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None):
     """
-    Skew the signal, insert nans and shave off end of array if needed.
+    Skew the signal, insert nans, and shave off end of array if needed.
 
     Parameters
     ----------
-    sig : numpy array
-        The original signal
+    sig : ndarray
+        The original signal.
     skew : list
-        List of samples to skew for each signal
+        List of samples to skew for each signal.
     n_sig : int
-        The number of signals
+        The number of signals.
+    read_len : int
+        The total number of samples: Calculated by `sampto - sampfrom`
+    fmt : list
+        The formats of the dat files.
+    nan_replace : list
+        The indices to replace values with NAN.
+    samps_per_frame : list, optional
+        The number of samples of the orignal signal per channel.
+
+    Returns
+    -------
+    sig : ndarray
+        The new skewed and trimmed signal.
 
     Notes
     -----
-    `fmt` is just for the correct nan value.
+    `fmt` is just for the correct NAN value.
     `samps_per_frame` is only used for skewing expanded signals.
 
     """
@@ -1415,6 +1544,18 @@ def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
     """
     Integrity check of a signal's shape after reading.
 
+    Parameters
+    ----------
+    sig : ndarray
+        The original signal.
+    read_len : int
+        The signal length to read per channel. Calculated 
+        by `sampto - sampfrom`.
+    n_sig : int
+        The number of signals.  
+    samps_per_frame : list
+        The number of samples of the orignal signal per channel.
+
     """
     if isinstance(sig, np.ndarray):
         if sig.shape != (read_len, n_sig):
@@ -1433,12 +1574,16 @@ def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
 def _digi_bounds(fmt):
     """
     Return min and max digital values for each format type.
-    Accepts lists.
 
     Parmeters
     ---------
     fmt : str, or list
-        The wfdb dat format, or a list of them.
+        The WFDB dat format, or a list of them.
+
+    Returns
+    -------
+    tuple (int, int)
+        The min and max WFDB digital value per format type.
 
     """
     if isinstance(fmt, list):
@@ -1458,12 +1603,17 @@ def _digi_bounds(fmt):
 
 def _digi_nan(fmt):
     """
-    Return the wfdb digital value used to store nan for the format type.
+    Return the WFDB digital value used to store NAN for the format type.
 
     Parmeters
     ---------
     fmt : str, or list
-        The wfdb dat format, or a list of them.
+        The WFDB dat format, or a list of them.
+
+    Returns
+    -------
+    int
+        The WFDB digital value per format type.
 
     """
     if isinstance(fmt, list):
@@ -1496,15 +1646,15 @@ def est_res(signals):
 
     Parameters
     ----------
-    signals : numpy array, or list
+    signals : ndarray, or list
         A 2d numpy array representing a uniform multichannel signal, or
         a list of 1d numpy arrays representing multiple channels of
         signals with different numbers of samples per frame.
 
     Returns
     -------
-    bit_res : list
-        A list of estimated integer resolutions for each channel
+    res : list
+        A list of estimated integer resolutions for each channel.
 
     """
     res_levels = np.power(2, np.arange(0, 33))
@@ -1547,7 +1697,7 @@ def est_res(signals):
 
 def _wfdb_fmt(bit_res, single_fmt=True):
     """
-    Return the most suitable wfdb format(s) to use given signal
+    Return the most suitable WFDB format(s) to use given signal
     resolutions.
 
     Parameters
@@ -1560,7 +1710,7 @@ def _wfdb_fmt(bit_res, single_fmt=True):
     Returns
     -------
     fmt : str or list
-        The most suitable wfdb format(s) used to encode the signal(s).
+        The most suitable WFDB format(s) used to encode the signal(s).
 
     """
     if isinstance(bit_res, list):
@@ -1590,7 +1740,7 @@ def _fmt_res(fmt, max_res=False):
     Parameters
     ----------
     fmt : str
-        The wfdb format. Can be a list of valid fmts. If it is a list,
+        The WFDB format. Can be a list of valid fmts. If it is a list,
         and `max_res` is True, the list may contain None.
     max_res : bool, optional
         If given a list of fmts, whether to return the highest
@@ -1629,7 +1779,7 @@ def _np_dtype(bit_res, discrete):
     -------
     dtype : str
         String numpy dtype used to store the signal of the given
-        resolution
+        resolution.
 
     """
     bit_res = min(bit_res, 64)
@@ -1650,6 +1800,28 @@ def wr_dat_file(file_name, fmt, d_signal, byte_offset, expanded=False,
     """
     Write a dat file. All bytes are written one at a time to avoid
     endianness issues.
+
+    Parameters
+    ----------
+    file_name : str
+        Name of the dat file.
+    fmt : str
+        WFDB fmt of the dat file.
+    d_signal : ndarray
+        The digital conversion of the signal. Either a 2d numpy
+        array or a list of 1d numpy arrays.
+    byte_offset : int
+        The byte offset of the dat file.
+    expanded : bool, optional
+        Whether to transform the `e_d_signal` attribute (True) or
+        the `d_signal` attribute (False).
+    d_signal : ndarray, optional
+        The expanded digital conversion of the signal. Either a 2d numpy
+        array or a list of 1d numpy arrays.
+    samps_per_frame : list, optional
+        The samples/frame for each signal of the dat file.
+    write_dir : str, optional
+        The directory to write the output file to.
 
     """
     # Combine list of arrays into single array
@@ -1787,7 +1959,7 @@ def describe_list_indices(full_list):
     Parameters
     ----------
     full_list : list
-        The list of items to order and
+        The list of items to order.
 
     Returns
     -------
@@ -1821,11 +1993,22 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
     Parameters
     ----------
     file_name : str
-        Name of the dat file
+        Name of the dat file.
     fmt : str
-        WFDB fmt of the dat file
+        WFDB fmt of the dat file.
     n_sig : int
-        Number of signals contained in the dat file
+        Number of signals contained in the dat file.
+    dir_name : str
+        The full directory where the dat file(s) are located, if the dat
+        file(s) are local.
+    pn_dir : str, optional
+        The Physionet directory where the dat file(s) are located, if
+        the dat file(s) are remote.
+
+    Returns
+    -------
+    sig_len : int
+        The length of the signal.
 
     Notes
     -----
@@ -1844,7 +2027,19 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
 
 def downround(x, base):
     """
-    Round <x> down to nearest <base>
+    Round <x> down to nearest <base>.
+
+    Parameters
+    ---------
+    x : str, int, float
+        The number that will be rounded down.
+    base : int, float
+        The base to be rounded down to.
+
+    Returns
+    -------
+    float
+        The rounded down result of <x> down to nearest <base>.
 
     """
     return base * math.floor(float(x)/base)
@@ -1852,7 +2047,19 @@ def downround(x, base):
 
 def upround(x, base):
     """
-    Round <x> up to nearest <base>
+    Round <x> up to nearest <base>.
+
+    Parameters
+    ---------
+    x : str, int, float
+        The number that will be rounded up.
+    base : int, float
+        The base to be rounded up to.
+
+    Returns
+    -------
+    float
+        The rounded up result of <x> up to nearest <base>.
 
     """
     return base * math.ceil(float(x)/base)

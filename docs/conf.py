@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# wfdb documentation build configuration file, created by
+# WFDB documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan  2 13:19:02 2018.
 #
 # This file is execfile()d with the current directory set to its
@@ -42,8 +42,7 @@ sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc',
-              'numpydoc']
+extensions = ['sphinx.ext.autodoc']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

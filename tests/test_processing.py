@@ -102,11 +102,11 @@ class test_processing():
 
 class test_qrs():
     """
-    Testing qrs detectors
+    Testing QRS detectors
     """
     def test_xqrs(self):
         """
-        Run xqrs detector on record 100 and compare to reference annotations
+        Run XQRS detector on record 100 and compare to reference annotations
         """
         sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
         ann_ref = wfdb.rdann('sample-data/100','atr')

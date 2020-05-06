@@ -6,7 +6,7 @@ import wfdb
 
 class test_annotation():
     """
-    Testing read and write of wfdb annotations, including Physionet
+    Testing read and write of WFDB annotations, including Physionet
     streaming.
 
     Target files created using the original WFDB Software Package

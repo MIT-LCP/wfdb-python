@@ -12,9 +12,19 @@ from ..io.record import rdsamp
 class Comparitor(object):
     """
     The class to implement and hold comparisons between two sets of
-    annotations.
+    annotations. See methods `compare`, `print_summary` and `plot`.
 
-    See methods `compare`, `print_summary` and `plot`.
+    Attributes
+    ----------
+    ref_sample : ndarray
+        An array of the reference sample locations.
+    test_sample : ndarray
+        An array of the comparison sample locations.
+    window_width : int
+        The width of the window.
+    signal : 1d numpy array, optional
+        The signal array the annotation samples are labelling. Only used
+        for plotting.
 
     Examples
     --------
@@ -36,19 +46,6 @@ class Comparitor(object):
 
     """
     def __init__(self, ref_sample, test_sample, window_width, signal=None):
-        """
-        Parameters
-        ----------
-        ref_sample : numpy array
-            An array of the reference sample locations
-        test_sample : numpy array
-            An array of the comparison sample locations
-        window_width : int
-            The width of the window
-        signal : 1d numpy array, optional
-            The signal array the annotation samples are labelling. Only used
-            for plotting.
-        """
         if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
             raise ValueError(('The sample locations must be monotonically'
                               + ' increasing'))
@@ -115,10 +112,8 @@ class Comparitor(object):
 
     def compare(self):
         """
-        Main comparison function
-        """
-        """
-        Note: Make sure to be able to handle these ref/test scenarios:
+        Main comparison function. Note: Make sure to be able to handle 
+        these ref/test scenarios:
 
         A:
         o----o---o---o
@@ -199,6 +194,23 @@ class Comparitor(object):
         """
         Return the closest testing sample number for the given reference
         sample number. Limit the search from start_test_samp_num.
+
+        Parameters
+        ----------
+        ref_samp_num : int
+            The desired reference sample number to get the closest result.
+        start_test_samp_num
+            The desired testing reference sample number to get the 
+            closest result.
+
+        Returns
+        -------
+        closest_samp_num : int
+            The closest sample number to the reference sample number.
+        smallest_samp_diff : int
+            The smallest difference between the reference sample and
+            the testing sample.
+
         """
 
         if start_test_samp_num >= self.n_test:
@@ -232,6 +244,7 @@ class Comparitor(object):
     def print_summary(self):
         """
         Print summary metrics of the annotation comparisons.
+
         """
         if not hasattr(self, 'sensitivity'):
             self._calc_stats()
@@ -266,6 +279,13 @@ class Comparitor(object):
             `figure` function.
         return_fig : bool, optional
             Whether the figure is to be returned as an output argument.
+
+        Returns
+        -------
+        fig : matplotlib figure object
+            The figure information for the plot.
+        ax : matplotlib axes object
+            The axes information for the plot.
 
         """
         fig = plt.figure(figsize=figsize)
@@ -321,16 +341,15 @@ class Comparitor(object):
 def compare_annotations(ref_sample, test_sample, window_width, signal=None):
     """
     Compare a set of reference annotation locations against a set of
-    test annotation locations.
-
-    See the Comparitor class  docstring for more information.
+    test annotation locations. See the Comparitor class  docstring 
+    for more information.
 
     Parameters
     ----------
     ref_sample : 1d numpy array
-        Array of reference sample locations
+        Array of reference sample locations.
     test_sample : 1d numpy array
-        Array of test sample locations to compare
+        Array of test sample locations to compare.
     window_width : int
         The maximum absolute difference in sample numbers that is
         permitted for matching annotations.
@@ -341,7 +360,7 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
     Returns
     -------
     comparitor : Comparitor object
-        Object containing parameters about the two sets of annotations
+        Object containing parameters about the two sets of annotations.
 
     Examples
     --------
@@ -370,7 +389,7 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
 
 def benchmark_mitdb(detector, verbose=False, print_results=False):
     """
-    Benchmark a qrs detector against mitdb's records.
+    Benchmark a QRS detector against mitdb's records.
 
     Parameters
     ----------
@@ -439,7 +458,22 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
 
 def benchmark_mitdb_record(rec, detector, verbose):
     """
-    Benchmark a single mitdb record
+    Benchmark a single mitdb record.
+
+    Parameters
+    ----------
+    rec : str
+        The mitdb record to be benchmarked.
+    detector : function
+        The detector function.
+    verbose : bool
+        Whether to print the record names (True) or not (False).
+
+    Returns
+    -------
+    comparitor : Comparitor object
+        Object containing parameters about the two sets of annotations.
+
     """
     sig, fields = rdsamp(rec, pn_dir='mitdb', channels=[0])
     ann_ref = rdann(rec, pn_dir='mitdb', extension='atr')

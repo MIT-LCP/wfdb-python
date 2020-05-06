@@ -13,12 +13,12 @@ import numpy as np
 
 def rdtff(file_name, cut_end=False):
     """
-    Read values from a tff file
+    Read values from a tff file.
 
     Parameters
     ----------
     file_name : str
-        Name of the .tff file to read
+        Name of the .tff file to read.
     cut_end : bool, optional
         If True, cuts out the last sample for all channels. This is for
         reading files which appear to terminate with the incorrect
@@ -26,13 +26,13 @@ def rdtff(file_name, cut_end=False):
 
     Returns
     -------
-    signal : numpy array
+    signal : ndarray
         A 2d numpy array storing the physical signals from the record.
     fields : dict
         A dictionary containing several key attributes of the read record.
-    markers : numpy array
+    markers : ndarray
         A 1d numpy array storing the marker locations.
-    triggers : numpy array
+    triggers : ndarray
         A 1d numpy array storing the trigger locations.
 
     Notes
@@ -42,7 +42,7 @@ def rdtff(file_name, cut_end=False):
     know the number of samples/escape sequences beforehand, so the file
     is inefficiently parsed a small chunk at a time.
 
-    It is recommended that you convert your tff files to wfdb format.
+    It is recommended that you convert your tff files to WFDB format.
 
     """
     file_size = os.path.getsize(file_name)
@@ -59,7 +59,20 @@ def rdtff(file_name, cut_end=False):
 
 def _rdheader(fp):
     """
-    Read header info of the windaq file
+    Read header info of the windaq file.
+
+    Parameters
+    ----------
+    fp : file IO object
+        The input header file to be read.
+
+    Returns
+    -------
+    fields : dict
+        For interpreting the waveforms.
+    file_fields : dict
+        For reading the signal samples.
+
     """
     tag = None
     # The '2' tag indicates the end of tags.
@@ -141,15 +154,37 @@ def _rdheader(fp):
 
 def _rdsignal(fp, file_size, header_size, n_sig, bit_width, is_signed, cut_end):
     """
-    Read the signal
+    Read the signal.
 
     Parameters
     ----------
+    fp : file IO object
+        The input header file to be read.
+    file_size : int
+        Size of the file in bytes.
+    header_size : int
+        Size of the header file in bytes.
+    n_sig : int
+        The number of signals contained in the dat file.
+    bit_width : int
+        The number of bits necessary to represent the number in binary.
+    is_signed : bool
+        Whether the number is signed (True) or not (False).
     cut_end : bool, optional
         If True, enables reading the end of files which appear to terminate
         with the incorrect number of samples (ie. sample not present for all channels),
         by checking and skipping the reading the end of such files.
         Checking this option makes reading slower.
+    
+    Returns
+    -------
+    signal : ndarray
+        Tranformed expanded signal into uniform signal.
+    markers : ndarray
+        A 1d numpy array storing the marker locations.
+    triggers : ndarray
+        A 1d numpy array storing the trigger locations.
+
     """
     # Cannot initially figure out signal length because there
     # are escape sequences.
@@ -197,6 +232,35 @@ def _rdsignal(fp, file_size, header_size, n_sig, bit_width, is_signed, cut_end):
 
 
 def _get_sample(fp, chunk, n_sig, dtype, signal, markers, triggers, sample_num):
+    """
+    Get the total number of samples in the signal.
+
+    Parameters
+    ----------
+    fp : file IO object
+        The input header file to be read.
+    chunk : str
+        The data currently being processed.
+    n_sig : int
+        The number of signals contained in the dat file.
+    dtype : str
+        String numpy dtype used to store the signal of the given
+        resolution.
+    signal : ndarray
+        Tranformed expanded signal into uniform signal.    
+    markers : ndarray
+        A 1d numpy array storing the marker locations.
+    triggers : ndarray
+        A 1d numpy array storing the trigger locations.
+    sample_num : int
+        The total number of samples in the signal.
+
+    Returns
+    -------
+    sample_num : int
+        The total number of samples in the signal.
+
+    """
     tag = struct.unpack('>h', chunk)[0]
     # Escape sequence
     if tag == -32768:
