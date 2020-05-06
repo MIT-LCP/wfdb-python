@@ -31,7 +31,7 @@ class BaseRecord(object):
         Otherwise, the data files will be searched for in the local path.
     n_sig : int
         Total number of signals.
-    fs : int, or float
+    fs : int, float
         The sampling frequency of the record.
     counter_freq : float
         The frequency used to start counting.
@@ -369,9 +369,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     units : list
         A list of strings giving the units of each signal channel.  
     adc_res: int
-        The value produced by the ADC given a given volt input.  
+        The value produced by the ADC given a given Volt input.  
     adc_zero: int
-        The value produced by the ADC given a 0 volt input.
+        The value produced by the ADC given a 0 Volt input.
     init_value : list
         The initial value of the signal.
     checksum : list, int
@@ -1644,7 +1644,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
         The string name of the WFDB record to be written (without any file
         extensions). Must not contain any "." since this would indicate an
         EDF file which is not compatible at this point.
-    fs : int, or float
+    fs : int, float
         The sampling frequency of the record.
     units : list
         A list of strings giving the units of each signal channel.

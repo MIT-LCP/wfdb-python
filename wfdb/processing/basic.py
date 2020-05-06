@@ -65,9 +65,9 @@ def resample_sig(x, fs, fs_target):
     ----------
     x : ndarray
         Array containing the signal.
-    fs : int, or float
+    fs : int, float
         The original sampling frequency.
-    fs_target : int, or float
+    fs_target : int, float
         The target frequency.
 
     Returns
@@ -102,9 +102,9 @@ def resample_singlechan(x, ann, fs, fs_target):
         The signal array.
     ann : WFDB Annotation
         The WFDB annotation object.
-    fs : int, or float
+    fs : int, float
         The original frequency.
-    fs_target : int, or float
+    fs_target : int, float
         The target frequency.
 
     Returns
@@ -245,9 +245,9 @@ def get_filter_gain(b, a, f_gain, fs):
         List of linear filter b coefficients.
     a : list
         List of linear filter a coefficients.
-    f_gain : int or float, optional
+    f_gain : int, float, optional
         The frequency at which to calculate the gain.
-    fs : int or float, optional
+    fs : int, float, optional
         The sampling frequency of the system.
     
     Returns

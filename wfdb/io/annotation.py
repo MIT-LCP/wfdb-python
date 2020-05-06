@@ -49,7 +49,7 @@ class Annotation(object):
     aux_note : list, optional
         A list containing the auxiliary information string (or None for
         annotations without notes) for each annotation.
-    fs : int, or float, optional
+    fs : int, float, optional
         The sampling frequency of the record.
     label_store : ndarray, optional
         The integer value used to store/encode each annotation label
@@ -1343,7 +1343,7 @@ def wrann(record_name, extension, sample, symbol=None, subtype=None, chan=None,
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
-    fs : int, or float, optional
+    fs : int, float, optional
         The numerical sampling frequency of the record to be written to the file.
     custom_labels : pandas dataframe, optional
         The map of custom defined annotation labels used for this annotation, in
@@ -1984,7 +1984,7 @@ def interpret_defintion_annotations(potential_definition_inds, aux_note):
 
     Returns
     -------
-    fs : int, or float
+    fs : int, float
         The sampling frequency of the record.
     custom_labels : pandas dataframe
         The custom annotation labels defined in the annotation file. Maps
@@ -2181,7 +2181,7 @@ ann_classes = [
     AnnotationClass('alh', 'Human reviewed alarms', True),
     AnnotationClass('alm', 'Machine alarms', False),
 
-    AnnotationClass('qrsc', 'Human reviewed qrs detections', True),
+    AnnotationClass('qrsc', 'Human reviewed QRS detections', True),
     AnnotationClass('qrs', 'Machine QRS detections', False),
 
     AnnotationClass('bph', 'Human reviewed BP beat detections', True),
@@ -2189,7 +2189,7 @@ ann_classes = [
 
     #AnnotationClass('alh', 'Human reviewed BP alarms', True),
     #AnnotationClass('alm', 'Machine BP alarms', False),
-    # separate ecg and other signal category alarms?
+    # separate ECG and other signal category alarms?
     # Can we use signum to determine the channel it was triggered off?
 
     #ppg alarms?

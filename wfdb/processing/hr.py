@@ -10,8 +10,8 @@ def compute_hr(sig_len, qrs_inds, fs):
     sig_len : int
         The length of the corresponding signal.
     qrs_inds : ndarray
-        The qrs index locations.
-    fs : int, or float
+        The QRS index locations.
+    fs : int, float
         The corresponding signal's sampling frequency.
 
     Returns
@@ -43,33 +43,33 @@ def compute_hr(sig_len, qrs_inds, fs):
 def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
             rr_units='samples'):
     """
-    Compute rr intervals from qrs indices by extracting the time
+    Compute R-R intervals from QRS indices by extracting the time
     differences.
 
     Parameters
     ----------
     qrs_locs : ndarray
-        1d array of qrs locations.
+        1d array of QRS locations.
     fs : float, optional
         Sampling frequency of the original signal. Needed if
         `qrs_units` does not match `rr_units`.
     min_rr : float, optional
-        The minimum allowed rr interval. Values below this are excluded
-        from the returned rr intervals. Units are in `rr_units`.
+        The minimum allowed R-R interval. Values below this are excluded
+        from the returned R-R intervals. Units are in `rr_units`.
     max_rr : float, optional
-        The maximum allowed rr interval. Values above this are excluded
-        from the returned rr intervals. Units are in `rr_units`.
+        The maximum allowed R-R interval. Values above this are excluded
+        from the returned R-R intervals. Units are in `rr_units`.
     qrs_units : str, optional
         The time unit of `qrs_locs`. Must be one of: 'samples',
         'seconds'.
     rr_units : str, optional
-        The desired time unit of the returned rr intervals in. Must be
+        The desired time unit of the returned R-R intervals in. Must be
         one of: 'samples', 'seconds'.
 
     Returns
     -------
     rr : ndarray
-        Array of rr intervals.
+        Array of R-R intervals.
 
     """
     rr = np.diff(qrs_locs)
@@ -84,7 +84,7 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
     elif qrs_units == 'seconds' and rr_units == 'samples':
         rr = rr * fs
 
-    # Apply rr interval filters
+    # Apply R-R interval filters
     if min_rr is not None:
         rr = rr[rr > min_rr]
 
@@ -96,24 +96,24 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
 
 def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
     """
-    Compute mean heart rate in beats per minute, from a set of rr
+    Compute mean heart rate in beats per minute, from a set of R-R
     intervals. Returns 0 if rr is empty.
 
     Parameters
     ----------
     rr : ndarray
-        Array of rr intervals.
-    fs : int, or float
+        Array of R-R intervals.
+    fs : int, float
         The corresponding signal's sampling frequency. Required if
         'input_time_units' == 'samples'.
     min_rr : float, optional
-        The minimum allowed rr interval. Values below this are excluded
+        The minimum allowed R-R interval. Values below this are excluded
         when calculating the heart rate. Units are in `rr_units`.
     max_rr : float, optional
-        The maximum allowed rr interval. Values above this are excluded
+        The maximum allowed R-R interval. Values above this are excluded
         when calculating the heart rate. Units are in `rr_units`.
     rr_units : str, optional
-        The time units of the input rr intervals. Must be one of:
+        The time units of the input R-R intervals. Must be one of:
         'samples', 'seconds'.
 
     Returns

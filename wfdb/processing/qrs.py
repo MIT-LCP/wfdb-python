@@ -12,41 +12,48 @@ from ..io.record import Record
 
 class XQRS(object):
     """
-    The qrs detector class for the xqrs algorithm.
-
-    The `XQRS.Conf` class is the configuration class that stores initial
-    parameters for the detection.
-
-    The `XQRS.detect` method runs the detection algorithm.
+    The QRS detector class for the XQRS algorithm. The `XQRS.Conf` 
+    class is the configuration class that stores initial parameters 
+    for the detection. The `XQRS.detect` method runs the detection algorithm.
 
     The process works as follows:
 
     - Load the signal and configuration parameters.
     - Bandpass filter the signal between 5 and 20 Hz, to get the
       filtered signal.
-    - Apply moving wave integration (mwi) with a ricker
+    - Apply moving wave integration (MWI) with a Ricker
       (Mexican hat) wavelet onto the filtered signal, and save the
       square of the integrated signal.
     - Conduct learning if specified, to initialize running
-      parameters of noise and qrs amplitudes, the qrs detection
-      threshold, and recent rr intervals. If learning is unspecified
+      parameters of noise and QRS amplitudes, the QRS detection
+      threshold, and recent R-R intervals. If learning is unspecified
       or fails, use default parameters. See the docstring for the
       `_learn_init_params` method of this class for details.
     - Run the main detection. Iterate through the local maxima of
-      the mwi signal. For each local maxima:
+      the MWI signal. For each local maxima:
 
-      - Check if it is a qrs complex. To be classified as a qrs,
-        it must come after the refractory period, cross the qrs
-        detection threshold, and not be classified as a t-wave
-        if it comes close enough to the previous qrs. If
+      - Check if it is a QRS complex. To be classified as a QRS,
+        it must come after the refractory period, cross the QRS
+        detection threshold, and not be classified as a T-wave
+        if it comes close enough to the previous QRS. If
         successfully classified, update running detection
         threshold and heart rate parameters.
-      - If not a qrs, classify it as a noise peak and update
+      - If not a QRS, classify it as a noise peak and update
         running parameters.
-      - Before continuing to the next local maxima, if no qrs
-        was detected within 1.66 times the recent rr interval,
-        perform backsearch qrs detection. This checks previous
-        peaks using a lower qrs detection threshold.
+      - Before continuing to the next local maxima, if no QRS
+        was detected within 1.66 times the recent R-R interval,
+        perform backsearch QRS detection. This checks previous
+        peaks using a lower QRS detection threshold.
+
+    Attributes
+    ----------
+    sig : 1d ndarray
+        The input ECG signal to apply the QRS detection on.
+    fs : int, float
+        The sampling frequency of the input signal.
+    conf : XQRS.Conf object
+        The configuration object specifying signal configuration
+        parameters. See the docstring of the XQRS.Conf class.
 
     Examples
     --------
@@ -72,39 +79,38 @@ class XQRS(object):
 
     class Conf(object):
         """
-        Initial signal configuration object for this qrs detector
+        Initial signal configuration object for this QRS detector.
+
+        Attributes
+        ----------
+        hr_init : int, float, optional
+            Initial heart rate in beats per minute. Used for calculating
+            recent R-R intervals. 
+        hr_max : int, float, optional
+            Hard maximum heart rate between two beats, in beats per
+            minute. Used for refractory period.
+        hr_min : int, float, optional
+            Hard minimum heart rate between two beats, in beats per
+            minute. Used for calculating recent R-R intervals.
+        qrs_width : int, float, optional
+            Expected QRS width in seconds. Used for filter widths
+            indirect refractory period.
+        qrs_thr_init : int, float, optional
+            Initial QRS detection threshold in mV. Use when learning
+            is False, or learning fails.
+        qrs_thr_min : int, float or string, optional
+            Hard minimum detection threshold of QRS wave. Leave as 0
+            for no minimum.
+        ref_period : int, float, optional
+            The QRS refractory period.
+        t_inspect_period : int, float, optional
+            The period below which a potential QRS complex is
+            inspected to see if it is a T-wave.
+
         """
         def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
                      qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2,
                      t_inspect_period=0.36):
-            """
-            Parameters
-            ----------
-            hr_init : int or float, optional
-                Initial heart rate in beats per minute. Used for calculating
-                recent rr intervals. 
-            hr_max : int or float, optional
-                Hard maximum heart rate between two beats, in beats per
-                minute. Used for refractory period.
-            hr_min : int or float, optional
-                Hard minimum heart rate between two beats, in beats per
-                minute. Used for calculating recent rr intervals.
-            qrs_width : int or float, optional
-                Expected qrs width in seconds. Used for filter widths
-                indirect refractory period.
-            qrs_thr_init : int or float, optional
-                Initial qrs detection threshold in mV. Use when learning
-                is False, or learning fails.
-            qrs_thr_min : int or float or string, optional
-                Hard minimum detection threshold of qrs wave. Leave as 0
-                for no minimum.
-            ref_period : int or float, optional
-                The qrs refractory period.
-            t_inspect_period : int or float, optional
-                The period below which a potential qrs complex is
-                inspected to see if it is a t wave.
-
-            """
             if hr_min < 0:
                 raise ValueError("'hr_min' must be >= 0")
 
@@ -127,9 +133,9 @@ class XQRS(object):
     def _set_conf(self):
         """
         Set configuration parameters from the Conf object into the detector
-        object.
+        object. Time values are converted to samples, and amplitude values 
+        are in mV.
 
-        Time values are converted to samples, and amplitude values are in mV.
         """
         self.rr_init = 60 * self.fs / self.conf.hr_init
         self.rr_max = 60 * self.fs / self.conf.hr_min
@@ -150,6 +156,14 @@ class XQRS(object):
         """
         Apply a bandpass filter onto the signal, and save the filtered
         signal.
+
+        Parameters
+        ----------
+        fc_low : int, float
+            The low frequency cutoff for the filter.
+        fc_high : int, float
+            The high frequency cutoff for the filter.
+
         """
         self.fc_low = fc_low
         self.fc_high = fc_high
@@ -165,21 +179,19 @@ class XQRS(object):
 
     def _mwi(self):
         """
-        Apply moving wave integration (mwi) with a ricker (Mexican hat)
+        Apply moving wave integration (MWI) with a Ricker (Mexican hat)
         wavelet onto the filtered signal, and save the square of the
-        integrated signal.
+        integrated signal. The width of the hat is equal to the QRS width.
+        After integration, find all local peaks in the MWI signal.
 
-        The width of the hat is equal to the qrs width
-
-        After integration, find all local peaks in the mwi signal.
         """
         wavelet_filter = signal.ricker(self.qrs_width, 4)
 
         self.sig_i = signal.filtfilt(wavelet_filter, [1], self.sig_f,
                                      axis=0) ** 2
 
-        # Save the mwi gain (x2 due to double filtering) and the total
-        # gain from raw to mwi
+        # Save the MWI gain (x2 due to double filtering) and the total
+        # gain from raw to MWI
         self.mwi_gain = get_filter_gain(wavelet_filter, [1],
                          np.mean([self.fc_low, self.fc_high]), self.fs) * 2
         self.transform_gain = self.filter_gain * self.mwi_gain
@@ -190,17 +202,17 @@ class XQRS(object):
     def _learn_init_params(self, n_calib_beats=8):
         """
         Find a number of consecutive beats and use them to initialize:
-        - recent qrs amplitude
+        - recent QRS amplitude
         - recent noise amplitude
-        - recent rr interval
-        - qrs detection threshold
+        - recent R-R interval
+        - QRS detection threshold
 
         The learning works as follows:
         - Find all local maxima (largest sample within `qrs_radius`
           samples) of the filtered signal.
         - Inspect the local maxima until `n_calib_beats` beats are
           found:
-          - Calculate the cross-correlation between a ricker wavelet of
+          - Calculate the cross-correlation between a Ricker wavelet of
             length `qrs_width`, and the filtered signal segment centered
             around the local maximum.
           - If the cross-correlation exceeds 0.6, classify it as a beat.
@@ -208,13 +220,16 @@ class XQRS(object):
           parameters.
         - If the system fails to find enough beats, the default
           parameters will be used instead. See the docstring of
-          `XQRS._set_default_init_params` for detauls.
+          `XQRS._set_default_init_params` for details.
 
         Parameters
         ----------
         n_calib_beats : int, optional
             Number of calibration beats to detect for learning
 
+        Returns
+        -------
+        N/A
 
         """
         if self.verbose:
@@ -243,21 +258,21 @@ class XQRS(object):
             self._set_default_init_params()
             return
 
-        # Go through the peaks and find qrs peaks and noise peaks.
+        # Go through the peaks and find QRS peaks and noise peaks.
         # only inspect peaks with at least qrs_radius around either side
         for peak_num in range(peak_nums_r[0], peak_nums_l[-1]):
             i = peak_inds_f[peak_num]
             # Calculate cross-correlation between the filtered signal
-            # segment and a ricker wavelet
+            # segment and a Ricker wavelet
 
-            # Question: should the signal be squared? Case for inverse qrs
+            # Question: should the signal be squared? Case for inverse QRS
             # complexes
             sig_segment = normalize((self.sig_f[i - self.qrs_radius:
                                                 i + self.qrs_radius]).reshape(-1, 1), axis=0)
 
             xcorr = np.correlate(sig_segment[:, 0], ricker_wavelet[:,0])
 
-            # Classify as qrs if xcorr is large enough
+            # Classify as QRS if xcorr is large enough
             if xcorr > 0.6 and i-last_qrs_ind > self.rr_min:
                 last_qrs_ind = i
                 qrs_inds.append(i)
@@ -282,10 +297,10 @@ class XQRS(object):
             if noise_amps:
                 noise_amp = np.mean(noise_amps)
             else:
-                # Set default of 1/10 of qrs amplitude
+                # Set default of 1/10 of QRS amplitude
                 noise_amp = qrs_amp / 10
 
-            # Get rr intervals of consecutive beats, if any.
+            # Get R-R intervals of consecutive beats, if any.
             rr_intervals = np.diff(qrs_inds)
             rr_intervals = rr_intervals[rr_intervals < self.rr_max]
             if rr_intervals.any():
@@ -293,7 +308,7 @@ class XQRS(object):
             else:
                 rr_recent = self.rr_init
 
-            # If an early qrs was detected, set last_qrs_ind so that it can be
+            # If an early QRS was detected, set last_qrs_ind so that it can be
             # picked up.
             last_qrs_ind = min(0, qrs_inds[0] - self.rr_min - 1)
 
@@ -315,7 +330,19 @@ class XQRS(object):
     def _set_init_params(self, qrs_amp_recent, noise_amp_recent, rr_recent,
                          last_qrs_ind):
         """
-        Set initial online parameters
+        Set initial online parameters.
+
+        Parameters
+        ----------
+        qrs_amp_recent : int, float
+            The mean of the signal QRS amplitudes.
+        noise_amp_recent : int, float
+            The mean of the signal noise amplitudes.
+        rr_recent : int
+            The mean of the signal R-R interval values.
+        last_qrs_ind : int
+            The index of the signal's early QRS detected.
+
         """
         self.qrs_amp_recent = qrs_amp_recent
         self.noise_amp_recent = noise_amp_recent
@@ -327,7 +354,7 @@ class XQRS(object):
         self.rr_recent = rr_recent
         self.last_qrs_ind = last_qrs_ind
 
-        # No qrs detected initially
+        # No QRS detected initially
         self.last_qrs_peak_num = None
 
 
@@ -338,13 +365,13 @@ class XQRS(object):
         The steady state equation is:
           `qrs_thr = 0.25*qrs_amp + 0.75*noise_amp`
 
-        Estimate that qrs amp is 10x noise amp, giving:
+        Estimate that QRS amp is 10x noise amp, giving:
           `qrs_thr = 0.325 * qrs_amp or 13/40 * qrs_amp`
 
         """
         if self.verbose:
             print('Initializing using default parameters')
-        # Multiply the specified ecg thresholds by the filter and mwi gain
+        # Multiply the specified ECG thresholds by the filter and MWI gain
         # factors
         qrs_thr_init = self.qrs_thr_init * self.transform_gain
         qrs_thr_min = self.qrs_thr_min * self.transform_gain
@@ -363,19 +390,23 @@ class XQRS(object):
 
     def _is_qrs(self, peak_num, backsearch=False):
         """
-        Check whether a peak is a qrs complex. It is classified as qrs
+        Check whether a peak is a QRS complex. It is classified as QRS
         if it:
-        - Comes after the refractory period
-        - Passes qrs threshold
-        - Is not a t-wave (check it if the peak is close to the previous
-          qrs).
+        - Comes after the refractory period.
+        - Passes QRS threshold.
+        - Is not a T-wave (check it if the peak is close to the previous QRS).
 
         Parameters
         ----------
         peak_num : int
-            The peak number of the mwi signal to be inspected
+            The peak number of the MWI signal to be inspected.
         backsearch: bool, optional
-            Whether the peak is being inspected during backsearch
+            Whether the peak is being inspected during backsearch.
+
+        Returns
+        -------
+        bool
+            Whether the peak is QRS (True) or not (False).
 
         """
         i = self.peak_inds_i[peak_num]
@@ -396,31 +427,36 @@ class XQRS(object):
 
     def _update_qrs(self, peak_num, backsearch=False):
         """
-        Update live qrs parameters. Adjust the recent rr-intervals and
-        qrs amplitudes, and the qrs threshold.
+        Update live QRS parameters. Adjust the recent R-R intervals and
+        QRS amplitudes, and the QRS threshold.
 
         Parameters
         ----------
         peak_num : int
-            The peak number of the mwi signal where the qrs is detected
+            The peak number of the MWI signal where the QRS is detected.
         backsearch: bool, optional
-            Whether the qrs was found via backsearch
+            Whether the QRS was found via backsearch.
+        
+        Returns
+        -------
+        N/A
+
         """
 
         i = self.peak_inds_i[peak_num]
 
-        # Update recent rr if the beat is consecutive (do this before
-        # updating self.last_qrs_ind)
+        # Update recent R-R interval if the beat is consecutive (do this 
+        # before updating self.last_qrs_ind)
         rr_new = i - self.last_qrs_ind
         if rr_new < self.rr_max:
             self.rr_recent = 0.875*self.rr_recent + 0.125*rr_new
 
         self.qrs_inds.append(i)
         self.last_qrs_ind = i
-        # Peak number corresponding to last qrs
+        # Peak number corresponding to last QRS
         self.last_qrs_peak_num = self.peak_num
 
-        # qrs recent amplitude is adjusted twice as quickly if the peak
+        # QRS recent amplitude is adjusted twice as quickly if the peak
         # was found via backsearch
         if backsearch:
             self.backsearch_qrs_inds.append(i)
@@ -438,13 +474,18 @@ class XQRS(object):
 
     def _is_twave(self, peak_num):
         """
-        Check whether a segment is a t-wave. Compare the maximum gradient of
-        the filtered signal segment with that of the previous qrs segment.
+        Check whether a segment is a T-wave. Compare the maximum gradient of
+        the filtered signal segment with that of the previous QRS segment.
 
         Parameters
         ----------
         peak_num : int
-            The peak number of the mwi signal where the qrs is detected
+            The peak number of the MWI signal where the QRS is detected.
+        
+        Returns
+        -------
+        bool
+            Whether a segment is a T-wave (True) or not (False).
 
         """
         i = self.peak_inds_i[peak_num]
@@ -454,7 +495,7 @@ class XQRS(object):
         if self.last_qrs_ind - self.qrs_radius < 0:
             return False
 
-        # Get half the qrs width of the signal to the left.
+        # Get half the QRS width of the signal to the left.
         # Should this be squared?
         sig_segment = normalize((self.sig_f[i - self.qrs_radius:i]
                                  ).reshape(-1, 1), axis=0)
@@ -472,7 +513,17 @@ class XQRS(object):
 
     def _update_noise(self, peak_num):
         """
-        Update live noise parameters
+        Update live noise parameters.
+
+        Parameters
+        ----------
+        peak_num : int
+            The peak number.
+
+        Returns
+        -------
+        N/A
+
         """
         i = self.peak_inds_i[peak_num]
         self.noise_amp_recent = (0.875*self.noise_amp_recent
@@ -481,7 +532,13 @@ class XQRS(object):
 
     def _require_backsearch(self):
         """
-        Determine whether a backsearch should be performed on prior peaks
+        Determine whether a backsearch should be performed on prior peaks.
+
+        Returns
+        -------
+        bool
+            Whether to require backsearch (True) or not (False).
+
         """
         if self.peak_num == self.n_peaks_i-1:
             # If we just return false, we may miss a chance to backsearch.
@@ -497,8 +554,8 @@ class XQRS(object):
 
     def _backsearch(self):
         """
-        Inspect previous peaks from the last detected qrs peak (if any),
-        using a lower threshold
+        Inspect previous peaks from the last detected QRS peak (if any),
+        using a lower threshold.
 
         """
         if self.last_qrs_peak_num is not None:
@@ -510,19 +567,19 @@ class XQRS(object):
 
     def _run_detection(self):
         """
-        Run the qrs detection after all signals and parameters have been
+        Run the QRS detection after all signals and parameters have been
         configured and set.
 
         """
         if self.verbose:
             print('Running QRS detection...')
 
-        # Detected qrs indices
+        # Detected QRS indices
         self.qrs_inds = []
-        # qrs indices found via backsearch
+        # QRS indices found via backsearch
         self.backsearch_qrs_inds = []
 
-        # Iterate through mwi signal peak indices
+        # Iterate through MWI signal peak indices
         for self.peak_num in range(self.n_peaks_i):
             if self._is_qrs(self.peak_num):
                 self._update_qrs(self.peak_num)
@@ -546,7 +603,7 @@ class XQRS(object):
 
     def detect(self, sampfrom=0, sampto='end', learn=True, verbose=True):
         """
-        Detect qrs locations between two samples.
+        Detect QRS locations between two samples.
 
         Parameters
         ----------
@@ -564,6 +621,10 @@ class XQRS(object):
         verbose : bool, optional
             Whether to display the stages and outcomes of the detection
             process.
+
+        Returns
+        -------
+        N/A
 
         """
         if sampfrom < 0:
@@ -604,18 +665,18 @@ class XQRS(object):
 def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
                 learn=True, verbose=True):
     """
-    Run the 'xqrs' qrs detection algorithm on a signal. See the
+    Run the 'xqrs' QRS detection algorithm on a signal. See the
     docstring of the XQRS class for algorithm details.
 
     Parameters
     ----------
     sig : ndarray
-        The input ecg signal to apply the qrs detection on.
-    fs : int or float
+        The input ECG signal to apply the QRS detection on.
+    fs : int, float
         The sampling frequency of the input signal.
     sampfrom : int, optional
         The starting sample number to run the detection on.
-    sampto :
+    sampto : str
         The final sample number to run the detection on. Set as 'end' to
         run on the entire signal.
     conf : XQRS.Conf object, optional
@@ -633,7 +694,7 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
     Returns
     -------
     qrs_inds : ndarray
-        The indices of the detected qrs complexes
+        The indices of the detected QRS complexes.
 
     Examples
     --------
@@ -650,15 +711,64 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto='end', conf=None,
 
 
 def time_to_sample_number(seconds, frequency):
+    """
+    Convert time to sample number.
+
+    Parameters
+    ----------
+    seconds : int, float
+        The input time in seconds.
+    frequency : int, float
+        The input frequency.
+
+    Returns
+    -------
+    float
+        The converted sample number.
+
+    """
     return seconds * frequency + 0.5
 
 class GQRS(object):
     """
-    GQRS detection class
+    GQRS detection class.
+
     """
     class Conf(object):
         """
-        Initial signal configuration object for this qrs detector
+        Initial signal configuration object for this QRS detector.
+
+        Attributes
+        ----------
+        fs : int, float
+            The sampling frequency of the input signal.
+        adc_gain : int, float
+            The analogue to digital gain of the signal (the number of adus per
+            physical unit).
+        hr : int, float, optional
+            Typical heart rate, in beats per minute.
+        RRdelta : int, float, optional
+            Typical difference between successive RR intervals in seconds.
+        RRmin : int, float, optional
+            Minimum RR interval ("refractory period"), in seconds.
+        RRmax : int, float, optional
+            Maximum RR interval, in seconds. Thresholds will be adjusted if no
+            peaks are detected within this interval.
+        QS : int, float, optional
+            Typical QRS duration, in seconds.
+        QT : int, float, optional
+            Typical QT interval, in seconds.
+        RTmin : int, float, optional
+            Minimum interval between R and T peaks, in seconds.
+        RTmax : int, float, optional
+            Maximum interval between R and T peaks, in seconds.
+        QRSa : int, float, optional
+            Typical QRS peak-to-peak amplitude, in microvolts.
+        QRSamin : int, float, optional
+            Minimum QRS peak-to-peak amplitude, in microvolts.
+        thresh : int, float, optional
+            The relative amplitude detection threshold. Used to initialize the peak
+            and QRS detection threshold.
 
         """
         def __init__(self, fs, adc_gain, hr=75,
@@ -729,6 +839,19 @@ class GQRS(object):
 
 
     class Peak(object):
+        """
+        Holds all of the peak information for the QRS object.
+        
+        Attributes
+        ----------
+        peak_time : int, float
+            The time of the peak.
+        peak_amp : int, float
+            The amplitude of the peak.
+        peak_type : str
+            The type of the peak.
+
+        """
         def __init__(self, peak_time, peak_amp, peak_type):
             self.time = peak_time
             self.amp = peak_amp
@@ -738,6 +861,21 @@ class GQRS(object):
 
 
     class Annotation(object):
+        """
+        Holds all of the annotation information for the QRS object.
+        
+        Attributes
+        ----------
+        ann_time : int, float
+            The time of the annotation.
+        ann_type : str
+            The type of the annotation.
+        ann_subtype : int
+            The subtype of the annotation.
+        ann_num : int
+            The number of the annotation.
+
+        """
         def __init__(self, ann_time, ann_type, ann_subtype, ann_num):
             self.time = ann_time
             self.type = ann_type
@@ -746,11 +884,36 @@ class GQRS(object):
 
 
     def putann(self, annotation):
+        """
+        Add an annotation to the object.
+
+        Parameters
+        ----------
+        annotation : Annotation object
+            The annotation to be added.
+
+        """
         self.annotations.append(copy.deepcopy(annotation))
 
     def detect(self, x, conf, adc_zero):
         """
-        Run detection. x is digital signal
+        Run detection.
+
+        Parameters
+        ----------
+        x : ndarray
+            Array containing the digital signal.
+        conf : XQRS.Conf object
+            The configuration object specifying signal configuration
+            parameters. See the docstring of the XQRS.Conf class.
+        adc_zero : int
+            The value produced by the ADC given a 0 Volt input.
+
+        Returns
+        -------
+        QRS object
+            The annotations that have been detected.
+
         """
         self.c = conf
         self.annotations = []
@@ -807,6 +970,10 @@ class GQRS(object):
         return self.annotations
 
     def rewind_gqrs(self):
+        """
+        Rewind the gqrs.
+
+        """
         self.countdown = -1
         self.at(self.t)
         self.annot.time = 0
@@ -821,6 +988,15 @@ class GQRS(object):
             p = p.next_peak
 
     def at(self, t):
+        """
+        Determine the value of the sample at the specified time.
+
+        Parameters
+        ----------
+        t : int
+            The time to search for the sample value.
+
+        """
         if t < 0:
             self.sample_valid = True
             return self.x[0]
@@ -831,23 +1007,75 @@ class GQRS(object):
         return self.x[t]
 
     def smv_at(self, t):
+        """
+        Determine the SMV value of the sample at the specified time.
+
+        Parameters
+        ----------
+        t : int
+            The time to search for the sample SMV value.
+
+        """
         return self.smv[t & (self.c._BUFLN - 1)]
 
     def smv_put(self, t, v):
+        """
+        Put the SMV value of the sample at the specified time.
+
+        Parameters
+        ----------
+        t : int
+            The time to search for the sample value.
+        v : int
+            The value of the SMV.
+
+        """
         self.smv[t & (self.c._BUFLN - 1)] = v
 
     def qfv_at(self, t):
+        """
+        Determine the QFV value of the sample at the specified time.
+
+        Parameters
+        ----------
+        t : int
+            The time to search for the sample QFV value.
+
+        """
         return self.qfv[t & (self.c._BUFLN - 1)]
 
     def qfv_put(self, t, v):
+        """
+        Put the QFV value of the sample at the specified time.
+
+        Parameters
+        ----------
+        t : int
+            The time with which to start the analysis.
+        v : int
+            The value of the QFV.
+
+        """
         self.qfv[t & (self.c._BUFLN - 1)] = v
 
     def sm(self, at_t):
-        # implements a trapezoidal low pass (smoothing) filter
-        # (with a gain of 4*smdt) applied to input signal sig
-        # before the QRS matched filter qf().
-        # Before attempting to 'rewind' by more than BUFLN-smdt
-        # samples, reset smt and smt0.
+        """
+        Implements a trapezoidal low pass (smoothing) filter (with a gain 
+        of 4*smdt) applied to input signal sig before the QRS matched 
+        filter qf(). Before attempting to 'rewind' by more than BUFLN-smdt
+        samples, reset smt and smt0.
+
+        Parameters
+        ----------
+        at_t : int
+            The time where the filter will be implemented.
+
+        Returns
+        -------
+        smv_at : ndarray
+            The smoothed signal.
+
+        """
 
         # Calculate samp values from self.smt to at_t.
         smt = self.c.smt
@@ -880,7 +1108,10 @@ class GQRS(object):
         return self.smv_at(at_t)
 
     def qf(self):
-        # evaluate the QRS detector filter for the next sample
+        """
+        Evaluate the QRS detector filter for the next sample.
+
+        """
 
         # do this first, to ensure that all of the other smoothed values needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
@@ -899,6 +1130,21 @@ class GQRS(object):
         self.SIG_QRS.append(v0 ** 2)
 
     def gqrs(self, from_sample, to_sample):
+        """
+        The GQRS algorithm.
+
+        Parameters
+        ----------
+        from_sample : int
+            The sample to start at.
+        to_sample : int
+            The sample to end at.
+
+        Returns
+        -------
+        N/A
+
+        """
         q0 = None
         q1 = 0
         q2 = 0
@@ -919,26 +1165,54 @@ class GQRS(object):
         self.SIG_SMOOTH = []
         self.SIG_QRS = []
 
-        def add_peak(peak_time, peak_amp, type):
+        def add_peak(peak_time, peak_amp, peak_type):
+            """
+            Add a peak.
+
+            Parameters
+            ----------
+            peak_time : int, float
+                The time of the peak.
+            peak_amp : int, float
+                The amplitude of the peak.
+            peak_type : int
+                The type of peak.
+
+            """
             p = self.current_peak.next_peak
             p.time = peak_time
             p.amp = peak_amp
-            p.type = type
+            p.type = peak_type
             self.current_peak = p
             p.next_peak.amp = 0
 
         def peaktype(p):
-            # peaktype() returns 1 if p is the most prominent peak in its neighborhood, 2
-            # otherwise.  The neighborhood consists of all other peaks within rrmin.
-            # Normally, "most prominent" is equivalent to "largest in amplitude", but this
-            # is not always true.  For example, consider three consecutive peaks a, b, c
-            # such that a and b share a neighborhood, b and c share a neighborhood, but a
-            # and c do not; and suppose that amp(a) > amp(b) > amp(c).  In this case, if
-            # there are no other peaks, a is the most prominent peak in the (a, b)
-            # neighborhood.  Since b is thus identified as a non-prominent peak, c becomes
-            # the most prominent peak in the (b, c) neighborhood.  This is necessary to
-            # permit detection of low-amplitude beats that closely precede or follow beats
-            # with large secondary peaks (as, for example, in R-on-T PVCs).
+            """
+            The neighborhood consists of all other peaks within rrmin. 
+            Normally, "most prominent" is equivalent to "largest in 
+            amplitude", but this is not always true.  For example, consider 
+            three consecutive peaks a, b, c such that a and b share a 
+            neighborhood, b and c share a neighborhood, but a and c do not; 
+            and suppose that amp(a) > amp(b) > amp(c).  In this case, if 
+            there are no other peaks, a is the most prominent peak in the (a, b)
+            neighborhood.  Since b is thus identified as a non-prominent peak, 
+            c becomes the most prominent peak in the (b, c) neighborhood. 
+            This is necessary to permit detection of low-amplitude beats that 
+            closely precede or follow beats with large secondary peaks (as, 
+            for example, in R-on-T PVCs).
+
+            Parameters
+            ----------
+            p : Peak object
+                The peak to be analyzed.
+
+            Returns
+            -------
+            int
+                Whether the input peak is the most prominent peak in its 
+                neighborhood (1) or not (2).
+
+            """
             if p.type:
                 return p.type
             else:
@@ -973,6 +1247,22 @@ class GQRS(object):
                 return p.type
 
         def find_missing(r, p):
+            """
+            Find the missing peaks.
+
+            Parameters
+            ----------
+            r : Peak object
+                The real peak.
+            p : Peak object
+                The peak to be analyzed.
+
+            Returns
+            -------
+            s : Peak object
+                The missing peak.
+
+            """
             if r is None or p is None:
                 return None
 
@@ -1126,12 +1416,11 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
                 QS=0.07, QT=0.35, RTmin=0.25, RTmax=0.33,
                 QRSa=750, QRSamin=130):
     """
-    Detect qrs locations in a single channel ecg. Functionally, a direct port
-    of the gqrs algorithm from the original WFDB package. Accepts either a
-    physical signal, or a digital signal with known adc_gain and adc_zero.
-
-    See the notes below for a summary of the program. This algorithm is not
-    being developed/supported.
+    Detect QRS locations in a single channel ecg. Functionally, a direct port
+    of the GQRS algorithm from the original WFDB package. Accepts either a
+    physical signal, or a digital signal with known adc_gain and adc_zero. See 
+    the notes below for a summary of the program. This algorithm is not being 
+    developed/supported.
 
     Parameters
     ----------
@@ -1143,88 +1432,88 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
         the `d_sig`, `adc_gain`, and `adc_zero` parameters. There may be minor
         differences in detection results (ie. an occasional 1 sample
         difference) between using `sig` and `d_sig`. To replicate the exact
-        output of the original gqrs algorithm, use the `d_sig` argument
+        output of the original GQRS algorithm, use the `d_sig` argument
         instead.
-    fs : int, or float
+    fs : int, float
         The sampling frequency of the signal.
     d_sig : 1d numpy array, optional
         The input digital signal. If this is the specified input signal rather
         than `sig`, the `adc_gain` and `adc_zero` parameters must be specified.
-    adc_gain : int, or float, optional
+    adc_gain : int, float, optional
         The analogue to digital gain of the signal (the number of adus per
         physical unit).
-    adc_zero: int, optional
-        The value produced by the ADC given a 0 volt input.
-    threshold : int, or float, optional
+    adc_zero : int, optional
+        The value produced by the ADC given a 0 Volt input.
+    threshold : int, float, optional
         The relative amplitude detection threshold. Used to initialize the peak
-        and qrs detection threshold.
-    hr : int, or float, optional
+        and QRS detection threshold.
+    hr : int, float, optional
         Typical heart rate, in beats per minute.
-    RRdelta : int or float, optional
+    RRdelta : int, float, optional
         Typical difference between successive RR intervals in seconds.
-    RRmin : int or float, optional
+    RRmin : int, float, optional
         Minimum RR interval ("refractory period"), in seconds.
-    RRmax : int or float, optional
+    RRmax : int, float, optional
         Maximum RR interval, in seconds. Thresholds will be adjusted if no
         peaks are detected within this interval.
-    QS : int or float, optional
+    QS : int, float, optional
         Typical QRS duration, in seconds.
-    QT : int or float, optional
+    QT : int, float, optional
         Typical QT interval, in seconds.
-    RTmin : int or float, optional
+    RTmin : int, float, optional
         Minimum interval between R and T peaks, in seconds.
-    RTmax : int or float, optional
+    RTmax : int, float, optional
         Maximum interval between R and T peaks, in seconds.
-    QRSa : int or float, optional
+    QRSa : int, float, optional
         Typical QRS peak-to-peak amplitude, in microvolts.
-    QRSamin : int or float, optional
+    QRSamin : int, float, optional
         Minimum QRS peak-to-peak amplitude, in microvolts.
 
     Returns
     -------
     qrs_locs : ndarray
-        Detected qrs locations
+        Detected QRS locations.
 
     Notes
     -----
-    This function should not be used for signals with fs <= 50Hz
+    This function should not be used for signals with fs <= 50Hz.
 
     The algorithm theoretically works as follows:
 
     - Load in configuration parameters. They are used to set/initialize the:
 
-      * allowed rr interval limits (fixed)
-      * initial recent rr interval (running)
-      * qrs width, used for detection filter widths (fixed)
-      * allowed rt interval limits (fixed)
-      * initial recent rt interval (running)
+      * allowed R-R interval limits (fixed)
+      * initial recent R-R interval (running)
+      * QRS width, used for detection filter widths (fixed)
+      * allowed R-T interval limits (fixed)
+      * initial recent R-T interval (running)
       * initial peak amplitude detection threshold (running)
-      * initial qrs amplitude detection threshold (running)
+      * initial QRS amplitude detection threshold (running)
       * `Note`: this algorithm does not normalize signal amplitudes, and
         hence is highly dependent on configuration amplitude parameters.
 
-    - Apply trapezoid low-pass filtering to the signal
-    - Convolve a QRS matched filter with the filtered signal
-    - Run the learning phase using a calculated signal length: detect qrs and
-      non-qrs peaks as in the main detection phase, without saving the qrs
+    - Apply trapezoid low-pass filtering to the signal.
+    - Convolve a QRS matched filter with the filtered signal.
+    - Run the learning phase using a calculated signal length: detect QRS and
+      non-qrs peaks as in the main detection phase, without saving the QRS
       locations. During this phase, running parameters of recent intervals
       and peak/qrs thresholds are adjusted.
     - Run the detection:
         if a sample is bigger than its immediate neighbors and larger
         than the peak detection threshold, it is a peak.
-            if it is further than RRmin from the previous qrs, and is a
+            if it is further than RRmin from the previous QRS, and is a
             primary peak.
                 if it is further than 2 standard deviations from the
-                previous qrs, do a backsearch for a missed low amplitude
-                beat
+                previous QRS, do a backsearch for a missed low amplitude
+                beat.
                     return the primary peak between the current sample
-                    and the previous qrs if any.
-                if it surpasses the qrs threshold, it is a qrs complex
-                    save the qrs location.
-                    update running rr and qrs amplitude parameters.
-                    look for the qrs complex's t-wave and mark it if
+                    and the previous QRS if any.
+                if it surpasses the QRS threshold, it is a QRS complex
+                    save the QRS location.
+                    update running R-R interval and QRS amplitude parameters.
+                    look for the QRS complex's T-wave and mark it if
                     found.
-        else if it is not a peak
+        else if it is not a peak.
             lower the peak detection threshold if the last peak found
             was more than RRmax ago, and not already at its minimum.
 
@@ -1239,8 +1528,6 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     implementation can be found here:
 
     https://github.com/bemoody/wfdb/issues/17
-
-    gqrs will not be supported/developed in this library.
 
     Examples
     --------

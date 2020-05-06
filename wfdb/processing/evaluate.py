@@ -389,7 +389,7 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
 
 def benchmark_mitdb(detector, verbose=False, print_results=False):
     """
-    Benchmark a qrs detector against mitdb's records.
+    Benchmark a QRS detector against mitdb's records.
 
     Parameters
     ----------

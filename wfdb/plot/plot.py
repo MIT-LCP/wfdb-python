@@ -40,10 +40,10 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         corresponding to a different channel. List items should be lists of
         strings. The symbols are plotted over the corresponding `ann_samp`
         index locations.
-    fs : int or float, optional
+    fs : int, float, optional
         The sampling frequency of the signals and/or annotations. Used to
         calculate time intervals if `time_units` is not 'samples'. Also
-        required for plotting ecg grids.
+        required for plotting ECG grids.
     time_units : str, optional
         The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
         and 'hours'.
@@ -53,7 +53,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     sig_units : list, optional
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
-        parameter is required for plotting ecg grids.
+        parameter is required for plotting ECG grids.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -69,7 +69,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         annotation channel. If the list has a length of 1, the style will be
         used for all channels.
     ecg_grids : list, optional
-        A list of integers specifying channels in which to plot ecg grids. May
+        A list of integers specifying channels in which to plot ECG grids. May
         also be set to 'all' for all channels. Major grids at 0.5mV, and minor
         grids at 0.125mV. All channels to be plotted with grids must have
         `sig_units` equal to 'uV', 'mV', or 'V'.
@@ -321,7 +321,7 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     """
-    Add ecg grids to the axes.
+    Add ECG grids to the axes.
     
     Parameters
     ----------
@@ -374,7 +374,7 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
 
 def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
-    Calculate tick intervals for ecg grids.
+    Calculate tick intervals for ECG grids.
 
     - 5mm 0.2s major grids, 0.04s minor grids.
     - 0.5mV major grids, 0.125 minor grids.
@@ -467,7 +467,7 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
     sig_units : list, optional
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
-        parameter is required for plotting ecg grids.
+        parameter is required for plotting ECG grids.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -550,7 +550,7 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
         number of annotation channels. If the list has a length of 1,
         the style will be used for all channels.
     ecg_grids : list, optional
-        A list of integers specifying channels in which to plot ecg grids. May
+        A list of integers specifying channels in which to plot ECG grids. May
         also be set to 'all' for all channels. Major grids at 0.5mV, and minor
         grids at 0.125mV. All channels to be plotted with grids must have
         `sig_units` equal to 'uV', 'mV', or 'V'.
@@ -627,10 +627,10 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         corresponding to a different channel. List items should be lists of
         strings. The symbols are plotted over the corresponding `ann_samp`
         index locations.
-    fs : int or float
+    fs : int, float
         The sampling frequency of the signals and/or annotations. Used to
         calculate time intervals if `time_units` is not 'samples'. Also
-        required for plotting ecg grids.
+        required for plotting ECG grids.
     ylabel : list
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -641,7 +641,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     sig_units : list
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
-        parameter is required for plotting ecg grids.
+        parameter is required for plotting ECG grids.
 
     """
     # Get record attributes
