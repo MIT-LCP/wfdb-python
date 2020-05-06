@@ -8,21 +8,21 @@ def find_peaks(sig):
     """
     Find hard peaks and soft peaks in a signal, defined as follows:
 
-    - Hard peak: a peak that is either /\ or \/
-    - Soft peak: a peak that is either /-*\ or \-*/
-      In this case we define the middle as the peak
+    - Hard peak: a peak that is either /\ or \/.
+    - Soft peak: a peak that is either /-*\ or \-*/.
+      In this case we define the middle as the peak.
 
     Parameters
     ----------
     sig : np array
-        The 1d signal array
+        The 1d signal array.
 
     Returns
     -------
     hard_peaks : ndarray
-        Array containing the indices of the hard peaks:
+        Array containing the indices of the hard peaks.
     soft_peaks : ndarray
-        Array containing the indices of the soft peaks
+        Array containing the indices of the soft peaks.
 
     """
     if len(sig) == 0:
@@ -60,7 +60,6 @@ def find_local_peaks(sig, radius):
     """
     Find all local peaks in a signal. A sample is a local peak if it is
     the largest value within the <radius> samples on its left and right.
-
     In cases where it shares the max value with nearby samples, the
     middle sample is classified as the local peak.
 
@@ -70,6 +69,11 @@ def find_local_peaks(sig, radius):
         1d numpy array of the signal.
     radius : int
         The radius in which to search for defining local maxima.
+
+    Returns
+    -------
+    ndarray
+        The locations of all of the local peaks of the input signal.
 
     """
     # TODO: Fix flat mountain scenarios.
@@ -106,16 +110,15 @@ def find_local_peaks(sig, radius):
 def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
                   peak_dir='compare'):
     """
-    Adjust a set of detected peaks to coincide with local signal maxima,
-    and
+    Adjust a set of detected peaks to coincide with local signal maxima.
 
     Parameters
     ----------
     sig : ndarray
-        The 1d signal array
+        The 1d signal array.
     peak_inds : np array
-        Array of the original peak indices
-    max_gap : int
+        Array of the original peak indices.
+    search_radius : int
         The radius within which the original peaks may be shifted.
     smooth_window_size : int
         The window size of the moving average filter applied on the
@@ -125,22 +128,18 @@ def correct_peaks(sig, peak_inds, search_radius, smooth_window_size,
         The expected peak direction: 'up' or 'down', 'both', or
         'compare'.
 
-        - If 'up', the peaks will be shifted to local maxima
-        - If 'down', the peaks will be shifted to local minima
+        - If 'up', the peaks will be shifted to local maxima.
+        - If 'down', the peaks will be shifted to local minima.
         - If 'both', the peaks will be shifted to local maxima of the
-          rectified signal
+          rectified signal.
         - If 'compare', the function will try both 'up' and 'down'
           options, and choose the direction that gives the largest mean
           distance from the smoothed signal.
 
     Returns
     -------
-    corrected_peak_inds : ndarray
-        Array of the corrected peak indices
-
-
-    Examples
-    --------
+    shifted_peak_inds : ndarray
+        Array of the corrected peak indices.
 
     """
     sig_len = sig.shape[0]
@@ -193,8 +192,22 @@ def shift_peaks(sig, peak_inds, search_radius, peak_up):
     Helper function for correct_peaks. Return the shifted peaks to local
     maxima or minima within a radius.
 
+    Parameters
+    ----------
+    sig : ndarray
+        The 1d signal array.
+    peak_inds : np array
+        Array of the original peak indices.
+    search_radius : int
+        The radius within which the original peaks may be shifted.
     peak_up : bool
-        Whether the expected peak direction is up
+        Whether the expected peak direction is up.
+
+    Returns
+    -------
+    shifted_peak_inds : ndarray
+        Array of the corrected peak indices.
+
     """
     sig_len = sig.shape[0]
     n_peaks = len(peak_inds)
