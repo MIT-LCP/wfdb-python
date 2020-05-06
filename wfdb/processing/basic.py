@@ -6,19 +6,19 @@ from ..io.annotation import Annotation
 
 def resample_ann(resampled_t, ann_sample):
     """
-    Compute the new annotation indices
+    Compute the new annotation indices.
 
     Parameters
     ----------
     resampled_t : ndarray
-        Array of signal locations as returned by scipy.signal.resample
+        Array of signal locations as returned by scipy.signal.resample.
     ann_sample : ndarray
-        Array of annotation locations
+        Array of annotation locations.
 
     Returns
     -------
-    resampled_ann_sample : ndarray
-        Array of resampled annotation locations
+    ndarray
+        Array of resampled annotation locations.
 
     """
     tmp = np.zeros(len(resampled_t), dtype='int16')
@@ -64,18 +64,18 @@ def resample_sig(x, fs, fs_target):
     Parameters
     ----------
     x : ndarray
-        Array containing the signal
+        Array containing the signal.
     fs : int, or float
-        The original sampling frequency
+        The original sampling frequency.
     fs_target : int, or float
-        The target frequency
+        The target frequency.
 
     Returns
     -------
     resampled_x : ndarray
-        Array of the resampled signal values
+        Array of the resampled signal values.
     resampled_t : ndarray
-        Array of the resampled signal locations
+        Array of the resampled signal locations.
 
     """
 
@@ -94,25 +94,25 @@ def resample_sig(x, fs, fs_target):
 
 def resample_singlechan(x, ann, fs, fs_target):
     """
-    Resample a single-channel signal with its annotations
+    Resample a single-channel signal with its annotations.
 
     Parameters
     ----------
     x: ndarray
-        The signal array
+        The signal array.
     ann : WFDB Annotation
-        The WFDB annotation object
+        The WFDB annotation object.
     fs : int, or float
-        The original frequency
+        The original frequency.
     fs_target : int, or float
-        The target frequency
+        The target frequency.
 
     Returns
     -------
     resampled_x : ndarray
-        Array of the resampled signal values
+        Array of the resampled signal values.
     resampled_ann : WFDB Annotation
-        Annotation containing resampled annotation locations
+        Annotation containing resampled annotation locations.
 
     """
 
@@ -136,27 +136,27 @@ def resample_singlechan(x, ann, fs, fs_target):
 
 def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     """
-    Resample multiple channels with their annotations
+    Resample multiple channels with their annotations.
 
     Parameters
     ----------
     xs: ndarray
-        The signal array
+        The signal array.
     ann : WFDB Annotation
-        The WFDB annotation object
-    fs : int, or float
-        The original frequency
-    fs_target : int, or float
-        The target frequency
+        The WFDB annotation object.
+    fs : int, float
+        The original frequency.
+    fs_target : int, float
+        The target frequency.
     resample_ann_channel : int, optional
-        The signal channel used to compute new annotation indices
+        The signal channel used to compute new annotation indices.
 
     Returns
     -------
-    resampled_xs : ndarray
-        Array of the resampled signal values
+    ndarray
+        Array of the resampled signal values.
     resampled_ann : WFDB Annotation
-        Annotation containing resampled annotation locations
+        Annotation containing resampled annotation locations.
 
     """
     assert resamp_ann_chan < xs.shape[1]
@@ -187,21 +187,21 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
 
 def normalize_bound(sig, lb=0, ub=1):
     """
-    Normalize a signal between the lower and upper bound
+    Normalize a signal between the lower and upper bound.
 
     Parameters
     ----------
     sig : ndarray
-        Original signal to be normalized
-    lb : int, or float
-        Lower bound
-    ub : int, or float
-        Upper bound
+        Original signal to be normalized.
+    lb : int, float, optional
+        Lower bound.
+    ub : int, float, optional
+        Upper bound.
 
     Returns
     -------
-    x_normalized : ndarray
-        Normalized signal
+    ndarray
+        Normalized signal.
 
     """
 
@@ -215,7 +215,7 @@ def normalize_bound(sig, lb=0, ub=1):
 
 def smooth(sig, window_size):
     """
-    Apply a uniform moving average filter to a signal
+    Apply a uniform moving average filter to a signal.
 
     Parameters
     ----------
@@ -223,6 +223,11 @@ def smooth(sig, window_size):
         The signal to smooth.
     window_size : int
         The width of the moving average filter.
+
+    Returns
+    -------
+    ndarray
+        The convolved input signal with the desired box waveform.
 
     """
     box = np.ones(window_size)/window_size
@@ -237,13 +242,18 @@ def get_filter_gain(b, a, f_gain, fs):
     Parameters
     ----------
     b : list
-        List of linear filter b coefficients
+        List of linear filter b coefficients.
     a : list
-        List of linear filter a coefficients
+        List of linear filter a coefficients.
     f_gain : int or float, optional
-        The frequency at which to calculate the gain
+        The frequency at which to calculate the gain.
     fs : int or float, optional
-        The sampling frequency of the system
+        The sampling frequency of the system.
+    
+    Returns
+    -------
+    gain : int, float
+        The passband gain at the desired frequency.
 
     """
     # Save the passband gain
