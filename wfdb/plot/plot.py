@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pdb
 
 from ..io.record import Record, rdrecord
 from ..io._header import float_types
@@ -91,7 +92,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
 
     >>> wfdb.plot_items(signal=record.p_signal,
-                        annotation=[ann.sample, ann.sample],
+                        ann_samp=[ann.sample, ann.sample],
                         title='MIT-BIH Record 100', time_units='seconds',
                         figsize=(10,4), ecg_grids='all')
 
@@ -302,13 +303,17 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
             # Figure out the y values to plot on a channel basis
 
             # 1 dimensional signals
-            if n_sig > ch:
-                if signal.ndim == 1:
-                    y = signal[ann_samp[ch]]
+            try:
+                if n_sig > ch:
+                    if signal.ndim == 1:
+                        y = signal[ann_samp[ch]]
+                    else:
+                        y = signal[ann_samp[ch], ch]
                 else:
-                    y = signal[ann_samp[ch], ch]
-            else:
-                y = np.zeros(len(ann_samp[ch]))
+                    y = np.zeros(len(ann_samp[ch]))
+            except IndexError:
+                raise Exception('IndexError: try setting shift_samps=True in ' 
+                                'the "rdann" function?')
 
             axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch])
 
@@ -529,9 +534,9 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     Parameters
     ----------
     record : WFDB Record, optional
-        The Record object to be plotted
+        The Record object to be plotted.
     annotation : WFDB Annotation, optional
-        The Annotation object to be plotted
+        The Annotation object to be plotted.
     plot_sym : bool, optional
         Whether to plot the annotation symbols on the graph.
     time_units : str, optional
