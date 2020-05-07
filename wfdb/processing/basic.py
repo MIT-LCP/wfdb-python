@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+import pdb
 
 from ..io.annotation import Annotation
 
@@ -23,8 +24,10 @@ def resample_ann(resampled_t, ann_sample):
     """
     tmp = np.zeros(len(resampled_t), dtype='int16')
     j = 0
+    break_loop = 0
     tprec = resampled_t[j]
     for i, v in enumerate(ann_sample):
+        break_loop = 0
         while True:
             d = False
             if v < tprec:
@@ -44,6 +47,10 @@ def resample_ann(resampled_t, ann_sample):
                 d = True
             j += 1
             tprec = tnow
+            break_loop += 1
+            if (break_loop > 1000):
+                tmp[j] += 1
+                break
             if d:
                 break
 
