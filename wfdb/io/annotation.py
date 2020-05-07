@@ -26,6 +26,73 @@ class Annotation(object):
     text used to label annotations that are not one of these codes should go in
     the 'aux_note' field rather than the 'sym' field.
 
+    The current annotation values organized as such:
+
+        AnnotationLabel(label_store (or subtype), symbol (or aux_note), short_description, description)
+
+    where the associated values are:
+
+        ann_labels = [
+            AnnotationLabel(0, " ", 'NOTANN', 'Not an actual annotation'),
+            AnnotationLabel(1, "N", 'NORMAL', 'Normal beat'),
+            AnnotationLabel(2, "L", 'LBBB', 'Left bundle branch block beat'),
+            AnnotationLabel(3, "R", 'RBBB', 'Right bundle branch block beat'),
+            AnnotationLabel(4, "a", 'ABERR', 'Aberrated atrial premature beat'),
+            AnnotationLabel(5, "V", 'PVC', 'Premature ventricular contraction'),
+            AnnotationLabel(6, "F", 'FUSION', 'Fusion of ventricular and normal beat'),
+            AnnotationLabel(7, "J", 'NPC', 'Nodal (junctional) premature beat'),
+            AnnotationLabel(8, "A", 'APC', 'Atrial premature contraction'),
+            AnnotationLabel(9, "S", 'SVPB', 'Premature or ectopic supraventricular beat'),
+            AnnotationLabel(10, "E", 'VESC', 'Ventricular escape beat'),
+            AnnotationLabel(11, "j", 'NESC', 'Nodal (junctional) escape beat'),
+            AnnotationLabel(12, "/", 'PACE', 'Paced beat'),
+            AnnotationLabel(13, "Q", 'UNKNOWN', 'Unclassifiable beat'),
+            AnnotationLabel(14, "~", 'NOISE', 'Signal quality change'),
+            AnnotationLabel(16, "|", 'ARFCT',  'Isolated QRS-like artifact'),
+            AnnotationLabel(18, "s", 'STCH',  'ST change'),
+            AnnotationLabel(19, "T", 'TCH',  'T-wave change'),
+            AnnotationLabel(20, "*", 'SYSTOLE',  'Systole'),
+            AnnotationLabel(21, "D", 'DIASTOLE',  'Diastole'),
+            AnnotationLabel(22, '"', 'NOTE',  'Comment annotation'),
+            AnnotationLabel(23, "=", 'MEASURE',  'Measurement annotation'),
+            AnnotationLabel(24, "p", 'PWAVE',  'P-wave peak'),
+            AnnotationLabel(25, "B", 'BBB',  'Left or right bundle branch block'),
+            AnnotationLabel(26, "^", 'PACESP',  'Non-conducted pacer spike'),
+            AnnotationLabel(27, "t", 'TWAVE',  'T-wave peak'),
+            AnnotationLabel(28, "+", 'RHYTHM',  'Rhythm change'),
+            AnnotationLabel(29, "u", 'UWAVE',  'U-wave peak'),
+            AnnotationLabel(30, "?", 'LEARN',  'Learning'),
+            AnnotationLabel(31, "!", 'FLWAV',  'Ventricular flutter wave'),
+            AnnotationLabel(32, "[", 'VFON',  'Start of ventricular flutter/fibrillation'),
+            AnnotationLabel(33, "]", 'VFOFF',  'End of ventricular flutter/fibrillation'),
+            AnnotationLabel(34, "e", 'AESC',  'Atrial escape beat'),
+            AnnotationLabel(35, "n", 'SVESC',  'Supraventricular escape beat'),
+            AnnotationLabel(36, "@", 'LINK',  'Link to external data (aux_note contains URL)'),
+            AnnotationLabel(37, "x", 'NAPC',  'Non-conducted P-wave (blocked APB)'),
+            AnnotationLabel(38, "f", 'PFUS',  'Fusion of paced and normal beat'),
+            AnnotationLabel(39, "(", 'WFON',  'Waveform onset'),
+            AnnotationLabel(40, ")", 'WFOFF',  'Waveform end'),
+            AnnotationLabel(41, "r", 'RONT',  'R-on-T premature ventricular contraction')
+        ]
+
+    The current annotation classes are organized as such:
+
+        AnnotationClass(extension, description, human_reviewed)
+
+    where the associated values are:
+
+        ann_classes = [
+            AnnotationClass('atr', 'Reference ECG annotations', True),
+            AnnotationClass('blh', 'Human reviewed beat labels', True),
+            AnnotationClass('blm', 'Machine beat labels', False),
+            AnnotationClass('alh', 'Human reviewed alarms', True),
+            AnnotationClass('alm', 'Machine alarms', False),
+            AnnotationClass('qrsc', 'Human reviewed QRS detections', True),
+            AnnotationClass('qrs', 'Machine QRS detections', False),
+            AnnotationClass('bph', 'Human reviewed BP beat detections', True),
+            AnnotationClass('bpm', 'Machine BP beat detections', False)
+        ]
+
     Attributes
     ----------
     record_name : str
