@@ -53,14 +53,6 @@ We welcome community contributions in the form of pull requests. When contributi
 * Unit tests are written for new features that are not covered by `existing tests`_.
 
 
-Authors
--------
-
-`Chen Xie`_
-
-`Julien Dubiel`_
-
-
 .. |Build Status| image:: https://travis-ci.org/MIT-LCP/wfdb-python.svg?branch=master
    :target: https://travis-ci.org/MIT-LCP/wfdb-python
 
@@ -71,6 +63,3 @@ Authors
 .. _existing tests: https://github.com/MIT-LCP/wfdb-python/tree/master/tests
 
 .. _demo.ipynb: https://github.com/MIT-LCP/wfdb-python/blob/master/demo.ipynb
-
-.. _Chen Xie: https://github.com/cx1111/
-.. _Julien Dubiel: https://github.com/Dubrzr/
