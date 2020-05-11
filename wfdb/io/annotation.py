@@ -1339,9 +1339,9 @@ def field2bytes(field, value):
         # Just need samp and sym
         else:
             # - First byte stores low 8 bits of samp
-            # - Second byte stores high 2 bits of samp
-            #   and sym
-            data_bytes = [sd & 255, ((sd & 768) >> 8) + 4*typecode]
+            # - Second byte stores high 2 bits of samp and sym
+            second_arg = bin(int(((sd & 768) >> 8),2) + int(4*typecode,2))
+            data_bytes = [sd & 255, second_arg]
 
     elif field == 'num':
         # First byte stores num
