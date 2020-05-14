@@ -11,8 +11,9 @@ from ..io.annotation import Annotation
 
 def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
-               ylabel=None, title=None, sig_style=[''], ann_style=['r*'],
-               ecg_grids=[], figsize=None, return_fig=False):
+               xlabel=None, ylabel=None, title=None, sig_style=[''],
+               ann_style=['r*'], ecg_grids=[], figsize=None,
+               return_fig=False, return_fig_axes=False):
     """
     Subplot individual channels of signals and/or annotations.
 
@@ -55,6 +56,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
         parameter is required for plotting ECG grids.
+    xlabel : list, optional
+        A list of strings specifying the final x labels to be used. If this
+        option is present, no 'time/'`time_units` is used.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -82,8 +86,11 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
 
     Returns
     -------
-    figure : matplotlib figure, optional
+    fig : matplotlib figure, optional
         The matplotlib figure generated. Only returned if the 'return_fig'
+        or 'return_fig_axes' parameter is set to True.
+    axes : matplotlib axes, optional
+        The matplotlib axes generated. Only returned if the 'return_fig_axes'
         parameter is set to True.
 
     Examples
@@ -115,11 +122,25 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes)
 
     # Add title and axis labels.
-    label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
-                 title)
+    # First, make sure that xlabel and ylabel inputs are valid
+    if xlabel:
+        if len(xlabel) != signal.shape[1]:
+            raise Exception('The length of the xlabel must be the same as the '
+                            'signal: {} values'.format(signal.shape[1]))
+
+    if ylabel:
+        if len(ylabel) != signal.shape[1]:
+            raise Exception('The length of the ylabel must be the same as the '
+                            'signal: {} values'.format(signal.shape[1]))
+
+    label_figure(axes, n_subplots, time_units, sig_name, sig_units,
+                 xlabel, ylabel, title)
 
     if return_fig:
         return fig
+
+    if return_fig_axes:
+        return fig, axes
 
     plt.show()
 
@@ -452,8 +473,8 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
-                 title):
+def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
+                 xlabel, ylabel, title):
     """
     Add title, and axes labels.
 
@@ -473,6 +494,9 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
         A list of strings specifying the units of each signal channel. Used
         with `sig_name` to form y labels, if `ylabel` is not set. This
         parameter is required for plotting ECG grids.
+    xlabel : list, optional
+         A list of strings specifying the final x labels to be used. If this
+         option is present, no 'time/'`time_units` is used.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -482,6 +506,15 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
     """
     if title:
         axes[0].set_title(title)
+
+    # Determine x label
+    # Explicit labels take precedence if present. Otherwise, construct labels
+    # using signal time units
+    if not xlabel:
+        axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+    else:
+        for ch in range(n_subplots):
+            axes[ch].set_xlabel(xlabel[ch])
 
     # Determine y label
     # Explicit labels take precedence if present. Otherwise, construct labels
@@ -505,8 +538,6 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
 
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
-
-    axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
 
 
 def plot_wfdb(record=None, annotation=None, plot_sym=False,
