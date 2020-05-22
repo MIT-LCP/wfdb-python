@@ -249,6 +249,73 @@ class TestRecord(unittest.TestCase):
         sig_target = sig_target.reshape([977, 1])
         assert np.array_equal(sig, sig_target)
 
+    def test_2f(self):
+        """
+        EDF format conversion to MIT for uniform sample rates.
+
+        """
+        # Uniform sample rates
+        record_MIT = wfdb.rdrecord('sample-data/n16').__dict__
+        record_EDF = wfdb.rdrecord('sample-data/n16.edf').__dict__
+
+        fields = list(record_MIT.keys())
+        # MIT format method of checksum is outdated, sometimes the same value though
+        fields.remove('checksum')
+
+        test_results = []
+        for field in fields:
+            # Signal value will be slightly off due to C to Python type conversion
+            if field == 'p_signal':
+                signal_diff = record_MIT[field] - record_EDF[field]
+                if abs(max(signal_diff.min(), signal_diff.max(), key=abs)) <= 2:
+                    test_results.append(True)
+                else:
+                    test_results.append(False)
+            elif field == 'init_value':
+                signal_diff = [abs(record_MIT[field][i] - record_EDF[field][i]) for i in range(len(record_MIT[field]))]
+                if abs(max(min(signal_diff), max(signal_diff), key=abs)) <= 2:
+                    test_results.append(True)
+                else:
+                    test_results.append(False)
+            else:
+                test_results.append(record_MIT[field] == record_MIT[field])
+
+        target_results = len(fields) * [True]
+        assert np.array_equal(test_results, target_results)
+
+    def test_2g(self):
+        """
+        EDF format conversion to MIT for non-uniform sample rates.
+
+        """
+        # Non-uniform sample rates
+        record_MIT = wfdb.rdrecord('sample-data/SC4001E0_PSG').__dict__
+        record_EDF = wfdb.rdrecord('sample-data/SC4001E0-PSG.edf').__dict__
+
+        fields = list(record_MIT.keys())
+        # MIT format method of checksum is outdated, sometimes the same value though
+        fields.remove('checksum')
+
+        test_results = []
+        for field in fields:
+            # Signal value will be slightly off due to C to Python type conversion
+            if field == 'p_signal':
+                signal_diff = record_MIT[field] - record_EDF[field]
+                if abs(max(signal_diff.min(), signal_diff.max(), key=abs)) <= 2:
+                    test_results.append(True)
+                else:
+                    test_results.append(False)
+            elif field == 'init_value':
+                signal_diff = [abs(record_MIT[field][i] - record_EDF[field][i]) for i in range(len(record_MIT[field]))]
+                if abs(max(min(signal_diff), max(signal_diff), key=abs)) <= 2:
+                    test_results.append(True)
+                else:
+                    test_results.append(False)
+            else:
+                test_results.append(record_MIT[field] == record_MIT[field])
+
+        target_results = len(fields) * [True]
+        assert np.array_equal(test_results, target_results)
 
     # --------------------- 3. Multi-dat records --------------------- #
 
@@ -258,12 +325,12 @@ class TestRecord(unittest.TestCase):
         Target file created with:
             rdsamp -r sample-data/s0010_re | cut -f 2- > record-3a
         """
-        record= wfdb.rdrecord('sample-data/s0010_re', physical=False)
+        record = wfdb.rdrecord('sample-data/s0010_re', physical=False)
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-3a')
 
         # Compare data streaming from Physionet
-        record_pn= wfdb.rdrecord('s0010_re', physical=False,
+        record_pn = wfdb.rdrecord('s0010_re', physical=False,
                                  pn_dir='ptbdb/patient001')
 
         # Test file writing
@@ -507,7 +574,7 @@ class TestMultiRecord(unittest.TestCase):
         from several segments.
 
         Target file created with:
-        rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > record-multi-variable-b
+            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > record-multi-variable-b
         """
         record = wfdb.rdrecord('sample-data/multi-segment/s00001/s00001-2896-10-10-00-31',
                                sampfrom=14428364, sampto=14428375)

@@ -63,6 +63,7 @@ setup(
         'pandas>=0.19.1',
         'scipy>=0.19.0',
         'sklearn>=0.0',
+        'pyedflib>=0.1.17'
     ],
 
     # List additional groups of dependencies here (e.g. development

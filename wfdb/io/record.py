@@ -7,6 +7,9 @@ import numpy as np
 import os
 import pandas as pd
 import requests
+import pyedflib
+import math
+import functools
 
 from . import _header
 from . import _signal
@@ -73,7 +76,7 @@ class BaseRecord(object):
         Parameters
         ----------
         field : str
-            The field name
+            The field name.
         required_channels : list, optional
             Used for signal specification fields. All channels are
             checked for their integrity if present, but channels that do
@@ -103,7 +106,6 @@ class BaseRecord(object):
                         required_channels=required_channels)
 
         # Individual specific field checks
-
         if field in ['d_signal', 'p_signal']:
             check_np_array(item=item, field_name=field, ndim=2,
                            parent_class=(lambda f: np.integer if f == 'd_signal' else np.floating)(field))
@@ -114,7 +116,6 @@ class BaseRecord(object):
                                channel_num=ch)
 
         # Record specification fields
-
         elif field == 'record_name':
             # Allow letters, digits, hyphens, and underscores.
             accepted_string = re.match('[-\w]+', self.record_name)
@@ -1136,6 +1137,112 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
         raise TypeError(error_msg)
 
 
+def edf2mit(record_name, record_only=False):
+    """
+    Convert EDF formatted files to MIT format.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the input EDF record to be read.
+    record_only : bool, optional
+        Whether to only return the record information (True) or not (False).
+        If false, this function will generate both a .dat and .hea file.
+
+    Returns
+    -------
+    record : dict, optional
+        All of the record information needed to generate MIT formatted files.
+        Only returns if 'record_only' is set to True, else generates the
+        corresponding .dat and .hea files.
+
+    """
+    signals, signal_headers, header = pyedflib.highlevel.read_edf(record_name)
+
+    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.edf','')
+    n_sig = len(signals)
+    sample_rate = [f['sample_rate'] for f in signal_headers]
+    fs = functools.reduce(math.gcd, sample_rate)
+    samps_per_frame = [int(x/fs) for x in sample_rate]
+    sig_len = min([len(f) for f in signals])
+    base_datetime =  header['startdate']
+    adc_gain_all = [(f['digital_max'] - f['digital_min'])/(f['physical_max'] - f['physical_min']) for f in signal_headers]
+    adc_gain =  [float(format(a,'.12g')) for a in adc_gain_all]
+    baseline = [int(f['digital_max'] - (f['physical_max'] * adc_gain_all[i]) + 1) for i,f in enumerate(signal_headers)]
+
+    # Convert to format suitable for calculations (number of signals, length of signal)
+    if isinstance(signals, list):
+        temp_sig_data = np.array(signals)
+    else:
+        if (signals.shape[1] < signals.shape[0]):
+            temp_sig_data = np.transpose(signals)
+        else:
+            temp_sig_data = signals
+
+    temp_sig_data = np.array([s * adc_gain_all[i] + baseline[i] for i,s in enumerate(temp_sig_data)])
+    init_value = [int(s[0]) for s in temp_sig_data]
+    checksum = [int(np.sum(v) % 65536) for v in temp_sig_data] # not all values correct?
+
+    # Convert to proper format for Record object (length of signal, number of signals)
+    if not isinstance(signals, list):
+        if (signals.shape[1] > signals.shape[0]):
+            sig_data = np.transpose(temp_sig_data)
+        else:
+            sig_data = temp_sig_data
+
+    # For non-square matrices i.e. different sample rates
+    # Transform to correct format from (n,m) -> (1,n*m)
+    if min(sample_rate) != max(sample_rate):
+        tsamps_per_frame = sum(samps_per_frame)
+        sig_data = np.zeros((len(np.concatenate(temp_sig_data).ravel()),))
+        for i in range(sig_len):
+            start_ind = (i * tsamps_per_frame)
+            for j,samps in enumerate(samps_per_frame):
+                if (j > 0):
+                    start_ind += samps_per_frame[j-1]
+                sig_data[start_ind:start_ind+samps] = temp_sig_data[j][(i*samps):(i*samps)+samps]
+
+    record = Record(
+        record_name = record_name_out,
+        n_sig = n_sig,
+        fs = fs,
+        samps_per_frame = samps_per_frame,
+        counter_freq = None,
+        base_counter = None,
+        sig_len = sig_len,
+        base_time = datetime.time(base_datetime.hour,
+                                  base_datetime.minute),
+        base_date = datetime.date(base_datetime.year,
+                                  base_datetime.month,
+                                  base_datetime.day),
+        comments = [],
+        sig_name = [f['label'].replace(' ','_') for f in signal_headers],
+        p_signal = sig_data.astype(np.int16),
+        d_signal = None,
+        e_p_signal = None,
+        e_d_signal = None,
+        file_name = n_sig * [record_name_out + '.dat'],
+        fmt = n_sig * ['16'],
+        skew = n_sig * [None],
+        byte_offset = n_sig * [None],
+        adc_gain = adc_gain,
+        baseline = baseline,
+        units = ['n/a' if f['dimension'] == '' else f['dimension'] for f in signal_headers],
+        adc_res = [int(math.log2(f['digital_max'] - f['digital_min'])) for f in signal_headers],
+        adc_zero = [int((f['digital_max'] + 1 + f['digital_min']) / 2) for f in signal_headers],
+        init_value = init_value,
+        checksum = checksum,
+        block_size = n_sig * [0]
+    )
+
+    record.base_datetime = base_datetime
+
+    if record_only:
+        return record
+    else:
+        # TODO: Generate the .dat and .hea files
+        pass
+
 #------------------------- Reading Records --------------------------- #
 
 
@@ -1350,7 +1457,11 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split(os.sep)
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+
+    if record_name.endswith('.edf'):
+        record = edf2mit(record_name, record_only=True)
+    else:
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -1421,14 +1532,33 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
             # Read signals from the associated dat files that contain
             # wanted channels
-            record.d_signal = _signal._rd_segment(record.file_name, dir_name,
-                                                  pn_dir, record.fmt,
-                                                  record.n_sig, record.sig_len,
-                                                  record.byte_offset,
-                                                  record.samps_per_frame,
-                                                  record.skew, sampfrom, sampto,
-                                                  channels, smooth_frames,
-                                                  ignore_skew)
+            if record_name.endswith('.edf'):
+                record.d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew,
+                                                      no_file=True,
+                                                      sig_data=record.p_signal)
+                record.p_signal = None
+            else:
+                record.d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1441,15 +1571,33 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = _signal._rd_segment(record.file_name, dir_name,
-                                                    pn_dir, record.fmt,
-                                                    record.n_sig,
-                                                    record.sig_len,
-                                                    record.byte_offset,
-                                                    record.samps_per_frame,
-                                                    record.skew, sampfrom,
-                                                    sampto, channels,
-                                                    smooth_frames, ignore_skew)
+            if record_name.endswith('.edf'):
+                record.d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew,
+                                                      no_file=True,
+                                                      sig_data=record.p_signal)
+                record.p_signal = None
+            else:
+                record.e_d_signal = _signal._rd_segment(record.file_name,
+                                                        dir_name, pn_dir,
+                                                        record.fmt,
+                                                        record.n_sig,
+                                                        record.sig_len,
+                                                        record.byte_offset,
+                                                        record.samps_per_frame,
+                                                        record.skew, sampfrom,
+                                                        sampto, channels,
+                                                        smooth_frames,
+                                                        ignore_skew)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
