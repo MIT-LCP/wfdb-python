@@ -5,6 +5,7 @@ import os
 import posixpath
 import requests
 import pdb
+import json
 
 from . import record
 
@@ -218,14 +219,20 @@ def get_dbs():
 
     Examples
     --------
-    >>> dbs = get_dbs()
+    >>> dbs = wfdb.get_dbs()
+    >>> dbs
+    [
+     ['aami-ec13', 'ANSI/AAMI EC13 Test Waveforms'],
+     ['adfecgdb', 'Abdominal and Direct Fetal ECG Database'],
+     ...
+     ['wrist', 'Wrist PPG During Exercise']
+    ]
 
     """
-    url = posixpath.join('https://archive.physionet.org/content', 'DBS')
-    response = requests.get(url)
-
-    dbs = response.content.decode('ascii').splitlines()
-    dbs = [re.sub('\t{2,}', '\t', line).split('\t') for line in dbs]
+    response = requests.get('https://physionet.org/rest/database-list/')
+    dbs = json.loads(response.content)
+    dbs = [[d['slug'], d['title']] for d in dbs]
+    dbs.sort()
 
     return dbs
 
