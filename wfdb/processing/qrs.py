@@ -51,7 +51,7 @@ class XQRS(object):
         The input ECG signal to apply the QRS detection on.
     fs : int, float
         The sampling frequency of the input signal.
-    conf : XQRS.Conf object
+    conf : XQRS.Conf object, optional
         The configuration object specifying signal configuration
         parameters. See the docstring of the XQRS.Conf class.
 
@@ -67,7 +67,6 @@ class XQRS(object):
     >>> wfdb.plot_items(signal=sig, ann_samp=[xqrs.qrs_inds])
 
     """
-
     def __init__(self, sig, fs, conf=None):
         if sig.ndim != 1:
             raise ValueError('sig must be a 1d numpy array')
@@ -76,6 +75,7 @@ class XQRS(object):
         self.sig_len = len(sig)
         self.conf = conf or XQRS.Conf()
         self._set_conf()
+
 
     class Conf(object):
         """
@@ -98,7 +98,7 @@ class XQRS(object):
         qrs_thr_init : int, float, optional
             Initial QRS detection threshold in mV. Use when learning
             is False, or learning fails.
-        qrs_thr_min : int, float or string, optional
+        qrs_thr_min : int, float, string, optional
             Hard minimum detection threshold of QRS wave. Leave as 0
             for no minimum.
         ref_period : int, float, optional
@@ -130,11 +130,20 @@ class XQRS(object):
             self.ref_period = ref_period
             self.t_inspect_period = t_inspect_period
 
+
     def _set_conf(self):
         """
         Set configuration parameters from the Conf object into the detector
         object. Time values are converted to samples, and amplitude values 
         are in mV.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         self.rr_init = 60 * self.fs / self.conf.hr_init
@@ -164,6 +173,10 @@ class XQRS(object):
         fc_high : int, float
             The high frequency cutoff for the filter.
 
+        Returns
+        -------
+        N/A
+
         """
         self.fc_low = fc_low
         self.fc_high = fc_high
@@ -183,6 +196,14 @@ class XQRS(object):
         wavelet onto the filtered signal, and save the square of the
         integrated signal. The width of the hat is equal to the QRS width.
         After integration, find all local peaks in the MWI signal.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         wavelet_filter = signal.ricker(self.qrs_width, 4)
@@ -343,6 +364,10 @@ class XQRS(object):
         last_qrs_ind : int
             The index of the signal's early QRS detected.
 
+        Returns
+        -------
+        N/A
+
         """
         self.qrs_amp_recent = qrs_amp_recent
         self.noise_amp_recent = noise_amp_recent
@@ -368,6 +393,14 @@ class XQRS(object):
         Estimate that QRS amp is 10x noise amp, giving:
           `qrs_thr = 0.325 * qrs_amp or 13/40 * qrs_amp`
 
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
+
         """
         if self.verbose:
             print('Initializing using default parameters')
@@ -387,6 +420,7 @@ class XQRS(object):
                               last_qrs_ind=last_qrs_ind)
 
         self.learned_init_params = False
+
 
     def _is_qrs(self, peak_num, backsearch=False):
         """
@@ -442,7 +476,6 @@ class XQRS(object):
         N/A
 
         """
-
         i = self.peak_inds_i[peak_num]
 
         # Update recent R-R interval if the beat is consecutive (do this 
@@ -511,6 +544,7 @@ class XQRS(object):
         else:
             return False
 
+
     def _update_noise(self, peak_num):
         """
         Update live noise parameters.
@@ -534,6 +568,10 @@ class XQRS(object):
         """
         Determine whether a backsearch should be performed on prior peaks.
 
+        Parameters
+        ----------
+        N/A
+
         Returns
         -------
         bool
@@ -552,10 +590,19 @@ class XQRS(object):
         else:
             return False
 
+
     def _backsearch(self):
         """
         Inspect previous peaks from the last detected QRS peak (if any),
         using a lower threshold.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         if self.last_qrs_peak_num is not None:
@@ -569,6 +616,14 @@ class XQRS(object):
         """
         Run the QRS detection after all signals and parameters have been
         configured and set.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         if self.verbose:
@@ -729,9 +784,14 @@ def time_to_sample_number(seconds, frequency):
     """
     return seconds * frequency + 0.5
 
+
 class GQRS(object):
     """
     GQRS detection class.
+
+    Attributes
+    ----------
+    N/A
 
     """
     class Conf(object):
@@ -892,8 +952,13 @@ class GQRS(object):
         annotation : Annotation object
             The annotation to be added.
 
+        Returns
+        -------
+        N/A
+
         """
         self.annotations.append(copy.deepcopy(annotation))
+
 
     def detect(self, x, conf, adc_zero):
         """
@@ -969,9 +1034,18 @@ class GQRS(object):
 
         return self.annotations
 
+
     def rewind_gqrs(self):
         """
         Rewind the gqrs.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         self.countdown = -1
@@ -987,6 +1061,7 @@ class GQRS(object):
             p.amp = 0
             p = p.next_peak
 
+
     def at(self, t):
         """
         Determine the value of the sample at the specified time.
@@ -995,6 +1070,10 @@ class GQRS(object):
         ----------
         t : int
             The time to search for the sample value.
+
+        Returns
+        -------
+        N/A
 
         """
         if t < 0:
@@ -1006,6 +1085,7 @@ class GQRS(object):
         self.sample_valid = True
         return self.x[t]
 
+
     def smv_at(self, t):
         """
         Determine the SMV value of the sample at the specified time.
@@ -1015,8 +1095,13 @@ class GQRS(object):
         t : int
             The time to search for the sample SMV value.
 
+        Returns
+        -------
+        N/A
+
         """
         return self.smv[t & (self.c._BUFLN - 1)]
+
 
     def smv_put(self, t, v):
         """
@@ -1029,8 +1114,13 @@ class GQRS(object):
         v : int
             The value of the SMV.
 
+        Returns
+        -------
+        N/A
+
         """
         self.smv[t & (self.c._BUFLN - 1)] = v
+
 
     def qfv_at(self, t):
         """
@@ -1041,8 +1131,13 @@ class GQRS(object):
         t : int
             The time to search for the sample QFV value.
 
+        Returns
+        -------
+        N/A
+
         """
         return self.qfv[t & (self.c._BUFLN - 1)]
+
 
     def qfv_put(self, t, v):
         """
@@ -1055,8 +1150,13 @@ class GQRS(object):
         v : int
             The value of the QFV.
 
+        Returns
+        -------
+        N/A
+
         """
         self.qfv[t & (self.c._BUFLN - 1)] = v
+
 
     def sm(self, at_t):
         """
@@ -1076,7 +1176,6 @@ class GQRS(object):
             The smoothed signal.
 
         """
-
         # Calculate samp values from self.smt to at_t.
         smt = self.c.smt
         smdt = int(self.c.smdt)
@@ -1107,13 +1206,22 @@ class GQRS(object):
 
         return self.smv_at(at_t)
 
+
     def qf(self):
         """
         Evaluate the QRS detector filter for the next sample.
 
-        """
+        Parameters
+        ----------
+        N/A
 
-        # do this first, to ensure that all of the other smoothed values needed below are in the buffer
+        Returns
+        -------
+        N/A
+
+        """
+        # Do this first, to ensure that all of the other smoothed values 
+        # needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
         dv2 -= self.smv_at(self.t - self.c.dt4)
         dv1 = int(self.smv_at(self.t + self.c.dt) - self.smv_at(self.t - self.c.dt))
@@ -1128,6 +1236,7 @@ class GQRS(object):
         v0 = int(self.v1 / self.c.v1norm)
         self.qfv_put(self.t, v0 * v0)
         self.SIG_QRS.append(v0 ** 2)
+
 
     def gqrs(self, from_sample, to_sample):
         """
@@ -1178,6 +1287,10 @@ class GQRS(object):
             peak_type : int
                 The type of peak.
 
+            Returns
+            -------
+            N/A
+
             """
             p = self.current_peak.next_peak
             p.time = peak_time
@@ -1185,6 +1298,7 @@ class GQRS(object):
             p.type = peak_type
             self.current_peak = p
             p.next_peak.amp = 0
+
 
         def peaktype(p):
             """
@@ -1246,6 +1360,7 @@ class GQRS(object):
                 p.type = 1
                 return p.type
 
+
         def find_missing(r, p):
             """
             Find the missing peaks.
@@ -1283,6 +1398,7 @@ class GQRS(object):
                 q = q.next_peak
 
             return s
+
 
         r = None
         next_minute = 0
@@ -1434,7 +1550,7 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
         difference) between using `sig` and `d_sig`. To replicate the exact
         output of the original GQRS algorithm, use the `d_sig` argument
         instead.
-    fs : int, float
+    fs : int, float, optional
         The sampling frequency of the signal.
     d_sig : 1d numpy array, optional
         The input digital signal. If this is the specified input signal rather

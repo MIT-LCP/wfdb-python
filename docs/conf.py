@@ -59,7 +59,7 @@ master_doc = 'index'
 # General information about the project.
 project = 'wfdb'
 copyright = '2018, MIT Lab for Computational Physiology'
-author = 'Chen Xie, Julien Dubiel'
+author = 'MIT Lab for Computational Physiology'
 
 with open('../wfdb/version.py') as f:
     __version__ = f.read().split()[-1].strip("'")
@@ -153,7 +153,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'wfdb.tex', 'wfdb Documentation',
-     'Chen Xie, Julien Dubiel', 'manual'),
+     author, 'manual'),
 ]
 
 
