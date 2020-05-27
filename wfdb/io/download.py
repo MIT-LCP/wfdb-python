@@ -15,6 +15,14 @@ PN_INDEX_URL = 'https://physionet.org/files/'
 PN_CONTENT_URL = 'https://physionet.org/content/'
 
 class Config(object):
+    """
+    General class structure for the Physionet database.
+
+    Attributes
+    ----------
+    N/A
+
+    """
     pass
 
 # The configuration database index url. Uses Physionet index by default.
@@ -32,6 +40,10 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
     db_index_url : str, optional
         The desired new database index url. Leave as default to reset
         to the Physionet index url.
+
+    Returns
+    -------
+    N/A
 
     """
     config.db_index_url = db_index_url
@@ -59,7 +71,6 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
         Size of the file in bytes.
 
     """
-
     # Option to construct the url
     if file_name and pn_dir:
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
@@ -72,6 +83,7 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     remote_file_size = int(response.headers['content-length'])
 
     return remote_file_size
+
 
 def _stream_header(file_name, pn_dir):
     """
@@ -129,7 +141,7 @@ def _stream_header(file_name, pn_dir):
 
 def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
     """
-    Stream data from a remote dat file, into a 1d numpy array.
+    Stream data from a remote dat file into a 1d numpy array.
 
     Parameters
     ----------
@@ -150,7 +162,6 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
         The data read from the dat file.
 
     """
-
     # Full url of dat file
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
@@ -209,8 +220,11 @@ def _stream_annotation(file_name, pn_dir):
 
 def get_dbs():
     """
-    Get a list of all the Physiobank databases available.
-    * Will soon be replaced by equivalent link on Physionet.
+    Get a list of all the Physionet databases available.
+
+    Parameters
+    ----------
+    N/A
 
     Returns
     -------
@@ -238,6 +252,7 @@ def get_dbs():
 
 
 # ---- Helper functions for downloading Physionet files ------- #
+
 
 def get_record_list(db_dir, records='all'):
     """
@@ -306,7 +321,6 @@ def get_annotators(db_dir, annotators):
     >>> wfdb.get_annotators('mitdb')
 
     """
-
     # Full url Physionet database
     db_url = posixpath.join(config.db_index_url, db_dir)
 
@@ -358,7 +372,6 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
     N/A
 
     """
-
     # Make the local download dir if it doesn't exist
     if not os.path.isdir(dl_dir):
         os.makedirs(dl_dir)
@@ -391,7 +404,6 @@ def dl_pn_file(inputs):
     N/A
 
     """
-
     basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
     # Full url of file

@@ -85,7 +85,6 @@ def resample_sig(x, fs, fs_target):
         Array of the resampled signal locations.
 
     """
-
     t = np.arange(x.shape[0]).astype('float64')
 
     if fs == fs_target:
@@ -122,7 +121,6 @@ def resample_singlechan(x, ann, fs, fs_target):
         Annotation containing resampled annotation locations.
 
     """
-
     resampled_x, resampled_t = resample_sig(x, fs, fs_target)
 
     new_sample = resample_ann(resampled_t, ann.sample)
@@ -211,7 +209,6 @@ def normalize_bound(sig, lb=0, ub=1):
         Normalized signal.
 
     """
-
     mid = ub - (ub - lb) / 2
     min_v = np.min(sig)
     max_v = np.max(sig)

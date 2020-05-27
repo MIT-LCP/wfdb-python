@@ -7,12 +7,11 @@ import numpy as np
 import os
 import pandas as pd
 import requests
+import pdb
 
 from . import _header
 from . import _signal
 from . import download
-
-import pdb
 
 
 class BaseRecord(object):
@@ -21,7 +20,7 @@ class BaseRecord(object):
     
     Attributes
     ----------
-    record_name : str
+    record_name : str, optional
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
@@ -29,15 +28,15 @@ class BaseRecord(object):
         parameter is set, this parameter should contain just the base
         record name, and the files fill be searched for remotely.
         Otherwise, the data files will be searched for in the local path.
-    n_sig : int
+    n_sig : int, optional
         Total number of signals.
-    fs : int, float
+    fs : int, float, optional
         The sampling frequency of the record.
-    counter_freq : float
+    counter_freq : float, optional
         The frequency used to start counting.
-    base_counter : float
+    base_counter : float, optional
         The counter used at the start of the file.
-    sig_len : int
+    sig_len : int, optional
         The total length of the signal.
     base_time : str, optional
         A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
@@ -45,7 +44,7 @@ class BaseRecord(object):
         A string of the record's start date in 'DD/MM/YYYY' format.
     comments : list, optional
         A list of string comments to be written to the header file.
-    sig_name : str
+    sig_name : str, optional
         A list of strings giving the signal name of each signal channel.
 
     """
@@ -65,6 +64,7 @@ class BaseRecord(object):
         self.comments = comments
         self.sig_name = sig_name
 
+
     def check_field(self, field, required_channels='all'):
         """
         Check whether a single field is valid in its basic form. Does
@@ -73,11 +73,15 @@ class BaseRecord(object):
         Parameters
         ----------
         field : str
-            The field name
+            The field name.
         required_channels : list, optional
             Used for signal specification fields. All channels are
             checked for their integrity if present, but channels that do
             not lie in this field may be None.
+
+        Returns
+        -------
+        N/A
 
         Notes
         -----
@@ -103,7 +107,6 @@ class BaseRecord(object):
                         required_channels=required_channels)
 
         # Individual specific field checks
-
         if field in ['d_signal', 'p_signal']:
             check_np_array(item=item, field_name=field, ndim=2,
                            parent_class=(lambda f: np.integer if f == 'd_signal' else np.floating)(field))
@@ -114,7 +117,6 @@ class BaseRecord(object):
                                channel_num=ch)
 
         # Record specification fields
-
         elif field == 'record_name':
             # Allow letters, digits, hyphens, and underscores.
             accepted_string = re.match('[-\w]+', self.record_name)
@@ -174,8 +176,7 @@ class BaseRecord(object):
                     if item[ch] <= 0:
                         raise ValueError('adc_gain values must be positive')
                 elif field == 'baseline':
-                    # Original WFDB library 10.5.24 only has 4 bytes for
-                    # baseline.
+                    # Original WFDB library 10.5.24 only has 4 bytes for baseline.
                     if item[ch] < -2147483648 or item[ch] > 2147483648:
                         raise ValueError('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
                 elif field == 'units':
@@ -197,8 +198,7 @@ class BaseRecord(object):
         elif field in _header.SEGMENT_SPECS.index:
             for ch in range(len(item)):
                 if field == 'seg_name':
-                    # Segment names must be alphanumerics or just a
-                    # single '~'
+                    # Segment names must be alphanumerics or just a single '~'
                     if item[ch] == '~':
                         continue
                     accepted_string = re.match('[-\w]+', item[ch])
@@ -223,10 +223,40 @@ class BaseRecord(object):
                           smooth_frames, return_res):
         """
         Ensure that input read parameters (from rdsamp) are valid for
-        the record
+        the record.
+
+        Parameters
+        ----------
+        sampfrom : int
+            The starting sample number to read for all channels.
+        sampto : int, 'end'
+            The sample number at which to stop reading for all channels.
+            Reads the entire duration by default.
+        channels : list
+            List of integer indices specifying the channels to be read.
+            Reads all channels by default.
+        physical : bool
+            Specifies whether to return signals in physical units in the
+            `p_signal` field (True), or digital units in the `d_signal`
+            field (False).
+        smooth_frames : bool
+            Used when reading records with signals having multiple samples
+            per frame. Specifies whether to smooth the samples in signals
+            with more than one sample per frame and return an (MxN) uniform
+            numpy array as the `d_signal` or `p_signal` field (True), or to
+            return a list of 1d numpy arrays containing every expanded
+            sample as the `e_d_signal` or `e_p_signal` field (False).
+        return_res : int
+            The numpy array dtype of the returned signals. Options are: 64,
+            32, 16, and 8, where the value represents the numpy int or float
+            dtype. Note that the value cannot be 8 when physical is True
+            since there is no float8 format.
+
+        Returns
+        -------
+        N/A
 
         """
-
         # Data Type Check
         if not hasattr(sampfrom, '__index__'):
             raise TypeError('sampfrom must be an integer')
@@ -271,6 +301,16 @@ class BaseRecord(object):
 
         Helper function for the `_arrange_fields` of both Record and
         MultiRecord objects.
+
+        Parameters
+        ----------
+        sampfrom : int
+            The starting sample number to read for all channels.
+
+        Returns
+        -------
+        N/A
+
         """
         if sampfrom:
             dt_seconds = sampfrom / self.fs
@@ -289,7 +329,6 @@ class BaseRecord(object):
             # Cannot calculate date or time if there is only date
 
 
-
 class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     """
     The class representing single segment WFDB records.
@@ -306,7 +345,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     Attributes
     ----------
-    p_signal : ndarray
+    p_signal : ndarray, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         physical signal values intended to be written. Either p_signal or
         d_signal must be set, but not both. If p_signal is set, this method will
@@ -314,19 +353,19 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         digital values to the dat file(s). If fmt is set, gain and baseline must
         be set or unset together. If fmt is unset, gain and baseline must both
         be unset.
-    d_signal : ndarray
+    d_signal : ndarray, optional
         An (MxN) 2d numpy array, where M is the signal length. Gives the
         digital signal values intended to be directly written to the dat
         file(s). The dtype must be an integer type. Either p_signal or d_signal
         must be set, but not both. In addition, if d_signal is set, fmt, gain
         and baseline must also all be set.
-    p_signal : ndarray
+    p_signal : ndarray, optional
         The expanded physical conversion of the signal. Either a 2d numpy
         array or a list of 1d numpy arrays.
-    e_d_signal : ndarray
+    e_d_signal : ndarray, optional
         The expanded digital conversion of the signal. Either a 2d numpy
         array or a list of 1d numpy arrays.
-    record_name : str
+    record_name : str, optional
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
@@ -334,51 +373,51 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         parameter is set, this parameter should contain just the base
         record name, and the files fill be searched for remotely.
         Otherwise, the data files will be searched for in the local path.
-    n_sig : int
+    n_sig : int, optional
         Total number of signals.
-    fs : float
+    fs : float, optional
         The sampling frequency of the record.
-    counter_freq : float
+    counter_freq : float, optional
         The frequency used to start counting.
-    base_counter : float
+    base_counter : float, optional
         The counter used at the start of the file.
-    sig_len : int
+    sig_len : int, optional
         The total length of the signal.
-    base_time : str
+    base_time : str, optional
         A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str
+    base_date : str, optional
         A string of the record's start date in 'DD/MM/YYYY' format.
-    file_name : str
+    file_name : str, optional
         The name of the file used for analysis.
-    fmt : list
+    fmt : list, optional
         A list of strings giving the WFDB format of each file used to store each
         channel. Accepted formats are: '80','212",'16','24', and '32'. There are
         other WFDB formats as specified by:
         https://www.physionet.org/physiotools/wag/signal-5.htm
         but this library will not write (though it will read) those file types.
-    samps_per_frame : int
+    samps_per_frame : int, optional
         The total number of samples per frame.
-    skew : float
+    skew : float, optional
         The offset used to allign signals.
-    byte_offset
+    byte_offset : int, optional
         The byte offset used to allign signals.
-    adc_gain : list
+    adc_gain : list, optional
         A list of numbers specifying the ADC gain.
-    baseline : list
+    baseline : list, optional
         A list of integers specifying the digital baseline.
-    units : list
+    units : list, optional
         A list of strings giving the units of each signal channel.  
-    adc_res: int
+    adc_res: int, optional
         The value produced by the ADC given a given Volt input.  
-    adc_zero: int
+    adc_zero: int, optional
         The value produced by the ADC given a 0 Volt input.
-    init_value : list
+    init_value : list, optional
         The initial value of the signal.
-    checksum : list, int
+    checksum : list, int, optional
         The checksum of the signal.
-    block_size : str
+    block_size : str, optional
         The dimensions of the field data.
-    sig_name :
+    sig_name : list, optional
         A list of strings giving the signal name of each signal channel.
     comments : list, optional
         A list of string comments to be written to the header file.
@@ -403,7 +442,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # Note the lack of the 'n_seg' field. Single segment records cannot
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
-
         super(Record, self).__init__(record_name, n_sig,
                     fs, counter_freq, base_counter, sig_len,
                     base_time, base_date, comments, sig_name)
@@ -426,6 +464,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.init_value = init_value
         self.checksum = checksum
         self.block_size = block_size
+
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other, verbose=False):
@@ -488,6 +527,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         write_dir : str, optional
             The directory in which to write the files.
 
+        Returns
+        -------
+        N/A
+
         """
         # Perform field validity and cohesion checks, and write the
         # header file.
@@ -512,8 +555,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         expanded : bool, optional
             Whether the record was read in expanded mode.
 
-        """
+        Returns
+        -------
+        N/A
 
+        """
         # Rearrange signal specification fields
         for field in _header.SIGNAL_SPECS.index:
             item = getattr(self, field)
@@ -571,23 +617,44 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     to return a single segment representation of the record as a Record object.
     The resulting Record object will have its 'p_signal' field set.
 
-    Parameters
+    Attributes
     ----------
-    segments
-    layout
-    record_name
-    n_sig
-    fs
-    counter_freq
-    base_counter
-    sig_len
-    base_time
-    base_date
-    seg_name
-    seg_len
-    comments
-    sig_name
-    sig_segments
+    segments : list, optional
+        The segments to be read.
+    layout : str, optional
+        Whether the record will be 'fixed' or 'variable'.
+    record_name : str, optional
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    n_sig : int, optional
+        Total number of signals.
+    fs : int, float, optional
+        The sampling frequency of the record.
+    counter_freq : float, optional
+        The frequency used to start counting.
+    base_counter : float, optional
+        The counter used at the start of the file.
+    sig_len : int, optional
+        The total length of the signal.
+    base_time : str, optional
+        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
+    base_date : str, optional
+        A string of the record's start date in 'DD/MM/YYYY' format.
+    seg_name : str, optional
+        The name of the segment.
+    seg_len : int, optional
+        The length of the segment.
+    comments : list, optional
+        A list of string comments to be written to the header file.
+    sig_name : str, optional
+        A list of strings giving the signal name of each signal channel.
+    sig_segments : list, optional
+        The signal segments to be read.
 
     Examples
     --------
@@ -596,7 +663,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                                     seg_len=[800, 200, 900])
     >>> # Get a MultiRecord object
     >>> record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
-    >>> # Turn it into a
+    >>> # Turn it into a single record
     >>> record_s = record_s.multi_to_single()
 
     record_s initially stores a `MultiRecord` object, and is then converted into
@@ -632,6 +699,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         write_dir : str, optional
             The directory in which to write the files.
 
+        Returns
+        -------
+        N/A
+
         """
         # Perform field validity and cohesion checks, and write the
         # header file.
@@ -641,13 +712,21 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for seg in self.segments:
             seg.wrsamp(write_dir=write_dir)
 
+
     def _check_segment_cohesion(self):
         """
         Check the cohesion of the segments field with other fields used
         to write the record.
 
-        """
+        Parameters
+        ----------
+        N/A
 
+        Returns
+        -------
+        N/A
+
+        """
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
@@ -674,7 +753,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Already effectively done it when checking sum(seg_len) against sig_len
 
 
-
     def _required_segments(self, sampfrom, sampto):
         """
         Determine the segments and the samples within each segment in a
@@ -691,10 +769,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         -------
         seg_numbers : list
             List of segment numbers to read.
-        readsamps
+        readsamps : list
+            List of sample numbers to be read.
 
         """
-
         # The starting segment with actual samples
         if self.layout == 'fixed':
             startseg = 0
@@ -764,7 +842,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             desired segment.
 
         """
-
         # Fixed layout. All channels are the same.
         if self.layout == 'fixed':
             required_channels = [channels] * len(seg_numbers)
@@ -791,6 +868,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return required_channels
 
+
     def _arrange_fields(self, seg_numbers, seg_ranges, channels,
                         sampfrom=0, force_channels=True):
         """
@@ -814,6 +892,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             Whether to update the layout specification record to match
             the input `channels` argument, or to omit channels in which
             no read segment contains the signals.
+
+        Returns
+        -------
+        N/A
 
         """
         # Update seg_len values for relevant segments
@@ -886,7 +968,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             The single segment record created.
 
         """
-
         # The fields to transfer to the new object
         fields = self.__dict__.copy()
 
@@ -1047,6 +1128,7 @@ def get_version(pn_dir):
 
     return version_number
 
+
 def _check_item_type(item, field_name, allowed_types, expect_list=False,
                     required_channels='all'):
     """
@@ -1069,6 +1151,10 @@ def _check_item_type(item, field_name, allowed_types, expect_list=False,
         present. May be set to 'all' to indicate all channels. Only used
         if `expect_list` is True, ie. item is a list, and its
         subelements are to be checked.
+
+    Returns
+    -------
+    N/A
 
     Notes
     -----
@@ -1119,6 +1205,10 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
     channel_num : int, optional
         If not None, indicates that the item passed in is a subelement
         of a list. Indicate this in the error message if triggered.
+
+    Returns
+    -------
+    N/A
 
     """
     # Check shape
@@ -1267,7 +1357,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         Otherwise, the data files will be searched for in the local path.
     sampfrom : int, optional
         The starting sample number to read for all channels.
-    sampto : int, or 'end', optional
+    sampto : int, 'end', optional
         The sample number at which to stop reading for all channels.
         Reads the entire duration by default.
     channels : list, optional
@@ -1342,7 +1432,6 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                                channels=[1, 3])
 
     """
-
     dir_name, base_record_name = os.path.split(record_name)
     dir_name = os.path.abspath(dir_name)
 
@@ -1534,7 +1623,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
         and the data files will be searched for in the local path.
     sampfrom : int, optional
         The starting sample number to read for all channels.
-    sampto : int, or 'end', optional
+    sampto : int, 'end', optional
         The sample number at which to stop reading for all channels.
         Reads the entire duration by default.
     channels : list, optional
@@ -1621,6 +1710,11 @@ def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
         of elements and the wanted channels. If True, pads missing
         signals with None.
 
+    Returns
+    -------
+    list
+        The indices of the wanted record channel names.
+
     """
     if pad:
         return [record_sig_names.index(s) if s in record_sig_names else None for s in wanted_sig_names]
@@ -1683,6 +1777,10 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
     write_dir : str, optional
         The directory in which to write the files.
 
+    Returns
+    -------
+    N/A
+
     Notes
     -----
     This is a gateway function, written as a simple method to write WFDB record
@@ -1704,7 +1802,6 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
                     sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
 
     """
-
     # Check for valid record name
     if '.' in record_name: 
         raise Exception("Record name must not contain '.'")
@@ -1772,6 +1869,7 @@ def is_monotonic(full_list):
 
     return True
 
+
 def dl_database(db_dir, dl_dir, records='all', annotators='all',
                 keep_subdirs=True, overwrite=False):
     """
@@ -1786,13 +1884,13 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         'http://physionet.org/content/mitdb/', db_dir='mitdb'.
     dl_dir : str
         The full local directory path in which to download the files.
-    records : list, or 'all', optional
+    records : list, 'all', optional
         A list of strings specifying the WFDB records to download. Leave
         as 'all' to download all records listed in the database's
         RECORDS file.
         eg. records=['test01_00s', test02_45s] for database:
         https://physionet.org/content/macecgdb/
-    annotators : list, 'all', or None, optional
+    annotators : list, 'all', None, optional
         A list of strings specifying the WFDB annotation file types to
         download along with the record files. Is either None to skip
         downloading any annotations, 'all' to download all annotation
@@ -1921,28 +2019,6 @@ unit_scale = {
     'percentage': ['%'],
     'heart_rate': ['bpm'],
 }
-
-
-"""
-Signal classes that WFDB signals should fall under. The indexes are the
-abbreviated class names.
-
-Parameters
-----------
-description:
-    The full descriptive name for the signal class.
-unit_scale:
-    The unit scale that the class should measure. 'No Unit' will also
-    be allowed in all cases. * Will it always be 1?
-signal_names:
-    The signal names that belong to the class.
-
-Notes
------
-This will be used to automatically classify signals in classes based
-on their names.
-
-"""
 
 SIGNAL_CLASSES = pd.DataFrame(
     index=['bp', 'co2', 'co', 'ecg', 'eeg', 'emg', 'eog', 'hr', 'mmg',
