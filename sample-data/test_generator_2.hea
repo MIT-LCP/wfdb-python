@@ -1,0 +1,13 @@
+test_generator_2 12 1 600 12:44:02 10/12/2009
+test_generator_2.dat 16x200 32.7675/uV 15 0 3276 0 0 squarewave
+test_generator_2.dat 16x200 32.7675/uV 15 0 -3276 480 0 ramp
+test_generator_2.dat 16x200 32.7675/uV 15 0 3276 -1920 0 pulse
+test_generator_2.dat 16x200 32.7675/uV 15 0 0 21000 0 ECG
+test_generator_2.dat 16x200 32.7675/uV 15 0 2752 -12878 0 noise
+test_generator_2.dat 16x200 32.7675/uV 15 0 102 0 0 sine 1 Hz
+test_generator_2.dat 16x200 32.7675/uV 15 0 814 0 0 sine 8 Hz
+test_generator_2.dat 16x200 32.7675/uV 15 0 864 0 0 sine 8.5 Hz
+test_generator_2.dat 16x200 32.7675/° 15 0 1487 0 0 sine 15 Hz
+test_generator_2.dat 16x200 32.7675/° 15 0 1668 0 0 sine 17 Hz
+test_generator_2.dat 16x200 32.7675/uV 15 0 3276 0 0 sine 50 Hz
+test_generator_2.dat 16x51 32767.5 15 0 12331 29678 0 EDF Annotations
