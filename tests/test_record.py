@@ -411,6 +411,13 @@ class TestRecord(unittest.TestCase):
 
         assert np.array_equal(sig_round, sig_target)
 
+    def test_header_with_non_utf8(self):
+        """
+        Ignores non-utf8 characters in the header part.
+        """
+        record = wfdb.rdrecord("sample-data/test_generator_2")
+        sig_units_target = ['uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'mV', 'mV', 'uV', 'mV']
+        assert record.units.__eq__(sig_units_target)
 
     @classmethod
     def tearDownClass(cls):

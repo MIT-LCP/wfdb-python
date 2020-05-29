@@ -826,7 +826,7 @@ def _read_header_lines(base_record_name, dir_name, pn_dir):
 
     # Read local file
     if pn_dir is None:
-        with open(os.path.join(dir_name, file_name), 'r') as fp:
+        with open(os.path.join(dir_name, file_name), 'r', errors='ignore') as fp:
             # Record line followed by signal/segment lines if any
             header_lines = []
             # Comment lines
