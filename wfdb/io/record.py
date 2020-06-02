@@ -1517,7 +1517,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                                                   record.samps_per_frame,
                                                   record.skew, sampfrom, sampto,
                                                   channels, smooth_frames,
-                                                  ignore_skew)
+                                                  ignore_skew,
+                                                  return_res=return_res)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1538,7 +1539,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                                                     record.samps_per_frame,
                                                     record.skew, sampfrom,
                                                     sampto, channels,
-                                                    smooth_frames, ignore_skew)
+                                                    smooth_frames, ignore_skew,
+                                                    return_res=return_res)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1588,7 +1590,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                 record.segments[seg_num] = rdrecord(
                     os.path.join(dir_name, record.seg_name[seg_num]),
                     sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
-                    channels=seg_channels[i], physical=physical, pn_dir=pn_dir)
+                    channels=seg_channels[i], physical=physical, pn_dir=pn_dir,
+                    return_res=return_res)
 
         # Arrange the fields of the layout specification segment, and
         # the overall object, to reflect user input.
@@ -1609,7 +1612,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
 
 def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
-           channel_names=None, warn_empty=False):
+           channel_names=None, warn_empty=False, return_res=64):
     """
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.
@@ -1641,6 +1644,11 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
         Whether to display a warning if the specified channel indices
         or names are not contained in the record, and no signal is
         returned.
+    return_res : int, optional
+        The numpy array dtype of the returned signals. Options are: 64,
+        32, 16, and 8, where the value represents the numpy int or float
+        dtype. Note that the value cannot be 8 when physical is True
+        since there is no float8 format.
 
     Returns
     -------
@@ -1682,8 +1690,8 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
 
     record = rdrecord(record_name=record_name, sampfrom=sampfrom,
                       sampto=sampto, channels=channels, physical=True,
-                      pn_dir=pn_dir, m2s=True, channel_names=channel_names,
-                      warn_empty=warn_empty)
+                      pn_dir=pn_dir, m2s=True, return_res=return_res,
+                      channel_names=channel_names, warn_empty=warn_empty)
 
     signals = record.p_signal
     fields = {}

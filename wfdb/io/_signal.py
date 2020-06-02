@@ -856,9 +856,10 @@ class SignalMixin(object):
 
 #------------------- Reading Signals -------------------#
 
+
 def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 samps_per_frame, skew, sampfrom, sampto, channels,
-                smooth_frames, ignore_skew):
+                smooth_frames, ignore_skew, return_res=64):
     """
     Read the digital samples from a single segment record's associated
     dat file(s).
@@ -896,6 +897,11 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         Specifies whether to apply the skew to align the signals in the
         output variable (False), or to ignore the skew field and load in
         all values contained in the dat files unaligned (True).
+    return_res : int, optional
+        The numpy array dtype of the returned signals. Options are: 64,
+        32, 16, and 8, where the value represents the numpy int or float
+        dtype. Note that the value cannot be 8 when physical is True
+        since there is no float8 format.
 
     Returns
     -------
@@ -929,6 +935,10 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     # If skew is to be ignored, set all to 0
     if ignore_skew:
         skew = [0]*n_sig
+
+    # Change format if requested
+    if return_res != 64:
+        fmt = len(fmt) * [str(return_res)]
 
     # Get the set of dat files, and the
     # channels that belong to each file.
