@@ -97,7 +97,6 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                         figsize=(10,4), ecg_grids='all')
 
     """
-
     # Figure out number of subplots required
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
 
@@ -122,6 +121,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         return fig
 
     plt.show()
+
 
 def get_plot_dims(signal, ann_samp):
     """
@@ -224,17 +224,20 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
     time_units : str
         The x axis unit. Allowed options are: 'samples', 'seconds', 'minutes',
         and 'hours'.
-    sig_style : list, optional
+    sig_style : list
         A list of strings, specifying the style of the matplotlib plot
         for each signal channel. The list length should match the number
         of signal channels. If the list has a length of 1, the style
         will be used for all channels.
     axes : list
         The information needed for each subplot.
-    
-    """
 
-    # Extend signal style if necesary
+    Returns
+    -------
+    N/A
+
+    """
+    # Extend signal style if necessary
     if len(sig_style) == 1:
         sig_style = n_sig * sig_style
 
@@ -260,6 +263,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
     Plot annotations, possibly overlaid on signals.
     ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
 
+    Parameters
+    ----------
     ann_samp : list
         The values of the annotation locations.
     n_annot : int
@@ -284,6 +289,10 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         will be used for all channels.
     axes : list
         The information needed for each subplot.
+
+    Returns
+    -------
+    N/A
 
     """
     # Extend annotation style if necessary
@@ -342,10 +351,13 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     axes : list
         The information needed for each subplot.
 
+    Returns
+    -------
+    N/A
+
     """
     if ecg_grids == 'all':
         ecg_grids = range(0, len(axes))
-
 
     for ch in ecg_grids:
         # Get the initial plot limits
@@ -376,6 +388,7 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
         # Plotting the lines changes the graph. Set the limits back
         axes[ch].set_xlim(auto_xlims)
         axes[ch].set_ylim(auto_ylims)
+
 
 def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
@@ -478,6 +491,10 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units, ylabel,
         present, `sig_name` and `sig_units` will not be used for labels.
     title : str, optional
         The title of the graph.
+
+    Returns
+    -------
+    N/A
 
     """
     if title:
@@ -751,6 +768,10 @@ def plot_all_records(directory=''):
     directory : str, optional
         The directory in which to search for WFDB records. Defaults to
         current working directory.
+
+    Returns
+    -------
+    N/A
 
     """
     directory = directory or os.getcwd()

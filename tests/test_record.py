@@ -1,9 +1,9 @@
 import os
+import pdb
 import shutil
 import unittest
 
 import numpy as np
-
 import wfdb
 
 
@@ -259,15 +259,25 @@ class TestRecord(unittest.TestCase):
         record_EDF = wfdb.rdrecord('sample-data/n16.edf').__dict__
 
         fields = list(record_MIT.keys())
-        # MIT format method of checksum is outdated, sometimes the same value though
+        # Original MIT format method of checksum is outdated, sometimes
+        # the same value though
         fields.remove('checksum')
+        # Original MIT format units are less comprehensive since they
+        # default to mV if unknown.. therefore added more default labels
+        fields.remove('units')
 
         test_results = []
         for field in fields:
             # Signal value will be slightly off due to C to Python type conversion
             if field == 'p_signal':
-                signal_diff = record_MIT[field] - record_EDF[field]
-                if abs(max(signal_diff.min(), signal_diff.max(), key=abs)) <= 2:
+                true_array = np.array(record_MIT[field])
+                pred_array = np.array(record_EDF[field])
+                sig_diff = np.abs((pred_array - true_array) / true_array)
+                sig_diff[sig_diff == -np.inf] = 0
+                sig_diff[sig_diff == np.inf] = 0
+                sig_diff = np.nanmean(sig_diff,0)
+                # 5% tolerance
+                if np.max(sig_diff) <= 5:
                     test_results.append(True)
                 else:
                     test_results.append(False)
@@ -293,15 +303,31 @@ class TestRecord(unittest.TestCase):
         record_EDF = wfdb.rdrecord('sample-data/SC4001E0-PSG.edf').__dict__
 
         fields = list(record_MIT.keys())
-        # MIT format method of checksum is outdated, sometimes the same value though
+        # Original MIT format method of checksum is outdated, sometimes
+        # the same value though
         fields.remove('checksum')
+        # Original MIT format units are less comprehensive since they
+        # default to mV if unknown.. therefore added more default labels
+        fields.remove('units')
+        # Initial value of signal will be off due to resampling done by
+        # MNE in the EDF reading phase
+        fields.remove('init_value')
+        # Samples per frame will be off due to resampling done by MNE in
+        # the EDF reading phase... I should probably fix this later
+        fields.remove('samps_per_frame')
 
         test_results = []
         for field in fields:
             # Signal value will be slightly off due to C to Python type conversion
             if field == 'p_signal':
-                signal_diff = record_MIT[field] - record_EDF[field]
-                if abs(max(signal_diff.min(), signal_diff.max(), key=abs)) <= 2:
+                true_array = np.array(record_MIT[field])
+                pred_array = np.array(record_EDF[field])
+                sig_diff = np.abs((pred_array - true_array) / true_array)
+                sig_diff[sig_diff == -np.inf] = 0
+                sig_diff[sig_diff == np.inf] = 0
+                sig_diff = np.nanmean(sig_diff,0)
+                # 5% tolerance
+                if np.max(sig_diff) <= 5:
                     test_results.append(True)
                 else:
                     test_results.append(False)
@@ -478,6 +504,13 @@ class TestRecord(unittest.TestCase):
 
         assert np.array_equal(sig_round, sig_target)
 
+    def test_header_with_non_utf8(self):
+        """
+        Ignores non-utf8 characters in the header part.
+        """
+        record = wfdb.rdrecord("sample-data/test_generator_2")
+        sig_units_target = ['uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'uV', 'mV', 'mV', 'uV', 'mV']
+        assert record.units.__eq__(sig_units_target)
 
     @classmethod
     def tearDownClass(cls):

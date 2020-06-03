@@ -63,10 +63,19 @@ class Comparitor(object):
         self.signal = signal
         # TODO: rdann return annotations.where
 
+
     def _calc_stats(self):
         """
         Calculate performance statistics after the two sets of annotations
         are compared.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         Example:
         -------------------
@@ -110,11 +119,22 @@ class Comparitor(object):
         self.sensitivity = float(self.tp) / float(self.tp + self.fn)
         self.positive_predictivity = float(self.tp) / self.n_test
 
+
     def compare(self):
         """
         Main comparison function. Note: Make sure to be able to handle 
         these ref/test scenarios:
 
+        Parameters
+        -------
+        N/A
+
+        Returns
+        -------
+        N/A
+
+        Example
+        -------
         A:
         o----o---o---o
         x-------x----x
@@ -212,7 +232,6 @@ class Comparitor(object):
             the testing sample.
 
         """
-
         if start_test_samp_num >= self.n_test:
             raise ValueError('Invalid starting test sample number.')
 
@@ -241,9 +260,18 @@ class Comparitor(object):
 
         return closest_samp_num, smallest_samp_diff
 
+
     def print_summary(self):
         """
         Print summary metrics of the annotation comparisons.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         """
         if not hasattr(self, 'sensitivity'):

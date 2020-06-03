@@ -9,36 +9,14 @@ import pandas as pd
 from . import download
 from . import _signal
 
-int_types = (int, np.int64, np.int32, np.int16, np.int8)
-float_types = (float, np.float64, np.float32) + int_types
 
 """
-WFDB field specifications for each field. The indexes are the field
-names.
-
-Parameters
-----------
-allowed_types:
-    Data types the field (or its elements) can be.
-delimiter:
-    The text delimiter that precedes the field in the header file.
-write_required:
-    Whether the field is required for writing a header (more stringent
-    than origin WFDB library).
-read_default:
-    The default value for the field when read if any. Most fields do not
-    have a default. The reason for the variation, is that we do not want
-    to imply that some fields are present when they are not, unless the
-    field is essential. See the notes.
-write_default:
-    The default value for the field to fill in before writing, if any.
-
 Notes
 -----
 In the original WFDB package, certain fields have default values, but
 not all of them. Some attributes need to be present for core
-functionality, ie. baseline, whereas others are not essential, yet have
-defaults, ie. base_time.
+functionality, i.e. baseline, whereas others are not essential, yet have
+defaults, i.e. base_time.
 
 This inconsistency has likely resulted in the generation of incorrect
 files, and general confusion. This library aims to make explicit,
@@ -56,6 +34,8 @@ The read vs write default values are different for 2 reasons:
    be clear that the fields are missing.
 
 """
+int_types = (int, np.int64, np.int32, np.int16, np.int8)
+float_types = (float, np.float64, np.float32) + int_types
 
 _SPECIFICATION_COLUMNS = ['allowed_types', 'delimiter', 'dependency',
                          'write_required', 'read_default', 'write_default']
@@ -112,9 +92,7 @@ SEGMENT_SPECS = pd.DataFrame(
 # Specifications of all WFDB header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
-
 # Regexp objects for reading headers
-
 # Record line
 _rx_record = re.compile(''.join(
     ["(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
@@ -142,9 +120,12 @@ class BaseHeaderMixin(object):
     """
     Mixin class with multi-segment header methods. Inherited by Record and
     MultiRecord classes.
-    
-    """
 
+    Attributes
+    ----------
+    N/A
+
+    """
     def get_write_subset(self, spec_type):
         """
         Get a set of fields used to write the header; either 'record'
@@ -238,12 +219,23 @@ class HeaderMixin(BaseHeaderMixin):
     """
     Mixin class with single-segment header methods. Inherited by Record class.
 
-    """
+    Attributes
+    ----------
+    N/A
 
+    """
     def set_defaults(self):
         """
         Set defaults for fields needed to write the header if they have
         defaults.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
 
         Notes
         -----
@@ -263,6 +255,7 @@ class HeaderMixin(BaseHeaderMixin):
         for f in sfields:
             self.set_default(f)
 
+
     def wrheader(self, write_dir=''):
         """
         Write a WFDB header file. The signals are not used. Before
@@ -276,20 +269,22 @@ class HeaderMixin(BaseHeaderMixin):
         write_dir : str, optional
             The output directory in which the header is written.
 
+        Returns
+        -------
+        N/A
+
         Notes
         -----
         This function does NOT call `set_defaults`. Essential fields
         must be set beforehand.
 
         """
-
         # Get all the fields used to write the header
         # sig_write_fields is a dictionary of
         # {field_name:required_channels}
         rec_write_fields, sig_write_fields = self.get_write_fields()
 
         # Check the validity of individual fields used to write the header
-
         # Record specification fields (and comments)
         for field in rec_write_fields:
             self.check_field(field)
@@ -313,6 +308,10 @@ class HeaderMixin(BaseHeaderMixin):
 
         Does NOT include `d_signal` or `e_d_signal`.
 
+        Parameters
+        ----------
+        N/A
+
         Returns
         -------
         rec_write_fields : list
@@ -324,7 +323,6 @@ class HeaderMixin(BaseHeaderMixin):
             for each field.
 
         """
-
         # Record specification fields
         rec_write_fields = self.get_write_subset('record')
 
@@ -346,10 +344,8 @@ class HeaderMixin(BaseHeaderMixin):
     def set_default(self, field):
         """
         Set the object's attribute to its default value if it is missing
-        and there is a default.
-
-        Not responsible for initializing the attribute. That is done by 
-        the constructor.
+        and there is a default. Not responsible for initializing the 
+        attribute. That is done by the constructor.
 
         Parameters
         ----------
@@ -361,7 +357,6 @@ class HeaderMixin(BaseHeaderMixin):
         N/A
 
         """
-
         # Record specification fields
         if field in RECORD_SPECS.index:
             # Return if no default to set, or if the field is already
@@ -406,6 +401,10 @@ class HeaderMixin(BaseHeaderMixin):
         sig_write_fields : dict
             Dictionary of signal specification fields to write, values
             being equal to a list of channels to write for each field.
+
+        Returns
+        -------
+        N/A
 
         """
         # If there are no signal specification fields, there is nothing to check.
@@ -454,6 +453,10 @@ class HeaderMixin(BaseHeaderMixin):
         write_dir : str
             The directory in which to write the header file.
 
+        Returns
+        -------
+        N/A
+
         """
         # Create record specification line
         record_line = ''
@@ -464,7 +467,6 @@ class HeaderMixin(BaseHeaderMixin):
                 string_field = str(getattr(self, field))
 
                 # Certain fields need extra processing
-
                 if field == 'fs' and isinstance(self.fs, float):
                     if round(self.fs, 8) == float(int(self.fs)):
                         string_field = str(int(self.fs))
@@ -512,8 +514,11 @@ class MultiHeaderMixin(BaseHeaderMixin):
     Mixin class with multi-segment header methods. Inherited by
     MultiRecord class.
 
-    """
+    Attributes
+    ----------
+    N/A
 
+    """
     def set_defaults(self):
         """
         Set defaults for fields needed to write the header if they have
@@ -522,9 +527,18 @@ class MultiHeaderMixin(BaseHeaderMixin):
         it is supposed to be an explicit function. Not responsible for 
         initializing the attributes. That is done by the constructor.
 
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
+
         """
         for field in self.get_write_fields():
             self.set_default(field)
+
 
     def wrheader(self, write_dir=''):
         """
@@ -538,6 +552,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
         ----------
         write_dir : str, optional
             The output directory in which the header is written.
+
+        Returns
+        -------
+        N/A
 
         Notes
         -----
@@ -559,10 +577,13 @@ class MultiHeaderMixin(BaseHeaderMixin):
         self.wr_header_file(write_fields, write_dir)
 
 
-
     def get_write_fields(self):
         """
         Get the list of fields used to write the multi-segment header.
+
+        Parameters
+        ----------
+        N/A
 
         Returns
         -------
@@ -571,7 +592,6 @@ class MultiHeaderMixin(BaseHeaderMixin):
             and their dependencies.
 
         """
-
         # Record specification fields
         write_fields = self.get_write_subset('record')
 
@@ -582,6 +602,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         if self.comments !=None:
             write_fields.append('comments')
         return write_fields
+
 
     def set_default(self, field):
         """
@@ -597,7 +618,6 @@ class MultiHeaderMixin(BaseHeaderMixin):
         N/A        
 
         """
-
         # Record specification fields
         if field in RECORD_SPECS:
             # Return if no default to set, or if the field is already present.
@@ -606,13 +626,19 @@ class MultiHeaderMixin(BaseHeaderMixin):
             setattr(self, field, RECORD_SPECS[field].write_def)
 
 
-
     def check_field_cohesion(self):
         """
         Check the cohesion of fields used to write the header.
 
-        """
+        Parameters
+        ----------
+        N/A
 
+        Returns
+        -------
+        N/A
+
+        """
         # The length of seg_name and seg_len must match n_seg
         for f in ['seg_name', 'seg_len']:
             if len(getattr(self, f)) != self.n_seg:
@@ -621,7 +647,6 @@ class MultiHeaderMixin(BaseHeaderMixin):
         # Check the sum of the 'seg_len' fields against 'sig_len'
         if np.sum(self.seg_len) != self.sig_len:
             raise ValueError("The sum of the 'seg_len' fields do not match the 'sig_len' field")
-
 
 
     def wr_header_file(self, write_fields, write_dir):
@@ -635,6 +660,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
             and their dependencies.  
         write_dir : str
             The output directory in which the header is written.
+
+        Returns
+        -------
+        N/A
 
         """
         # Create record specification line
@@ -682,6 +711,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             Segments for each desired signal.
         sig_segs : list
             Segments for the desired signal.
+
         """
         if self.segments is None:
             raise Exception("The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True")
@@ -709,6 +739,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
         """
         Get the signal names for the entire record.
 
+        Parameters
+        ----------
+        N/A
+
         Returns
         -------
         sig_name : str, list
@@ -727,6 +761,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             sig_name = self.segments[0].sig_name
 
         return sig_name
+
 
 def wfdb_strptime(time_string):
     """
@@ -791,7 +826,7 @@ def _read_header_lines(base_record_name, dir_name, pn_dir):
 
     # Read local file
     if pn_dir is None:
-        with open(os.path.join(dir_name, file_name), 'r') as fp:
+        with open(os.path.join(dir_name, file_name), 'r', errors='ignore') as fp:
             # Record line followed by signal/segment lines if any
             header_lines = []
             # Comment lines
@@ -976,6 +1011,10 @@ def lines_to_file(file_name, write_dir, lines):
         The output directory in which the header is written.
     lines : list
         The lines to be written to the text file.
+
+    Returns
+    -------
+    N/A
 
     """
     f = open(os.path.join(write_dir, file_name), 'w')
