@@ -1795,7 +1795,6 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-<<<<<<< HEAD
             if record_name.endswith('.edf'):
                 record.e_d_signal = _signal._rd_segment(record.file_name,
                                                       dir_name, pn_dir,
@@ -1824,18 +1823,6 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                                                         smooth_frames,
                                                         ignore_skew,
                                                         return_res=return_res)
-=======
-            record.e_d_signal = _signal._rd_segment(record.file_name, dir_name,
-                                                    pn_dir, record.fmt,
-                                                    record.n_sig,
-                                                    record.sig_len,
-                                                    record.byte_offset,
-                                                    record.samps_per_frame,
-                                                    record.skew, sampfrom,
-                                                    sampto, channels,
-                                                    smooth_frames, ignore_skew,
-                                                    return_res=return_res)
->>>>>>> 32bcedf... Adds datatype parameter in rdrecord/rdsamp #224 #225
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
