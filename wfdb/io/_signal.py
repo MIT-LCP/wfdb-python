@@ -726,6 +726,7 @@ class SignalMixin(object):
                         self.e_d_signal[ch] = self.e_d_signal[ch].astype(return_dtype, copy=False)
         return
 
+
     def calc_checksum(self, expanded=False):
         """
         Calculate the checksum(s) of the input signal.
@@ -859,7 +860,7 @@ class SignalMixin(object):
 
 def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 samps_per_frame, skew, sampfrom, sampto, channels,
-                smooth_frames, ignore_skew, return_res=64):
+                smooth_frames, ignore_skew, no_file=False, sig_data=None, return_res=64):
     """
     Read the digital samples from a single segment record's associated
     dat file(s).
@@ -897,6 +898,12 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         Specifies whether to apply the skew to align the signals in the
         output variable (False), or to ignore the skew field and load in
         all values contained in the dat files unaligned (True).
+    no_file : bool, optional
+        Used when using this function with just an array of signal data
+        and no associated file to read the data from.
+    sig_data : ndarray, optional
+        The signal data that would normally be imported using the associated
+        .dat and .hea files. Should only be used when no_file is set to True.
     return_res : int, optional
         The numpy array dtype of the returned signals. Options are: 64,
         32, 16, and 8, where the value represents the numpy int or float
@@ -918,6 +925,10 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     specifications of the segment.
 
     """
+    # Check for valid inputs
+    if no_file and sig_data is None:
+        raise Exception('signal_dat empty: No signal data provided')
+
     # Avoid changing outer variables
     byte_offset = byte_offset[:]
     samps_per_frame = samps_per_frame[:]
@@ -984,10 +995,17 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name, pn_dir,
-                w_fmt[fn], len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                smooth_frames)[:, r_w_channel[fn]]
+            if no_file:
+                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
+                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
+                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
+                    sampfrom, sampto, smooth_frames, no_file=True,
+                    sig_data=sig_data)[:, r_w_channel[fn]]
+            else:
+                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
+                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
+                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
+                    sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
 
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
@@ -996,10 +1014,16 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
-            datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
-                len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                smooth_frames)
+            if no_file:
+                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
+                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
+                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
+                    smooth_frames, no_file=True, sig_data=sig_data)
+            else:
+                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
+                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
+                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
+                    smooth_frames)
 
             # Copy over the wanted signals
             for cn in range(len(out_dat_channel[fn])):
@@ -1010,7 +1034,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
 def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
                    byte_offset, samps_per_frame, skew, sampfrom, sampto,
-                   smooth_frames):
+                   smooth_frames, no_file=False, sig_data=None):
     """
     Read all signals from a WFDB dat file.
 
@@ -1042,6 +1066,12 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         The final sample number to be read from the signals.
     smooth_frames : bool
         Whether to smooth channels with multiple samples/frame.
+    no_file : bool, optional
+        Used when using this function with just an array of signal data
+        and no associated file to read the data from.
+    sig_data : ndarray, optional
+        The signal data that would normally be imported using the associated
+        .dat and .hea files. Should only be used when no_file is set to True.
 
     Returns
     -------
@@ -1058,6 +1088,10 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     specifications of the segment.
 
     """
+    # Check for valid inputs
+    if no_file and sig_data is None:
+        raise Exception('signal_dat empty: No signal data provided')
+
     # Total number of samples per frame
     tsamps_per_frame = sum(samps_per_frame)
     # The signal length to read (per channel)
@@ -1086,26 +1120,27 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     # already load samples.
 
     # Read values from dat file. Append bytes/samples if needed.
+    if no_file:
+        data_to_read = sig_data
+    else:
+        data_to_read = _rd_dat_file(file_name, dir_name, pn_dir, fmt,
+                                    start_byte, n_read_samples)
+
     if extra_flat_samples:
         if fmt in UNALIGNED_FMTS:
             # Extra number of bytes to append onto the bytes read from
             # the dat file.
             n_extra_bytes = total_process_bytes - total_read_bytes
 
-            sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
-                                                     pn_dir, fmt, start_byte,
-                                                     n_read_samples),
+            sig_data = np.concatenate((data_to_read,
                                         np.zeros(n_extra_bytes,
-                                                 dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
+                                                dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
         else:
-            sig_data = np.concatenate((_rd_dat_file(file_name, dir_name,
-                                                     pn_dir, fmt, start_byte,
-                                                     n_read_samples),
+            sig_data = np.concatenate((data_to_read,
                                         np.zeros(extra_flat_samples,
-                                                 dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
+                                                dtype=np.dtype(DATA_LOAD_TYPES[fmt]))))
     else:
-        sig_data = _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte,
-                                 n_read_samples)
+        sig_data = data_to_read
 
     # Finish processing the read data into proper samples if not already
 

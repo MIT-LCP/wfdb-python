@@ -7,11 +7,133 @@ import numpy as np
 import os
 import pandas as pd
 import requests
+import mne
+import math
+import functools
 import pdb
 
 from . import _header
 from . import _signal
 from . import download
+
+
+# -------------- WFDB Signal Calibration and Classification ---------- #
+
+
+# Unit scales used for default display scales. The unit scale that the
+# class should measure. 'No Unit' will also be allowed in all cases.
+# * Will it always be 1?
+unit_scale = {
+    'voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
+    'temperature': ['C', 'F'],
+    'pressure': ['mmHg'],
+    'no_unit': ['NU'],
+    'percentage': ['%'],
+    'heart_rate': ['bpm'],
+}
+
+"""
+Signal classes that WFDB signals should fall under. The indexes are the
+abbreviated class names.
+
+Notes
+-----
+This will be used to automatically classify signals in classes based
+on their names.
+
+"""
+
+SIGNAL_CLASSES = pd.DataFrame(
+    index=['bp', 'co2', 'co', 'ecg', 'eeg', 'emg', 'eog', 'hr', 'mmg',
+           'o2', 'pleth', 'resp', 'scg', 'stat', 'st', 'temp', 'unknown'],
+    columns=['description', 'unit_scale', 'signal_names'],
+    data=[['Blood Pressure', 'pressure', ['bp','abp','pap','cvp']], # bp
+          ['Carbon Dioxide', 'percentage', ['co2', 'pco2']], # co2
+          ['Carbon Monoxide', 'percentage', ['co']], # co
+          ['Electrocardiogram', 'voltage', ['i','ii','iii','iv','v','avr']], # ecg
+          ['Electroencephalogram', 'voltage', ['eeg']], # eeg
+          ['Electromyograph', 'voltage', ['emg']], # emg
+          ['Electrooculograph', 'voltage', ['eog']], # eog
+          ['Heart Rate', 'heart_rate', ['hr']], # hr
+          ['Magnetomyograph', 'voltage', ['mmg']], # mmg
+          ['Oxygen', 'percentage', ['o2', 'spo2']], # o2
+          ['Plethysmograph', 'pressure', ['pleth']], # pleth
+          ['Respiration', 'no_unit', ['resp']], # resp
+          ['Seismocardiogram', 'no_unit', ['scg']], # scg
+          ['Status', 'no_unit', ['stat', 'status']], # stat
+          ['ST Segment', '', ['st']], # st. This is not a signal?
+          ['Temperature', 'temperature', ['temp']], # temp
+          ['Unknown Class', 'no_unit', []], # unknown. special class.
+    ]
+)
+
+"""
+All of the default units to be used if the value for unit
+while reading files returns "N/A".
+
+Note
+----
+All of the key values here are in all lowercase characters
+to remove duplicates by different cases.
+
+"""
+
+SIG_UNITS = {
+    'a': 'uV',
+    'abdomen': 'uV',
+    'abdo': 'V',
+    'abp': 'mmHg',
+    'airflow': 'V',
+    'ann': 'units',
+    'art': 'mmHg',
+    'atip': 'mV',
+    'av': 'mV',
+    'bp': 'mmHg',
+    'c': 'uV',
+    'c.o.': 'lpm',
+    'co': 'Lpm',
+    'cs': 'mV',
+    'cvp': 'mmHg',
+    'direct': 'uV',
+    'ecg': 'mV',
+    'edr': 'units',
+    'eeg': 'mV',
+    'emg': 'mV',
+    'eog': 'mV',
+    'event': 'mV',
+    'f': 'uV',
+    'fecg': 'mV',
+    'fhr': 'bpm',
+    'foobar': 'mmHg',
+    'hr': 'bpm',
+    'hva': 'mV',
+    'i': 'mV',
+    'ibp': 'mmHg',
+    'mcl': 'mV',
+    'nbp': 'mmHg',
+    'o': 'uV',
+    'p': 'mmHg',
+    'pap': 'mmHg',
+    'pawp': 'mmHg',
+    'pcg': 'mV',
+    'pleth': 'mV',
+    'pr': 'bpm',
+    'pulse': 'bpm',
+    'record': 'mV',
+    'resp': 'l',
+    'sao2': '%',
+    'so2': '%',
+    'spo2': '%',
+    'sv': 'ml',
+    't': 'uV',
+    'tblood': 'degC',
+    'temp': 'degC',
+    'thorax': 'mV',
+    'thor': 'V',
+    'v': 'mV',
+    'uc': 'nd',
+    'vtip': 'mV'
+}
 
 
 class BaseRecord(object):
@@ -1226,6 +1348,155 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
         raise TypeError(error_msg)
 
 
+def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
+    """
+    Convert EDF formatted files to MIT format.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the input EDF record to be read.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+    delete_file : bool, optional
+        Whether to delete the saved EDF file (False) or not (True)
+        after being imported.
+    record_only : bool, optional
+        Whether to only return the record information (True) or not (False).
+        If false, this function will generate both a .dat and .hea file.
+
+    Returns
+    -------
+    record : dict, optional
+        All of the record information needed to generate MIT formatted files.
+        Only returns if 'record_only' is set to True, else generates the
+        corresponding .dat and .hea files. This record file will not match the
+        `rdrecord` output since it will only give us the digital signal for now.
+
+    Examples
+    --------
+    >>> edf_record = wfdb.edf2mit('SC4002E0-PSG.edf',
+                                  pn_dir='sleep-edfx/sleep-cassette',
+                                  record_only=True)
+
+    """
+    if pn_dir is not None:
+
+        if '.' not in pn_dir:
+            dir_list = pn_dir.split(os.sep)
+            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+
+        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
+        # Currently must download file for MNE to read it though can give the
+        # user the option to delete it immediately afterwards
+        r = requests.get(file_url, allow_redirects=False)
+        open(record_name, 'wb').write(r.content)
+
+    edf_data = mne.io.read_raw_edf(record_name, preload=True)
+
+    if pn_dir is not None and delete_file:
+        os.remove(record_name)
+
+    record_name_out = edf_data._filenames[0].split(os.sep)[-1].replace('-','_').replace('.edf','')
+    n_sig = edf_data._raw_extras[0]['nchan']
+    sample_rate = (edf_data._raw_extras[0]['n_samps'] / edf_data._raw_extras[0]['record_length'][0]).astype(np.int16)
+    fs = functools.reduce(math.gcd, sample_rate)
+    samps_per_frame = [int(x/fs) for x in sample_rate]
+    base_datetime = edf_data._raw_extras[0]['meas_date'].replace(tzinfo=None)
+    digital_min = edf_data._raw_extras[0]['digital_min']
+    digital_max = edf_data._raw_extras[0]['digital_max']
+    physical_min = edf_data._raw_extras[0]['physical_min']
+    physical_max = edf_data._raw_extras[0]['physical_max']
+    adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
+    adc_gain =  [float(format(a,'.12g')) for a in adc_gain_all]
+    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype('int16')
+
+    units = n_sig * ['']
+    for i,f in enumerate(list(edf_data._orig_units.values())):
+        if f == 'n/a':
+            label = edf_data.ch_names[i].lower().split()[0]
+            if label in list(SIG_UNITS.keys()):
+                units[i] = SIG_UNITS[label]
+            else:
+                units[i] = 'n/a'
+        else:
+            f = f.replace('µ','u')  # Maybe more weird symbols to check for?
+            units[i] = f
+
+    # Convert to format suitable for calculations (number of signals, length of signal)
+    signals = edf_data.get_data()
+    if (signals.shape[1] < signals.shape[0]):
+        temp_sig_data = np.transpose(signals)
+    else:
+        temp_sig_data = signals
+
+    temp_sig_data = [(temp_sig_data[i] / edf_data._raw_extras[0]['units'][i]) for i in range(n_sig)]
+    temp_sig_data = np.array([s * adc_gain_all[i] + baseline[i] for i,s in enumerate(temp_sig_data)])
+
+    # Average over samps per frame to remove resampling done by MNE
+    sig_len = int(edf_data._data.shape[1] / max(samps_per_frame))
+
+    new_sig_data = np.empty((n_sig, sig_len))
+    for i in range(n_sig):
+        new_sig_data[i,:] = np.mean(temp_sig_data[i,:].reshape(-1,max(samps_per_frame)),1)
+    temp_sig_data = new_sig_data
+
+    samps_per_frame = n_sig * [1]
+    init_value = [int(s[0]) for s in temp_sig_data]
+    checksum = [int(np.sum(v) % 65536) for v in temp_sig_data]  # not all values correct?
+
+    # Convert to proper format for Record object (length of signal, number of signals)
+    if (signals.shape[1] > signals.shape[0]):
+        sig_data = np.transpose(temp_sig_data)
+    else:
+        sig_data = temp_sig_data
+
+    record = Record(
+        record_name = record_name_out,
+        n_sig = n_sig,
+        fs = fs,
+        samps_per_frame = samps_per_frame,
+        counter_freq = None,
+        base_counter = None,
+        sig_len = sig_len,
+        base_time = datetime.time(base_datetime.hour,
+                                  base_datetime.minute,
+                                  base_datetime.second),
+        base_date = datetime.date(base_datetime.year,
+                                  base_datetime.month,
+                                  base_datetime.day),
+        comments = [],
+        sig_name = edf_data.ch_names,    # Remove whitespace to make compatible later?
+        p_signal = None,
+        d_signal = sig_data.astype(np.int16),
+        e_p_signal = None,
+        e_d_signal = None,
+        file_name = n_sig * [record_name_out + '.dat'],
+        fmt = n_sig * ['16'],
+        skew = n_sig * [None],
+        byte_offset = n_sig * [None],
+        adc_gain = adc_gain,
+        baseline = baseline,
+        units = units,
+        adc_res =  [int(math.log2(f)) for f in (digital_max - digital_min)],
+        adc_zero = [int(f) for f in ((digital_max + 1 + digital_min) / 2)],
+        init_value = init_value,
+        checksum = checksum,
+        block_size = n_sig * [0]
+    )
+
+    record.base_datetime = base_datetime
+
+    if record_only:
+        return record
+    else:
+        # TODO: Generate the .dat and .hea files
+        pass
+
+
 #------------------------- Reading Records --------------------------- #
 
 
@@ -1439,7 +1710,11 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split(os.sep)
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+
+    if record_name.endswith('.edf'):
+        record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
+    else:
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -1510,15 +1785,34 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
             # Read signals from the associated dat files that contain
             # wanted channels
-            record.d_signal = _signal._rd_segment(record.file_name, dir_name,
-                                                  pn_dir, record.fmt,
-                                                  record.n_sig, record.sig_len,
-                                                  record.byte_offset,
-                                                  record.samps_per_frame,
-                                                  record.skew, sampfrom, sampto,
-                                                  channels, smooth_frames,
-                                                  ignore_skew,
-                                                  return_res=return_res)
+            if record_name.endswith('.edf'):
+                record.d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew,
+                                                      no_file=True,
+                                                      sig_data=record.d_signal,
+                                                      return_res=return_res)
+            else:
+                record.d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew,
+                                                      return_res=return_res)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -1531,16 +1825,34 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = _signal._rd_segment(record.file_name, dir_name,
-                                                    pn_dir, record.fmt,
-                                                    record.n_sig,
-                                                    record.sig_len,
-                                                    record.byte_offset,
-                                                    record.samps_per_frame,
-                                                    record.skew, sampfrom,
-                                                    sampto, channels,
-                                                    smooth_frames, ignore_skew,
-                                                    return_res=return_res)
+            if record_name.endswith('.edf'):
+                record.e_d_signal = _signal._rd_segment(record.file_name,
+                                                      dir_name, pn_dir,
+                                                      record.fmt,
+                                                      record.n_sig,
+                                                      record.sig_len,
+                                                      record.byte_offset,
+                                                      record.samps_per_frame,
+                                                      record.skew, sampfrom,
+                                                      sampto, channels,
+                                                      smooth_frames,
+                                                      ignore_skew,
+                                                      no_file=True,
+                                                      sig_data=record.d_signal,
+                                                      return_res=return_res)
+            else:
+                record.e_d_signal = _signal._rd_segment(record.file_name,
+                                                        dir_name, pn_dir,
+                                                        record.fmt,
+                                                        record.n_sig,
+                                                        record.sig_len,
+                                                        record.byte_offset,
+                                                        record.samps_per_frame,
+                                                        record.skew, sampfrom,
+                                                        sampto, channels,
+                                                        smooth_frames,
+                                                        ignore_skew,
+                                                        return_res=return_res)
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -2013,41 +2325,3 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     print('Finished downloading files')
 
     return
-
-
-# -------------- WFDB Signal Calibration and Classification ---------- #
-
-
-# Unit scales used for default display scales.
-unit_scale = {
-    'voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
-    'temperature': ['C', 'F'],
-    'pressure': ['mmHg'],
-    'no_unit': ['NU'],
-    'percentage': ['%'],
-    'heart_rate': ['bpm'],
-}
-
-SIGNAL_CLASSES = pd.DataFrame(
-    index=['bp', 'co2', 'co', 'ecg', 'eeg', 'emg', 'eog', 'hr', 'mmg',
-           'o2', 'pleth', 'resp', 'scg', 'stat', 'st', 'temp', 'unknown'],
-    columns=['description', 'unit_scale', 'signal_names'],
-    data=[['Blood Pressure', 'pressure', ['bp','abp','pap','cvp']], # bp
-          ['Carbon Dioxide', 'percentage', ['co2', 'pco2']], # co2
-          ['Carbon Monoxide', 'percentage', ['co']], # co
-          ['Electrocardiogram', 'voltage', ['i','ii','iii','iv','v','avr']], # ecg
-          ['Electroencephalogram', 'voltage', ['eeg']], # eeg
-          ['Electromyograph', 'voltage', ['emg']], # emg
-          ['Electrooculograph', 'voltage', ['eog']], # eog
-          ['Heart Rate', 'heart_rate', ['hr']], # hr
-          ['Magnetomyograph', 'voltage', ['mmg']], # mmg
-          ['Oxygen', 'percentage', ['o2', 'spo2']], # o2
-          ['Plethysmograph', 'pressure', ['pleth']], # pleth
-          ['Respiration', 'no_unit', ['resp']], # resp
-          ['Seismocardiogram', 'no_unit', ['scg']], # scg
-          ['Status', 'no_unit', ['stat', 'status']], # stat
-          ['ST Segment', '', ['st']], # st. This is not a signal?
-          ['Temperature', 'temperature', ['temp']], # temp
-          ['Unknown Class', 'no_unit', []], # unknown. special class.
-    ]
-)
