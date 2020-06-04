@@ -1348,7 +1348,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
         raise TypeError(error_msg)
 
 
-def edf2mit(record_name, record_only=False):
+def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     """
     Convert EDF formatted files to MIT format.
 
@@ -1356,6 +1356,14 @@ def edf2mit(record_name, record_only=False):
     ----------
     record_name : str
         The name of the input EDF record to be read.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+    delete_file : bool, optional
+        Whether to delete the saved EDF file (False) or not (True)
+        after being imported.
     record_only : bool, optional
         Whether to only return the record information (True) or not (False).
         If false, this function will generate both a .dat and .hea file.
@@ -1365,10 +1373,32 @@ def edf2mit(record_name, record_only=False):
     record : dict, optional
         All of the record information needed to generate MIT formatted files.
         Only returns if 'record_only' is set to True, else generates the
-        corresponding .dat and .hea files.
+        corresponding .dat and .hea files. This record file will not match the
+        `rdrecord` output since it will only give us the digital signal for now.
+
+    Examples
+    --------
+    >>> edf_record = wfdb.edf2mit('SC4002E0-PSG.edf',
+                                  pn_dir='sleep-edfx/sleep-cassette',
+                                  record_only=True)
 
     """
+    if pn_dir is not None:
+
+        if '.' not in pn_dir:
+            dir_list = pn_dir.split(os.sep)
+            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+
+        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
+        # Currently must download file for MNE to read it though can give the
+        # user the option to delete it immediately afterwards
+        r = requests.get(file_url, allow_redirects=False)
+        open(record_name, 'wb').write(r.content)
+
     edf_data = mne.io.read_raw_edf(record_name, preload=True)
+
+    if pn_dir is not None and delete_file:
+        os.remove(record_name)
 
     record_name_out = edf_data._filenames[0].split(os.sep)[-1].replace('-','_').replace('.edf','')
     n_sig = edf_data._raw_extras[0]['nchan']
@@ -1682,7 +1712,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
     if record_name.endswith('.edf'):
-        record = edf2mit(record_name, record_only=True)
+        record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
     else:
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
