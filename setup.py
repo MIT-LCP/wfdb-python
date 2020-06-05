@@ -56,14 +56,27 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'nose>=1.3.7',
-        'numpy>=1.11.0',
-        'matplotlib>=1.5.1',
-        'requests>=2.10.0',
-        'pandas>=0.19.1',
-        'scipy>=0.19.0',
-        'sklearn>=0.0',
-        'mne>=0.20.5'
+        'certifi==2020.4.5.1',
+        'chardet==3.0.4',
+        'cycler==0.10.0',
+        'idna==2.9',
+        'joblib==0.15.1',
+        'kiwisolver==1.2.0',
+        'matplotlib==3.2.1',
+        'mne==0.20.5',
+        'nose==1.3.7',
+        'numpy==1.18.5',
+        'pandas==1.0.4',
+        'pyparsing==2.4.7',
+        'python-dateutil==2.8.1',
+        'pytz==2020.1',
+        'requests==2.23.0',
+        'scikit-learn==0.23.1',
+        'scipy==1.4.1',
+        'six==1.15.0',
+        'sklearn==0.0',
+        'threadpoolctl==2.1.0',
+        'urllib3==1.25.9'
     ],
 
     # List additional groups of dependencies here (e.g. development
