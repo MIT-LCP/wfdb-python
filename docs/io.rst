@@ -9,7 +9,7 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdsamp, wrsamp
+    :members: rdrecord, rdheader, rdsamp, wrsamp, edf2mit
 
 .. autoclass:: wfdb.io.Record
     :members: wrsamp, adc, dac
