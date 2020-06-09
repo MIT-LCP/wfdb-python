@@ -1,5 +1,5 @@
 from .io.record import (Record, MultiRecord, rdheader, rdrecord, rdsamp,
-                        wrsamp, dl_database, edf2mit)
+                        wrsamp, dl_database, edf2mit, sampfreq)
 from .io.annotation import (Annotation, rdann, wrann, show_ann_labels,
                             show_ann_classes)
 from .io.download import get_dbs, get_record_list, dl_files, set_db_index_url
