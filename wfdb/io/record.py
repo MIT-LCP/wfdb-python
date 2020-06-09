@@ -2042,10 +2042,10 @@ def sampfreq(record_name, pn_dir=None):
     Examples
     --------
     >>> wfdb.sampfreq('sample-data/test01_00s')
-    >>> ECG 1	500
-    >>> ECG 2	500
-    >>> ECG 3	500
-    >>> ECG 4	500
+    >>> ECG 1    500
+    >>> ECG 2    500
+    >>> ECG 3    500
+    >>> ECG 4    500
 
     """
     dir_name, base_record_name = os.path.split(record_name)
