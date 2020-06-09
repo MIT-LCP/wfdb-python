@@ -2048,17 +2048,14 @@ def sampfreq(record_name, pn_dir=None):
     >>> ECG 4    500
 
     """
-    dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
-
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split(os.sep)
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                 *dir_list[1:])
 
-    record = rdheader(record_name, pn_dir=pn_dir).__dict__
-    samps_per_frame = [record['fs']*samp for samp in record['samps_per_frame']]
-    sig_name = record['sig_name']
+    record = rdheader(record_name, pn_dir=pn_dir)
+    samps_per_frame = [record.fs*samp for samp in record.samps_per_frame]
+    sig_name = record.sig_name
 
     for sig,samp in zip(sig_name, samps_per_frame):
         print('{}\t{}'.format(sig,samp))
