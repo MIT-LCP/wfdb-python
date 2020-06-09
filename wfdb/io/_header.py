@@ -107,7 +107,7 @@ _rx_signal = re.compile(''.join(
     ["(?P<file_name>~?[-\w]*\.?[\w]*)[ \t]+(?P<fmt>\d+)x?"
      "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
      "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?",
-     "/?(?P<units>[\w\^\-\?%]*)[ \t]*(?P<adc_res>\d*)[ \t]*",
+     "/?(?P<units>[\w\^\-\?%\/]*)[ \t]*(?P<adc_res>\d*)[ \t]*",
      "(?P<adc_zero>-?\d*)[ \t]*(?P<init_value>-?\d*)[ \t]*(?P<checksum>-?\d*)",
      "[ \t]*(?P<block_size>\d*)[ \t]*(?P<sig_name>[\S]?[^\t\n\r\f\v]*)"])
 )
