@@ -2014,6 +2014,53 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
     return signals, fields
 
 
+def sampfreq(record_name, pn_dir=None):
+    """
+    Read a WFDB header file and return the sampling frequency of
+    each of the signals in the record.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+
+    Returns
+    -------
+    N/A
+
+    Examples
+    --------
+    >>> wfdb.sampfreq('sample-data/test01_00s')
+    >>> ECG 1    500
+    >>> ECG 2    500
+    >>> ECG 3    500
+    >>> ECG 4    500
+
+    """
+    if (pn_dir is not None) and ('.' not in pn_dir):
+        dir_list = pn_dir.split(os.sep)
+        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                *dir_list[1:])
+
+    record = rdheader(record_name, pn_dir=pn_dir)
+    samps_per_frame = [record.fs*samp for samp in record.samps_per_frame]
+    sig_name = record.sig_name
+
+    for sig,samp in zip(sig_name, samps_per_frame):
+        print('{}\t{}'.format(sig,samp))
+
+
 def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
     """
     Given some wanted signal names, and the signal names contained in a
