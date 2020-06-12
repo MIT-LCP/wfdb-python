@@ -2203,6 +2203,76 @@ def rm_last(*args):
     return
 
 
+def ann2rr(record_name, extension, pn_dir=None, start_time=None,
+           stop_time=None, format=None):
+    from wfdb.processing import hr
+    """
+    Obtain RR interval series from ECG annotation files.
+
+    Parameters
+    ----------
+    record_name : str
+        The record name of the WFDB annotation file. ie. for file '100.atr',
+        record_name='100'.
+    extension : str
+        The annotatator extension of the annotation file. ie. for  file
+        '100.atr', extension='atr'.
+    pn_dir : str
+        Option used to stream data from Physionet. The Physionet database
+        directory from which to find the required annotation file. eg. For
+        record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
+    start_time : float
+        The time to start the intervals in seconds.
+    stop_time : float
+        The time to stop the intervals in seconds.
+    format : str
+        Print intervals in the specified format. By default, intervals are
+        printed in units of sample intervals. Other formats include
+        's' (seconds), 'm' (minutes), 'h' (hours). Set to 'None' for samples.
+
+    Returns
+    -------
+    N/A
+
+    Examples
+    --------
+    >>> wfdb.ann2rr('sample-data/100', 'atr')
+    >>> 18
+    >>> 59
+    >>> ...
+    >>> 250
+    >>> 257
+
+    """
+    if (pn_dir is not None) and ('.' not in pn_dir):
+        dir_list = pn_dir.split(os.sep)
+        pn_dir = posixpath.join(dir_list[0], record.get_version(dir_list[0]),
+                                *dir_list[1:])
+
+    ann = rdann(record_name, extension, pn_dir=pn_dir)
+
+    rr_interval = hr.calc_rr(ann.sample, fs=ann.fs)
+    rr_interval = np.insert(rr_interval, 0, ann.sample[0])
+
+    time_interval = rr_interval / ann.fs
+    if start_time is not None:
+        time_interval = time_interval[(time_interval > start_time).astype(bool)]
+    if stop_time is not None:
+        time_interval = time_interval[(time_interval < stop_time).astype(bool)]
+
+    # Already given in seconds (format == 's')
+    if format == 's':
+        out_interval = time_interval
+    elif format == 'm':
+        out_interval = time_interval / 60
+    elif format == 'h':
+        out_interval = time_interval / (60*60)
+    else:
+        out_interval = (time_interval * ann.fs).astype(np.int)
+
+    print(*out_interval, sep='\n')
+
+
 ## ------------- Annotation Field Specifications ------------- ##
 
 
