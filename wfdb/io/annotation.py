@@ -2268,7 +2268,7 @@ def ann2rr(record_name, extension, pn_dir=None, start_time=None,
     elif format == 'h':
         out_interval = time_interval / (60*60)
     else:
-        out_interval = (time_interval * ann.fs).astype(np.int)
+        out_interval = np.around(time_interval * ann.fs).astype(np.int)
 
     print(*out_interval, sep='\n')
 
