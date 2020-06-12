@@ -947,10 +947,6 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     if ignore_skew:
         skew = [0]*n_sig
 
-    # Change format if requested
-    if return_res != 64:
-        fmt = len(fmt) * [str(return_res)]
-
     # Get the set of dat files, and the
     # channels that belong to each file.
     file_name, datchannel = describe_list_indices(file_name)
