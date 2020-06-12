@@ -12,9 +12,9 @@ import math
 import functools
 import pdb
 
-from . import _header
-from . import _signal
-from . import download
+from wfdb.io import _header
+from wfdb.io import _signal
+from wfdb.io import download
 
 
 # -------------- WFDB Signal Calibration and Classification ---------- #

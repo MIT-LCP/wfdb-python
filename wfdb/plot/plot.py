@@ -3,10 +3,10 @@ import numpy as np
 import os
 import pdb
 
-from ..io.record import Record, rdrecord
-from ..io._header import float_types
-from ..io._signal import downround, upround
-from ..io.annotation import Annotation
+from wfdb.io.record import Record, rdrecord
+from wfdb.io._header import float_types
+from wfdb.io._signal import downround, upround
+from wfdb.io.annotation import Annotation
 
 
 def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,

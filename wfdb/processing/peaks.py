@@ -1,7 +1,7 @@
 import copy
 import numpy as np
 
-from .basic import smooth
+from wfdb.processing.basic import smooth
 
 
 def find_peaks(sig):

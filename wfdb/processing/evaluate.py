@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import requests
 
-from ..io.annotation import rdann
-from ..io.download import get_record_list
-from ..io.record import rdsamp
+from wfdb.io.annotation import rdann
+from wfdb.io.download import get_record_list
+from wfdb.io.record import rdsamp
 
 
 class Comparitor(object):
