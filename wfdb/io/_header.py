@@ -6,8 +6,8 @@ import pdb
 import numpy as np
 import pandas as pd
 
-from . import download
-from . import _signal
+from wfdb.io import download
+from wfdb.io import _signal
 
 
 """

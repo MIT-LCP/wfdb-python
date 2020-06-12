@@ -5,9 +5,9 @@ import numpy as np
 from scipy import signal
 from sklearn.preprocessing import normalize
 
-from .basic import get_filter_gain
-from .peaks import find_local_peaks
-from ..io.record import Record
+from wfdb.processing.basic import get_filter_gain
+from wfdb.processing.peaks import find_local_peaks
+from wfdb.io.record import Record
 
 
 class XQRS(object):

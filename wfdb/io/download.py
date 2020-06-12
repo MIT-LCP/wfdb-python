@@ -7,7 +7,7 @@ import requests
 import pdb
 import json
 
-from . import record
+from wfdb.io import record
 
 
 # The Physionet index url

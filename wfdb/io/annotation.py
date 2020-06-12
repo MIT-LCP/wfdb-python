@@ -6,9 +6,9 @@ import re
 import posixpath
 import pdb
 
-from . import download
-from . import _header
-from . import record
+from wfdb.io import download
+from wfdb.io import _header
+from wfdb.io import record
 
 
 class Annotation(object):

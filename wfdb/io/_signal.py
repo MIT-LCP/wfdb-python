@@ -3,7 +3,7 @@ import os
 
 import numpy as np
 
-from . import download
+from wfdb.io import download
 import pdb
 
 
