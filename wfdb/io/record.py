@@ -1529,7 +1529,7 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
 
     Examples
     --------
-    >>> wav_record = wfdb.wav2mit('SC4001E0_PSG.wav', record_only=True)
+    >>> wav_record = wfdb.wav2mit('sample-data/SC4001E0-PSG.wav', record_only=True)
 
     """
     if not record_name.endswith('.wav'):
