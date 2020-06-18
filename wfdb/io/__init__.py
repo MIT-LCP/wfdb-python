@@ -1,5 +1,5 @@
 from wfdb.io.record import (Record, MultiRecord, rdheader, rdrecord, rdsamp, wrsamp,
-                            dl_database, edf2mit, sampfreq, signame, SIGNAL_CLASSES)
+                            dl_database, edf2mit, wav2mit, sampfreq, signame, SIGNAL_CLASSES)
 from wfdb.io._signal import est_res, wr_dat_file
 from wfdb.io.annotation import (Annotation, rdann, wrann, show_ann_labels,
                                 show_ann_classes, ann2rr)

@@ -10,6 +10,7 @@ import requests
 import mne
 import math
 import functools
+import struct
 import pdb
 
 from wfdb.io import _header
@@ -1497,6 +1498,214 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
         pass
 
 
+def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
+    """
+    Convert .wav (format 16, multiplexed signals, with embedded header
+    information) formatted files to MIT format. See here for more details about
+    the formatting of a .wav file: http://soundfile.sapp.org/doc/WaveFormat/.
+
+    This process may not work with some .wav files that are encoded using
+    variants of the original .wav format that are not WFDB-compatible. In
+    principle, this program should be able to recognize such files by their
+    format codes, and it will produce an error message in such cases. If
+    the format code is incorrect, however, `wav2mit` may not recognize that
+    an error has occurred.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the input .wav record to be read.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+    delete_file : bool, optional
+        Whether to delete the saved .wav file (False) or not (True)
+        after being imported.
+    record_only : bool, optional
+        Whether to only return the record information (True) or not (False).
+        If false, this function will generate both a .dat and .hea file.
+
+    Returns
+    -------
+    record : dict, optional
+        All of the record information needed to generate MIT formatted files.
+        Only returns if 'record_only' is set to True, else generates the
+        corresponding .dat and .hea files. This record file will not match the
+        `rdrecord` output since it will only give us the digital signal for now.
+
+    Notes
+    -----
+    Files that can be processed successfully using `wav2mit` always have exactly
+    three chunks (a header chunk, a format chunk, and a data chunk).  In .wav
+    files, binary data are always written in little-endian format (least
+    significant byte first). The format of `wav2mit`'s input files is as follows:
+
+    [Header chunk]
+    Bytes  0 -  3: "RIFF" [4 ASCII characters]
+    Bytes  4 -  7: L-8 (number of bytes to follow in the file, excluding bytes 0-7)
+    Bytes  8 - 11: "WAVE" [4 ASCII characters]
+
+    [Format chunk]
+    Bytes 12 - 15: "fmt " [4 ASCII characters, note trailing space]
+    Bytes 16 - 19: 16 (format chunk length in bytes, excluding bytes 12-19)
+    Bytes 20 - 35: format specification, consisting of:
+    Bytes 20 - 21: 1 (format tag, indicating no compression is used)
+    Bytes 22 - 23: number of signals (1 - 65535)
+    Bytes 24 - 27: sampling frequency in Hz (per signal)
+                   Note that the sampling frequency in a .wav file must be an
+                   integer multiple of 1 Hz, a restriction that is not imposed
+                   by MIT (WFDB) format.
+    Bytes 28 - 31: bytes per second (sampling frequency * frame size in bytes)
+    Bytes 32 - 33: frame size in bytes
+    Bytes 34 - 35: bits per sample (ADC resolution in bits)
+                   Note that the actual ADC resolution (e.g., 12) is written in
+                   this field, although each output sample is right-padded to fill
+                   a full (16-bit) word. (.wav format allows for 8, 16, 24, and
+                   32 bits per sample)
+
+    [Data chunk]
+    Bytes 36 - 39: "data" [4 ASCII characters]
+    Bytes 40 - 43: L-44 (number of bytes to follow in the data chunk)
+    Bytes 44 - L-1: sample data, consisting of:
+    Bytes 44 - 45: sample 0, channel 0
+    Bytes 46 - 47: sample 0, channel 1
+    ... etc. (same order as in a multiplexed WFDB signal file)
+
+    Examples
+    --------
+    >>> wav_record = wfdb.wav2mit('sample-data/SC4001E0-PSG.wav', record_only=True)
+
+    """
+    if not record_name.endswith('.wav'):
+        raise Exception('Name of the input file must end in .wav')
+
+    if pn_dir is not None:
+
+        if '.' not in pn_dir:
+            dir_list = pn_dir.split(os.sep)
+            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+
+        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
+        # Currently must download file to read it though can give the
+        # user the option to delete it immediately afterwards
+        r = requests.get(file_url, allow_redirects=False)
+        open(record_name, 'wb').write(r.content)
+
+    wave_file = open(record_name, mode='rb')
+    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
+
+    chunk_ID = ''.join([s.decode() for s in struct.unpack('>4s', wave_file.read(4))])
+    if chunk_ID != 'RIFF':
+        raise Exception('{} is not a .wav-format file'.format(record_name))
+
+    correct_chunk_size = os.path.getsize(record_name) - 8
+    chunk_size = struct.unpack('<I', wave_file.read(4))[0]
+    if chunk_size != correct_chunk_size:
+        raise Exception('Header chunk has incorrect length (is {} should be {})'.format(chunk_size,correct_chunk_size))
+
+    fmt = struct.unpack('>4s', wave_file.read(4))[0].decode()
+    if fmt != 'WAVE':
+        raise Exception('{} is not a .wav-format file'.format(record_name))
+
+    subchunk1_ID = struct.unpack('>4s', wave_file.read(4))[0].decode()
+    if subchunk1_ID != 'fmt ':
+        raise Exception('Format chunk missing or corrupt')
+
+    subchunk1_size = struct.unpack('<I', wave_file.read(4))[0]
+    audio_format = struct.unpack('<H', wave_file.read(2))[0]
+    if audio_format > 1:
+        print('PCM has compression of {}'.format(audio_format))
+
+    if (subchunk1_size != 16) or (audio_format != 1):
+	    raise Exception('Unsupported format {}'.format(audio_format))
+
+    num_channels = struct.unpack('<H', wave_file.read(2))[0]
+    if num_channels == 1:
+        print('Reading Mono formatted .wav file...')
+    elif num_channels == 2:
+        print('Reading Stereo formatted .wav file...')
+    else:
+        print('Reading {}-channel formatted .wav file...'.format(num_channels))
+
+    sample_rate = struct.unpack('<I', wave_file.read(4))[0]
+    print('Sample rate: {}'.format(sample_rate))
+    byte_rate = struct.unpack('<I', wave_file.read(4))[0]
+    print('Byte rate: {}'.format(byte_rate))
+    block_align = struct.unpack('<H', wave_file.read(2))[0]
+    print('Block align: {}'.format(block_align))
+    bits_per_sample = struct.unpack('<H', wave_file.read(2))[0]
+    print('Bits per sample: {}'.format(bits_per_sample))
+    # I wish this were more precise but unfortunately some information
+    # is lost in .wav files which is needed for these calculations
+    if bits_per_sample <= 8:
+        adc_res = 8
+        adc_gain = 12.5
+    elif bits_per_sample <= 16:
+        adc_res = 16
+        adc_gain = 6400
+    else:
+        raise Exception('Unsupported resolution ({} bits/sample)'.format(bits_per_sample))
+
+    if block_align != (num_channels * int(adc_res / 8)):
+	    raise Exception('Format chunk of {} has incorrect frame length'.format(block_align))
+
+    subchunk2_ID = struct.unpack('>4s', wave_file.read(4))[0].decode()
+    if subchunk2_ID != 'data':
+        raise Exception('Format chunk missing or corrupt')
+
+    correct_subchunk2_size = os.path.getsize(record_name) - 44
+    subchunk2_size = struct.unpack('<I', wave_file.read(4))[0]
+    if subchunk2_size != correct_subchunk2_size:
+        raise Exception('Data chunk has incorrect length.. (is {} should be {})'.format(subchunk2_size, correct_subchunk2_size))
+    sig_len = int(subchunk2_size / block_align)
+
+    sig_data = (np.fromfile(wave_file, dtype=np.int16).reshape((-1,num_channels)) / (2*adc_res)).astype(np.int16)
+
+    init_value = [int(s[0]) for s in np.transpose(sig_data)]
+    checksum = [int(np.sum(v) % 65536) for v in np.transpose(sig_data)]  # not all values correct?
+
+    if pn_dir is not None and delete_file:
+        os.remove(record_name)
+
+    record = Record(
+        record_name = record_name_out,
+        n_sig = num_channels,
+        fs = num_channels * [sample_rate],
+        samps_per_frame = num_channels * [1],
+        counter_freq = None,
+        base_counter = None,
+        sig_len = sig_len,
+        base_time = None,
+        base_date = None,
+        comments = [],
+        sig_name = num_channels * [None],
+        p_signal = None,
+        d_signal = sig_data,
+        e_p_signal = None,
+        e_d_signal = None,
+        file_name = num_channels * [record_name_out + '.dat'],
+        fmt = num_channels * ['16' if (adc_res == 16) else '80'],
+        skew = num_channels * [None],
+        byte_offset = num_channels * [None],
+        adc_gain = num_channels * [adc_gain],
+        baseline = num_channels * [0 if (adc_res == 16) else 128],
+        units = num_channels * [None],
+        adc_res =  num_channels * [adc_res],
+        adc_zero = num_channels * [0 if (adc_res == 16) else 128],
+        init_value = init_value,
+        checksum = checksum,
+        block_size = num_channels * [0]
+    )
+
+    if record_only:
+        return record
+    else:
+        # TODO: Generate the .dat and .hea files
+        pass
+
+
 #------------------------- Reading Records --------------------------- #
 
 
@@ -1626,6 +1835,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         parameter is set, this parameter should contain just the base
         record name, and the files fill be searched for remotely.
         Otherwise, the data files will be searched for in the local path.
+        Can also handle .edf and .wav files as long as the extension is
+        provided in the `record_name`.
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -1713,6 +1924,8 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
     if record_name.endswith('.edf'):
         record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
+    elif record_name.endswith('.wav'):
+        record = wav2mit(record_name, pn_dir=pn_dir, record_only=True)
     else:
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
@@ -1785,7 +1998,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
             # Read signals from the associated dat files that contain
             # wanted channels
-            if record_name.endswith('.edf'):
+            if record_name.endswith('.edf') or record_name.endswith('.wav'):
                 record.d_signal = _signal._rd_segment(record.file_name,
                                                       dir_name, pn_dir,
                                                       record.fmt,
@@ -1825,7 +2038,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            if record_name.endswith('.edf'):
+            if record_name.endswith('.edf') or record_name.endswith('.wav'):
                 record.e_d_signal = _signal._rd_segment(record.file_name,
                                                       dir_name, pn_dir,
                                                       record.fmt,
