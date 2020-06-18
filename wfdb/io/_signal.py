@@ -873,7 +873,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
     pn_dir : str
-        The Physionet directory where the dat file(s) are located, if
+        The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
     fmt : list
         The formats of the dat files.
@@ -1042,7 +1042,7 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
     pn_dir : str
-        The Physionet directory where the dat file(s) are located, if
+        The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
     fmt : list
         The formats of the dat files.
@@ -1359,7 +1359,7 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
     pn_dir : str
-        The Physionet directory where the dat file(s) are located, if
+        The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
     fmt : list
         The formats of the dat files.
@@ -2069,7 +2069,7 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
     pn_dir : str, optional
-        The Physionet directory where the dat file(s) are located, if
+        The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
 
     Returns

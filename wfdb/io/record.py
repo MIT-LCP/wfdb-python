@@ -1232,7 +1232,7 @@ def get_version(pn_dir):
     Parameters
     ----------
     pn_dir : str
-        The Physionet database directory from which to find the
+        The PhysioNet database directory from which to find the
         required version number. eg. For the project 'mitdb' in
         'http://physionet.org/content/mitdb', pn_dir='mitdb'.
 
@@ -2509,13 +2509,13 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
                 keep_subdirs=True, overwrite=False):
     """
     Download WFDB record (and optionally annotation) files from a
-    Physionet database. The database must contain a 'RECORDS' file in
+    PhysioNet database. The database must contain a 'RECORDS' file in
     its base directory which lists its WFDB records.
 
     Parameters
     ----------
     db_dir : str
-        The Physionet database directory to download. eg. For database:
+        The PhysioNet database directory to download. eg. For database:
         'http://physionet.org/content/mitdb/', db_dir='mitdb'.
     dl_dir : str
         The full local directory path in which to download the files.
@@ -2535,7 +2535,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         https://physionet.org/content/prcp/
     keep_subdirs : bool, optional
         Whether to keep the relative subdirectories of downloaded files
-        as they are organized in Physionet (True), or to download all
+        as they are organized in PhysioNet (True), or to download all
         files into the same base directory (False).
     overwrite : bool, optional
         If True, all files will be redownloaded regardless. If False,
@@ -2556,7 +2556,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     >>> wfdb.dl_database('ahadb', os.getcwd())
 
     """
-    # Full url Physionet database
+    # Full url PhysioNet database
     if os.sep in db_dir:
         dir_list = db_dir.split(os.sep)
         db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])

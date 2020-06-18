@@ -1579,7 +1579,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
     pn_dir : str, optional
-        Option used to stream data from Physionet. The Physionet database
+        Option used to stream data from Physionet. The PhysioNet database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
     return_label_elements : list, optional
@@ -1732,7 +1732,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
     pn_dir : str
-        Option used to stream data from Physionet. The Physionet database
+        Option used to stream data from Physionet. The PhysioNet database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
 
@@ -1746,7 +1746,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
     if pn_dir is None:
         with open(record_name + '.' + extension, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
-    # Physionet file
+    # PhysioNet file
     else:
         filebytes = download._stream_annotation(record_name+'.'+extension, pn_dir).reshape([-1, 2])
 
@@ -2218,7 +2218,7 @@ def ann2rr(record_name, extension, pn_dir=None, start_time=None,
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
     pn_dir : str
-        Option used to stream data from Physionet. The Physionet database
+        Option used to stream data from Physionet. The PhysioNet database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
     start_time : float

@@ -10,7 +10,7 @@ import wfdb
 class TestRecord(unittest.TestCase):
     """
     Test read and write of single segment WFDB records, including
-    Physionet streaming.
+    PhysioNet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
@@ -160,7 +160,7 @@ class TestRecord(unittest.TestCase):
         # Compare data streaming from Physionet
         sig_pn, fields_pn = wfdb.rdsamp('100', pn_dir = 'mitdb')
         # This comment line was manually added and is not present in the
-        # original Physionet record
+        # original PhysioNet record
         del(fields['comments'][0])
 
         assert np.array_equal(sig_round, sig_target)
@@ -183,7 +183,7 @@ class TestRecord(unittest.TestCase):
         record_pn = wfdb.rdrecord('100', sampfrom=1, sampto=10800,
                                   channels=[1], physical=False, pn_dir='mitdb')
         # This comment line was manually added and is not present in the
-        # original Physionet record
+        # original PhysioNet record
         del(record.comments[0])
 
         # Option of selecting channels by name
@@ -530,7 +530,7 @@ class TestRecord(unittest.TestCase):
 class TestMultiRecord(unittest.TestCase):
     """
     Test read and write of multi segment WFDB records, including
-    Physionet streaming.
+    PhysioNet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
