@@ -10,13 +10,13 @@ import json
 from wfdb.io import record
 
 
-# The Physionet index url
+# The PhysioNet index url
 PN_INDEX_URL = 'https://physionet.org/files/'
 PN_CONTENT_URL = 'https://physionet.org/content/'
 
 class Config(object):
     """
-    General class structure for the Physionet database.
+    General class structure for the PhysioNet database.
 
     Attributes
     ----------
@@ -25,7 +25,7 @@ class Config(object):
     """
     pass
 
-# The configuration database index url. Uses Physionet index by default.
+# The configuration database index url. Uses PhysioNet index by default.
 config = Config()
 config.db_index_url = PN_INDEX_URL
 
@@ -39,7 +39,7 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
     ----------
     db_index_url : str, optional
         The desired new database index url. Leave as default to reset
-        to the Physionet index url.
+        to the PhysioNet index url.
 
     Returns
     -------
@@ -94,7 +94,7 @@ def _stream_header(file_name, pn_dir):
     file_name : str
         The name of the headerr file to be read.
     pn_dir : str
-        The Physionet database directory from which to find the
+        The PhysioNet database directory from which to find the
         required header file. eg. For file '100.hea' in
         'http://physionet.org/content/mitdb', pn_dir='mitdb'.
 
@@ -148,7 +148,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
     file_name : str
         The name of the dat file to be read.
     pn_dir : str
-        The Physionet directory where the dat file is located.
+        The PhysioNet directory where the dat file is located.
     byte_count : int
         The number of bytes to be read.
     start_byte : int
@@ -196,7 +196,7 @@ def _stream_annotation(file_name, pn_dir):
     file_name : str
         The name of the annotation file to be read.
     pn_dir : str
-        The Physionet directory where the annotation file is located.
+        The PhysioNet directory where the annotation file is located.
 
     Returns
     -------
@@ -220,7 +220,7 @@ def _stream_annotation(file_name, pn_dir):
 
 def get_dbs():
     """
-    Get a list of all the Physionet databases available.
+    Get a list of all the PhysioNet databases available.
 
     Parameters
     ----------
@@ -251,7 +251,7 @@ def get_dbs():
     return dbs
 
 
-# ---- Helper functions for downloading Physionet files ------- #
+# ---- Helper functions for downloading PhysioNet files ------- #
 
 
 def get_record_list(db_dir, records='all'):
@@ -277,7 +277,7 @@ def get_record_list(db_dir, records='all'):
     >>> wfdb.get_record_list('mitdb')
 
     """
-    # Full url Physionet database
+    # Full url PhysioNet database
     if os.sep not in db_dir:
         db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
     else:
@@ -321,7 +321,7 @@ def get_annotators(db_dir, annotators):
     >>> wfdb.get_annotators('mitdb')
 
     """
-    # Full url Physionet database
+    # Full url PhysioNet database
     db_url = posixpath.join(config.db_index_url, db_dir)
 
     if annotators is not None:
@@ -364,7 +364,7 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
         The desired input names for creating the directories.
     keep_subdirs : bool
         Whether to keep the relative subdirectories of downloaded files as they
-        are organized in Physionet (True), or to download all files into the
+        are organized in PhysioNet (True), or to download all files into the
         same base directory (False).
 
     Returns
@@ -475,12 +475,12 @@ def dl_full_file(url, save_file_name):
 
 def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
-    Download specified files from a Physionet database.
+    Download specified files from a PhysioNet database.
 
     Parameters
     ----------
     db : str
-        The Physionet database directory to download. eg. For database:
+        The PhysioNet database directory to download. eg. For database:
         'http://physionet.org/content/mitdb', db='mitdb'.
     dl_dir : str
         The full local directory path in which to download the files.
@@ -489,7 +489,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
         database base directory.
     keep_subdirs : bool, optional
         Whether to keep the relative subdirectories of downloaded files as they
-        are organized in Physionet (True), or to download all files into the
+        are organized in PhysioNet (True), or to download all files into the
         same base directory (False).
     overwrite : bool, optional
         If True, all files will be redownloaded regardless. If False, existing
@@ -511,7 +511,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
                       'data/001a.dat'])
 
     """
-    # Full url Physionet database
+    # Full url PhysioNet database
     db_dir = posixpath.join(db, record.get_version(db))
     db_url = posixpath.join(PN_CONTENT_URL, db_dir) + os.sep
 
