@@ -9,11 +9,24 @@ from wfdb.io._signal import downround, upround
 from wfdb.io.annotation import Annotation
 
 
-def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
-               time_units='samples', sig_name=None, sig_units=None,
-               xlabel=None, ylabel=None, title=None, sig_style=[''],
-               ann_style=['r*'], ecg_grids=[], figsize=None,
-               return_fig=False, return_fig_axes=False):
+def plot_items(
+    signal=None,
+    ann_samp=None,
+    ann_sym=None,
+    fs=None,
+    time_units="samples",
+    sig_name=None,
+    sig_units=None,
+    xlabel=None,
+    ylabel=None,
+    title=None,
+    sig_style=[""],
+    ann_style=["r*"],
+    ecg_grids=[],
+    figsize=None,
+    return_fig=False,
+    return_fig_axes=False,
+):
     """
     Subplot individual channels of signals and/or annotations.
 
@@ -114,8 +127,17 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
 
     if ann_samp is not None:
-        plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs,
-                        time_units, ann_style, axes)
+        plot_annotation(
+            ann_samp,
+            n_annot,
+            ann_sym,
+            signal,
+            n_sig,
+            fs,
+            time_units,
+            ann_style,
+            axes,
+        )
 
     if ecg_grids:
         plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes)
@@ -124,16 +146,21 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     # First, make sure that xlabel and ylabel inputs are valid
     if xlabel:
         if len(xlabel) != signal.shape[1]:
-            raise Exception('The length of the xlabel must be the same as the '
-                            'signal: {} values'.format(signal.shape[1]))
+            raise Exception(
+                "The length of the xlabel must be the same as the "
+                "signal: {} values".format(signal.shape[1])
+            )
 
     if ylabel:
         if len(ylabel) != signal.shape[1]:
-            raise Exception('The length of the ylabel must be the same as the '
-                            'signal: {} values'.format(signal.shape[1]))
+            raise Exception(
+                "The length of the ylabel must be the same as the "
+                "signal: {} values".format(signal.shape[1])
+            )
 
-    label_figure(axes, n_subplots, time_units, sig_name, sig_units,
-                 xlabel, ylabel, title)
+    label_figure(
+        axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
+    )
 
     if return_fig:
         return fig
@@ -223,7 +250,7 @@ def create_figure(n_subplots, figsize):
     axes = []
 
     for i in range(n_subplots):
-        axes.append(fig.add_subplot(n_subplots, 1, i+1))
+        axes.append(fig.add_subplot(n_subplots, 1, i + 1))
 
     return fig, axes
 
@@ -263,23 +290,27 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
         sig_style = n_sig * sig_style
 
     # Figure out time indices
-    if time_units == 'samples':
-        t = np.linspace(0, sig_len-1, sig_len)
+    if time_units == "samples":
+        t = np.linspace(0, sig_len - 1, sig_len)
     else:
-        downsample_factor = {'seconds':fs, 'minutes':fs * 60,
-                             'hours':fs * 3600}
-        t = np.linspace(0, sig_len-1, sig_len) / downsample_factor[time_units]
+        downsample_factor = {
+            "seconds": fs,
+            "minutes": fs * 60,
+            "hours": fs * 3600,
+        }
+        t = np.linspace(0, sig_len - 1, sig_len) / downsample_factor[time_units]
 
     # Plot the signals
     if signal.ndim == 1:
         axes[0].plot(t, signal, sig_style[0], zorder=3)
     else:
         for ch in range(n_sig):
-            axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3)
+            axes[ch].plot(t, signal[:, ch], sig_style[ch], zorder=3)
 
 
-def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
-                    ann_style, axes):
+def plot_annotation(
+    ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
+):
     """
     Plot annotations, possibly overlaid on signals.
     ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
@@ -321,11 +352,14 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         ann_style = n_annot * ann_style
 
     # Figure out downsample factor for time indices
-    if time_units == 'samples':
+    if time_units == "samples":
         downsample_factor = 1
     else:
-        downsample_factor = {'seconds':float(fs), 'minutes':float(fs)*60,
-                             'hours':float(fs)*3600}[time_units]
+        downsample_factor = {
+            "seconds": float(fs),
+            "minutes": float(fs) * 60,
+            "hours": float(fs) * 3600,
+        }[time_units]
 
     # Plot the annotations
     for ch in range(n_annot):
@@ -342,16 +376,19 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                 else:
                     y = np.zeros(len(ann_samp[ch]))
             except IndexError:
-                raise Exception('IndexError: try setting shift_samps=True in ' 
-                                'the "rdann" function?')
+                raise Exception(
+                    "IndexError: try setting shift_samps=True in "
+                    'the "rdann" function?'
+                )
 
             axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch])
 
             # Plot the annotation symbols if any
             if ann_sym is not None and ann_sym[ch] is not None:
                 for i, s in enumerate(ann_sym[ch]):
-                    axes[ch].annotate(s, (ann_samp[ch][i] / downsample_factor,
-                                          y[i]))
+                    axes[ch].annotate(
+                        s, (ann_samp[ch][i] / downsample_factor, y[i])
+                    )
 
 
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
@@ -377,34 +414,47 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     N/A
 
     """
-    if ecg_grids == 'all':
+    if ecg_grids == "all":
         ecg_grids = range(0, len(axes))
 
     for ch in ecg_grids:
         # Get the initial plot limits
         auto_xlims = axes[ch].get_xlim()
-        auto_ylims= axes[ch].get_ylim()
+        auto_ylims = axes[ch].get_ylim()
 
-        (major_ticks_x, minor_ticks_x, major_ticks_y,
-            minor_ticks_y) = calc_ecg_grids(auto_ylims[0], auto_ylims[1],
-                                            units[ch], fs, auto_xlims[1],
-                                            time_units)
+        (
+            major_ticks_x,
+            minor_ticks_x,
+            major_ticks_y,
+            minor_ticks_y,
+        ) = calc_ecg_grids(
+            auto_ylims[0],
+            auto_ylims[1],
+            units[ch],
+            fs,
+            auto_xlims[1],
+            time_units,
+        )
 
         min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
         min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
 
         for tick in minor_ticks_x:
-            axes[ch].plot([tick, tick], [min_y,  max_y], c='#ededed',
-                          marker='|', zorder=1)
+            axes[ch].plot(
+                [tick, tick], [min_y, max_y], c="#ededed", marker="|", zorder=1
+            )
         for tick in major_ticks_x:
-            axes[ch].plot([tick, tick], [min_y, max_y], c='#bababa',
-                          marker='|', zorder=2)
+            axes[ch].plot(
+                [tick, tick], [min_y, max_y], c="#bababa", marker="|", zorder=2
+            )
         for tick in minor_ticks_y:
-            axes[ch].plot([min_x, max_x], [tick, tick], c='#ededed',
-                          marker='_', zorder=1)
+            axes[ch].plot(
+                [min_x, max_x], [tick, tick], c="#ededed", marker="_", zorder=1
+            )
         for tick in major_ticks_y:
-            axes[ch].plot([min_x, max_x], [tick, tick], c='#bababa',
-                          marker='_', zorder=2)
+            axes[ch].plot(
+                [min_x, max_x], [tick, tick], c="#bababa", marker="_", zorder=2
+            )
 
         # Plotting the lines changes the graph. Set the limits back
         axes[ch].set_xlim(auto_xlims)
@@ -449,45 +499,48 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
 
     """
     # Get the grid interval of the x axis
-    if time_units == 'samples':
+    if time_units == "samples":
         majorx = 0.2 * fs
         minorx = 0.04 * fs
-    elif time_units == 'seconds':
+    elif time_units == "seconds":
         majorx = 0.2
         minorx = 0.04
-    elif time_units == 'minutes':
+    elif time_units == "minutes":
         majorx = 0.2 / 60
-        minorx = 0.04/60
-    elif time_units == 'hours':
+        minorx = 0.04 / 60
+    elif time_units == "hours":
         majorx = 0.2 / 3600
         minorx = 0.04 / 3600
 
     # Get the grid interval of the y axis
-    if sig_units.lower()=='uv':
+    if sig_units.lower() == "uv":
         majory = 500
         minory = 125
-    elif sig_units.lower()=='mv':
+    elif sig_units.lower() == "mv":
         majory = 0.5
         minory = 0.125
-    elif sig_units.lower()=='v':
+    elif sig_units.lower() == "v":
         majory = 0.0005
         minory = 0.000125
     else:
-        raise ValueError('Signal units must be uV, mV, or V to plot ECG grids.')
+        raise ValueError("Signal units must be uV, mV, or V to plot ECG grids.")
 
     major_ticks_x = np.arange(0, upround(maxt, majorx) + 0.0001, majorx)
     minor_ticks_x = np.arange(0, upround(maxt, majorx) + 0.0001, minorx)
 
-    major_ticks_y = np.arange(downround(minsig, majory),
-                              upround(maxsig, majory) + 0.0001, majory)
-    minor_ticks_y = np.arange(downround(minsig, majory),
-                              upround(maxsig, majory) + 0.0001, minory)
+    major_ticks_y = np.arange(
+        downround(minsig, majory), upround(maxsig, majory) + 0.0001, majory
+    )
+    minor_ticks_y = np.arange(
+        downround(minsig, majory), upround(maxsig, majory) + 0.0001, minory
+    )
 
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
-                 xlabel, ylabel, title):
+def label_figure(
+    axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
+):
     """
     Add title, and axes labels.
 
@@ -528,7 +581,7 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
     # Explicit labels take precedence if present. Otherwise, construct labels
     # using signal time units
     if not xlabel:
-        axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+        axes[-1].set_xlabel("/".join(["time", time_units[:-1]]))
     else:
         for ch in range(n_subplots):
             axes[ch].set_xlabel(xlabel[ch])
@@ -540,26 +593,36 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
         ylabel = []
         # Set default channel and signal names if needed
         if not sig_name:
-            sig_name = ['ch_'+str(i) for i in range(n_subplots)]
+            sig_name = ["ch_" + str(i) for i in range(n_subplots)]
         if not sig_units:
-            sig_units = n_subplots * ['NU']
+            sig_units = n_subplots * ["NU"]
 
-        ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+        ylabel = ["/".join(pair) for pair in zip(sig_name, sig_units)]
 
         # If there are annotations with channels outside of signal range
         # put placeholders
         n_missing_labels = n_subplots - len(ylabel)
         if n_missing_labels:
-            ylabel = ylabel + ['ch_%d/NU' % i for i in range(len(ylabel),
-                                                             n_subplots)]
+            ylabel = ylabel + [
+                "ch_%d/NU" % i for i in range(len(ylabel), n_subplots)
+            ]
 
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
 
 
-def plot_wfdb(record=None, annotation=None, plot_sym=False,
-              time_units='samples', title=None, sig_style=[''],
-              ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
+def plot_wfdb(
+    record=None,
+    annotation=None,
+    plot_sym=False,
+    time_units="samples",
+    title=None,
+    sig_style=[""],
+    ann_style=["r*"],
+    ecg_grids=[],
+    figsize=None,
+    return_fig=False,
+):
     """
     Subplot individual channels of a WFDB record and/or annotation.
 
@@ -629,17 +692,33 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                        figsize=(10,4), ecg_grids='all')
 
     """
-    (signal, ann_samp, ann_sym, fs,
-        ylabel, record_name, sig_units) = get_wfdb_plot_items(record=record,
-                                                              annotation=annotation,
-                                                              plot_sym=plot_sym)
+    (
+        signal,
+        ann_samp,
+        ann_sym,
+        fs,
+        ylabel,
+        record_name,
+        sig_units,
+    ) = get_wfdb_plot_items(
+        record=record, annotation=annotation, plot_sym=plot_sym
+    )
 
-    return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
-                      time_units=time_units, ylabel=ylabel,
-                      title=(title or record_name),
-                      sig_style=sig_style, sig_units=sig_units,
-                      ann_style=ann_style, ecg_grids=ecg_grids,
-                      figsize=figsize, return_fig=return_fig)
+    return plot_items(
+        signal=signal,
+        ann_samp=ann_samp,
+        ann_sym=ann_sym,
+        fs=fs,
+        time_units=time_units,
+        ylabel=ylabel,
+        title=(title or record_name),
+        sig_style=sig_style,
+        sig_units=sig_units,
+        ann_style=ann_style,
+        ecg_grids=ecg_grids,
+        figsize=figsize,
+        return_fig=return_fig,
+    )
 
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
@@ -704,13 +783,13 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         elif record.d_signal is not None:
             signal = record.d_signal
         else:
-            raise ValueError('The record has no signal to plot')
+            raise ValueError("The record has no signal to plot")
 
         fs = record.fs
         sig_name = [str(s) for s in record.sig_name]
         sig_units = [str(s) for s in record.units]
-        record_name = 'Record: %s' % record.record_name
-        ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+        record_name = "Record: %s" % record.record_name
+        ylabel = ["/".join(pair) for pair in zip(sig_name, sig_units)]
     else:
         signal = fs = ylabel = record_name = sig_units = None
 
@@ -721,7 +800,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         n_ann_chans = max(ann_chans) + 1
 
         # Indices for each channel
-        chan_inds = n_ann_chans * [np.empty(0, dtype='int')]
+        chan_inds = n_ann_chans * [np.empty(0, dtype="int")]
 
         for chan in ann_chans:
             chan_inds[chan] = np.where(annotation.chan == chan)[0]
@@ -764,32 +843,32 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
             else:
                 compact_ann_sym = None
             ylabel = []
-            for ch in all_chans: # ie. 0, 1, 9
+            for ch in all_chans:  # ie. 0, 1, 9
                 if ch in ann_chans:
                     compact_ann_samp.append(ann_samp[ch])
                     if plot_sym:
                         compact_ann_sym.append(ann_sym[ch])
                 if ch in sig_chans:
-                    ylabel.append(''.join([sig_name[ch], sig_units[ch]]))
+                    ylabel.append("".join([sig_name[ch], sig_units[ch]]))
                 else:
-                    ylabel.append('ch_%d/NU' % ch)
+                    ylabel.append("ch_%d/NU" % ch)
             ann_samp = compact_ann_samp
             ann_sym = compact_ann_sym
         # Signals encompass annotations
         else:
-            ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+            ylabel = ["/".join(pair) for pair in zip(sig_name, sig_units)]
 
     # Remove any empty middle channels from annotations
     elif annotation:
         ann_samp = [a for a in ann_samp if a.size]
         if ann_sym is not None:
             ann_sym = [a for a in ann_sym if a]
-        ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
+        ylabel = ["ch_%d/NU" % ch for ch in ann_chans]
 
     return signal, ann_samp, ann_sym, fs, ylabel, record_name, sig_units
 
 
-def plot_all_records(directory=''):
+def plot_all_records(directory=""):
     """
     Plot all WFDB records in a directory (by finding header files), one at
     a time, until the 'enter' key is pressed.
@@ -807,15 +886,18 @@ def plot_all_records(directory=''):
     """
     directory = directory or os.getcwd()
 
-    headers = [f for f in os.listdir(directory) if os.path.isfile(
-        os.path.join(directory, f))]
-    headers = [f for f in headers if f.endswith('.hea')]
+    headers = [
+        f
+        for f in os.listdir(directory)
+        if os.path.isfile(os.path.join(directory, f))
+    ]
+    headers = [f for f in headers if f.endswith(".hea")]
 
-    records = [h.split('.hea')[0] for h in headers]
+    records = [h.split(".hea")[0] for h in headers]
     records.sort()
 
     for record_name in records:
         record = rdrecord(os.path.join(directory, record_name))
 
-        plot_wfdb(record, title='Record - %s' % record.record_name)
-        input('Press enter to continue...')
+        plot_wfdb(record, title="Record - %s" % record.record_name)
+        input("Press enter to continue...")

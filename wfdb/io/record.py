@@ -25,12 +25,12 @@ from wfdb.io import download
 # class should measure. 'No Unit' will also be allowed in all cases.
 # * Will it always be 1?
 unit_scale = {
-    'voltage': ['pV', 'nV', 'uV', 'mV', 'V', 'kV'],
-    'temperature': ['C', 'F'],
-    'pressure': ['mmHg'],
-    'no_unit': ['NU'],
-    'percentage': ['%'],
-    'heart_rate': ['bpm'],
+    "voltage": ["pV", "nV", "uV", "mV", "V", "kV"],
+    "temperature": ["C", "F"],
+    "pressure": ["mmHg"],
+    "no_unit": ["NU"],
+    "percentage": ["%"],
+    "heart_rate": ["bpm"],
 }
 
 """
@@ -45,27 +45,49 @@ on their names.
 """
 
 SIGNAL_CLASSES = pd.DataFrame(
-    index=['bp', 'co2', 'co', 'ecg', 'eeg', 'emg', 'eog', 'hr', 'mmg',
-           'o2', 'pleth', 'resp', 'scg', 'stat', 'st', 'temp', 'unknown'],
-    columns=['description', 'unit_scale', 'signal_names'],
-    data=[['Blood Pressure', 'pressure', ['bp','abp','pap','cvp']], # bp
-          ['Carbon Dioxide', 'percentage', ['co2', 'pco2']], # co2
-          ['Carbon Monoxide', 'percentage', ['co']], # co
-          ['Electrocardiogram', 'voltage', ['i','ii','iii','iv','v','avr']], # ecg
-          ['Electroencephalogram', 'voltage', ['eeg']], # eeg
-          ['Electromyograph', 'voltage', ['emg']], # emg
-          ['Electrooculograph', 'voltage', ['eog']], # eog
-          ['Heart Rate', 'heart_rate', ['hr']], # hr
-          ['Magnetomyograph', 'voltage', ['mmg']], # mmg
-          ['Oxygen', 'percentage', ['o2', 'spo2']], # o2
-          ['Plethysmograph', 'pressure', ['pleth']], # pleth
-          ['Respiration', 'no_unit', ['resp']], # resp
-          ['Seismocardiogram', 'no_unit', ['scg']], # scg
-          ['Status', 'no_unit', ['stat', 'status']], # stat
-          ['ST Segment', '', ['st']], # st. This is not a signal?
-          ['Temperature', 'temperature', ['temp']], # temp
-          ['Unknown Class', 'no_unit', []], # unknown. special class.
-    ]
+    index=[
+        "bp",
+        "co2",
+        "co",
+        "ecg",
+        "eeg",
+        "emg",
+        "eog",
+        "hr",
+        "mmg",
+        "o2",
+        "pleth",
+        "resp",
+        "scg",
+        "stat",
+        "st",
+        "temp",
+        "unknown",
+    ],
+    columns=["description", "unit_scale", "signal_names"],
+    data=[
+        ["Blood Pressure", "pressure", ["bp", "abp", "pap", "cvp"]],  # bp
+        ["Carbon Dioxide", "percentage", ["co2", "pco2"]],  # co2
+        ["Carbon Monoxide", "percentage", ["co"]],  # co
+        [
+            "Electrocardiogram",
+            "voltage",
+            ["i", "ii", "iii", "iv", "v", "avr"],
+        ],  # ecg
+        ["Electroencephalogram", "voltage", ["eeg"]],  # eeg
+        ["Electromyograph", "voltage", ["emg"]],  # emg
+        ["Electrooculograph", "voltage", ["eog"]],  # eog
+        ["Heart Rate", "heart_rate", ["hr"]],  # hr
+        ["Magnetomyograph", "voltage", ["mmg"]],  # mmg
+        ["Oxygen", "percentage", ["o2", "spo2"]],  # o2
+        ["Plethysmograph", "pressure", ["pleth"]],  # pleth
+        ["Respiration", "no_unit", ["resp"]],  # resp
+        ["Seismocardiogram", "no_unit", ["scg"]],  # scg
+        ["Status", "no_unit", ["stat", "status"]],  # stat
+        ["ST Segment", "", ["st"]],  # st. This is not a signal?
+        ["Temperature", "temperature", ["temp"]],  # temp
+        ["Unknown Class", "no_unit", []],  # unknown. special class.
+    ],
 )
 
 """
@@ -80,60 +102,60 @@ to remove duplicates by different cases.
 """
 
 SIG_UNITS = {
-    'a': 'uV',
-    'abdomen': 'uV',
-    'abdo': 'V',
-    'abp': 'mmHg',
-    'airflow': 'V',
-    'ann': 'units',
-    'art': 'mmHg',
-    'atip': 'mV',
-    'av': 'mV',
-    'bp': 'mmHg',
-    'c': 'uV',
-    'c.o.': 'lpm',
-    'co': 'Lpm',
-    'cs': 'mV',
-    'cvp': 'mmHg',
-    'direct': 'uV',
-    'ecg': 'mV',
-    'edr': 'units',
-    'eeg': 'mV',
-    'emg': 'mV',
-    'eog': 'mV',
-    'event': 'mV',
-    'f': 'uV',
-    'fecg': 'mV',
-    'fhr': 'bpm',
-    'foobar': 'mmHg',
-    'hr': 'bpm',
-    'hva': 'mV',
-    'i': 'mV',
-    'ibp': 'mmHg',
-    'mcl': 'mV',
-    'nbp': 'mmHg',
-    'o': 'uV',
-    'p': 'mmHg',
-    'pap': 'mmHg',
-    'pawp': 'mmHg',
-    'pcg': 'mV',
-    'pleth': 'mV',
-    'pr': 'bpm',
-    'pulse': 'bpm',
-    'record': 'mV',
-    'resp': 'l',
-    'sao2': '%',
-    'so2': '%',
-    'spo2': '%',
-    'sv': 'ml',
-    't': 'uV',
-    'tblood': 'degC',
-    'temp': 'degC',
-    'thorax': 'mV',
-    'thor': 'V',
-    'v': 'mV',
-    'uc': 'nd',
-    'vtip': 'mV'
+    "a": "uV",
+    "abdomen": "uV",
+    "abdo": "V",
+    "abp": "mmHg",
+    "airflow": "V",
+    "ann": "units",
+    "art": "mmHg",
+    "atip": "mV",
+    "av": "mV",
+    "bp": "mmHg",
+    "c": "uV",
+    "c.o.": "lpm",
+    "co": "Lpm",
+    "cs": "mV",
+    "cvp": "mmHg",
+    "direct": "uV",
+    "ecg": "mV",
+    "edr": "units",
+    "eeg": "mV",
+    "emg": "mV",
+    "eog": "mV",
+    "event": "mV",
+    "f": "uV",
+    "fecg": "mV",
+    "fhr": "bpm",
+    "foobar": "mmHg",
+    "hr": "bpm",
+    "hva": "mV",
+    "i": "mV",
+    "ibp": "mmHg",
+    "mcl": "mV",
+    "nbp": "mmHg",
+    "o": "uV",
+    "p": "mmHg",
+    "pap": "mmHg",
+    "pawp": "mmHg",
+    "pcg": "mV",
+    "pleth": "mV",
+    "pr": "bpm",
+    "pulse": "bpm",
+    "record": "mV",
+    "resp": "l",
+    "sao2": "%",
+    "so2": "%",
+    "spo2": "%",
+    "sv": "ml",
+    "t": "uV",
+    "tblood": "degC",
+    "temp": "degC",
+    "thorax": "mV",
+    "thor": "V",
+    "v": "mV",
+    "uc": "nd",
+    "vtip": "mV",
 }
 
 
@@ -171,11 +193,21 @@ class BaseRecord(object):
         A list of strings giving the signal name of each signal channel.
 
     """
+
     # The base WFDB class extended by the Record and MultiRecord classes.
-    def __init__(self, record_name=None, n_sig=None,
-                 fs=None, counter_freq=None, base_counter=None,
-                 sig_len=None, base_time=None, base_date=None,
-                 comments=None, sig_name=None):
+    def __init__(
+        self,
+        record_name=None,
+        n_sig=None,
+        fs=None,
+        counter_freq=None,
+        base_counter=None,
+        sig_len=None,
+        base_time=None,
+        base_date=None,
+        comments=None,
+        sig_name=None,
+    ):
         self.record_name = record_name
         self.n_sig = n_sig
         self.fs = fs
@@ -187,8 +219,7 @@ class BaseRecord(object):
         self.comments = comments
         self.sig_name = sig_name
 
-
-    def check_field(self, field, required_channels='all'):
+    def check_field(self, field, required_channels="all"):
         """
         Check whether a single field is valid in its basic form. Does
         not check compatibility with other fields.
@@ -215,7 +246,7 @@ class BaseRecord(object):
         """
         item = getattr(self, field)
         if item is None:
-            raise Exception('Missing field required: %s' % field)
+            raise Exception("Missing field required: %s" % field)
 
         # We should have a list specifying these automatically.
 
@@ -224,49 +255,71 @@ class BaseRecord(object):
 
         # Check the type of the field (and of its elements if it should
         # be a list)
-        _check_item_type(item, field_name=field,
-                        allowed_types=ALLOWED_TYPES[field],
-                        expect_list=expect_list,
-                        required_channels=required_channels)
+        _check_item_type(
+            item,
+            field_name=field,
+            allowed_types=ALLOWED_TYPES[field],
+            expect_list=expect_list,
+            required_channels=required_channels,
+        )
 
         # Individual specific field checks
-        if field in ['d_signal', 'p_signal']:
-            check_np_array(item=item, field_name=field, ndim=2,
-                           parent_class=(lambda f: np.integer if f == 'd_signal' else np.floating)(field))
-        elif field in ['e_d_signal', 'e_p_signal']:
+        if field in ["d_signal", "p_signal"]:
+            check_np_array(
+                item=item,
+                field_name=field,
+                ndim=2,
+                parent_class=(
+                    lambda f: np.integer if f == "d_signal" else np.floating
+                )(field),
+            )
+        elif field in ["e_d_signal", "e_p_signal"]:
             for ch in range(len(item)):
-                check_np_array(item=item[ch], field_name=field,
-                               ndim=1, parent_class=(lambda f: np.integer if f == 'e_d_signal' else np.floating)(field),
-                               channel_num=ch)
+                check_np_array(
+                    item=item[ch],
+                    field_name=field,
+                    ndim=1,
+                    parent_class=(
+                        lambda f: np.integer
+                        if f == "e_d_signal"
+                        else np.floating
+                    )(field),
+                    channel_num=ch,
+                )
 
         # Record specification fields
-        elif field == 'record_name':
+        elif field == "record_name":
             # Allow letters, digits, hyphens, and underscores.
-            accepted_string = re.match('[-\w]+', self.record_name)
-            if not accepted_string or accepted_string.string != self.record_name:
-                raise ValueError('record_name must only comprise of letters, digits, hyphens, and underscores.')
-        elif field == 'n_seg':
+            accepted_string = re.match("[-\w]+", self.record_name)
+            if (
+                not accepted_string
+                or accepted_string.string != self.record_name
+            ):
+                raise ValueError(
+                    "record_name must only comprise of letters, digits, hyphens, and underscores."
+                )
+        elif field == "n_seg":
             if self.n_seg <= 0:
-                raise ValueError('n_seg must be a positive integer')
-        elif field == 'n_sig':
+                raise ValueError("n_seg must be a positive integer")
+        elif field == "n_sig":
             if self.n_sig <= 0:
-                raise ValueError('n_sig must be a positive integer')
-        elif field == 'fs':
+                raise ValueError("n_sig must be a positive integer")
+        elif field == "fs":
             if self.fs <= 0:
-                raise ValueError('fs must be a positive number')
-        elif field == 'counter_freq':
+                raise ValueError("fs must be a positive number")
+        elif field == "counter_freq":
             if self.counter_freq <= 0:
-                raise ValueError('counter_freq must be a positive number')
-        elif field == 'base_counter':
+                raise ValueError("counter_freq must be a positive number")
+        elif field == "base_counter":
             if self.base_counter <= 0:
-                raise ValueError('base_counter must be a positive number')
-        elif field == 'sig_len':
+                raise ValueError("base_counter must be a positive number")
+        elif field == "sig_len":
             if self.sig_len < 0:
-                raise ValueError('sig_len must be a non-negative integer')
+                raise ValueError("sig_len must be a non-negative integer")
 
         # Signal specification fields
         elif field in _header.SIGNAL_SPECS.index:
-            if required_channels == 'all':
+            if required_channels == "all":
                 required_channels = range(len(item))
 
             for ch in range(len(item)):
@@ -275,75 +328,112 @@ class BaseRecord(object):
                     if item[ch] is None:
                         continue
 
-                if field == 'file_name':
+                if field == "file_name":
                     # Check for file_name characters
-                    accepted_string = re.match('[-\w]+\.?[\w]+', item[ch])
-                    if not accepted_string or accepted_string.string != item[ch]:
-                        raise ValueError('File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat')
+                    accepted_string = re.match("[-\w]+\.?[\w]+", item[ch])
+                    if (
+                        not accepted_string
+                        or accepted_string.string != item[ch]
+                    ):
+                        raise ValueError(
+                            "File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat"
+                        )
                     # Check that dat files are grouped together
                     if not is_monotonic(self.file_name):
-                        raise ValueError('Signals in a record that share a given file must be consecutive.')
-                elif field == 'fmt':
+                        raise ValueError(
+                            "Signals in a record that share a given file must be consecutive."
+                        )
+                elif field == "fmt":
                     if item[ch] not in _signal.DAT_FMTS:
-                        raise ValueError('File formats must be valid WFDB dat formats:', _signal.DAT_FMTS)
-                elif field == 'samps_per_frame':
+                        raise ValueError(
+                            "File formats must be valid WFDB dat formats:",
+                            _signal.DAT_FMTS,
+                        )
+                elif field == "samps_per_frame":
                     if item[ch] < 1:
-                        raise ValueError('samps_per_frame values must be positive integers')
-                elif field == 'skew':
+                        raise ValueError(
+                            "samps_per_frame values must be positive integers"
+                        )
+                elif field == "skew":
                     if item[ch] < 0:
-                        raise ValueError('skew values must be non-negative integers')
-                elif field == 'byte_offset':
+                        raise ValueError(
+                            "skew values must be non-negative integers"
+                        )
+                elif field == "byte_offset":
                     if item[ch] < 0:
-                        raise ValueError('byte_offset values must be non-negative integers')
-                elif field == 'adc_gain':
+                        raise ValueError(
+                            "byte_offset values must be non-negative integers"
+                        )
+                elif field == "adc_gain":
                     if item[ch] <= 0:
-                        raise ValueError('adc_gain values must be positive')
-                elif field == 'baseline':
+                        raise ValueError("adc_gain values must be positive")
+                elif field == "baseline":
                     # Original WFDB library 10.5.24 only has 4 bytes for baseline.
                     if item[ch] < -2147483648 or item[ch] > 2147483648:
-                        raise ValueError('baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)')
-                elif field == 'units':
-                    if re.search('\s', item[ch]):
-                        raise ValueError('units strings may not contain whitespaces.')
-                elif field == 'adc_res':
+                        raise ValueError(
+                            "baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)"
+                        )
+                elif field == "units":
+                    if re.search("\s", item[ch]):
+                        raise ValueError(
+                            "units strings may not contain whitespaces."
+                        )
+                elif field == "adc_res":
                     if item[ch] < 0:
-                        raise ValueError('adc_res values must be non-negative integers')
-                elif field == 'block_size':
+                        raise ValueError(
+                            "adc_res values must be non-negative integers"
+                        )
+                elif field == "block_size":
                     if item[ch] < 0:
-                        raise ValueError('block_size values must be non-negative integers')
-                elif field == 'sig_name':
-                    if re.search('\s', item[ch]):
-                        raise ValueError('sig_name strings may not contain whitespaces.')
+                        raise ValueError(
+                            "block_size values must be non-negative integers"
+                        )
+                elif field == "sig_name":
+                    if re.search("\s", item[ch]):
+                        raise ValueError(
+                            "sig_name strings may not contain whitespaces."
+                        )
                     if len(set(item)) != len(item):
-                        raise ValueError('sig_name strings must be unique.')
+                        raise ValueError("sig_name strings must be unique.")
 
         # Segment specification fields and comments
         elif field in _header.SEGMENT_SPECS.index:
             for ch in range(len(item)):
-                if field == 'seg_name':
+                if field == "seg_name":
                     # Segment names must be alphanumerics or just a single '~'
-                    if item[ch] == '~':
+                    if item[ch] == "~":
                         continue
-                    accepted_string = re.match('[-\w]+', item[ch])
-                    if not accepted_string or accepted_string.string != item[ch]:
-                        raise ValueError("Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'")
-                elif field == 'seg_len':
+                    accepted_string = re.match("[-\w]+", item[ch])
+                    if (
+                        not accepted_string
+                        or accepted_string.string != item[ch]
+                    ):
+                        raise ValueError(
+                            "Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'"
+                        )
+                elif field == "seg_len":
                     # For records with more than 1 segment, the first
                     # segment may be the layout specification segment
                     # with a length of 0
                     min_len = 0 if ch == 0 else 1
                     if item[ch] < min_len:
-                        raise ValueError('seg_len values must be positive integers. Only seg_len[0] may be 0 to indicate a layout segment')
+                        raise ValueError(
+                            "seg_len values must be positive integers. Only seg_len[0] may be 0 to indicate a layout segment"
+                        )
                 # Comment field
-                elif field == 'comments':
-                    if item[ch].startswith('#'):
-                        print("Note: comment strings do not need to begin with '#'. This library adds them automatically.")
-                    if re.search('[\t\n\r\f\v]', item[ch]):
-                        raise ValueError('comments may not contain tabs or newlines (they may contain spaces and underscores).')
+                elif field == "comments":
+                    if item[ch].startswith("#"):
+                        print(
+                            "Note: comment strings do not need to begin with '#'. This library adds them automatically."
+                        )
+                    if re.search("[\t\n\r\f\v]", item[ch]):
+                        raise ValueError(
+                            "comments may not contain tabs or newlines (they may contain spaces and underscores)."
+                        )
 
-
-    def check_read_inputs(self, sampfrom, sampto, channels, physical,
-                          smooth_frames, return_res):
+    def check_read_inputs(
+        self, sampfrom, sampto, channels, physical, smooth_frames, return_res
+    ):
         """
         Ensure that input read parameters (from rdsamp) are valid for
         the record.
@@ -381,42 +471,51 @@ class BaseRecord(object):
 
         """
         # Data Type Check
-        if not hasattr(sampfrom, '__index__'):
-            raise TypeError('sampfrom must be an integer')
-        if not hasattr(sampto, '__index__'):
-            raise TypeError('sampto must be an integer')
+        if not hasattr(sampfrom, "__index__"):
+            raise TypeError("sampfrom must be an integer")
+        if not hasattr(sampto, "__index__"):
+            raise TypeError("sampto must be an integer")
         if not isinstance(channels, list):
-            raise TypeError('channels must be a list of integers')
+            raise TypeError("channels must be a list of integers")
 
         # Duration Ranges
         if sampfrom < 0:
-            raise ValueError('sampfrom must be a non-negative integer')
+            raise ValueError("sampfrom must be a non-negative integer")
         if sampfrom > self.sig_len:
-            raise ValueError('sampfrom must be shorter than the signal length')
+            raise ValueError("sampfrom must be shorter than the signal length")
         if sampto < 0:
-            raise ValueError('sampto must be a non-negative integer')
+            raise ValueError("sampto must be a non-negative integer")
         if sampto > self.sig_len:
-            raise ValueError('sampto must be shorter than the signal length')
+            raise ValueError("sampto must be shorter than the signal length")
         if sampto <= sampfrom:
-            raise ValueError('sampto must be greater than sampfrom')
+            raise ValueError("sampto must be greater than sampfrom")
 
         # Channel Ranges
         if len(channels):
             if min(channels) < 0:
-                raise ValueError('Input channels must all be non-negative integers')
+                raise ValueError(
+                    "Input channels must all be non-negative integers"
+                )
             if max(channels) > self.n_sig - 1:
-                raise ValueError('Input channels must all be lower than the total number of channels')
+                raise ValueError(
+                    "Input channels must all be lower than the total number of channels"
+                )
 
         if return_res not in [64, 32, 16, 8]:
-            raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
+            raise ValueError(
+                "return_res must be one of the following: 64, 32, 16, 8"
+            )
         if physical is True and return_res == 8:
-            raise ValueError("return_res must be one of the following when physical is True: 64, 32, 16")
+            raise ValueError(
+                "return_res must be one of the following when physical is True: 64, 32, 16"
+            )
 
         # Cannot expand multiple samples/frame for multi-segment records
         if isinstance(self, MultiRecord):
             if smooth_frames is False:
-                raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
-
+                raise ValueError(
+                    "This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing."
+                )
 
     def _adjust_datetime(self, sampfrom):
         """
@@ -438,17 +537,20 @@ class BaseRecord(object):
         if sampfrom:
             dt_seconds = sampfrom / self.fs
             if self.base_date and self.base_time:
-                self.base_datetime = datetime.datetime.combine(self.base_date,
-                                                               self.base_time)
+                self.base_datetime = datetime.datetime.combine(
+                    self.base_date, self.base_time
+                )
                 self.base_datetime += datetime.timedelta(seconds=dt_seconds)
                 self.base_date = self.base_datetime.date()
                 self.base_time = self.base_datetime.time()
             # We can calculate the time even if there is no date
             elif self.base_time:
                 tmp_datetime = datetime.datetime.combine(
-                    datetime.datetime.today().date(), self.base_time)
-                self.base_time = (tmp_datetime
-                                  + datetime.timedelta(seconds=dt_seconds)).time()
+                    datetime.datetime.today().date(), self.base_time
+                )
+                self.base_time = (
+                    tmp_datetime + datetime.timedelta(seconds=dt_seconds)
+                ).time()
             # Cannot calculate date or time if there is only date
 
 
@@ -551,23 +653,53 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                          file_name=['r1.dat','r1.dat'])
 
     """
-    def __init__(self, p_signal=None, d_signal=None,
-                 e_p_signal=None, e_d_signal=None,
-                 record_name=None, n_sig=None,
-                 fs=None, counter_freq=None, base_counter=None,
-                 sig_len=None, base_time=None, base_date=None,
-                 file_name=None, fmt=None, samps_per_frame=None,
-                 skew=None, byte_offset=None, adc_gain=None,
-                 baseline=None, units=None, adc_res=None,
-                 adc_zero=None, init_value=None, checksum=None,
-                 block_size=None, sig_name=None, comments=None):
+
+    def __init__(
+        self,
+        p_signal=None,
+        d_signal=None,
+        e_p_signal=None,
+        e_d_signal=None,
+        record_name=None,
+        n_sig=None,
+        fs=None,
+        counter_freq=None,
+        base_counter=None,
+        sig_len=None,
+        base_time=None,
+        base_date=None,
+        file_name=None,
+        fmt=None,
+        samps_per_frame=None,
+        skew=None,
+        byte_offset=None,
+        adc_gain=None,
+        baseline=None,
+        units=None,
+        adc_res=None,
+        adc_zero=None,
+        init_value=None,
+        checksum=None,
+        block_size=None,
+        sig_name=None,
+        comments=None,
+    ):
 
         # Note the lack of the 'n_seg' field. Single segment records cannot
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
-        super(Record, self).__init__(record_name, n_sig,
-                    fs, counter_freq, base_counter, sig_len,
-                    base_time, base_date, comments, sig_name)
+        super(Record, self).__init__(
+            record_name,
+            n_sig,
+            fs,
+            counter_freq,
+            base_counter,
+            sig_len,
+            base_time,
+            base_date,
+            comments,
+            sig_name,
+        )
 
         self.p_signal = p_signal
         self.d_signal = d_signal
@@ -587,7 +719,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.init_value = init_value
         self.checksum = checksum
         self.block_size = block_size
-
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other, verbose=False):
@@ -612,7 +743,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         if set(att1.keys()) != set(att2.keys()):
             if verbose:
-                print('Attributes members mismatch.')
+                print("Attributes members mismatch.")
             return False
 
         for k in att1.keys():
@@ -622,7 +753,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
             if type(v1) != type(v2):
                 if verbose:
-                    print('Mismatch in attribute: %s' % k, v1, v2)
+                    print("Mismatch in attribute: %s" % k, v1, v2)
                 return False
 
             if type(v1) == np.ndarray:
@@ -631,13 +762,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             else:
                 if v1 != v2:
                     if verbose:
-                        print('Mismatch in attribute: %s' % k, v1, v2)
+                        print("Mismatch in attribute: %s" % k, v1, v2)
                     return False
 
         return True
 
-
-    def wrsamp(self, expanded=False, write_dir=''):
+    def wrsamp(self, expanded=False, write_dir=""):
         """
         Write a WFDB header file and any associated dat files from this
         object.
@@ -662,7 +792,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
             self.wr_dats(expanded=expanded, write_dir=write_dir)
-
 
     def _arrange_fields(self, channels, sampfrom=0, expanded=False):
         """
@@ -692,12 +821,16 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         if expanded:
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
-            if self.sig_len != int(len(self.e_d_signal[0]) / self.samps_per_frame[0]):
+            if self.sig_len != int(
+                len(self.e_d_signal[0]) / self.samps_per_frame[0]
+            ):
                 self.checksum = self.calc_checksum(expanded)
                 self.init_value = [s[0] for s in self.e_d_signal]
 
             self.n_sig = len(channels)
-            self.sig_len = int(len(self.e_d_signal[0]) / self.samps_per_frame[0])
+            self.sig_len = int(
+                len(self.e_d_signal[0]) / self.samps_per_frame[0]
+            )
 
         # MxN numpy array d_signal
         else:
@@ -793,17 +926,38 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     a `Record` object.
 
     """
-    def __init__(self, segments=None, layout=None,
-                 record_name=None, n_sig=None, fs=None,
-                 counter_freq=None, base_counter=None,
-                 sig_len=None, base_time=None, base_date=None,
-                 seg_name=None, seg_len=None, comments=None,
-                 sig_name=None, sig_segments=None):
 
+    def __init__(
+        self,
+        segments=None,
+        layout=None,
+        record_name=None,
+        n_sig=None,
+        fs=None,
+        counter_freq=None,
+        base_counter=None,
+        sig_len=None,
+        base_time=None,
+        base_date=None,
+        seg_name=None,
+        seg_len=None,
+        comments=None,
+        sig_name=None,
+        sig_segments=None,
+    ):
 
-        super(MultiRecord, self).__init__(record_name, n_sig,
-                    fs, counter_freq, base_counter, sig_len,
-                    base_time, base_date, comments, sig_name)
+        super(MultiRecord, self).__init__(
+            record_name,
+            n_sig,
+            fs,
+            counter_freq,
+            base_counter,
+            sig_len,
+            base_time,
+            base_date,
+            comments,
+            sig_name,
+        )
 
         self.layout = layout
         self.segments = segments
@@ -811,8 +965,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.seg_len = seg_len
         self.sig_segments = sig_segments
 
-
-    def wrsamp(self, write_dir=''):
+    def wrsamp(self, write_dir=""):
         """
         Write a multi-segment header, along with headers and dat files
         for all segments, from this object.
@@ -834,7 +987,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # associated segments.
         for seg in self.segments:
             seg.wrsamp(write_dir=write_dir)
-
 
     def _check_segment_cohesion(self):
         """
@@ -859,22 +1011,29 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # If segment 0 is a layout specification record, check that its file names are all == '~''
             if i == 0 and self.seg_len[0] == 0:
                 for file_name in s.file_name:
-                    if file_name != '~':
-                        raise ValueError("Layout specification records must have all file_names named '~'")
+                    if file_name != "~":
+                        raise ValueError(
+                            "Layout specification records must have all file_names named '~'"
+                        )
 
             # Sampling frequencies must all match the one in the master header
             if s.fs != self.fs:
-                raise ValueError("The 'fs' in each segment must match the overall record's 'fs'")
+                raise ValueError(
+                    "The 'fs' in each segment must match the overall record's 'fs'"
+                )
 
             # Check the signal length of the segment against the corresponding seg_len field
             if s.sig_len != self.seg_len[i]:
-                raise ValueError('The signal length of segment '+str(i)+' does not match the corresponding segment length')
+                raise ValueError(
+                    "The signal length of segment "
+                    + str(i)
+                    + " does not match the corresponding segment length"
+                )
 
-            totalsig_len = totalsig_len + getattr(s, 'sig_len')
+            totalsig_len = totalsig_len + getattr(s, "sig_len")
 
         # No need to check the sum of sig_lens from each segment object against sig_len
         # Already effectively done it when checking sum(seg_len) against sig_len
-
 
     def _required_segments(self, sampfrom, sampto):
         """
@@ -897,7 +1056,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         """
         # The starting segment with actual samples
-        if self.layout == 'fixed':
+        if self.layout == "fixed":
             startseg = 0
         else:
             startseg = 1
@@ -910,32 +1069,37 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if sampto == cumsumlengths[len(cumsumlengths) - 1]:
             seg_numbers.append(len(cumsumlengths) - 1)
         else:
-            seg_numbers.append([sampto <= cs for cs in cumsumlengths].index(True))
+            seg_numbers.append(
+                [sampto <= cs for cs in cumsumlengths].index(True)
+            )
 
         # Add 1 for variable layout records
-        seg_numbers = list(np.add(seg_numbers,startseg))
+        seg_numbers = list(np.add(seg_numbers, startseg))
 
         # Obtain the sampfrom and sampto to read for each segment
         if seg_numbers[1] == seg_numbers[0]:
             # Only one segment to read
             seg_numbers = [seg_numbers[0]]
             # The segment's first sample number relative to the entire record
-            segstartsamp = sum(self.seg_len[0:seg_numbers[0]])
-            readsamps = [[sampfrom-segstartsamp, sampto-segstartsamp]]
+            segstartsamp = sum(self.seg_len[0 : seg_numbers[0]])
+            readsamps = [[sampfrom - segstartsamp, sampto - segstartsamp]]
 
         else:
             # More than one segment to read
-            seg_numbers = list(range(seg_numbers[0], seg_numbers[1]+1))
+            seg_numbers = list(range(seg_numbers[0], seg_numbers[1] + 1))
             readsamps = [[0, self.seg_len[s]] for s in seg_numbers]
 
             # Starting sample for first segment.
-            readsamps[0][0] = sampfrom - ([0] + cumsumlengths)[seg_numbers[0]-startseg]
+            readsamps[0][0] = (
+                sampfrom - ([0] + cumsumlengths)[seg_numbers[0] - startseg]
+            )
 
             # End sample for last segment
-            readsamps[-1][1] = sampto - ([0] + cumsumlengths)[seg_numbers[-1]-startseg]
+            readsamps[-1][1] = (
+                sampto - ([0] + cumsumlengths)[seg_numbers[-1] - startseg]
+            )
 
         return (seg_numbers, readsamps)
-
 
     def _required_channels(self, seg_numbers, channels, dir_name, pn_dir):
         """
@@ -966,7 +1130,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         """
         # Fixed layout. All channels are the same.
-        if self.layout == 'fixed':
+        if self.layout == "fixed":
             required_channels = [channels] * len(seg_numbers)
         # Variable layout: figure out channels by matching record names
         else:
@@ -979,21 +1143,23 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # For each segment
             for i in range(len(seg_numbers)):
                 # Skip empty segments
-                if self.seg_name[seg_numbers[i]] == '~':
+                if self.seg_name[seg_numbers[i]] == "~":
                     required_channels.append([])
                 else:
                     # Get the signal names of the current segment
                     s_sig_names = rdheader(
                         os.path.join(dir_name, self.seg_name[seg_numbers[i]]),
-                        pn_dir=pn_dir).sig_name
-                    required_channels.append(_get_wanted_channels(
-                        w_sig_names, s_sig_names))
+                        pn_dir=pn_dir,
+                    ).sig_name
+                    required_channels.append(
+                        _get_wanted_channels(w_sig_names, s_sig_names)
+                    )
 
         return required_channels
 
-
-    def _arrange_fields(self, seg_numbers, seg_ranges, channels,
-                        sampfrom=0, force_channels=True):
+    def _arrange_fields(
+        self, seg_numbers, seg_ranges, channels, sampfrom=0, force_channels=True
+    ):
         """
         Arrange/edit object fields to reflect user channel and/or
         signal range inputs. Updates layout specification header if
@@ -1027,15 +1193,21 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
-        if self.layout == 'fixed':
+        if self.layout == "fixed":
             self.n_sig = len(channels)
-            self.segments = self.segments[seg_numbers[0]:seg_numbers[-1]+1]
-            self.seg_name = self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
-            self.seg_len = self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
+            self.segments = self.segments[seg_numbers[0] : seg_numbers[-1] + 1]
+            self.seg_name = self.seg_name[seg_numbers[0] : seg_numbers[-1] + 1]
+            self.seg_len = self.seg_len[seg_numbers[0] : seg_numbers[-1] + 1]
         else:
-            self.segments = [self.segments[0]] + self.segments[seg_numbers[0]:seg_numbers[-1]+1]
-            self.seg_name = [self.seg_name[0]] + self.seg_name[seg_numbers[0]:seg_numbers[-1]+1]
-            self.seg_len = [self.seg_len[0]] + self.seg_len[seg_numbers[0]:seg_numbers[-1]+1]
+            self.segments = [self.segments[0]] + self.segments[
+                seg_numbers[0] : seg_numbers[-1] + 1
+            ]
+            self.seg_name = [self.seg_name[0]] + self.seg_name[
+                seg_numbers[0] : seg_numbers[-1] + 1
+            ]
+            self.seg_len = [self.seg_len[0]] + self.seg_len[
+                seg_numbers[0] : seg_numbers[-1] + 1
+            ]
 
             # Update the layout specification segment. At this point it
             # should match the full original header
@@ -1046,14 +1218,29 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # the signal was read.
             if not force_channels:
                 # The desired signal names.
-                desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
+                desired_sig_names = [
+                    self.segments[0].sig_name[ch] for ch in channels
+                ]
                 # Actual contained signal names of individual segments
-                #contained_sig_names = [seg.sig_name for seg in self.segments[1:]]
-                contained_sig_names = set([name for seg in self.segments[1:] if seg is not None for name in seg.sig_name])
+                # contained_sig_names = [seg.sig_name for seg in self.segments[1:]]
+                contained_sig_names = set(
+                    [
+                        name
+                        for seg in self.segments[1:]
+                        if seg is not None
+                        for name in seg.sig_name
+                    ]
+                )
                 # Remove non-present names. Keep the order.
-                sig_name = [name for name in desired_sig_names if name in contained_sig_names]
+                sig_name = [
+                    name
+                    for name in desired_sig_names
+                    if name in contained_sig_names
+                ]
                 # Channel indices to keep for signal specification fields
-                channels = [self.segments[0].sig_name.index(name) for name in sig_name]
+                channels = [
+                    self.segments[0].sig_name.index(name) for name in sig_name
+                ]
 
             # Rearrange signal specification fields
             for field in _header.SIGNAL_SPECS.index:
@@ -1062,13 +1249,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
             self.segments[0].n_sig = self.n_sig = len(channels)
             if self.n_sig == 0:
-                print('No signals of the desired channels are contained in the specified sample range.')
+                print(
+                    "No signals of the desired channels are contained in the specified sample range."
+                )
 
         # Update record specification parameters
-        self.sig_len = sum([sr[1]-sr[0] for sr in seg_ranges])
+        self.sig_len = sum([sr[1] - sr[0] for sr in seg_ranges])
         self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
-
 
     def multi_to_single(self, physical, return_res=64):
         """
@@ -1095,13 +1283,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         fields = self.__dict__.copy()
 
         # Remove multirecord fields
-        for attr in ['segments', 'seg_name', 'seg_len', 'n_seg']:
-            del(fields[attr])
+        for attr in ["segments", "seg_name", "seg_len", "n_seg"]:
+            del fields[attr]
 
         # Figure out single segment fields to set for the new Record
-        if self.layout == 'fixed':
+        if self.layout == "fixed":
             # Get the fields from the first segment
-            for attr in ['fmt', 'adc_gain', 'baseline', 'units', 'sig_name']:
+            for attr in ["fmt", "adc_gain", "baseline", "units", "sig_name"]:
                 fields[attr] = getattr(self.segments[0], attr)
         else:
             # For variable layout records, inspect the segments for the
@@ -1121,9 +1309,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             n_sig = len(signal_names)
 
             # This will be the field dictionary to copy over.
-            reference_fields = {'fmt':n_sig*[None], 'adc_gain':n_sig*[None],
-                                'baseline':n_sig*[None],
-                                'units':n_sig*[None]}
+            reference_fields = {
+                "fmt": n_sig * [None],
+                "adc_gain": n_sig * [None],
+                "baseline": n_sig * [None],
+                "units": n_sig * [None],
+            }
 
             # For physical signals, mismatched fields will not be copied
             # over. For digital, mismatches will cause an exception.
@@ -1147,25 +1338,27 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                             if physical:
                                 mismatched_fields.append(field)
                             else:
-                                raise Exception('This variable layout multi-segment record cannot be converted to single segment, in digital format.')
+                                raise Exception(
+                                    "This variable layout multi-segment record cannot be converted to single segment, in digital format."
+                                )
             # Remove mismatched signal fields for physical signals
             for field in set(mismatched_fields):
-                del(reference_fields[field])
+                del reference_fields[field]
             # At this point, the fields should be set for all channels
             fields.update(reference_fields)
-            fields['sig_name'] = signal_names
+            fields["sig_name"] = signal_names
 
         # Figure out signal attribute to set, and its dtype.
         if physical:
-            sig_attr = 'p_signal'
+            sig_attr = "p_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=False)
             nan_vals = np.array([self.n_sig * [np.nan]], dtype=dtype)
         else:
-            sig_attr = 'd_signal'
+            sig_attr = "d_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=True)
-            nan_vals = np.array([_signal._digi_nan(fields['fmt'])], dtype=dtype)
+            nan_vals = np.array([_signal._digi_nan(fields["fmt"])], dtype=dtype)
 
         # Initialize the full signal array
         combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
@@ -1175,11 +1368,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         start_samps = [0] + list(np.cumsum(self.seg_len)[0:-1])
         end_samps = list(np.cumsum(self.seg_len))
 
-        if self.layout == 'fixed':
+        if self.layout == "fixed":
             # Copy over the signals directly. Recall there are no
             # empty segments in fixed layout records.
             for i in range(self.n_seg):
-                combined_signal[start_samps[i]:end_samps[i], :] = getattr(self.segments[i], sig_attr)
+                combined_signal[start_samps[i] : end_samps[i], :] = getattr(
+                    self.segments[i], sig_attr
+                )
         else:
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
@@ -1187,13 +1382,15 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 if seg is not None:
                     # Get the segment channels to copy over for each
                     # overall channel
-                    segment_channels = _get_wanted_channels(fields['sig_name'],
-                                                           seg.sig_name,
-                                                           pad=True)
+                    segment_channels = _get_wanted_channels(
+                        fields["sig_name"], seg.sig_name, pad=True
+                    )
                     for ch in range(self.n_sig):
                         # Copy over relevant signal
                         if segment_channels[ch] is not None:
-                            combined_signal[start_samps[i]:end_samps[i], ch] = getattr(seg, sig_attr)[:, segment_channels[ch]]
+                            combined_signal[
+                                start_samps[i] : end_samps[i], ch
+                            ] = getattr(seg, sig_attr)[:, segment_channels[ch]]
 
         # Create the single segment Record object and set attributes
         record = Record()
@@ -1215,15 +1412,31 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
 # Allowed types of WFDB header fields, and also attributes defined in
 # this library
-ALLOWED_TYPES = dict([[index, _header.FIELD_SPECS.loc[index, 'allowed_types']] for index in _header.FIELD_SPECS.index])
-ALLOWED_TYPES.update({'comments': (str,), 'p_signal': (np.ndarray,),
-                      'd_signal':(np.ndarray,), 'e_p_signal':(np.ndarray,),
-                      'e_d_signal':(np.ndarray,),
-                      'segments':(Record, type(None))})
+ALLOWED_TYPES = dict(
+    [
+        [index, _header.FIELD_SPECS.loc[index, "allowed_types"]]
+        for index in _header.FIELD_SPECS.index
+    ]
+)
+ALLOWED_TYPES.update(
+    {
+        "comments": (str,),
+        "p_signal": (np.ndarray,),
+        "d_signal": (np.ndarray,),
+        "e_p_signal": (np.ndarray,),
+        "e_d_signal": (np.ndarray,),
+        "segments": (Record, type(None)),
+    }
+)
 
 # Fields that must be lists
-LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + ('comments', 'e_p_signal',
-                                                   'e_d_signal', 'segments')
+LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + (
+    "comments",
+    "e_p_signal",
+    "e_d_signal",
+    "segments",
+)
+
 
 def get_version(pn_dir):
     """
@@ -1245,15 +1458,18 @@ def get_version(pn_dir):
     db_dir = pn_dir.split(os.sep)[0]
     url = posixpath.join(download.PN_CONTENT_URL, db_dir)
     response = requests.get(url)
-    contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
-    version_number = [v for v in contents if 'Version:' in v]
-    version_number = version_number[0].split(':')[-1].strip().split('<')[0]
+    contents = [
+        line.decode("utf-8").strip() for line in response.content.splitlines()
+    ]
+    version_number = [v for v in contents if "Version:" in v]
+    version_number = version_number[0].split(":")[-1].strip().split("<")[0]
 
     return version_number
 
 
-def _check_item_type(item, field_name, allowed_types, expect_list=False,
-                    required_channels='all'):
+def _check_item_type(
+    item, field_name, allowed_types, expect_list=False, required_channels="all"
+):
     """
     Check the item's type against a set of allowed types.
     Vary the print message regarding whether the item can be None.
@@ -1288,10 +1504,10 @@ def _check_item_type(item, field_name, allowed_types, expect_list=False,
     """
     if expect_list:
         if not isinstance(item, list):
-            raise TypeError('Field `%s` must be a list.' % field_name)
+            raise TypeError("Field `%s` must be a list." % field_name)
 
         # All channels of the field must be present.
-        if required_channels == 'all':
+        if required_channels == "all":
             required_channels = list(range(len(item)))
 
         for ch in range(len(item)):
@@ -1302,12 +1518,16 @@ def _check_item_type(item, field_name, allowed_types, expect_list=False,
                 allowed_types_ch = allowed_types + (type(None),)
 
             if not isinstance(item[ch], allowed_types_ch):
-                raise TypeError('Channel %d of field `%s` must be one of the following types:' % (ch, field_name),
-                                allowed_types_ch)
+                raise TypeError(
+                    "Channel %d of field `%s` must be one of the following types:"
+                    % (ch, field_name),
+                    allowed_types_ch,
+                )
     else:
         if not isinstance(item, allowed_types):
-            raise TypeError('Field `%s` must be one of the following types:',
-                            allowed_types)
+            raise TypeError(
+                "Field `%s` must be one of the following types:", allowed_types
+            )
 
 
 def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
@@ -1336,16 +1556,19 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
     """
     # Check shape
     if item.ndim != ndim:
-        error_msg = 'Field `%s` must have ndim == %d' % (field_name, ndim)
+        error_msg = "Field `%s` must have ndim == %d" % (field_name, ndim)
         if channel_num is not None:
-            error_msg = ('Channel %d of f' % channel_num) + error_msg[1:]
+            error_msg = ("Channel %d of f" % channel_num) + error_msg[1:]
         raise TypeError(error_msg)
 
     # Check dtype
     if not np.issubdtype(item.dtype, parent_class):
-        error_msg = 'Field `%s` must have a dtype that subclasses %s' % (field_name, parent_class)
+        error_msg = "Field `%s` must have a dtype that subclasses %s" % (
+            field_name,
+            parent_class,
+        )
         if channel_num is not None:
-            error_msg = ('Channel %d of f' % channel_num) + error_msg[1:]
+            error_msg = ("Channel %d of f" % channel_num) + error_msg[1:]
         raise TypeError(error_msg)
 
 
@@ -1386,107 +1609,126 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     """
     if pn_dir is not None:
 
-        if '.' not in pn_dir:
+        if "." not in pn_dir:
             dir_list = pn_dir.split(os.sep)
-            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+            pn_dir = posixpath.join(
+                dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            )
 
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file for MNE to read it though can give the
         # user the option to delete it immediately afterwards
         r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        open(record_name, "wb").write(r.content)
 
     edf_data = mne.io.read_raw_edf(record_name, preload=True)
 
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
-    record_name_out = edf_data._filenames[0].split(os.sep)[-1].replace('-','_').replace('.edf','')
-    n_sig = edf_data._raw_extras[0]['nchan']
-    sample_rate = (edf_data._raw_extras[0]['n_samps'] / edf_data._raw_extras[0]['record_length'][0]).astype(np.int16)
+    record_name_out = (
+        edf_data._filenames[0]
+        .split(os.sep)[-1]
+        .replace("-", "_")
+        .replace(".edf", "")
+    )
+    n_sig = edf_data._raw_extras[0]["nchan"]
+    sample_rate = (
+        edf_data._raw_extras[0]["n_samps"]
+        / edf_data._raw_extras[0]["record_length"][0]
+    ).astype(np.int16)
     fs = functools.reduce(math.gcd, sample_rate)
-    samps_per_frame = [int(x/fs) for x in sample_rate]
-    base_datetime = edf_data._raw_extras[0]['meas_date'].replace(tzinfo=None)
-    digital_min = edf_data._raw_extras[0]['digital_min']
-    digital_max = edf_data._raw_extras[0]['digital_max']
-    physical_min = edf_data._raw_extras[0]['physical_min']
-    physical_max = edf_data._raw_extras[0]['physical_max']
+    samps_per_frame = [int(x / fs) for x in sample_rate]
+    base_datetime = edf_data._raw_extras[0]["meas_date"].replace(tzinfo=None)
+    digital_min = edf_data._raw_extras[0]["digital_min"]
+    digital_max = edf_data._raw_extras[0]["digital_max"]
+    physical_min = edf_data._raw_extras[0]["physical_min"]
+    physical_max = edf_data._raw_extras[0]["physical_max"]
     adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
-    adc_gain =  [float(format(a,'.12g')) for a in adc_gain_all]
-    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype('int16')
+    adc_gain = [float(format(a, ".12g")) for a in adc_gain_all]
+    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype("int16")
 
-    units = n_sig * ['']
-    for i,f in enumerate(list(edf_data._orig_units.values())):
-        if f == 'n/a':
+    units = n_sig * [""]
+    for i, f in enumerate(list(edf_data._orig_units.values())):
+        if f == "n/a":
             label = edf_data.ch_names[i].lower().split()[0]
             if label in list(SIG_UNITS.keys()):
                 units[i] = SIG_UNITS[label]
             else:
-                units[i] = 'n/a'
+                units[i] = "n/a"
         else:
-            f = f.replace('µ','u')  # Maybe more weird symbols to check for?
+            f = f.replace("µ", "u")  # Maybe more weird symbols to check for?
             units[i] = f
 
     # Convert to format suitable for calculations (number of signals, length of signal)
     signals = edf_data.get_data()
-    if (signals.shape[1] < signals.shape[0]):
+    if signals.shape[1] < signals.shape[0]:
         temp_sig_data = np.transpose(signals)
     else:
         temp_sig_data = signals
 
-    temp_sig_data = [(temp_sig_data[i] / edf_data._raw_extras[0]['units'][i]) for i in range(n_sig)]
-    temp_sig_data = np.array([s * adc_gain_all[i] + baseline[i] for i,s in enumerate(temp_sig_data)])
+    temp_sig_data = [
+        (temp_sig_data[i] / edf_data._raw_extras[0]["units"][i])
+        for i in range(n_sig)
+    ]
+    temp_sig_data = np.array(
+        [s * adc_gain_all[i] + baseline[i] for i, s in enumerate(temp_sig_data)]
+    )
 
     # Average over samps per frame to remove resampling done by MNE
     sig_len = int(edf_data._data.shape[1] / max(samps_per_frame))
 
     new_sig_data = np.empty((n_sig, sig_len))
     for i in range(n_sig):
-        new_sig_data[i,:] = np.mean(temp_sig_data[i,:].reshape(-1,max(samps_per_frame)),1)
+        new_sig_data[i, :] = np.mean(
+            temp_sig_data[i, :].reshape(-1, max(samps_per_frame)), 1
+        )
     temp_sig_data = new_sig_data
 
     samps_per_frame = n_sig * [1]
     init_value = [int(s[0]) for s in temp_sig_data]
-    checksum = [int(np.sum(v) % 65536) for v in temp_sig_data]  # not all values correct?
+    checksum = [
+        int(np.sum(v) % 65536) for v in temp_sig_data
+    ]  # not all values correct?
 
     # Convert to proper format for Record object (length of signal, number of signals)
-    if (signals.shape[1] > signals.shape[0]):
+    if signals.shape[1] > signals.shape[0]:
         sig_data = np.transpose(temp_sig_data)
     else:
         sig_data = temp_sig_data
 
     record = Record(
-        record_name = record_name_out,
-        n_sig = n_sig,
-        fs = fs,
-        samps_per_frame = samps_per_frame,
-        counter_freq = None,
-        base_counter = None,
-        sig_len = sig_len,
-        base_time = datetime.time(base_datetime.hour,
-                                  base_datetime.minute,
-                                  base_datetime.second),
-        base_date = datetime.date(base_datetime.year,
-                                  base_datetime.month,
-                                  base_datetime.day),
-        comments = [],
-        sig_name = edf_data.ch_names,    # Remove whitespace to make compatible later?
-        p_signal = None,
-        d_signal = sig_data.astype(np.int16),
-        e_p_signal = None,
-        e_d_signal = None,
-        file_name = n_sig * [record_name_out + '.dat'],
-        fmt = n_sig * ['16'],
-        skew = n_sig * [None],
-        byte_offset = n_sig * [None],
-        adc_gain = adc_gain,
-        baseline = baseline,
-        units = units,
-        adc_res =  [int(math.log2(f)) for f in (digital_max - digital_min)],
-        adc_zero = [int(f) for f in ((digital_max + 1 + digital_min) / 2)],
-        init_value = init_value,
-        checksum = checksum,
-        block_size = n_sig * [0]
+        record_name=record_name_out,
+        n_sig=n_sig,
+        fs=fs,
+        samps_per_frame=samps_per_frame,
+        counter_freq=None,
+        base_counter=None,
+        sig_len=sig_len,
+        base_time=datetime.time(
+            base_datetime.hour, base_datetime.minute, base_datetime.second
+        ),
+        base_date=datetime.date(
+            base_datetime.year, base_datetime.month, base_datetime.day
+        ),
+        comments=[],
+        sig_name=edf_data.ch_names,  # Remove whitespace to make compatible later?
+        p_signal=None,
+        d_signal=sig_data.astype(np.int16),
+        e_p_signal=None,
+        e_d_signal=None,
+        file_name=n_sig * [record_name_out + ".dat"],
+        fmt=n_sig * ["16"],
+        skew=n_sig * [None],
+        byte_offset=n_sig * [None],
+        adc_gain=adc_gain,
+        baseline=baseline,
+        units=units,
+        adc_res=[int(math.log2(f)) for f in (digital_max - digital_min)],
+        adc_zero=[int(f) for f in ((digital_max + 1 + digital_min) / 2)],
+        init_value=init_value,
+        checksum=checksum,
+        block_size=n_sig * [0],
     )
 
     record.base_datetime = base_datetime
@@ -1578,65 +1820,75 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     >>> wav_record = wfdb.wav2mit('sample-data/SC4001E0-PSG.wav', record_only=True)
 
     """
-    if not record_name.endswith('.wav'):
-        raise Exception('Name of the input file must end in .wav')
+    if not record_name.endswith(".wav"):
+        raise Exception("Name of the input file must end in .wav")
 
     if pn_dir is not None:
 
-        if '.' not in pn_dir:
+        if "." not in pn_dir:
             dir_list = pn_dir.split(os.sep)
-            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+            pn_dir = posixpath.join(
+                dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            )
 
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file to read it though can give the
         # user the option to delete it immediately afterwards
         r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        open(record_name, "wb").write(r.content)
 
-    wave_file = open(record_name, mode='rb')
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
+    wave_file = open(record_name, mode="rb")
+    record_name_out = (
+        record_name.split(os.sep)[-1].replace("-", "_").replace(".wav", "")
+    )
 
-    chunk_ID = ''.join([s.decode() for s in struct.unpack('>4s', wave_file.read(4))])
-    if chunk_ID != 'RIFF':
-        raise Exception('{} is not a .wav-format file'.format(record_name))
+    chunk_ID = "".join(
+        [s.decode() for s in struct.unpack(">4s", wave_file.read(4))]
+    )
+    if chunk_ID != "RIFF":
+        raise Exception("{} is not a .wav-format file".format(record_name))
 
     correct_chunk_size = os.path.getsize(record_name) - 8
-    chunk_size = struct.unpack('<I', wave_file.read(4))[0]
+    chunk_size = struct.unpack("<I", wave_file.read(4))[0]
     if chunk_size != correct_chunk_size:
-        raise Exception('Header chunk has incorrect length (is {} should be {})'.format(chunk_size,correct_chunk_size))
+        raise Exception(
+            "Header chunk has incorrect length (is {} should be {})".format(
+                chunk_size, correct_chunk_size
+            )
+        )
 
-    fmt = struct.unpack('>4s', wave_file.read(4))[0].decode()
-    if fmt != 'WAVE':
-        raise Exception('{} is not a .wav-format file'.format(record_name))
+    fmt = struct.unpack(">4s", wave_file.read(4))[0].decode()
+    if fmt != "WAVE":
+        raise Exception("{} is not a .wav-format file".format(record_name))
 
-    subchunk1_ID = struct.unpack('>4s', wave_file.read(4))[0].decode()
-    if subchunk1_ID != 'fmt ':
-        raise Exception('Format chunk missing or corrupt')
+    subchunk1_ID = struct.unpack(">4s", wave_file.read(4))[0].decode()
+    if subchunk1_ID != "fmt ":
+        raise Exception("Format chunk missing or corrupt")
 
-    subchunk1_size = struct.unpack('<I', wave_file.read(4))[0]
-    audio_format = struct.unpack('<H', wave_file.read(2))[0]
+    subchunk1_size = struct.unpack("<I", wave_file.read(4))[0]
+    audio_format = struct.unpack("<H", wave_file.read(2))[0]
     if audio_format > 1:
-        print('PCM has compression of {}'.format(audio_format))
+        print("PCM has compression of {}".format(audio_format))
 
     if (subchunk1_size != 16) or (audio_format != 1):
-	    raise Exception('Unsupported format {}'.format(audio_format))
+        raise Exception("Unsupported format {}".format(audio_format))
 
-    num_channels = struct.unpack('<H', wave_file.read(2))[0]
+    num_channels = struct.unpack("<H", wave_file.read(2))[0]
     if num_channels == 1:
-        print('Reading Mono formatted .wav file...')
+        print("Reading Mono formatted .wav file...")
     elif num_channels == 2:
-        print('Reading Stereo formatted .wav file...')
+        print("Reading Stereo formatted .wav file...")
     else:
-        print('Reading {}-channel formatted .wav file...'.format(num_channels))
+        print("Reading {}-channel formatted .wav file...".format(num_channels))
 
-    sample_rate = struct.unpack('<I', wave_file.read(4))[0]
-    print('Sample rate: {}'.format(sample_rate))
-    byte_rate = struct.unpack('<I', wave_file.read(4))[0]
-    print('Byte rate: {}'.format(byte_rate))
-    block_align = struct.unpack('<H', wave_file.read(2))[0]
-    print('Block align: {}'.format(block_align))
-    bits_per_sample = struct.unpack('<H', wave_file.read(2))[0]
-    print('Bits per sample: {}'.format(bits_per_sample))
+    sample_rate = struct.unpack("<I", wave_file.read(4))[0]
+    print("Sample rate: {}".format(sample_rate))
+    byte_rate = struct.unpack("<I", wave_file.read(4))[0]
+    print("Byte rate: {}".format(byte_rate))
+    block_align = struct.unpack("<H", wave_file.read(2))[0]
+    print("Block align: {}".format(block_align))
+    bits_per_sample = struct.unpack("<H", wave_file.read(2))[0]
+    print("Bits per sample: {}".format(bits_per_sample))
     # I wish this were more precise but unfortunately some information
     # is lost in .wav files which is needed for these calculations
     if bits_per_sample <= 8:
@@ -1646,57 +1898,70 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
         adc_res = 16
         adc_gain = 6400
     else:
-        raise Exception('Unsupported resolution ({} bits/sample)'.format(bits_per_sample))
+        raise Exception(
+            "Unsupported resolution ({} bits/sample)".format(bits_per_sample)
+        )
 
     if block_align != (num_channels * int(adc_res / 8)):
-	    raise Exception('Format chunk of {} has incorrect frame length'.format(block_align))
+        raise Exception(
+            "Format chunk of {} has incorrect frame length".format(block_align)
+        )
 
-    subchunk2_ID = struct.unpack('>4s', wave_file.read(4))[0].decode()
-    if subchunk2_ID != 'data':
-        raise Exception('Format chunk missing or corrupt')
+    subchunk2_ID = struct.unpack(">4s", wave_file.read(4))[0].decode()
+    if subchunk2_ID != "data":
+        raise Exception("Format chunk missing or corrupt")
 
     correct_subchunk2_size = os.path.getsize(record_name) - 44
-    subchunk2_size = struct.unpack('<I', wave_file.read(4))[0]
+    subchunk2_size = struct.unpack("<I", wave_file.read(4))[0]
     if subchunk2_size != correct_subchunk2_size:
-        raise Exception('Data chunk has incorrect length.. (is {} should be {})'.format(subchunk2_size, correct_subchunk2_size))
+        raise Exception(
+            "Data chunk has incorrect length.. (is {} should be {})".format(
+                subchunk2_size, correct_subchunk2_size
+            )
+        )
     sig_len = int(subchunk2_size / block_align)
 
-    sig_data = (np.fromfile(wave_file, dtype=np.int16).reshape((-1,num_channels)) / (2*adc_res)).astype(np.int16)
+    sig_data = (
+        np.fromfile(wave_file, dtype=np.int16).reshape((-1, num_channels))
+        / (2 * adc_res)
+    ).astype(np.int16)
 
     init_value = [int(s[0]) for s in np.transpose(sig_data)]
-    checksum = [int(np.sum(v) % 65536) for v in np.transpose(sig_data)]  # not all values correct?
+    checksum = [
+        int(np.sum(v) % 65536) for v in np.transpose(sig_data)
+    ]  # not all values correct?
 
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
     record = Record(
-        record_name = record_name_out,
-        n_sig = num_channels,
-        fs = num_channels * [sample_rate],
-        samps_per_frame = num_channels * [1],
-        counter_freq = None,
-        base_counter = None,
-        sig_len = sig_len,
-        base_time = None,
-        base_date = None,
-        comments = [],
-        sig_name = num_channels * [None],
-        p_signal = None,
-        d_signal = sig_data,
-        e_p_signal = None,
-        e_d_signal = None,
-        file_name = num_channels * [record_name_out + '.dat'],
-        fmt = num_channels * ['16' if (adc_res == 16) else '80'],
-        skew = num_channels * [None],
-        byte_offset = num_channels * [None],
-        adc_gain = num_channels * [adc_gain],
-        baseline = num_channels * [0 if (adc_res == 16) else 128],
-        units = num_channels * [None],
-        adc_res =  num_channels * [adc_res],
-        adc_zero = num_channels * [0 if (adc_res == 16) else 128],
-        init_value = init_value,
-        checksum = checksum,
-        block_size = num_channels * [0]
+        record_name=record_name_out,
+        n_sig=num_channels,
+        fs=num_channels * [sample_rate],
+        samps_per_frame=num_channels * [1],
+        counter_freq=None,
+        base_counter=None,
+        sig_len=sig_len,
+        base_time=None,
+        base_date=None,
+        comments=[],
+        sig_name=num_channels * [None],
+        p_signal=None,
+        d_signal=sig_data,
+        e_p_signal=None,
+        e_d_signal=None,
+        file_name=num_channels * [record_name_out + ".dat"],
+        fmt=num_channels * ["16" if (adc_res == 16) else "80"],
+        skew=num_channels * [None],
+        byte_offset=num_channels * [None],
+        adc_gain=num_channels * [adc_gain],
+        baseline=num_channels * [0 if (adc_res == 16) else 128],
+        units=num_channels * [None],
+        adc_res=num_channels * [adc_res],
+        adc_zero=num_channels * [0 if (adc_res == 16) else 128],
+        init_value=init_value,
+        checksum=checksum,
+        block_size=num_channels * [0],
     )
 
     if record_only:
@@ -1791,55 +2056,57 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
     The output file name is 100m.mat and 100m.hea
 
     """
-    record = rdrecord(record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto)
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_') + 'm'
+    record = rdrecord(
+        record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto
+    )
+    record_name_out = record_name.split(os.sep)[-1].replace("-", "_") + "m"
 
     # Some variables describing the format of the .mat file
-    field_version = 256         # 0x0100 or 256
-    endian_indicator = b'IM'    # little endian
-    master_type = 14            # matrix
-    sub1_type = 6               # UINT32
-    sub2_type = 5               # INT32
-    sub3_type = 1               # INT8
-    sub1_class = 6              # double precision array
+    field_version = 256  # 0x0100 or 256
+    endian_indicator = b"IM"  # little endian
+    master_type = 14  # matrix
+    sub1_type = 6  # UINT32
+    sub2_type = 5  # INT32
+    sub3_type = 1  # INT8
+    sub1_class = 6  # double precision array
 
     # Determine if we can write 8-bit unsigned samples, or if 16 or 32 bits
     # are needed per sample
     bytes_per_element = 1
     for i in range(record.n_sig):
-        if (record.adc_res[i] > 0):
-            if (record.adc_res[i] > 16):
+        if record.adc_res[i] > 0:
+            if record.adc_res[i] > 16:
                 bytes_per_element = 4
             elif (record.adc_res[i] > 8) and (bytes_per_element < 2):
                 bytes_per_element = 2
         else:
             # adc_res not specified.. try to guess from format
-            if (record.fmt[i] == '24') or (record.fmt[i] == '32'):
+            if (record.fmt[i] == "24") or (record.fmt[i] == "32"):
                 bytes_per_element = 4
-            elif (record.fmt[i] != '80') and (bytes_per_element < 2):
+            elif (record.fmt[i] != "80") and (bytes_per_element < 2):
                 bytes_per_element = 2
 
-    if (bytes_per_element == 1):
-        sub4_type = 2       # MAT8
-        out_type = '<u1'    # np.uint8
-        wfdb_type = '80'    # Offset binary form (80)
-        offset = 128        # Offset between sample values and the raw
-                            # byte/word values as interpreted by Matlab/Octave
-    elif (bytes_per_element == 2):
-        sub4_type = 3       # MAT16
-        out_type = '<i2'    # np.int16
-        wfdb_type = '16'    # Align with byte boundary (16)
-        offset = 0          # Offset between sample values and the raw
-                            # byte/word values as interpreted by Matlab/Octave
+    if bytes_per_element == 1:
+        sub4_type = 2  # MAT8
+        out_type = "<u1"  # np.uint8
+        wfdb_type = "80"  # Offset binary form (80)
+        offset = 128  # Offset between sample values and the raw
+        # byte/word values as interpreted by Matlab/Octave
+    elif bytes_per_element == 2:
+        sub4_type = 3  # MAT16
+        out_type = "<i2"  # np.int16
+        wfdb_type = "16"  # Align with byte boundary (16)
+        offset = 0  # Offset between sample values and the raw
+        # byte/word values as interpreted by Matlab/Octave
     else:
-        sub4_type = 5       # MAT32
-        out_type = '<i4'    # np.int32
-        wfdb_type = '32'    # Align with byte boundary (32)
-        offset = 0          # Offset between sample values and the raw
-                            # byte/word values as interpreted by Matlab/Octave
+        sub4_type = 5  # MAT32
+        out_type = "<i4"  # np.int32
+        wfdb_type = "32"  # Align with byte boundary (32)
+        offset = 0  # Offset between sample values and the raw
+        # byte/word values as interpreted by Matlab/Octave
 
     # Ensure the signal size does not exceed the 2^31 byte limit
-    max_length = int((2**31) / bytes_per_element / record.n_sig)
+    max_length = int((2 ** 31) / bytes_per_element / record.n_sig)
     if sampto is None:
         sampto = record.p_signal.shape[0]
     desired_length = sampto - sampfrom
@@ -1861,22 +2128,22 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
         master_bytes = bytes_of_data + 64 - (bytes_remain)
 
     # Start writing the file
-    output_file = record_name_out + '.mat'
-    with open(output_file, 'wb') as f:
+    output_file = record_name_out + ".mat"
+    with open(output_file, "wb") as f:
         # Descriptive text (124 bytes)
-        f.write(struct.pack('<124s', b'MATLAB 5.0'))
+        f.write(struct.pack("<124s", b"MATLAB 5.0"))
         # Version (2 bytes)
-        f.write(struct.pack('<H', field_version))
+        f.write(struct.pack("<H", field_version))
         # Endian indicator (2 bytes)
-        f.write(struct.pack('<2s', endian_indicator))
+        f.write(struct.pack("<2s", endian_indicator))
 
         # Master tag data type (4 bytes)
-        f.write(struct.pack('<I', master_type))
+        f.write(struct.pack("<I", master_type))
         # Master tag number of bytes (4 bytes)
         # Number of bytes of data element
         #     = (8 + 8) + (8 + 8) + (8 + 8) + (8 + bytes_of_data)
         #     = 56 + bytes_of_data
-        f.write(struct.pack('<I', master_bytes))
+        f.write(struct.pack("<I", master_bytes))
 
         # Matrix data has 4 subelements (5 if imaginary):
         #     Array flags, dimensions array, array name, real part
@@ -1884,35 +2151,35 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
 
         # Subelement 1: Array flags
         # Subtag 1: data type (4 bytes)
-        f.write(struct.pack('<I', sub1_type))
+        f.write(struct.pack("<I", sub1_type))
         # Subtag 1: number of bytes (4 bytes)
-        f.write(struct.pack('<I', 8))
+        f.write(struct.pack("<I", 8))
         # Value class indication the MATLAB data type (8 bytes)
-        f.write(struct.pack('<Q', sub1_class))
+        f.write(struct.pack("<Q", sub1_class))
 
         # Subelement 2: Rows and columns
         # Subtag 2: data type (4 bytes)
-        f.write(struct.pack('<I', sub2_type))
+        f.write(struct.pack("<I", sub2_type))
         # Subtag 2: number of bytes (4 bytes)
-        f.write(struct.pack('<I', 8))
+        f.write(struct.pack("<I", 8))
         # Number of signals (4 bytes)
-        f.write(struct.pack('<I', record.n_sig))
+        f.write(struct.pack("<I", record.n_sig))
         # Number of rows (4 bytes)
-        f.write(struct.pack('<I', desired_length))
+        f.write(struct.pack("<I", desired_length))
 
         # Subelement 3: Array name
         # Subtag 3: data type (4 bytes)
-        f.write(struct.pack('<I', sub3_type))
+        f.write(struct.pack("<I", sub3_type))
         # Subtag 3: number of bytes (4 bytes)
-        f.write(struct.pack('<I', 3))
+        f.write(struct.pack("<I", 3))
         # Subtag 3: name of the array (8 bytes)
-        f.write(struct.pack('<8s', b'val'))
+        f.write(struct.pack("<8s", b"val"))
 
         # Subelement 4: Signal data
         # Subtag 4: data type (4 bytes)
-        f.write(struct.pack('<I', sub4_type))
+        f.write(struct.pack("<I", sub4_type))
         # Subtag 4: number of bytes (4 bytes)
-        f.write(struct.pack('<I', bytes_of_data))
+        f.write(struct.pack("<I", bytes_of_data))
 
         # Total size of everything before actual data:
         #     128 byte header
@@ -1921,42 +2188,68 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
         #     = 192
 
         # Copy the selected data into the .mat file
-        out_data = record.p_signal * record.adc_gain + record.baseline - record.adc_zero
+        out_data = (
+            record.p_signal * record.adc_gain
+            + record.baseline
+            - record.adc_zero
+        )
         # Cast the data to the correct type base on the bytes_per_element
         out_data = np.around(out_data).astype(out_type)
         # out_data should be [r1c1, r1c2, r2c1, r2c2, etc.]
         out_data = out_data.flatten()
-        out_fmt = '<%sh' % len(out_data)
+        out_fmt = "<%sh" % len(out_data)
         f.write(struct.pack(out_fmt, *out_data))
 
     # Display some useful information
     if record.base_time is None:
         if record.base_date is None:
-            datetime_string = '[None]'
+            datetime_string = "[None]"
         else:
-            datetime_string = '[{}]'.format(record.base_date.strftime('%d/%m/%Y'))
+            datetime_string = "[{}]".format(
+                record.base_date.strftime("%d/%m/%Y")
+            )
     else:
         if record.base_date is None:
-            datetime_string = '[{}]'.format(record.base_time.strftime('%H:%M:%S.%f'))
+            datetime_string = "[{}]".format(
+                record.base_time.strftime("%H:%M:%S.%f")
+            )
         else:
-            datetime_string = '[{} {}]'.format(record.base_time.strftime('%H:%M:%S.%f'),
-                                               record.base_date.strftime('%d/%m/%Y'))
+            datetime_string = "[{} {}]".format(
+                record.base_time.strftime("%H:%M:%S.%f"),
+                record.base_date.strftime("%d/%m/%Y"),
+            )
 
-    print('Source: record {}\t\tStart: {}'.format(record_name, datetime_string))
-    print('val has {} rows (signals) and {} columns (samples/signal)'.format(record.n_sig,
-                                                                             desired_length))
-    duration_string = str(datetime.timedelta(seconds=desired_length/record.fs))
-    print('Duration: {}'.format(duration_string))
-    print('Sampling frequency: {} Hz\tSampling interval: {} sec'.format(record.fs,
-                                                                        1/record.fs))
-    print('{:<7}{:<20}{:<17}{:<10}{:<10}'.format('Row','Signal','Gain','Base','Units'))
-    record.sig_name = [s.replace(' ','_') for s in record.sig_name]
+    print("Source: record {}\t\tStart: {}".format(record_name, datetime_string))
+    print(
+        "val has {} rows (signals) and {} columns (samples/signal)".format(
+            record.n_sig, desired_length
+        )
+    )
+    duration_string = str(
+        datetime.timedelta(seconds=desired_length / record.fs)
+    )
+    print("Duration: {}".format(duration_string))
+    print(
+        "Sampling frequency: {} Hz\tSampling interval: {} sec".format(
+            record.fs, 1 / record.fs
+        )
+    )
+    print(
+        "{:<7}{:<20}{:<17}{:<10}{:<10}".format(
+            "Row", "Signal", "Gain", "Base", "Units"
+        )
+    )
+    record.sig_name = [s.replace(" ", "_") for s in record.sig_name]
     for i in range(record.n_sig):
-        print('{:<7}{:<20}{:<17}{:<10}{:<10}'.format(i,
-                                                     record.sig_name[i],
-                                                     record.adc_gain[i],
-                                                     record.baseline[i]-record.adc_zero[i]+offset,
-                                                     record.units[i]))
+        print(
+            "{:<7}{:<20}{:<17}{:<10}{:<10}".format(
+                i,
+                record.sig_name[i],
+                record.adc_gain[i],
+                record.baseline[i] - record.adc_zero[i] + offset,
+                record.units[i],
+            )
+        )
 
     # Modify the record file to reflect the new data
     num_channels = record.n_sig if (channels is None) else len(channels)
@@ -1966,19 +2259,21 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
     record.file_name = num_channels * [output_file]
     record.fmt = num_channels * [wfdb_type]
     record.byte_offset = num_channels * [192]
-    record.baseline = [b - record.adc_zero[i] for i,b in enumerate(record.baseline)]
+    record.baseline = [
+        b - record.adc_zero[i] for i, b in enumerate(record.baseline)
+    ]
     record.adc_zero = num_channels * [0]
-    record.init_value = out_data[:record.n_sig].tolist()
+    record.init_value = out_data[: record.n_sig].tolist()
 
     # Write the header file RECm.hea
     record.wrheader()
     # Append the following lines to create a signature
-    with open(record_name_out+'.hea','a') as f:
-        f.write('#Creator: wfdb2mat\n')
-        f.write('#Source: record {}\n'.format(record_name))
+    with open(record_name_out + ".hea", "a") as f:
+        f.write("#Creator: wfdb2mat\n")
+        f.write("#Source: record {}\n".format(record_name))
 
 
-#------------------------- Reading Records --------------------------- #
+# ------------------------- Reading Records --------------------------- #
 
 
 def rdheader(record_name, pn_dir=None, rd_segments=False):
@@ -2020,24 +2315,27 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     dir_name = os.path.abspath(dir_name)
 
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split(os.sep)
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        pn_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
 
     # Read the header file. Separate comment and non-comment lines
-    header_lines, comment_lines = _header._read_header_lines(base_record_name,
-                                                             dir_name, pn_dir)
+    header_lines, comment_lines = _header._read_header_lines(
+        base_record_name, dir_name, pn_dir
+    )
 
     # Get fields from record line
     record_fields = _header._parse_record_line(header_lines[0])
 
     # Single segment header - Process signal specification lines
-    if record_fields['n_seg'] is None:
+    if record_fields["n_seg"] is None:
         # Create a single-segment WFDB record object
         record = Record()
 
         # There are signals
-        if len(header_lines)>1:
+        if len(header_lines) > 1:
             # Read the fields from the signal lines
             signal_fields = _header._parse_signal_lines(header_lines[1:])
             # Set the object's signal fields
@@ -2046,7 +2344,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
         # Set the object's record line fields
         for field in record_fields:
-            if field == 'n_seg':
+            if field == "n_seg":
                 continue
             setattr(record, field, record_fields[field])
     # Multi segment header - Process segment specification lines
@@ -2064,35 +2362,47 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
         # Determine whether the record is fixed or variable
         if record.seg_len[0] == 0:
-            record.layout = 'variable'
+            record.layout = "variable"
         else:
-            record.layout = 'fixed'
+            record.layout = "fixed"
 
         # If specified, read the segment headers
         if rd_segments:
             record.segments = []
             # Get the base record name (could be empty)
             for s in record.seg_name:
-                if s == '~':
+                if s == "~":
                     record.segments.append(None)
                 else:
-                    record.segments.append(rdheader(os.path.join(dir_name, s),
-                                                    pn_dir))
+                    record.segments.append(
+                        rdheader(os.path.join(dir_name, s), pn_dir)
+                    )
             # Fill in the sig_name attribute
             record.sig_name = record.get_sig_name()
             # Fill in the sig_segments attribute
             record.sig_segments = record.get_sig_segments()
 
     # Set the comments field
-    record.comments = [line.strip(' \t#') for line in comment_lines]
+    record.comments = [line.strip(" \t#") for line in comment_lines]
 
     return record
 
 
-def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
-             physical=True, pn_dir=None, m2s=True, smooth_frames=True,
-             ignore_skew=False, return_res=64, force_channels=True,
-             channel_names=None, warn_empty=False):
+def rdrecord(
+    record_name,
+    sampfrom=0,
+    sampto=None,
+    channels=None,
+    physical=True,
+    pn_dir=None,
+    m2s=True,
+    smooth_frames=True,
+    ignore_skew=False,
+    return_res=64,
+    force_channels=True,
+    channel_names=None,
+    warn_empty=False,
+):
     """
     Read a WFDB record and return the signal and record descriptors as
     attributes in a Record or MultiRecord object.
@@ -2190,13 +2500,15 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split(os.sep)
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        pn_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
 
-    if record_name.endswith('.edf'):
+    if record_name.endswith(".edf"):
         record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
-    elif record_name.endswith('.wav'):
+    elif record_name.endswith(".wav"):
         record = wav2mit(record_name, pn_dir=pn_dir, record_only=True)
     else:
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
@@ -2211,9 +2523,12 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                 record.sig_len = 0
             else:
                 record.sig_len = _signal._infer_sig_len(
-                    file_name=record.file_name[0], fmt=record.fmt[0],
+                    file_name=record.file_name[0],
+                    fmt=record.fmt[0],
                     n_sig=record.file_name.count(record.file_name[0]),
-                    dir_name=dir_name, pn_dir=pn_dir)
+                    dir_name=dir_name,
+                    pn_dir=pn_dir,
+                )
         sampto = record.sig_len
 
     # channel_names takes precedence over channels
@@ -2222,29 +2537,32 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         if isinstance(record, Record):
             reference_record = record
         else:
-            if record.layout == 'fixed':
+            if record.layout == "fixed":
                 # Find the first non-empty segment to get the signal
                 # names
-                first_seg_name = [n for n in record.seg_name if n != '~'][0]
-                reference_record = rdheader(os.path.join(dir_name,
-                                                         record.seg_name[0]),
-                                            pn_dir=pn_dir)
+                first_seg_name = [n for n in record.seg_name if n != "~"][0]
+                reference_record = rdheader(
+                    os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+                )
             else:
                 # Use the layout specification header to get the signal
                 # names
-                reference_record = rdheader(os.path.join(dir_name,
-                                                         record.seg_name[0]),
-                                            pn_dir=pn_dir)
+                reference_record = rdheader(
+                    os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+                )
 
-        channels = _get_wanted_channels(wanted_sig_names=channel_names,
-                                       record_sig_names=reference_record.sig_name)
+        channels = _get_wanted_channels(
+            wanted_sig_names=channel_names,
+            record_sig_names=reference_record.sig_name,
+        )
 
     elif channels is None:
         channels = list(range(record.n_sig))
 
     # Ensure that input fields are valid for the record
-    record.check_read_inputs(sampfrom, sampto, channels, physical,
-                             smooth_frames, return_res)
+    record.check_read_inputs(
+        sampfrom, sampto, channels, physical, smooth_frames, return_res
+    )
 
     # If the signal doesn't have the specified channels, there will be
     # no signal. Recall that `rdsamp` is not called on segments of multi
@@ -2254,55 +2572,69 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         old_record = record
         record = Record()
         for attr in _header.RECORD_SPECS.index:
-            if attr == 'n_seg':
+            if attr == "n_seg":
                 continue
-            elif attr in ['n_sig', 'sig_len']:
+            elif attr in ["n_sig", "sig_len"]:
                 setattr(record, attr, 0)
             else:
                 setattr(record, attr, getattr(old_record, attr))
         if warn_empty:
-            print('None of the specified signals were contained in the record')
+            print("None of the specified signals were contained in the record")
 
     # A single segment record
     elif isinstance(record, Record):
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
+        if (
+            smooth_frames
+            or max([record.samps_per_frame[c] for c in channels]) == 1
+        ):
             # Read signals from the associated dat files that contain
             # wanted channels
-            if record_name.endswith('.edf') or record_name.endswith('.wav'):
-                record.d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      no_file=True,
-                                                      sig_data=record.d_signal,
-                                                      return_res=return_res)
+            if record_name.endswith(".edf") or record_name.endswith(".wav"):
+                record.d_signal = _signal._rd_segment(
+                    record.file_name,
+                    dir_name,
+                    pn_dir,
+                    record.fmt,
+                    record.n_sig,
+                    record.sig_len,
+                    record.byte_offset,
+                    record.samps_per_frame,
+                    record.skew,
+                    sampfrom,
+                    sampto,
+                    channels,
+                    smooth_frames,
+                    ignore_skew,
+                    no_file=True,
+                    sig_data=record.d_signal,
+                    return_res=return_res,
+                )
             else:
-                record.d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      return_res=return_res)
+                record.d_signal = _signal._rd_segment(
+                    record.file_name,
+                    dir_name,
+                    pn_dir,
+                    record.fmt,
+                    record.n_sig,
+                    record.sig_len,
+                    record.byte_offset,
+                    record.samps_per_frame,
+                    record.skew,
+                    sampfrom,
+                    sampto,
+                    channels,
+                    smooth_frames,
+                    ignore_skew,
+                    return_res=return_res,
+                )
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
-            record._arrange_fields(channels=channels, sampfrom=sampfrom,
-                                   expanded=False)
+            record._arrange_fields(
+                channels=channels, sampfrom=sampfrom, expanded=False
+            )
 
             if physical:
                 # Perform inplace dac to get physical signal
@@ -2310,39 +2642,50 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            if record_name.endswith('.edf') or record_name.endswith('.wav'):
-                record.e_d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      no_file=True,
-                                                      sig_data=record.d_signal,
-                                                      return_res=return_res)
+            if record_name.endswith(".edf") or record_name.endswith(".wav"):
+                record.e_d_signal = _signal._rd_segment(
+                    record.file_name,
+                    dir_name,
+                    pn_dir,
+                    record.fmt,
+                    record.n_sig,
+                    record.sig_len,
+                    record.byte_offset,
+                    record.samps_per_frame,
+                    record.skew,
+                    sampfrom,
+                    sampto,
+                    channels,
+                    smooth_frames,
+                    ignore_skew,
+                    no_file=True,
+                    sig_data=record.d_signal,
+                    return_res=return_res,
+                )
             else:
-                record.e_d_signal = _signal._rd_segment(record.file_name,
-                                                        dir_name, pn_dir,
-                                                        record.fmt,
-                                                        record.n_sig,
-                                                        record.sig_len,
-                                                        record.byte_offset,
-                                                        record.samps_per_frame,
-                                                        record.skew, sampfrom,
-                                                        sampto, channels,
-                                                        smooth_frames,
-                                                        ignore_skew,
-                                                        return_res=return_res)
+                record.e_d_signal = _signal._rd_segment(
+                    record.file_name,
+                    dir_name,
+                    pn_dir,
+                    record.fmt,
+                    record.n_sig,
+                    record.sig_len,
+                    record.byte_offset,
+                    record.samps_per_frame,
+                    record.skew,
+                    sampfrom,
+                    sampto,
+                    channels,
+                    smooth_frames,
+                    ignore_skew,
+                    return_res=return_res,
+                )
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
-            record._arrange_fields(channels=channels, sampfrom=sampfrom,
-                                   expanded=True)
+            record._arrange_fields(
+                channels=channels, sampfrom=sampfrom, expanded=True
+            )
 
             if physical:
                 # Perform dac to get physical signal
@@ -2366,40 +2709,50 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         record.segments = [None] * record.n_seg
 
         # Variable layout, read the layout specification header
-        if record.layout == 'variable':
-            record.segments[0] = rdheader(os.path.join(dir_name,
-                                                       record.seg_name[0]),
-                                          pn_dir=pn_dir)
+        if record.layout == "variable":
+            record.segments[0] = rdheader(
+                os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+            )
 
         # The segment numbers and samples within each segment to read.
-        seg_numbers, seg_ranges  = record._required_segments(sampfrom, sampto)
+        seg_numbers, seg_ranges = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
-        seg_channels = record._required_channels(seg_numbers, channels,
-                                                 dir_name, pn_dir)
+        seg_channels = record._required_channels(
+            seg_numbers, channels, dir_name, pn_dir
+        )
 
         # Read the desired samples in the relevant segments
         for i in range(len(seg_numbers)):
             seg_num = seg_numbers[i]
             # Empty segment or segment with no relevant channels
-            if record.seg_name[seg_num] == '~' or len(seg_channels[i]) == 0:
+            if record.seg_name[seg_num] == "~" or len(seg_channels[i]) == 0:
                 record.segments[seg_num] = None
             else:
                 record.segments[seg_num] = rdrecord(
                     os.path.join(dir_name, record.seg_name[seg_num]),
-                    sampfrom=seg_ranges[i][0], sampto=seg_ranges[i][1],
-                    channels=seg_channels[i], physical=physical, pn_dir=pn_dir,
-                    return_res=return_res)
+                    sampfrom=seg_ranges[i][0],
+                    sampto=seg_ranges[i][1],
+                    channels=seg_channels[i],
+                    physical=physical,
+                    pn_dir=pn_dir,
+                    return_res=return_res,
+                )
 
         # Arrange the fields of the layout specification segment, and
         # the overall object, to reflect user input.
-        record._arrange_fields(seg_numbers=seg_numbers, seg_ranges=seg_ranges,
-                               channels=channels, sampfrom=sampfrom,
-                               force_channels=force_channels)
+        record._arrange_fields(
+            seg_numbers=seg_numbers,
+            seg_ranges=seg_ranges,
+            channels=channels,
+            sampfrom=sampfrom,
+            force_channels=force_channels,
+        )
 
         # Convert object into a single segment Record object
         if m2s:
-            record = record.multi_to_single(physical=physical,
-                                            return_res=return_res)
+            record = record.multi_to_single(
+                physical=physical, return_res=return_res
+            )
 
     # Perform dtype conversion if necessary
     if isinstance(record, Record) and record.n_sig > 0:
@@ -2408,8 +2761,16 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     return record
 
 
-def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
-           channel_names=None, warn_empty=False, return_res=64):
+def rdsamp(
+    record_name,
+    sampfrom=0,
+    sampto=None,
+    channels=None,
+    pn_dir=None,
+    channel_names=None,
+    warn_empty=False,
+    return_res=64,
+):
     """
     Read a WFDB record, and return the physical signals and a few important
     descriptor fields.
@@ -2481,19 +2842,37 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
                                       channel =[1,3])
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split(os.sep)
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        pn_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
 
-    record = rdrecord(record_name=record_name, sampfrom=sampfrom,
-                      sampto=sampto, channels=channels, physical=True,
-                      pn_dir=pn_dir, m2s=True, return_res=return_res,
-                      channel_names=channel_names, warn_empty=warn_empty)
+    record = rdrecord(
+        record_name=record_name,
+        sampfrom=sampfrom,
+        sampto=sampto,
+        channels=channels,
+        physical=True,
+        pn_dir=pn_dir,
+        m2s=True,
+        return_res=return_res,
+        channel_names=channel_names,
+        warn_empty=warn_empty,
+    )
 
     signals = record.p_signal
     fields = {}
-    for field in ['fs','sig_len', 'n_sig', 'base_date', 'base_time',
-                  'units','sig_name', 'comments']:
+    for field in [
+        "fs",
+        "sig_len",
+        "n_sig",
+        "base_date",
+        "base_time",
+        "units",
+        "sig_name",
+        "comments",
+    ]:
         fields[field] = getattr(record, field)
 
     return signals, fields
@@ -2533,17 +2912,18 @@ def sampfreq(record_name, pn_dir=None):
     >>> ECG 4    500
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split(os.sep)
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
-                                *dir_list[1:])
+        pn_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
 
     record = rdheader(record_name, pn_dir=pn_dir)
-    samps_per_frame = [record.fs*samp for samp in record.samps_per_frame]
+    samps_per_frame = [record.fs * samp for samp in record.samps_per_frame]
     sig_name = record.sig_name
 
-    for sig,samp in zip(sig_name, samps_per_frame):
-        print('{}\t{}'.format(sig,samp))
+    for sig, samp in zip(sig_name, samps_per_frame):
+        print("{}\t{}".format(sig, samp))
 
 
 def signame(record_name, pn_dir=None, sig_nums=[]):
@@ -2585,10 +2965,11 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
     >>> ECG 4
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split(os.sep)
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
-                                 *dir_list[1:])
+        pn_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
 
     record = rdheader(record_name, pn_dir=pn_dir)
     if len(sig_nums) > 0:
@@ -2596,9 +2977,9 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
             try:
                 print(record.sig_name[n])
             except IndexError:
-                raise Exception('sig_nums value {} out of range'.format(n))
+                raise Exception("sig_nums value {} out of range".format(n))
     else:
-        print(*record.sig_name, sep='\n')
+        print(*record.sig_name, sep="\n")
 
 
 def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
@@ -2624,17 +3005,36 @@ def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
 
     """
     if pad:
-        return [record_sig_names.index(s) if s in record_sig_names else None for s in wanted_sig_names]
+        return [
+            record_sig_names.index(s) if s in record_sig_names else None
+            for s in wanted_sig_names
+        ]
     else:
-        return [record_sig_names.index(s) for s in wanted_sig_names if s in record_sig_names]
+        return [
+            record_sig_names.index(s)
+            for s in wanted_sig_names
+            if s in record_sig_names
+        ]
 
 
-#------------------- /Reading Records -------------------#
+# ------------------- /Reading Records -------------------#
 
 
-def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
-           fmt=None, adc_gain=None, baseline=None, comments=None,
-           base_time=None, base_date=None, write_dir=''):
+def wrsamp(
+    record_name,
+    fs,
+    units,
+    sig_name,
+    p_signal=None,
+    d_signal=None,
+    fmt=None,
+    adc_gain=None,
+    baseline=None,
+    comments=None,
+    base_time=None,
+    base_date=None,
+    write_dir="",
+):
     """
     Write a single segment WFDB record, creating a WFDB header file and any
     associated dat files.
@@ -2710,33 +3110,53 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
 
     """
     # Check for valid record name
-    if '.' in record_name: 
+    if "." in record_name:
         raise Exception("Record name must not contain '.'")
     # Check input field combinations
     if p_signal is not None and d_signal is not None:
-        raise Exception('Must only give one of the inputs: p_signal or d_signal')
+        raise Exception(
+            "Must only give one of the inputs: p_signal or d_signal"
+        )
     if d_signal is not None:
         if fmt is None or adc_gain is None or baseline is None:
-            raise Exception("When using d_signal, must also specify 'fmt', 'gain', and 'baseline' fields.")
+            raise Exception(
+                "When using d_signal, must also specify 'fmt', 'gain', and 'baseline' fields."
+            )
     # Depending on whether d_signal or p_signal was used, set other
     # required features.
     if p_signal is not None:
         # Create the Record object
-        record = Record(record_name=record_name, p_signal=p_signal, fs=fs,
-                        fmt=fmt, units=units, sig_name=sig_name,
-                        adc_gain=adc_gain, baseline=baseline,
-                        comments=comments, base_time=base_time,
-                        base_date=base_date)
+        record = Record(
+            record_name=record_name,
+            p_signal=p_signal,
+            fs=fs,
+            fmt=fmt,
+            units=units,
+            sig_name=sig_name,
+            adc_gain=adc_gain,
+            baseline=baseline,
+            comments=comments,
+            base_time=base_time,
+            base_date=base_date,
+        )
         # Compute optimal fields to store the digital signal, carry out adc,
         # and set the fields.
         record.set_d_features(do_adc=1)
     else:
         # Create the Record object
-        record = Record(record_name=record_name, d_signal=d_signal, fs=fs,
-                        fmt=fmt, units=units, sig_name=sig_name,
-                        adc_gain=adc_gain, baseline=baseline,
-                        comments=comments, base_time=base_time,
-                        base_date=base_date)
+        record = Record(
+            record_name=record_name,
+            d_signal=d_signal,
+            fs=fs,
+            fmt=fmt,
+            units=units,
+            sig_name=sig_name,
+            adc_gain=adc_gain,
+            baseline=baseline,
+            comments=comments,
+            base_time=base_time,
+            base_date=base_date,
+        )
         # Use d_signal to set the fields directly
         record.set_d_features()
 
@@ -2777,8 +3197,14 @@ def is_monotonic(full_list):
     return True
 
 
-def dl_database(db_dir, dl_dir, records='all', annotators='all',
-                keep_subdirs=True, overwrite=False):
+def dl_database(
+    db_dir,
+    dl_dir,
+    records="all",
+    annotators="all",
+    keep_subdirs=True,
+    overwrite=False,
+):
     """
     Download WFDB record (and optionally annotation) files from a
     PhysioNet database. The database must contain a 'RECORDS' file in
@@ -2831,7 +3257,9 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     # Full url PhysioNet database
     if os.sep in db_dir:
         dir_list = db_dir.split(os.sep)
-        db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        db_dir = posixpath.join(
+            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+        )
     else:
         db_dir = posixpath.join(db_dir, get_version(db_dir))
     db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + os.sep
@@ -2849,40 +3277,47 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     nested_records = []
 
     for rec in record_list:
-        print('Generating record list for: ' + rec)
+        print("Generating record list for: " + rec)
         # Check out whether each record is in MIT or EDF format
-        if rec.endswith('.edf'):
+        if rec.endswith(".edf"):
             all_files.append(rec)
         else:
             # May be pointing to directory
             if rec.endswith(os.sep):
-                nested_records += [posixpath.join(rec, sr) for sr in download.get_record_list(posixpath.join(db_dir, rec))]
+                nested_records += [
+                    posixpath.join(rec, sr)
+                    for sr in download.get_record_list(
+                        posixpath.join(db_dir, rec)
+                    )
+                ]
             else:
                 nested_records.append(rec)
 
     for rec in nested_records:
-        print('Generating list of all files for: ' + rec)
+        print("Generating list of all files for: " + rec)
         # If MIT format, have to figure out all associated files
-        all_files.append(rec+'.hea')
+        all_files.append(rec + ".hea")
         dir_name, base_rec_name = os.path.split(rec)
-        record = rdheader(base_rec_name, pn_dir=posixpath.join(db_dir, dir_name))
+        record = rdheader(
+            base_rec_name, pn_dir=posixpath.join(db_dir, dir_name)
+        )
 
         # Single segment record
         if isinstance(record, Record):
             # Add all dat files of the segment
-            for file in (record.file_name if record.file_name else []):
+            for file in record.file_name if record.file_name else []:
                 all_files.append(posixpath.join(dir_name, file))
 
         # Multi segment record
         else:
             for seg in record.seg_name:
                 # Skip empty segments
-                if seg == '~':
+                if seg == "~":
                     continue
                 # Add the header
-                all_files.append(posixpath.join(dir_name, seg+'.hea'))
+                all_files.append(posixpath.join(dir_name, seg + ".hea"))
                 # Layout specifier has no dat files
-                if seg.endswith('_layout'):
+                if seg.endswith("_layout"):
                     continue
                 # Add all dat files of the segment
                 rec_seg = rdheader(seg, pn_dir=posixpath.join(db_dir, dir_name))
@@ -2892,23 +3327,35 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         # Check whether the record has any requested annotation files
         if annotators is not None:
             for a in annotators:
-                ann_file = rec+'.'+a
-                url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
+                ann_file = rec + "." + a
+                url = posixpath.join(
+                    download.config.db_index_url, db_dir, ann_file
+                )
                 rh = requests.head(url)
 
                 if rh.status_code != 404:
                     all_files.append(ann_file)
 
-    dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in all_files]
+    dl_inputs = [
+        (
+            os.path.split(file)[1],
+            os.path.split(file)[0],
+            db_dir,
+            dl_dir,
+            keep_subdirs,
+            overwrite,
+        )
+        for file in all_files
+    ]
 
     # Make any required local directories
     download.make_local_dirs(dl_dir, dl_inputs, keep_subdirs)
 
-    print('Downloading files...')
+    print("Downloading files...")
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
     pool.map(download.dl_pn_file, dl_inputs)
-    print('Finished downloading files')
+    print("Finished downloading files")
 
     return
