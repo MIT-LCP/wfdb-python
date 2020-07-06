@@ -1,17 +1,16 @@
 import datetime
+import functools
+import math
 import multiprocessing
+import os
 import posixpath
 import re
-
-import numpy as np
-import os
-import pandas as pd
 import requests
-import mne
-import math
-import functools
 import struct
-import pdb
+
+import mne
+import numpy as np
+import pandas as pd
 
 from wfdb.io import _header
 from wfdb.io import _signal
@@ -162,7 +161,7 @@ SIG_UNITS = {
 class BaseRecord(object):
     """
     The base WFDB class extended by the Record and MultiRecord classes.
-    
+
     Attributes
     ----------
     record_name : str, optional
@@ -631,9 +630,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     baseline : list, optional
         A list of integers specifying the digital baseline.
     units : list, optional
-        A list of strings giving the units of each signal channel.  
+        A list of strings giving the units of each signal channel.
     adc_res: int, optional
-        The value produced by the ADC given a given Volt input.  
+        The value produced by the ADC given a given Volt input.
     adc_zero: int, optional
         The value produced by the ADC given a 0 Volt input.
     init_value : list, optional

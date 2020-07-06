@@ -1,11 +1,11 @@
+import json
 import multiprocessing
-import numpy as np
-import re
 import os
 import posixpath
+import re
 import requests
-import pdb
-import json
+
+import numpy as np
 
 from wfdb.io import record
 
@@ -322,7 +322,7 @@ def get_annotators(db_dir, annotators):
         The database directory, usually the same as the database slug.
         The location to look for a ANNOTATORS file.
     annotators : list, str
-        Determines from which records to get the annotators from. Leave as 
+        Determines from which records to get the annotators from. Leave as
         default 'all' to get all annotators.
 
     Returns
@@ -409,14 +409,14 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
 
 def dl_pn_file(inputs):
     """
-    Download a file from Physionet. The input args are to be unpacked 
+    Download a file from Physionet. The input args are to be unpacked
     for the use of multiprocessing map, because python2 doesn't have starmap.
 
     Parameters
     ----------
     inputs : list
-        All of the required information needed to download a file 
-        from Physionet: 
+        All of the required information needed to download a file
+        from Physionet:
         [basefile, subdir, db, dl_dir, keep_subdirs, overwrite].
 
     Returns

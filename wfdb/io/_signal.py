@@ -4,7 +4,6 @@ import os
 import numpy as np
 
 from wfdb.io import download
-import pdb
 
 
 MAX_I32 = 2147483647
@@ -262,7 +261,7 @@ class SignalMixin(object):
             conversion to get the physical signal field beforehand.
         expanded : bool, optional
             Whether to transform the `e_p_signal` attribute (True) or
-            the `p_signal` attribute (False). If True, the `samps_per_frame` 
+            the `p_signal` attribute (False). If True, the `samps_per_frame`
             attribute is also required.
 
         Returns
@@ -567,7 +566,7 @@ class SignalMixin(object):
             The numpy array dtype of the returned signals. Options are: 64,
             32, 16, and 8, where the value represents the numpy int or float
             dtype. Note that the value cannot be 8 when physical is True
-            since there is no float8 format.       
+            since there is no float8 format.
         inplace : bool, optional
             Whether to automatically set the object's corresponding
             physical signal attribute and set the digital signal
@@ -931,7 +930,7 @@ class SignalMixin(object):
 
         Parameters
         ----------
-        sigtype (default='physical') : str 
+        sigtype (default='physical') : str
             Specifies whether to mooth the e_p_signal field ('physical'), or the e_d_signal
             field ('digital').
 
@@ -1866,10 +1865,10 @@ def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
     sig : ndarray
         The original signal.
     read_len : int
-        The signal length to read per channel. Calculated 
+        The signal length to read per channel. Calculated
         by `sampto - sampfrom`.
     n_sig : int
-        The number of signals.  
+        The number of signals.
     samps_per_frame : list
         The number of samples of the orignal signal per channel.
 

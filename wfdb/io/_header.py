@@ -1,7 +1,6 @@
 import datetime
 import os
 import re
-import pdb
 
 import numpy as np
 import pandas as pd
@@ -397,7 +396,7 @@ class HeaderMixin(BaseHeaderMixin):
     def set_default(self, field):
         """
         Set the object's attribute to its default value if it is missing
-        and there is a default. Not responsible for initializing the 
+        and there is a default. Not responsible for initializing the
         attribute. That is done by the constructor.
 
         Parameters
@@ -599,9 +598,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def set_defaults(self):
         """
         Set defaults for fields needed to write the header if they have
-        defaults. This is NOT called by rdheader. It is only called by the 
-        gateway wrsamp for convenience. It is also not called by wrheader since 
-        it is supposed to be an explicit function. Not responsible for 
+        defaults. This is NOT called by rdheader. It is only called by the
+        gateway wrsamp for convenience. It is also not called by wrheader since
+        it is supposed to be an explicit function. Not responsible for
         initializing the attributes. That is done by the constructor.
 
         Parameters
@@ -618,7 +617,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     def wrheader(self, write_dir=""):
         """
-        Write a multi-segment WFDB header file. The signals or segments are 
+        Write a multi-segment WFDB header file. The signals or segments are
         not used. Before writing:
         - Get the fields used to write the header for this instance.
         - Check each required field.
@@ -689,7 +688,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         Returns
         -------
-        N/A        
+        N/A
 
         """
         # Record specification fields
@@ -736,7 +735,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         ----------
         write_fields : list
             All the default required fields, the user defined fields,
-            and their dependencies.  
+            and their dependencies.
         write_dir : str
             The output directory in which the header is written.
 

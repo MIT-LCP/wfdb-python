@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import signal
-import pdb
 
 from wfdb.io.annotation import Annotation
 
@@ -260,7 +259,7 @@ def get_filter_gain(b, a, f_gain, fs):
         The frequency at which to calculate the gain.
     fs : int, float, optional
         The sampling frequency of the system.
-    
+
     Returns
     -------
     gain : int, float

@@ -1,7 +1,7 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-import pdb
 
 from wfdb.io.record import Record, rdrecord
 from wfdb.io._header import float_types
@@ -236,7 +236,7 @@ def create_figure(n_subplots, figsize):
     n_subplots : int
         The number of subplots to generate.
     figsize : tuple
-        The figure's width, height in inches. 
+        The figure's width, height in inches.
 
     Returns
     -------
@@ -394,7 +394,7 @@ def plot_annotation(
 def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     """
     Add ECG grids to the axes.
-    
+
     Parameters
     ----------
     ecg_grids : list, str

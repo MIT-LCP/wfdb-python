@@ -1,10 +1,10 @@
 import copy
-import numpy as np
 import os
-import pandas as pd
-import re
 import posixpath
-import pdb
+import re
+
+import numpy as np
+import pandas as pd
 
 from wfdb.io import download
 from wfdb.io import _header
@@ -234,7 +234,7 @@ class Annotation(object):
         sampfrom : int, optional
             The minimum sample number for annotations to be returned.
         sampto : int, optional
-            The maximum sample number for annotations to be returned. 
+            The maximum sample number for annotations to be returned.
 
         """
         sampto = sampto or self.sample[-1]
@@ -837,7 +837,7 @@ class Annotation(object):
 
     def get_custom_label_attribute(self, attribute):
         """
-        Get a list of the custom_labels attribute i.e. label_store, 
+        Get a list of the custom_labels attribute i.e. label_store,
         symbol, or description. The custom_labels variable could be in
         a number of formats.
 
@@ -845,7 +845,7 @@ class Annotation(object):
         ----------
         attribute : str
             The selected attribute to generate the list.
-        
+
         Returns
         -------
         a : list
@@ -879,16 +879,16 @@ class Annotation(object):
 
     def create_label_map(self, inplace=True):
         """
-        Creates mapping df based on ann_label_table and self.custom_labels. Table 
+        Creates mapping df based on ann_label_table and self.custom_labels. Table
         composed of entire WFDB standard annotation table, overwritten/appended
         with custom_labels if any. Sets __label_map__ attribute, or returns value.
 
         Parameters
         ----------
         inplace : bool, optional
-            Determines whether to add the label map to the current 
+            Determines whether to add the label map to the current
             object (True) or as a return variable (False).
-        
+
         Returns
         -------
         label_map : pandas DataFrame
@@ -1280,13 +1280,13 @@ class Annotation(object):
         Parameters
         ----------
         inplace : bool, optional
-            Determines whether to add the label map to the current 
+            Determines whether to add the label map to the current
             object (True) or as a return variable (False).
 
         Returns
         -------
         contained_labels : pandas DataFrame
-            Mapping based on ann_label_table and self.custom_labels.        
+            Mapping based on ann_label_table and self.custom_labels.
 
         """
         if self.custom_labels is not None:
@@ -1417,8 +1417,8 @@ class Annotation(object):
         self, source_field, target_field, inplace=True, overwrite=True
     ):
         """
-        Convert one label attribute (label_store, symbol, or description) to 
-        another. Creates mapping df on the fly based on ann_label_table and 
+        Convert one label attribute (label_store, symbol, or description) to
+        another. Creates mapping df on the fly based on ann_label_table and
         self.custom_labels.
 
         Parameters
@@ -1428,12 +1428,12 @@ class Annotation(object):
         target_field : str
             The label attribute that will be converted to.
         inplace : bool, optional
-            Determines whether to add the label map to the current 
+            Determines whether to add the label map to the current
             object (True) or as a return variable (False).
         overwrite : bool, optional
-            If True, performs conversion and replaces target field attribute 
-            even if the target attribute already has a value. If False, does 
-            not perform conversion in the aforementioned case. Set to 
+            If True, performs conversion and replaces target field attribute
+            even if the target attribute already has a value. If False, does
+            not perform conversion in the aforementioned case. Set to
             True (do conversion) if inplace=False.
 
         Returns
@@ -1501,7 +1501,7 @@ def custom_triplet_bytes(custom_triplet):
     ----------
     custom_triplet : list
         Triplet of [label_store, symbol, description].
-    
+
     Returns
     -------
     annbytes : list
@@ -1533,7 +1533,7 @@ def isblank(x):
     ----------
     x : ndarray, list
         The item to be checked.
-    
+
     Returns
     -------
     bool
@@ -1550,11 +1550,11 @@ def isblank(x):
 
 def compact_carry_field(full_field):
     """
-    Return the compact list version of a list/array of an annotation 
+    Return the compact list version of a list/array of an annotation
     field that has previous values carried over (chan or num).
     - The first sample is 0 by default. Only set otherwise if necessary.
     - Only set fields if they are different from their prev field.
-    
+
     Parameters
     ----------
     full_field : str
@@ -2078,7 +2078,7 @@ def proc_ann_bytes(filebytes, sampto):
         The input filestream converted to bytes.
     sampto : int
         The maximum sample number for annotations to be returned.
-    
+
     Returns
     -------
     sample : ndarray
@@ -2226,7 +2226,7 @@ def proc_extra_field(
     label_store, filebytes, bpi, subtype, chan, num, aux_note, update
 ):
     """
-    Process extra fields belonging to the current annotation. Potential 
+    Process extra fields belonging to the current annotation. Potential
     updated fields: subtype, chan, num, aux_note.
 
     Parameters
@@ -2267,7 +2267,7 @@ def proc_extra_field(
         A list containing the auxiliary information string (or None for
         annotations without notes) for each annotation.
     update : dict
-        The container of updated fields.   
+        The container of updated fields.
     bpi : int
         The index to start the conversion.
 
@@ -2489,9 +2489,9 @@ def rm_empty_indices(*args):
     Remove unwanted list indices.
 
     Parameters
-    ---------- 
+    ----------
     args : tuple
-        First argument is the list of indices to remove. Other elements 
+        First argument is the list of indices to remove. Other elements
         are the lists to trim.
 
     Returns
@@ -2515,7 +2515,7 @@ def lists_to_int_arrays(*args):
     Convert lists to numpy int arrays.
 
     Parameters
-    ---------- 
+    ----------
     args : tuple
         Any number of lists to be converted.
 
@@ -2533,7 +2533,7 @@ def rm_last(*args):
     Remove the last index from each list.
 
     Parameters
-    ---------- 
+    ----------
     args : tuple
         Any number of lists to be trimmed.
 
