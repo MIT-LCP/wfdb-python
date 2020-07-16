@@ -432,7 +432,7 @@ class SignalMixin(object):
                 for ch in range(self.n_sig):
                     # NAN locations for the channel
                     ch_nanlocs = np.isnan(self.e_p_signal[ch])
-                    ch_d_signal = self.e_p_signal.copy()
+                    ch_d_signal = self.e_p_signal[ch].copy()
                     np.multiply(ch_d_signal, self.adc_gain[ch], ch_d_signal)
                     np.add(ch_d_signal, self.baseline[ch], ch_d_signal)
                     ch_d_signal = ch_d_signal.astype(intdtype, copy=False)
@@ -704,9 +704,14 @@ class SignalMixin(object):
                 if current_dtype != return_dtype:
                     self.p_signal = self.p_signal.astype(return_dtype, copy=False)
             else:
-                for ch in range(self.n_sig):
-                    if self.e_p_signal[ch].dtype != return_dtype:
-                        self.e_p_signal[ch] = self.e_p_signal[ch].astype(return_dtype, copy=False)
+                if self.e_p_signal is not None:
+                    for ch in range(self.n_sig):
+                        if self.e_p_signal[ch].dtype != return_dtype:
+                            self.e_p_signal[ch] = self.e_p_signal[ch].astype(return_dtype, copy=False)
+                else:
+                    for ch in range(self.n_sig):
+                        if self.p_signal[ch].dtype != return_dtype:
+                            self.p_signal[ch] = self.p_signal[ch].astype(return_dtype, copy=False)
         else:
             return_dtype = 'int'+str(return_res)
             if smooth_frames is True:
