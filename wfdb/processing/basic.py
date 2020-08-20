@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import signal
+import pandas as pd
 import pdb
 
 from wfdb.io.annotation import Annotation
@@ -91,6 +92,9 @@ def resample_sig(x, fs, fs_target):
         return x, t
 
     new_length = int(x.shape[0]*fs_target/fs)
+    # Resample the array if NaN values are present
+    if np.isnan(x).any():
+        x = pd.Series(x.reshape((-1,))).interpolate().values
     resampled_x, resampled_t = signal.resample(x, num=new_length, t=t)
     assert resampled_x.shape == resampled_t.shape and resampled_x.shape[0] == new_length
     assert np.all(np.diff(resampled_t) > 0)
