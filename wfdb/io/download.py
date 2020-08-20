@@ -513,7 +513,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
     # Full url PhysioNet database
     db_dir = posixpath.join(db, record.get_version(db))
-    db_url = posixpath.join(PN_CONTENT_URL, db_dir) + os.sep
+    db_url = posixpath.join(PN_CONTENT_URL, db_dir) + '/'
 
     # Check if the database is valid
     response = requests.get(db_url)
