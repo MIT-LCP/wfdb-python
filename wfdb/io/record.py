@@ -3381,7 +3381,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
     else:
         db_dir = posixpath.join(db_dir, get_version(db_dir))
-    db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + os.sep
+    db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
     # Check if the database is valid
     r = requests.get(db_url)
     r.raise_for_status()
