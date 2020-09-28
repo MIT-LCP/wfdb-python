@@ -1204,7 +1204,10 @@ class Annotation(object):
         label_map = self.create_label_map(inplace=False)
         label_map.set_index(label_map[source_field].values, inplace=True)
 
-        target_item = label_map.loc[getattr(self, source_field), target_field].values
+        try:
+            target_item = label_map.loc[getattr(self, source_field), target_field].values
+        except KeyError:
+            target_item = label_map.reindex(index=getattr(self, source_field), columns=[target_field]).values.flatten()
 
         if target_field != 'label_store':
             # Should already be int64 dtype if target is label_store
