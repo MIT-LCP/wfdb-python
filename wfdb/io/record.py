@@ -2738,7 +2738,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
     # Read the header fields
     if (pn_dir is not None) and ('.' not in pn_dir):
-        dir_list = pn_dir.split(os.sep)
+        dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
     if record_name.endswith('.edf'):
