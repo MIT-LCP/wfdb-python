@@ -1717,7 +1717,7 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
         return_label_elements = [return_label_elements]
 
     if set.union(set(ann_label_fields), set(return_label_elements))!=set(ann_label_fields):
-        raise ValueError('return_label_elements must be a list containing one or more of the following elements:',label_types)
+        raise ValueError('return_label_elements must be a list containing one or more of the following elements:',ann_label_fields)
 
     return return_label_elements
 
