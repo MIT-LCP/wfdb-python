@@ -74,7 +74,6 @@ setup(
         'scikit-learn>=0.18',
         'scipy>=0.17.0',
         'six>=0.9.0',
-        'sklearn>=0.0',
         'threadpoolctl>=1.0.0',
         'urllib3>=1.22'
     ],
