@@ -64,7 +64,6 @@ setup(
         'kiwisolver>=1.1.0',
         'matplotlib>=2.0.0',
         'mne>=0.18.0',
-        'nose>=1.3.7',
         'numpy>=1.10.1',
         'pandas>=0.17.0',
         'pyparsing>=2.0.4',
@@ -82,10 +81,9 @@ setup(
     # dependencies). You can install these using the following syntax,
     # for example:
     # $ pip install -e .[dev,test]
-    # extras_require={
-    #     'dev': ['check-manifest'],
-    #     'test': ['coverage'],
-    # },
+    extras_require={
+        'test': ['nose>=1.3.7']
+    },
 
     # If there are data files included in your packages that need to be
     # installed, specify them here.  If using Python 2.6 or less, then these
