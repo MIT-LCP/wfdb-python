@@ -513,8 +513,9 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.Pool(processes=2)
-    pool.map(dl_pn_file, dl_inputs)
+    #pool = multiprocessing.Pool(processes=2)
+    #pool.map(dl_pn_file, dl_inputs)
+    dl_pn_file(dl_inputs)
     print('Finished downloading files')
 
     return
