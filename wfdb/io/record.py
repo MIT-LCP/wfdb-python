@@ -4458,7 +4458,7 @@ def is_monotonic(full_list):
 
 
 def dl_database(db_dir, dl_dir, records='all', annotators='all',
-                keep_subdirs=True, overwrite=False):
+                keep_subdirs=True, overwrite=False, use_multiprocess=True):
     """
     Download WFDB record (and optionally annotation) files from a
     PhysioNet database. The database must contain a 'RECORDS' file in
@@ -4498,6 +4498,8 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         file is smaller, the file will be assumed to be partially
         downloaded and the remaining bytes will be downloaded and
         appended.
+   use_multiprocess : bool, optional
+        If True, multiprocess package is used to download files.
 
     Returns
     -------
@@ -4514,7 +4516,8 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
     else:
         db_dir = posixpath.join(db_dir, get_version(db_dir))
-    db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
+
+    db_url = posixpath.join(download.PN_CONTENT_URL, db_dir)
     # Check if the database is valid
     r = requests.get(db_url)
     r.raise_for_status()
@@ -4585,10 +4588,14 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
     download.make_local_dirs(dl_dir, dl_inputs, keep_subdirs)
 
     print('Downloading files...')
-    # Create multiple processes to download files.
-    # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.Pool(processes=2)
-    pool.map(download.dl_pn_file, dl_inputs)
+    if use_multiprocess:
+        # Create multiple processes to download files.
+        # Limit to 2 connections to avoid overloading the server
+        pool = multiprocessing.Pool(processes=2)
+        pool.map(download.dl_pn_file, dl_inputs)
+    else:
+        for input in dl_inputs:
+            download.dl_pn_file(input)
     print('Finished downloading files')
 
     return

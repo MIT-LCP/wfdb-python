@@ -278,7 +278,9 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url PhysioNet database
-    if os.sep not in db_dir:
+    #if os.sep not in db_dir:
+    print(db_dir)
+    if "/" not in db_dir:
         db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
     else:
         db_url = posixpath.join(config.db_index_url, db_dir)
@@ -528,8 +530,9 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     print('Downloading files...')
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.Pool(processes=2)
-    pool.map(dl_pn_file, dl_inputs)
+    #pool = multiprocessing.Pool(processes=2)
+    #pool.map(dl_pn_file, dl_inputs)
+    dl_pn_file(dl_inputs)
     print('Finished downloading files')
 
     return
