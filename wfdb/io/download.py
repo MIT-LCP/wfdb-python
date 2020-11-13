@@ -278,7 +278,7 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url PhysioNet database
-    if os.sep not in db_dir:
+    if "/" not in db_dir:
         db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
     else:
         db_url = posixpath.join(config.db_index_url, db_dir)
