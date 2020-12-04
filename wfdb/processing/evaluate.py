@@ -46,9 +46,10 @@ class Comparitor(object):
 
     """
     def __init__(self, ref_sample, test_sample, window_width, signal=None):
-        if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
-            raise ValueError(('The sample locations must be monotonically'
-                              + ' increasing'))
+        if len(ref_sample) > 1 and len(test_sample) > 1: 
+            if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
+                raise ValueError(('The sample locations must be monotonically'
+                                  + ' increasing'))
 
         self.ref_sample = ref_sample
         self.test_sample = test_sample
