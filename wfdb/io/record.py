@@ -1242,7 +1242,7 @@ def get_version(pn_dir):
         The version number of the most recent database.
 
     """
-    db_dir = pn_dir.split(os.sep)[0]
+    db_dir = pn_dir.split('/')[0]
     url = posixpath.join(download.PN_CONTENT_URL, db_dir)
     response = requests.get(url)
     contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
@@ -1403,7 +1403,7 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     if pn_dir is not None:
 
         if '.' not in pn_dir:
-            dir_list = pn_dir.split(os.sep)
+            dir_list = pn_dir.split('/')
             pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
@@ -2131,7 +2131,7 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     if pn_dir is not None:
 
         if '.' not in pn_dir:
-            dir_list = pn_dir.split(os.sep)
+            dir_list = pn_dir.split('/')
             pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
@@ -2568,7 +2568,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name = os.path.abspath(dir_name)
 
     if (pn_dir is not None) and ('.' not in pn_dir):
-        dir_list = pn_dir.split(os.sep)
+        dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
     # Read the header file. Separate comment and non-comment lines
@@ -3029,7 +3029,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
 
     """
     if (pn_dir is not None) and ('.' not in pn_dir):
-        dir_list = pn_dir.split(os.sep)
+        dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
     record = rdrecord(record_name=record_name, sampfrom=sampfrom,
@@ -3081,7 +3081,7 @@ def sampfreq(record_name, pn_dir=None):
 
     """
     if (pn_dir is not None) and ('.' not in pn_dir):
-        dir_list = pn_dir.split(os.sep)
+        dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                 *dir_list[1:])
 
@@ -3133,7 +3133,7 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
 
     """
     if (pn_dir is not None) and ('.' not in pn_dir):
-        dir_list = pn_dir.split(os.sep)
+        dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                  *dir_list[1:])
 
@@ -3376,8 +3376,8 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
 
     """
     # Full url PhysioNet database
-    if os.sep in db_dir:
-        dir_list = db_dir.split(os.sep)
+    if '/' in db_dir:
+        dir_list = db_dir.split('/')
         db_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
     else:
         db_dir = posixpath.join(db_dir, get_version(db_dir))
