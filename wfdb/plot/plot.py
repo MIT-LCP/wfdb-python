@@ -128,9 +128,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                             'signal: {} values'.format(signal.shape[1]))
 
     if ylabel:
-        if len(ylabel) != signal.shape[1]:
+        if len(ylabel) != n_subplots:
             raise Exception('The length of the ylabel must be the same as the '
-                            'signal: {} values'.format(signal.shape[1]))
+                            'signal: {} values'.format(n_subplots))
 
     label_figure(axes, n_subplots, time_units, sig_name, sig_units,
                  xlabel, ylabel, title)
