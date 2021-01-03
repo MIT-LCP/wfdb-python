@@ -229,7 +229,7 @@ def shift_peaks(sig, peak_inds, search_radius, peak_up):
         ind = peak_inds[i]
         if ind >= search_radius:
             break
-        shift_inds[i] -= search_radius - ind
+        shift_inds[i] += search_radius - ind
 
     shifted_peak_inds = peak_inds + shift_inds - search_radius
 
