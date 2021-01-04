@@ -1,0 +1,8 @@
+wave_4 7 1 3659 0:00 01/01/2001
+wave_4.dat 16x1000 1(1)/uV 15 0 5393 -12624 0 ECG
+wave_4.dat 16x100 2(1)/mg 13 0 1371 18209 0 Accelerometer_X
+wave_4.dat 16x100 2(1)/mg 13 0 1273 29556 0 Accelerometer_Y
+wave_4.dat 16x100 2(1)/mg 13 0 -473 -31584 0 Accelerometer_Z
+wave_4.dat 16 1(1) 15 0 32766 -29151 0 Marker
+wave_4.dat 16x5 1(-32767)/ms 15 0 -32768 13833 0 HRV
+wave_4.dat 16 -19.3447902992(3064)/degC 11 2048 2461 27731 0 DEV_Temperature

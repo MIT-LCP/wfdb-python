@@ -30,7 +30,7 @@ class Mock(MagicMock):
             return MagicMock()
 
 MOCK_MODULES = ['numpy', 'matplotlib', 'matplotlib.pyplot', 'pandas', 'scipy',
-                'sklearn', 'sklearn.preprocessing', 'mne']
+                'sklearn', 'sklearn.preprocessing']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # -- General configuration ------------------------------------------------
