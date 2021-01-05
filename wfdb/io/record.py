@@ -7,7 +7,6 @@ import numpy as np
 import os
 import pandas as pd
 import requests
-import mne
 import math
 import functools
 import struct
@@ -1349,7 +1348,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
         raise TypeError(error_msg)
 
 
-def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False,
+def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
             header_only=False, verbose=False):
     """
     Convert EDF formatted files to MIT format.
@@ -1401,11 +1400,55 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False,
         corresponding .dat and .hea files. This record file will not match the
         `rdrecord` output since it will only give us the digital signal for now.
 
+    Notes
+    -----
+    The entire file is composed of (seen here: https://www.edfplus.info/specs/edf.html):
+
+    HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
+    8 ascii : version of this data format (0)
+    80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
+    80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
+    8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
+    8 ascii : starttime of recording (hh.mm.ss)
+    8 ascii : number of bytes in header record
+    44 ascii : reserved
+    8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
+    8 ascii : duration of a data record, in seconds
+    4 ascii : number of signals (ns) in data record
+    ns * 16 ascii : ns * label (e.g. EEG Fpz-Cz or Body temp) (mind item 9 of the additional EDF+ specs)
+    ns * 80 ascii : ns * transducer type (e.g. AgAgCl electrode)
+    ns * 8 ascii : ns * physical dimension (e.g. uV or degreeC)
+    ns * 8 ascii : ns * physical minimum (e.g. -500 or 34)
+    ns * 8 ascii : ns * physical maximum (e.g. 500 or 40)
+    ns * 8 ascii : ns * digital minimum (e.g. -2048)
+    ns * 8 ascii : ns * digital maximum (e.g. 2047)
+    ns * 80 ascii : ns * prefiltering (e.g. HP:0.1Hz LP:75Hz)
+    ns * 8 ascii : ns * nr of samples in each data record
+    ns * 32 ascii : ns * reserved
+
+    DATA RECORD
+    nr of samples[1] * integer : first signal in the data record
+    nr of samples[2] * integer : second signal
+    ..
+    ..
+    nr of samples[ns] * integer : last signal
+
+    Bytes   0 - 127: descriptive text
+    Bytes 128 - 131: master tag (data type = matrix)
+    Bytes 132 - 135: master tag (data size)
+    Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
+                     tag with subelement size, 8 bytes of content)
+    Bytes 152 - 167: array dimension (4 byte tag with data type, 4
+                     byte tag with subelement size, 8 bytes of content)
+    Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
+                     tag with subelement size, 8 bytes of content)
+    Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
+                     tag with subelement size, ... bytes of content)
+
     Examples
     --------
-    >>> edf_record = wfdb.edf2mit('SC4002E0-PSG.edf',
-                                  pn_dir='sleep-edfx/sleep-cassette',
-                                  record_only=True)
+    >>> edf_record = wfdb.edf2mit('x001_FAROS.edf',
+                                  pn_dir='simultaneous-measurements/raw_data')
 
     """
     if pn_dir is not None:
@@ -1420,244 +1463,227 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False,
         r = requests.get(file_url, allow_redirects=False)
         open(record_name, 'wb').write(r.content)
 
-    # Temporary to return only the EDF header.. will later replace the
-    # current MNE package approach
-    if header_only:
-        # Open the desired file
-        edf_file = open(record_name, mode='rb')
+    # Open the desired file
+    edf_file = open(record_name, mode='rb')
 
-        # Remove the file if the `delete_file` flag is set
-        if pn_dir is not None and delete_file:
-            os.remove(record_name)
-
-        # Version of this data format (8 bytes)
-        version = struct.unpack('<8s', edf_file.read(8))[0].decode()
-
-        # Check to see that the input is an EDF file. (This check will detect
-        # most but not all other types of files.)
-        if version != '0       ':
-            raise Exception('Input does not appear to be EDF -- no conversion attempted')
-        else:
-            if verbose:
-                print('EDF version number: {}'.format(version.strip()))
-
-        # Local patient identification (80 bytes)
-        patient_id = struct.unpack('<80s', edf_file.read(80))[0].decode()
-        if verbose:
-            print('Patient ID: {}'.format(patient_id))
-
-        # Local recording identification (80 bytes)
-        # Bob Kemp recommends using this field to encode the start date
-        # including an abbreviated month name in English and a full (4-digit)
-        # year, as is done here if this information is available in the input
-        # record. EDF+ requires this.
-        record_id = struct.unpack('<80s', edf_file.read(80))[0].decode()
-        if verbose:
-            print('Recording ID: {}'.format(record_id))
-
-        # Start date of recording (dd.mm.yy) (8 bytes)
-        start_date = struct.unpack('<8s', edf_file.read(8))[0].decode()
-        if verbose:
-            print('Recording Date: {}'.format(start_date))
-        start_day, start_month, start_year = [int(i) for i in start_date.split('.')]
-        # This should work for a while
-        if start_year < 1970:
-            start_year += 1900
-        if start_year < 1970:
-            start_year += 100
-
-        # Start time of recording (hh.mm.ss) (8 bytes)
-        start_time = struct.unpack('<8s', edf_file.read(8))[0].decode()
-        if verbose:
-            print('Recording Time: {}'.format(start_time))
-        start_hour, start_minute, start_second = [int(i) for i in start_time.split('.')]
-
-        # Number of bytes in header (8 bytes)
-        header_bytes = int(struct.unpack('<8s', edf_file.read(8))[0].decode())
-        if verbose:
-            print('Number of bytes in header record: {}'.format(header_bytes))
-
-        # Reserved (44 bytes)
-        reserved_notes = struct.unpack('<44s', edf_file.read(44))[0].decode().strip()
-        if reserved_notes != '':
-            if verbose:
-                print('Free Space: {}'.format(reserved_notes))
-
-        # Number of blocks (-1 if unknown) (8 bytes)
-        num_blocks = int(struct.unpack('<8s', edf_file.read(8))[0].decode())
-        if verbose:
-            print('Number of data records: {}'.format(num_blocks))
-
-        # Duration of a block, in seconds (8 bytes)
-        block_duration = float(struct.unpack('<8s', edf_file.read(8))[0].decode())
-        if verbose:
-            print('Duration of each data record in seconds: {}'.format(block_duration))
-        if block_duration <= 0.0:
-            block_duration = 1.0
-
-        # Number of signals (4 bytes)
-        n_sig = int(struct.unpack('<4s', edf_file.read(4))[0].decode())
-        if verbose:
-            print('Number of signals: {}'.format(n_sig))
-        if n_sig < 1:
-            raise Exception('Done: not any signals left to read')
-
-        # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
-        sig_labels = []
-        for _ in range(n_sig):
-            sig_labels.append(struct.unpack('<16s', edf_file.read(16))[0].decode().strip())
-        if verbose:
-            print('Signal Labels: {}'.format(sig_labels))
-
-        # Transducer type (e.g., AgAgCl electrode) (80 bytes each)
-        transducer_types = []
-        for _ in range(n_sig):
-            transducer_types.append(struct.unpack('<80s', edf_file.read(80))[0].decode().strip())
-        if verbose:
-            print('Transducer Types: {}'.format(transducer_types))
-
-        # Physical dimension (e.g., uV or degreeC) (8 bytes each)
-        physical_dims = []
-        for _ in range(n_sig):
-            physical_dims.append(struct.unpack('<8s', edf_file.read(8))[0].decode().strip())
-        if verbose:
-            print('Physical Dimensions: {}'.format(physical_dims))
-
-        # Physical minimum (e.g., -500 or 34) (8 bytes each)
-        physical_min = np.array([])
-        for _ in range(n_sig):
-            physical_min = np.append(physical_min, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
-        if verbose:
-            print('Physical Minimums: {}'.format(physical_min))
-
-        # Physical maximum (e.g., 500 or 40) (8 bytes each)
-        physical_max = np.array([])
-        for _ in range(n_sig):
-            physical_max = np.append(physical_max, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
-        if verbose:
-            print('Physical Maximums: {}'.format(physical_max))
-
-        # Digital minimum (e.g., -2048) (8 bytes each)
-        digital_min = np.array([])
-        for _ in range(n_sig):
-            digital_min = np.append(digital_min, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
-        if verbose:
-            print('Digital Minimums: {}'.format(digital_min))
-
-        # Digital maximum (e.g., 2047) (8 bytes each)
-        digital_max = np.array([])
-        for _ in range(n_sig):
-            digital_max = np.append(digital_max, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
-        if verbose:
-            print('Digital Maximums: {}'.format(digital_max))
-
-        # Prefiltering (e.g., HP:0.1Hz LP:75Hz) (80 bytes each)
-        prefilter_info = []
-        for _ in range(n_sig):
-            prefilter_info.append(struct.unpack('<80s', edf_file.read(80))[0].decode().strip())
-        if verbose:
-            print('Prefiltering Information: {}'.format(prefilter_info))
-
-        # Number of samples per block (8 bytes each)
-        samps_per_block = []
-        for _ in range(n_sig):
-            samps_per_block.append(int(struct.unpack('<8s', edf_file.read(8))[0].decode()))
-        if verbose:
-            print('Number of Samples per Record: {}'.format(samps_per_block))
-
-        # The last 32*nsig bytes in the header are unused
-        for _ in range(n_sig):
-            struct.unpack('<32s', edf_file.read(32))[0].decode()
-
-        # Pre-process the acquired data before creating the record
-        sample_rate = [int(i/block_duration) for i in samps_per_block]
-        fs = functools.reduce(math.gcd, sample_rate)
-        sig_len = int(num_blocks * block_duration * fs)
-        base_time = datetime.time(start_hour, start_minute, start_second)
-        base_date = datetime.date(start_year, start_month, start_day)
-        comments = []
-
-        units = n_sig * ['']
-        for i,f in enumerate(physical_dims):
-            if f == 'n/a':
-                label = sig_labels[i].lower().split()[0]
-                if label in list(SIG_UNITS.keys()):
-                    units[i] = SIG_UNITS[label]
-                else:
-                    units[i] = 'n/a'
-            else:
-                f = f.replace('µ','u')  # Maybe more weird symbols to check for?
-                units[i] = f
-
-        return {
-            'fs': fs,
-            'sig_len': sig_len,
-            'n_sig': n_sig,
-            'base_date': base_date,
-            'base_time': base_time,
-            'units': physical_dims,
-            'sig_name': sig_labels,
-            'comments': comments
-        }
-
-    edf_data = mne.io.read_raw_edf(record_name, preload=True)
-
+    # Remove the file if the `delete_file` flag is set
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
-    record_name_out = edf_data._filenames[0].split(os.sep)[-1].replace('-','_').replace('.edf','')
-    n_sig = edf_data._raw_extras[0]['nchan']
-    sample_rate = (edf_data._raw_extras[0]['n_samps'] / edf_data._raw_extras[0]['record_length'][0]).astype(np.int16)
+    # Version of this data format (8 bytes)
+    version = struct.unpack('<8s', edf_file.read(8))[0].decode()
+
+    # Check to see that the input is an EDF file. (This check will detect
+    # most but not all other types of files.)
+    if version != '0       ':
+        raise Exception('Input does not appear to be EDF -- no conversion attempted')
+    else:
+        if verbose:
+            print('EDF version number: {}'.format(version.strip()))
+
+    # Local patient identification (80 bytes)
+    patient_id = struct.unpack('<80s', edf_file.read(80))[0].decode()
+    if verbose:
+        print('Patient ID: {}'.format(patient_id))
+
+    # Local recording identification (80 bytes)
+    # Bob Kemp recommends using this field to encode the start date
+    # including an abbreviated month name in English and a full (4-digit)
+    # year, as is done here if this information is available in the input
+    # record. EDF+ requires this.
+    record_id = struct.unpack('<80s', edf_file.read(80))[0].decode()
+    if verbose:
+        print('Recording ID: {}'.format(record_id))
+
+    # Start date of recording (dd.mm.yy) (8 bytes)
+    start_date = struct.unpack('<8s', edf_file.read(8))[0].decode()
+    if verbose:
+        print('Recording Date: {}'.format(start_date))
+    start_day, start_month, start_year = [int(i) for i in start_date.split('.')]
+    # This should work for a while
+    if start_year < 1970:
+        start_year += 1900
+    if start_year < 1970:
+        start_year += 100
+
+    # Start time of recording (hh.mm.ss) (8 bytes)
+    start_time = struct.unpack('<8s', edf_file.read(8))[0].decode()
+    if verbose:
+        print('Recording Time: {}'.format(start_time))
+    start_hour, start_minute, start_second = [int(i) for i in start_time.split('.')]
+
+    # Number of bytes in header (8 bytes)
+    header_bytes = int(struct.unpack('<8s', edf_file.read(8))[0].decode())
+    if verbose:
+        print('Number of bytes in header record: {}'.format(header_bytes))
+
+    # Reserved (44 bytes)
+    reserved_notes = struct.unpack('<44s', edf_file.read(44))[0].decode().strip()
+    if reserved_notes == 'EDF+C':
+        raise Exception('EDF+ File: uninterrupted data records (not currently supported)')
+    elif reserved_notes == 'EDF+D':
+        raise Exception('EDF+ File: interrupted data records (not currently supported)')
+    else:
+        if verbose:
+            print('Free Space: {}'.format(reserved_notes))
+
+    # Number of blocks (-1 if unknown) (8 bytes)
+    num_blocks = int(struct.unpack('<8s', edf_file.read(8))[0].decode())
+    if verbose:
+        print('Number of data records: {}'.format(num_blocks))
+    if num_blocks == -1:
+        raise Exception('Number of data records in unknown (not currently supported)')
+
+    # Duration of a block, in seconds (8 bytes)
+    block_duration = float(struct.unpack('<8s', edf_file.read(8))[0].decode())
+    if verbose:
+        print('Duration of each data record in seconds: {}'.format(block_duration))
+    if block_duration <= 0.0:
+        block_duration = 1.0
+
+    # Number of signals (4 bytes)
+    n_sig = int(struct.unpack('<4s', edf_file.read(4))[0].decode())
+    if verbose:
+        print('Number of signals: {}'.format(n_sig))
+    if n_sig < 1:
+        raise Exception('Done: not any signals left to read')
+
+    # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
+    sig_name = []
+    for _ in range(n_sig):
+        sig_name.append(struct.unpack('<16s', edf_file.read(16))[0].decode().strip())
+    if verbose:
+        print('Signal Labels: {}'.format(sig_name))
+
+    # Transducer type (e.g., AgAgCl electrode) (80 bytes each)
+    transducer_types = []
+    for _ in range(n_sig):
+        transducer_types.append(struct.unpack('<80s', edf_file.read(80))[0].decode().strip())
+    if verbose:
+        print('Transducer Types: {}'.format(transducer_types))
+
+    # Physical dimension (e.g., uV or degreeC) (8 bytes each)
+    physical_dims = []
+    for _ in range(n_sig):
+        physical_dims.append(struct.unpack('<8s', edf_file.read(8))[0].decode().strip())
+    if verbose:
+        print('Physical Dimensions: {}'.format(physical_dims))
+
+    # Physical minimum (e.g., -500 or 34) (8 bytes each)
+    physical_min = np.array([])
+    for _ in range(n_sig):
+        physical_min = np.append(physical_min, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
+    if verbose:
+        print('Physical Minimums: {}'.format(physical_min))
+
+    # Physical maximum (e.g., 500 or 40) (8 bytes each)
+    physical_max = np.array([])
+    for _ in range(n_sig):
+        physical_max = np.append(physical_max, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
+    if verbose:
+        print('Physical Maximums: {}'.format(physical_max))
+
+    # Digital minimum (e.g., -2048) (8 bytes each)
+    digital_min = np.array([])
+    for _ in range(n_sig):
+        digital_min = np.append(digital_min, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
+    if verbose:
+        print('Digital Minimums: {}'.format(digital_min))
+
+    # Digital maximum (e.g., 2047) (8 bytes each)
+    digital_max = np.array([])
+    for _ in range(n_sig):
+        digital_max = np.append(digital_max, float(struct.unpack('<8s', edf_file.read(8))[0].decode()))
+    if verbose:
+        print('Digital Maximums: {}'.format(digital_max))
+
+    # Prefiltering (e.g., HP:0.1Hz LP:75Hz) (80 bytes each)
+    prefilter_info = []
+    for _ in range(n_sig):
+        prefilter_info.append(struct.unpack('<80s', edf_file.read(80))[0].decode().strip())
+    if verbose:
+        print('Prefiltering Information: {}'.format(prefilter_info))
+
+    # Number of samples per block (8 bytes each)
+    samps_per_block = []
+    for _ in range(n_sig):
+        samps_per_block.append(int(struct.unpack('<8s', edf_file.read(8))[0].decode()))
+    if verbose:
+        print('Number of Samples per Record: {}'.format(samps_per_block))
+
+    # The last 32*nsig bytes in the header are unused
+    for _ in range(n_sig):
+        struct.unpack('<32s', edf_file.read(32))[0].decode()
+
+    # Pre-process the acquired data before creating the record
+    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.edf','')
+    sample_rate = [int(i/block_duration) for i in samps_per_block]
     fs = functools.reduce(math.gcd, sample_rate)
-    samps_per_frame = [int(x/fs) for x in sample_rate]
-    base_datetime = edf_data._raw_extras[0]['meas_date'].replace(tzinfo=None)
-    digital_min = edf_data._raw_extras[0]['digital_min']
-    digital_max = edf_data._raw_extras[0]['digital_max']
-    physical_min = edf_data._raw_extras[0]['physical_min']
-    physical_max = edf_data._raw_extras[0]['physical_max']
+    samps_per_frame = [int(s/min(samps_per_block)) for s in samps_per_block]
+    sig_len = int(fs * num_blocks * block_duration)
+    base_time = datetime.time(start_hour, start_minute, start_second)
+    base_date = datetime.date(start_year, start_month, start_day)
+    file_name = n_sig * [record_name_out + '.dat']
+    fmt = n_sig * ['16']
+    skew = n_sig * [None]
+    byte_offset = n_sig * [None]
     adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
     adc_gain =  [float(format(a,'.12g')) for a in adc_gain_all]
-    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype('int16')
+    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype('int64')
 
     units = n_sig * ['']
-    for i,f in enumerate(list(edf_data._orig_units.values())):
+    for i,f in enumerate(physical_dims):
         if f == 'n/a':
-            label = edf_data.ch_names[i].lower().split()[0]
+            label = sig_name[i].lower().split()[0]
             if label in list(SIG_UNITS.keys()):
                 units[i] = SIG_UNITS[label]
             else:
                 units[i] = 'n/a'
         else:
             f = f.replace('µ','u')  # Maybe more weird symbols to check for?
-            units[i] = f
+            if f == '':
+                units[i] = 'mV'
+            else:
+                units[i] = f
 
-    # Convert to format suitable for calculations (number of signals, length of signal)
-    signals = edf_data.get_data()
-    if (signals.shape[1] < signals.shape[0]):
-        temp_sig_data = np.transpose(signals)
-    else:
-        temp_sig_data = signals
+    adc_res = [int(math.log2(f)) for f in (digital_max - digital_min)]
+    adc_zero = [int(f) for f in ((digital_max + 1 + digital_min) / 2)]
+    block_size = n_sig * [0]
+    base_datetime = datetime.datetime(start_year, start_month, start_day,
+                                      start_hour, start_minute, start_second)
 
-    temp_sig_data = [(temp_sig_data[i] / edf_data._raw_extras[0]['units'][i]) for i in range(n_sig)]
-    temp_sig_data = np.array([s * adc_gain_all[i] + baseline[i] for i,s in enumerate(temp_sig_data)])
-
-    # Average over samps per frame to remove resampling done by MNE
-    sig_len = int(edf_data._data.shape[1] / max(samps_per_frame))
-
-    new_sig_data = np.empty((n_sig, sig_len))
+    sig_data = np.empty((sig_len, n_sig))
+    temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
+    temp_sig_data = temp_sig_data.reshape((-1,sum(samps_per_block)))
+    temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
     for i in range(n_sig):
-        new_sig_data[i,:] = np.mean(temp_sig_data[i,:].reshape(-1,max(samps_per_frame)),1)
-    temp_sig_data = new_sig_data
+        # Check if `samps_per_frame` has all equal values
+        if samps_per_frame.count(samps_per_frame[0]) == len(samps_per_frame):
+            sig_data[:,i] = (temp_all_sigs[i].flatten() - baseline[i]) / adc_gain_all[i]
+        else:
+            temp_sig_data = temp_all_sigs[i].flatten()
+            if samps_per_frame[i] == 1:
+                sig_data[:,i] = (temp_sig_data - baseline[i]) / adc_gain_all[i]
+            else:
+                for j in range(sig_len):
+                    start_ind = j * samps_per_frame[i]
+                    stop_ind = start_ind + samps_per_frame[i]
+                    sig_data[j,i] = np.mean((temp_sig_data[start_ind:stop_ind] - baseline[i]) / adc_gain_all[i])
 
-    samps_per_frame = n_sig * [1]
-    init_value = [int(s[0]) for s in temp_sig_data]
-    checksum = [int(np.sum(v) % 65536) for v in temp_sig_data]  # not all values correct?
+    # This is the closest I can get to the original implementation
+    # NOTE: This is done using `np.testing.assert_array_equal()`
+    # Mismatched elements: 15085545 / 15400000 (98%)
+    # Max absolute difference: 3.75166564e-12
+    # Max relative difference: 5.41846079e-15
+    #  x: array([[  -3.580728,   42.835293, -102.818048,   54.978632,  -52.354247],
+    #        [  -8.340205,   43.079939, -102.106351,   56.402027,  -44.992626],
+    #        [  -5.004123,   43.546991,  -99.481966,   51.64255 ,  -43.079939],...
+    #  y: array([[  -3.580728,   42.835293, -102.818048,   54.978632,  -52.354247],
+    #        [  -8.340205,   43.079939, -102.106351,   56.402027,  -44.992626],
+    #        [  -5.004123,   43.546991,  -99.481966,   51.64255 ,  -43.079939],...
 
-    # Convert to proper format for Record object (length of signal, number of signals)
-    if (signals.shape[1] > signals.shape[0]):
-        sig_data = np.transpose(temp_sig_data)
-    else:
-        sig_data = temp_sig_data
+    init_value = [int(s[0,0]) for s in temp_all_sigs]
+    checksum = [int(np.sum(v) % 65536) for v in np.transpose(sig_data)]  # not all values correct?
 
     record = Record(
         record_name = record_name_out,
@@ -1674,9 +1700,9 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=False,
                                   base_datetime.month,
                                   base_datetime.day),
         comments = [],
-        sig_name = edf_data.ch_names,    # Remove whitespace to make compatible later?
-        p_signal = None,
-        d_signal = sig_data.astype(np.int16),
+        sig_name = sig_name,    # Remove whitespace to make compatible later?
+        p_signal = sig_data,
+        d_signal = None,
         e_p_signal = None,
         e_d_signal = None,
         file_name = n_sig * [record_name_out + '.dat'],

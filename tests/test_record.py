@@ -256,7 +256,7 @@ class TestRecord(unittest.TestCase):
         """
         # Uniform sample rates
         record_MIT = wfdb.rdrecord('sample-data/n16').__dict__
-        record_EDF = wfdb.rdrecord('sample-data/n16.edf').__dict__
+        record_EDF = wfdb.edf2mit('sample-data/n16.edf').__dict__
 
         fields = list(record_MIT.keys())
         # Original MIT format method of checksum is outdated, sometimes
@@ -270,8 +270,13 @@ class TestRecord(unittest.TestCase):
         for field in fields:
             # Signal value will be slightly off due to C to Python type conversion
             if field == 'p_signal':
-                true_array = np.array(record_MIT[field])
-                pred_array = np.array(record_EDF[field])
+                true_array = np.array(record_MIT[field]).flatten()
+                pred_array = np.array(record_EDF[field]).flatten()
+                # Prevent divide by zero warning
+                for i,v in enumerate(true_array):
+                    if v == 0:
+                        true_array[i] = 1
+                        pred_array[i] = 1
                 sig_diff = np.abs((pred_array - true_array) / true_array)
                 sig_diff[sig_diff == -np.inf] = 0
                 sig_diff[sig_diff == np.inf] = 0
@@ -299,8 +304,8 @@ class TestRecord(unittest.TestCase):
 
         """
         # Non-uniform sample rates
-        record_MIT = wfdb.rdrecord('sample-data/SC4001E0_PSG').__dict__
-        record_EDF = wfdb.rdrecord('sample-data/SC4001E0-PSG.edf').__dict__
+        record_MIT = wfdb.rdrecord('sample-data/wave_4').__dict__
+        record_EDF = wfdb.edf2mit('sample-data/wave_4.edf').__dict__
 
         fields = list(record_MIT.keys())
         # Original MIT format method of checksum is outdated, sometimes
@@ -309,19 +314,18 @@ class TestRecord(unittest.TestCase):
         # Original MIT format units are less comprehensive since they
         # default to mV if unknown.. therefore added more default labels
         fields.remove('units')
-        # Initial value of signal will be off due to resampling done by
-        # MNE in the EDF reading phase
-        fields.remove('init_value')
-        # Samples per frame will be off due to resampling done by MNE in
-        # the EDF reading phase... I should probably fix this later
-        fields.remove('samps_per_frame')
 
         test_results = []
         for field in fields:
             # Signal value will be slightly off due to C to Python type conversion
             if field == 'p_signal':
-                true_array = np.array(record_MIT[field])
-                pred_array = np.array(record_EDF[field])
+                true_array = np.array(record_MIT[field]).flatten()
+                pred_array = np.array(record_EDF[field]).flatten()
+                # Prevent divide by zero warning
+                for i,v in enumerate(true_array):
+                    if v == 0:
+                        true_array[i] = 1
+                        pred_array[i] = 1
                 sig_diff = np.abs((pred_array - true_array) / true_array)
                 sig_diff[sig_diff == -np.inf] = 0
                 sig_diff[sig_diff == np.inf] = 0
