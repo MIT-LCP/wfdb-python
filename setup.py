@@ -68,7 +68,7 @@ setup(
         'pandas>=0.17.0',
         'pyparsing>=2.0.4',
         'python-dateutil>=2.4.2',
-        'pytz>=2018.3',
+        'pytz>=2017.2',
         'requests>=2.8.1',
         'scikit-learn>=0.18',
         'scipy>=0.17.0',
