@@ -57,8 +57,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         with `sig_name` to form y labels, if `ylabel` is not set. This
         parameter is required for plotting ECG grids.
     xlabel : list, optional
-        A list of strings specifying the final x labels to be used. If this
-        option is present, no 'time/'`time_units` is used.
+        A list of string(s) specifying the final x labels to be used. If this
+        option is present, no 'time/'`time_units` is used. This list can
+        either contain one string or a string for each subplot.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -123,9 +124,12 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     # Add title and axis labels.
     # First, make sure that xlabel and ylabel inputs are valid
     if xlabel:
-        if len(xlabel) != signal.shape[1]:
-            raise Exception('The length of the xlabel must be the same as the '
-                            'signal: {} values'.format(signal.shape[1]))
+        # Allow just a single x label (there is always 1 column) or an xlabel
+        # for each subplot
+        if (len(xlabel) != 1) and (len(xlabel) != n_subplots):
+            raise Exception('The length of the xlabel must either be equal to 1 '
+                            'or be the same as the number of '
+                            'subplots: {} values'.format(n_subplots))
 
     if ylabel:
         if len(ylabel) != n_subplots:
@@ -141,6 +145,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     if return_fig_axes:
         return fig, axes
 
+    # Tight layout resolves spacing issues when using an xlabel for
+    # each subplot
+    plt.tight_layout()
     plt.show()
 
 
@@ -508,8 +515,9 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
         with `sig_name` to form y labels, if `ylabel` is not set. This
         parameter is required for plotting ECG grids.
     xlabel : list, optional
-         A list of strings specifying the final x labels to be used. If this
-         option is present, no 'time/'`time_units` is used.
+         A list of string(s) specifying the final x labels to be used. If this
+         option is present, no 'time/'`time_units` is used. This list can
+         either contain one string or a string for each subplot.
     ylabel : list, optional
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
@@ -525,10 +533,13 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
         axes[0].set_title(title)
 
     # Determine x label
-    # Explicit labels take precedence if present. Otherwise, construct labels
-    # using signal time units
+    # Explicit labels take precedence if present. Users can provide
+    # a single x label or one for each subplot.
+    # Otherwise, construct labels using signal time units
     if not xlabel:
         axes[-1].set_xlabel('/'.join(['time', time_units[:-1]]))
+    elif len(xlabel) == 1:
+        axes[-1].set_xlabel(xlabel[0])
     else:
         for ch in range(n_subplots):
             axes[ch].set_xlabel(xlabel[ch])
@@ -557,8 +568,8 @@ def label_figure(axes, n_subplots, time_units, sig_name, sig_units,
         axes[ch].set_ylabel(ylabel[ch])
 
 
-def plot_wfdb(record=None, annotation=None, plot_sym=False,
-              time_units='samples', title=None, sig_style=[''],
+def plot_wfdb(record=None, annotation=None, plot_sym=False, time_units='samples',
+              ylabel=None, xlabel=None, title=None, sig_style=[''],
               ann_style=['r*'], ecg_grids=[], figsize=None, return_fig=False):
     """
     Subplot individual channels of a WFDB record and/or annotation.
@@ -590,6 +601,10 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     time_units : str, optional
         The x axis unit. Allowed options are: 'samples', 'seconds',
         'minutes', and 'hours'.
+    ylabel: list, optional
+        Override default wfdb signal y labels by passing a list here
+    xlabel: list, optional
+        Override default wfdb signal x labels by passing a list here
     title : str, optional
         The title of the graph.
     sig_style : list, optional
@@ -630,12 +645,14 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
 
     """
     (signal, ann_samp, ann_sym, fs,
-        ylabel, record_name, sig_units) = get_wfdb_plot_items(record=record,
-                                                              annotation=annotation,
-                                                              plot_sym=plot_sym)
+        wfdb_ylabel, record_name, sig_units) = get_wfdb_plot_items(record=record,
+                                                                   annotation=annotation,
+                                                                   plot_sym=plot_sym)
 
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
-                      time_units=time_units, ylabel=ylabel,
+                      time_units=time_units,
+                      ylabel=(ylabel or wfdb_ylabel),
+                      xlabel=(xlabel or None),
                       title=(title or record_name),
                       sig_style=sig_style, sig_units=sig_units,
                       ann_style=ann_style, ecg_grids=ecg_grids,
@@ -684,7 +701,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         The sampling frequency of the signals and/or annotations. Used to
         calculate time intervals if `time_units` is not 'samples'. Also
         required for plotting ECG grids.
-    ylabel : list
+    wfdb_ylabel : list
         A list of strings specifying the final y labels. If this option is
         present, `sig_name` and `sig_units` will not be used for labels.
     record_name : str
@@ -710,9 +727,9 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         sig_name = [str(s) for s in record.sig_name]
         sig_units = [str(s) for s in record.units]
         record_name = 'Record: %s' % record.record_name
-        ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+        wfdb_ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
-        signal = fs = ylabel = record_name = sig_units = None
+        signal = fs = wfdb_ylabel = record_name = sig_units = None
 
     # Get annotation attributes
     if annotation:
@@ -763,30 +780,30 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
                 compact_ann_sym = []
             else:
                 compact_ann_sym = None
-            ylabel = []
+            wfdb_ylabel = []
             for ch in all_chans: # ie. 0, 1, 9
                 if ch in ann_chans:
                     compact_ann_samp.append(ann_samp[ch])
                     if plot_sym:
                         compact_ann_sym.append(ann_sym[ch])
                 if ch in sig_chans:
-                    ylabel.append(''.join([sig_name[ch], sig_units[ch]]))
+                    wfdb_ylabel.append(''.join([sig_name[ch], sig_units[ch]]))
                 else:
-                    ylabel.append('ch_%d/NU' % ch)
+                    wfdb_ylabel.append('ch_%d/NU' % ch)
             ann_samp = compact_ann_samp
             ann_sym = compact_ann_sym
         # Signals encompass annotations
         else:
-            ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
+            wfdb_ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
 
     # Remove any empty middle channels from annotations
     elif annotation:
         ann_samp = [a for a in ann_samp if a.size]
         if ann_sym is not None:
             ann_sym = [a for a in ann_sym if a]
-        ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
+        wfdb_ylabel = ['ch_%d/NU' % ch for ch in ann_chans]
 
-    return signal, ann_samp, ann_sym, fs, ylabel, record_name, sig_units
+    return signal, ann_samp, ann_sym, fs, wfdb_ylabel, record_name, sig_units
 
 
 def plot_all_records(directory=''):
