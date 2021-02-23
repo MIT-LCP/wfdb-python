@@ -280,6 +280,11 @@ class Annotation(object):
         if 'label_store' not in present_label_fields:
             self.convert_label_attribute(source_field=present_label_fields[0],
                                          target_field='label_store')
+            
+        # Calculate the symbol field if necessary
+        if 'symbol' not in present_label_fields:
+            self.convert_label_attribute(source_field=present_label_fields[0],
+                                         target_field='symbol')
 
         # Write the header file using the specified fields
         self.wr_ann_file(write_fs=write_fs, write_dir=write_dir)
