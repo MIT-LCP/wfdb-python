@@ -481,7 +481,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         file(s). The dtype must be an integer type. Either p_signal or d_signal
         must be set, but not both. In addition, if d_signal is set, fmt, gain
         and baseline must also all be set.
-    p_signal : ndarray, optional
+    e_p_signal : ndarray, optional
         The expanded physical conversion of the signal. Either a 2d numpy
         array or a list of 1d numpy arrays.
     e_d_signal : ndarray, optional
@@ -513,7 +513,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         The name of the file used for analysis.
     fmt : list, optional
         A list of strings giving the WFDB format of each file used to store each
-        channel. Accepted formats are: '80','212",'16','24', and '32'. There are
+        channel. Accepted formats are: '80','212','16','24', and '32'. There are
         other WFDB formats as specified by:
         https://www.physionet.org/physiotools/wag/signal-5.htm
         but this library will not write (though it will read) those file types.
