@@ -1519,9 +1519,11 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
 
     # Reserved (44 bytes)
     reserved_notes = struct.unpack('<44s', edf_file.read(44))[0].decode().strip()
-    if reserved_notes == 'EDF+C':
-        raise Exception('EDF+ File: uninterrupted data records (not currently supported)')
-    elif reserved_notes == 'EDF+D':
+    if reserved_notes[:5] == 'EDF+C':
+        # The file is EDF compatible and will work without issue
+        # See: https://www.sciencedirect.com/science/article/pii/S1388245703001238?via%3Dihub
+        pass
+    elif reserved_notes[:5] == 'EDF+D':
         raise Exception('EDF+ File: interrupted data records (not currently supported)')
     else:
         if verbose:
