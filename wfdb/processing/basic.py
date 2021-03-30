@@ -6,16 +6,18 @@ import pdb
 from wfdb.io.annotation import Annotation
 
 
-def resample_ann(resampled_t, ann_sample):
+def resample_ann(ann_sample, fs, fs_target):
     """
     Compute the new annotation indices.
 
     Parameters
     ----------
-    resampled_t : ndarray
-        Array of signal locations as returned by scipy.signal.resample.
     ann_sample : ndarray
         Array of annotation locations.
+    fs : int
+        The starting sampling frequency.
+    fs_target : int
+        The desired sampling frequency.
 
     Returns
     -------
@@ -23,46 +25,8 @@ def resample_ann(resampled_t, ann_sample):
         Array of resampled annotation locations.
 
     """
-    tmp = np.zeros(len(resampled_t), dtype='int16')
-    j = 0
-    break_loop = 0
-    tprec = resampled_t[j]
-    for i, v in enumerate(ann_sample):
-        break_loop = 0
-        while True:
-            d = False
-            if v < tprec:
-                j -= 1
-                tprec = resampled_t[j]
-
-            if j+1 == len(resampled_t):
-                tmp[j] += 1
-                break
-
-            tnow = resampled_t[j+1]
-            if tprec <= v and v <= tnow:
-                if v-tprec < tnow-v:
-                    tmp[j] += 1
-                else:
-                    tmp[j+1] += 1
-                d = True
-            j += 1
-            tprec = tnow
-            break_loop += 1
-            if (break_loop > 1000):
-                tmp[j] += 1
-                break
-            if d:
-                break
-
-    idx = np.where(tmp>0)[0].astype('int64')
-    res = []
-    for i in idx:
-        for j in range(tmp[i]):
-            res.append(i)
-    assert len(res) == len(ann_sample)
-
-    return np.asarray(res, dtype='int64')
+    ratio = fs_target/fs
+    return (ratio * ann_sample).astype(np.int64)
 
 
 def resample_sig(x, fs, fs_target):
@@ -125,10 +89,8 @@ def resample_singlechan(x, ann, fs, fs_target):
         Annotation containing resampled annotation locations.
 
     """
-    resampled_x, resampled_t = resample_sig(x, fs, fs_target)
-
-    new_sample = resample_ann(resampled_t, ann.sample)
-    assert ann.sample.shape == new_sample.shape
+    resampled_x, _ = resample_sig(x, fs, fs_target)
+    new_sample = resample_ann(ann.sample, fs, fs_target)
 
     resampled_ann = Annotation(record_name=ann.record_name,
                                extension=ann.extension,
@@ -171,15 +133,11 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
     assert resamp_ann_chan < xs.shape[1]
 
     lx = []
-    lt = None
     for chan in range(xs.shape[1]):
-        resampled_x, resampled_t = resample_sig(xs[:, chan], fs, fs_target)
+        resampled_x, _ = resample_sig(xs[:, chan], fs, fs_target)
         lx.append(resampled_x)
-        if chan == resamp_ann_chan:
-            lt = resampled_t
 
-    new_sample = resample_ann(lt, ann.sample)
-    assert ann.sample.shape == new_sample.shape
+    new_sample = resample_ann(ann.sample, fs, fs_target)
 
     resampled_ann = Annotation(record_name=ann.record_name,
                                extension=ann.extension,
