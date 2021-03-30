@@ -10,6 +10,10 @@ import json
 from wfdb.io import record
 
 
+# The old PhysioNet index URL
+OLD_PN = True
+PN_OLD_CONTENT_URL = 'https://archive.physionet.org/physiobank/database/'
+
 # The PhysioNet index url
 PN_INDEX_URL = 'https://physionet.org/files/'
 PN_CONTENT_URL = 'https://physionet.org/content/'
@@ -27,7 +31,10 @@ class Config(object):
 
 # The configuration database index url. Uses PhysioNet index by default.
 config = Config()
-config.db_index_url = PN_INDEX_URL
+if OLD_PN:
+    config.db_index_url = PN_OLD_CONTENT_URL
+else:
+    config.db_index_url = PN_INDEX_URL
 
 
 def set_db_index_url(db_index_url=PN_INDEX_URL):

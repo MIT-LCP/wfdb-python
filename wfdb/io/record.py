@@ -3185,7 +3185,7 @@ def csv2mit(file_name, fs, units, fmt=None, adc_gain=None, baseline=None,
 #------------------------- Reading Records --------------------------- #
 
 
-def rdheader(record_name, pn_dir=None, rd_segments=False):
+def rdheader(record_name, pn_dir=None, rd_segments=False, old_pn=False):
     """
     Read a WFDB header file and return a `Record` or `MultiRecord`
     object with the record descriptors as attributes.
@@ -3208,6 +3208,12 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     rd_segments : bool, optional
         Used when reading multi-segment headers. If True, segment headers will
         also be read (into the record object's `segments` field).
+    old_pn : bool, optional
+        If True, download files from the PhysioNet archive site. Note, `OLD_PN`
+        in `download.py` must also be set to `True` for this to work. At the
+        moment, not every project has been migrated to the new PhysioNet site
+        so some data remains on the archive site. Hopefully all the projects
+        can be migrated to remove this feature.
 
     Returns
     -------
@@ -3226,7 +3232,11 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split('/')
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        if old_pn:
+            pn_dir = posixpath.join(dir_list[0], *dir_list[1:])
+        else:
+            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                    *dir_list[1:])
 
     # Read the header file. Separate comment and non-comment lines
     header_lines, comment_lines = _header._read_header_lines(base_record_name,
@@ -3296,7 +3306,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
              physical=True, pn_dir=None, m2s=True, smooth_frames=True,
              ignore_skew=False, return_res=64, force_channels=True,
-             channel_names=None, warn_empty=False):
+             channel_names=None, warn_empty=False, old_pn=True):
     """
     Read a WFDB record and return the signal and record descriptors as
     attributes in a Record or MultiRecord object.
@@ -3364,6 +3374,12 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         Whether to display a warning if the specified channel indices
         or names are not contained in the record, and no signal is
         returned.
+    old_pn : bool, optional
+        If True, download files from the PhysioNet archive site. Note, `OLD_PN`
+        in `download.py` must also be set to `True` for this to work. At the
+        moment, not every project has been migrated to the new PhysioNet site
+        so some data remains on the archive site. Hopefully all the projects
+        can be migrated to remove this feature.
 
     Returns
     -------
@@ -3396,14 +3412,18 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     # Read the header fields
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split('/')
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        if old_pn:
+            pn_dir = posixpath.join(dir_list[0], *dir_list[1:])
+        else:
+            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
     if record_name.endswith('.edf'):
         record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
     elif record_name.endswith('.wav'):
         record = wav2mit(record_name, pn_dir=pn_dir, record_only=True)
     else:
-        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False,
+                          old_pn=old_pn)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
