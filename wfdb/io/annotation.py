@@ -474,8 +474,8 @@ class Annotation(object):
         # The C WFDB library stores num/sub/chan as chars.
         elif field == 'subtype':
             # signed character
-            if min(self.subtype) < 0 or max(self.subtype) >127:
-                raise ValueError("The 'subtype' field must only contain non-negative integers up to 127")
+            if min(self.subtype) < -128 or max(self.subtype) > 127:
+                raise ValueError("The 'subtype' field must only contain integers from -128 to 127")
         elif field == 'chan':
             # un_signed character
             if min(self.chan) < 0 or max(self.chan) >255:
