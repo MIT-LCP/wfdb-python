@@ -40,7 +40,7 @@ Development
 
 The development repository is hosted at: https://github.com/MIT-LCP/wfdb-python
 
-The package is to be expanded with physiological signal-processing tools, and general improvements. Development is made for Python 3.5+ only.
+The package is to be expanded with physiological signal-processing tools, and general improvements. Development is made for Python 3.6+ only.
 
 
 Contributing
