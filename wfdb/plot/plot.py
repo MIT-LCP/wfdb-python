@@ -13,7 +13,8 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                xlabel=None, ylabel=None, title=None, sig_style=[''],
                ann_style=['r*'], ecg_grids=[], figsize=None,
-               return_fig=False, return_fig_axes=False):
+               sharex=False, sharey=False, return_fig=False, 
+               return_fig_axes=False):
     """
     Subplot individual channels of signals and/or annotations.
 
@@ -78,6 +79,12 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         also be set to 'all' for all channels. Major grids at 0.5mV, and minor
         grids at 0.125mV. All channels to be plotted with grids must have
         `sig_units` equal to 'uV', 'mV', or 'V'.
+	sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
+		Controls sharing of properties among x (`sharex`) or y (`sharey`) axes:
+			True or 'all': x- or y-axis will be shared among all subplots.
+			False or 'none': each subplot x- or y-axis will be independent.
+			'row': each subplot row will share an x- or y-axis.
+			'col': each subplot column will share an x- or y-axis.
     figsize : tuple, optional
         Tuple pair specifying the width, and height of the figure. It is the
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
@@ -108,7 +115,7 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
 
     # Create figure
-    fig, axes = create_figure(n_subplots, figsize)
+    fig, axes = create_figure(n_subplots, sharex, sharey, figsize)
 
     if signal is not None:
         plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
@@ -200,7 +207,7 @@ def get_plot_dims(signal, ann_samp):
     return sig_len, n_sig, n_annot, max(n_sig, n_annot)
 
 
-def create_figure(n_subplots, figsize):
+def create_figure(n_subplots, sharex, sharey, figsize):
     """
     Create the plot figure and subplot axes.
 
@@ -210,6 +217,12 @@ def create_figure(n_subplots, figsize):
         The number of subplots to generate.
     figsize : tuple
         The figure's width, height in inches. 
+	sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
+		Controls sharing of properties among x (`sharex`) or y (`sharey`) axes:
+			True or 'all': x- or y-axis will be shared among all subplots.
+			False or 'none': each subplot x- or y-axis will be independent.
+			'row': each subplot row will share an x- or y-axis.
+			'col': each subplot column will share an x- or y-axis.
 
     Returns
     -------
@@ -217,14 +230,10 @@ def create_figure(n_subplots, figsize):
         The entire figure that will hold each subplot.
     axes : list
         The information needed for each subplot.
-
     """
-    fig = plt.figure(figsize=figsize)
-    axes = []
-
-    for i in range(n_subplots):
-        axes.append(fig.add_subplot(n_subplots, 1, i+1))
-
+	fig, axes = plt.subplots(
+		nrows=n_subplots, ncols=1, sharex=sharex, sharey=sharey, figsize=figsize
+	)
     return fig, axes
 
 
