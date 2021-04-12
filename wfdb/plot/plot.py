@@ -79,12 +79,10 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         also be set to 'all' for all channels. Major grids at 0.5mV, and minor
         grids at 0.125mV. All channels to be plotted with grids must have
         `sig_units` equal to 'uV', 'mV', or 'V'.
-	sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
-		Controls sharing of properties among x (`sharex`) or y (`sharey`) axes:
-			True or 'all': x- or y-axis will be shared among all subplots.
-			False or 'none': each subplot x- or y-axis will be independent.
-			'row': each subplot row will share an x- or y-axis.
-			'col': each subplot column will share an x- or y-axis.
+    sharex, sharey : bool, optional
+        Controls sharing of properties among x (`sharex`) or y (`sharey`) axes.
+        If True: x- or y-axis will be shared among all subplots.
+        If False, each subplot x- or y-axis will be independent.
     figsize : tuple, optional
         Tuple pair specifying the width, and height of the figure. It is the
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
@@ -217,12 +215,10 @@ def create_figure(n_subplots, sharex, sharey, figsize):
         The number of subplots to generate.
     figsize : tuple
         The figure's width, height in inches. 
-	sharex, sharey : bool or {'none', 'all', 'row', 'col'}, default: False
-		Controls sharing of properties among x (`sharex`) or y (`sharey`) axes:
-			True or 'all': x- or y-axis will be shared among all subplots.
-			False or 'none': each subplot x- or y-axis will be independent.
-			'row': each subplot row will share an x- or y-axis.
-			'col': each subplot column will share an x- or y-axis.
+    sharex, sharey : bool, optional
+        Controls sharing of properties among x (`sharex`) or y (`sharey`) axes.
+        If True: x- or y-axis will be shared among all subplots.
+        If False, each subplot x- or y-axis will be independent.
 
     Returns
     -------
