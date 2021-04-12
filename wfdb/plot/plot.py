@@ -227,9 +227,9 @@ def create_figure(n_subplots, sharex, sharey, figsize):
     axes : list
         The information needed for each subplot.
     """
-	fig, axes = plt.subplots(
-		nrows=n_subplots, ncols=1, sharex=sharex, sharey=sharey, figsize=figsize
-	)
+    fig, axes = plt.subplots(
+        nrows=n_subplots, ncols=1, sharex=sharex, sharey=sharey, figsize=figsize
+    )
     return fig, axes
 
 
