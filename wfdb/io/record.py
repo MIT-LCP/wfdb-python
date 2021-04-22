@@ -1349,7 +1349,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
 
 def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
-            header_only=False, verbose=False):
+            header_only=False, verbose=False, rdedfann_flag=False):
     """
     Convert EDF formatted files to MIT format.
 
@@ -1391,6 +1391,11 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
     verbose : bool, optional
         Whether to print all the information read about the file (True) or
         not (False).
+    rdedfann_flag : bool, optional
+        Whether the function is being called by `rdedfann` or the user. If it
+        is being called by the user and the file has annotations, then warn
+        them that the EDF file has annotations and that they should use
+        `rdedfann` instead.
 
     Returns
     -------
@@ -1521,7 +1526,10 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
     reserved_notes = struct.unpack('<44s', edf_file.read(44))[0].decode().strip()
     if reserved_notes[:5] == 'EDF+C':
         # The file is EDF compatible and will work without issue
-        # See: https://www.sciencedirect.com/science/article/pii/S1388245703001238?via%3Dihub
+        # See: Bob Kemp, Jesus Olivan, European data format ‘plus’ (EDF+), an
+        #      EDF alike standard format for the exchange of physiological
+        #      data, Clinical Neurophysiology, Volume 114, Issue 9, 2003,
+        #      Pages 1755-1761, ISSN 1388-2457
         pass
     elif reserved_notes[:5] == 'EDF+D':
         raise Exception('EDF+ File: interrupted data records (not currently supported)')
@@ -1553,7 +1561,11 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
     # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
     sig_name = []
     for _ in range(n_sig):
-        sig_name.append(struct.unpack('<16s', edf_file.read(16))[0].decode().strip())
+        temp_sig = struct.unpack('<16s', edf_file.read(16))[0].decode().strip()
+        if temp_sig == 'EDF Annotations' and not rdedfann_flag:
+            print('*** This may be an EDF+ Annotation file instead, please see '
+                  'the `rdedfann` function. ***')
+        sig_name.append(temp_sig)
     if verbose:
         print('Signal Labels: {}'.format(sig_name))
 
@@ -1653,6 +1665,24 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
     block_size = n_sig * [0]
     base_datetime = datetime.datetime(start_year, start_month, start_day,
                                       start_hour, start_minute, start_second)
+    base_time = datetime.time(base_datetime.hour,
+                              base_datetime.minute,
+                              base_datetime.second)
+    base_date = datetime.date(base_datetime.year,
+                              base_datetime.month,
+                              base_datetime.day)
+
+    if header_only:
+        return {
+            'fs': fs,
+            'sig_len': sig_len,
+            'n_sig': n_sig,
+            'base_date': base_date,
+            'base_time': base_time,
+            'units': units,
+            'sig_name': sig_name,
+            'comments': []
+        }
 
     sig_data = np.empty((sig_len, n_sig))
     temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
@@ -1695,12 +1725,8 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
         counter_freq = None,
         base_counter = None,
         sig_len = sig_len,
-        base_time = datetime.time(base_datetime.hour,
-                                  base_datetime.minute,
-                                  base_datetime.second),
-        base_date = datetime.date(base_datetime.year,
-                                  base_datetime.month,
-                                  base_datetime.day),
+        base_time = base_time,
+        base_date = base_date,
         comments = [],
         sig_name = sig_name,    # Remove whitespace to make compatible later?
         p_signal = sig_data,

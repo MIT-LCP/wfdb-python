@@ -5,6 +5,7 @@ import pandas as pd
 import re
 import posixpath
 import pdb
+import struct
 
 from wfdb.io import download
 from wfdb.io import _header
@@ -2544,6 +2545,156 @@ def csv2ann(file_name, extension='atr', fs=None, record_only=False,
               subtype=subtype, chan=chan, num=num, aux_note=aux_note, fs=fs)
         if verbose:
             print('Finished writing Annotation file')
+
+
+def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
+             record_only=False, verbose=False):
+    """
+    This program returns the annotation information from an EDF+ file
+    containing annotations (with the signal name given as 'EDF Annotations').
+    The information that is returned if `info_only` is set to True is:
+        {
+            'onset_time': list of %H:%M:%S.fff strings denoting the annotation
+                          onset times,
+            'sample_num': list of integers denoting the annotation onset
+                          sample numbers,
+            'comment': list of comments (`aux_note`) for the annotations,
+            'duration': list of floats denoting the duration of the event
+        }
+    Else, this function will return either the WFDB Annotation format of the
+    information of the file if `record_only` is set to True, or nothing if
+    neither are set to True though a WFDB Annotation file will be created.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the input EDF record to be read.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+    delete_file : bool, optional
+        Whether to delete the saved EDF file (False) or not (True)
+        after being imported.
+    info_only : bool, optional
+        Return, strictly, the information contained in the file as formatted
+        by the original WFDB package. Must not be True if `record_only` is
+        True.
+    record_only : bool, optional
+        Whether to only return the record information (True) or not (False).
+        If False, this function will generate both a .dat and .hea file. Must
+        not be True if `info_only` is True.
+    verbose : bool, optional
+        Whether to print all the information read about the file (True) or
+        not (False).
+
+    Returns
+    -------
+    record : dict, optional
+        All of the record information needed to generate MIT formatted files.
+        Only returns if 'record_only' is set to True, else generates the
+        corresponding .dat and .hea files. This record file will not match the
+        `rdrecord` output since it will only give us the digital signal for now.
+
+    Notes
+    -----
+    The entire file is composed of (seen here:
+    https://www.edfplus.info/specs/edfplus.html#edfplusannotations):
+
+    HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
+    8 ascii : version of this data format (0)
+    80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
+    80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
+    8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
+    8 ascii : starttime of recording (hh.mm.ss)
+    8 ascii : number of bytes in header record
+    44 ascii : reserved
+    8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
+    8 ascii : duration of a data record, in seconds
+    4 ascii : number of signals (ns) in data record
+    ns * 16 ascii : ns * label (must be 'EDF Annotations')
+    ns * 80 ascii : ns * transducer type (must be whitespace)
+    ns * 8 ascii : ns * physical dimension (must be whitespace)
+    ns * 8 ascii : ns * physical minimum (e.g. -500 or 34, different than physical maximum)
+    ns * 8 ascii : ns * physical maximum (e.g. 500 or 40, different than physical minimum)
+    ns * 8 ascii : ns * digital minimum (must be -32768)
+    ns * 8 ascii : ns * digital maximum (must be 32767)
+    ns * 80 ascii : ns * prefiltering (must be whitespace)
+    ns * 8 ascii : ns * nr of samples in each data record
+    ns * 32 ascii : ns * reserved
+
+    ANNOTATION RECORD
+
+    Examples
+    --------
+    >>> ann_info = wfdb.rdedfann('sample-data/test_edfann.edf')
+
+    """
+    # Some preliminary checks
+    if info_only and record_only:
+        raise Exception('Both `info_only` and `record_only` are set. Only one '
+                        'can be set at a time.')
+
+    # According to the EDF+ docs:
+    #   "The coding is EDF compatible in the sense that old EDF software would
+    #    simply treat this 'EDF Annotations' signal as if it were a (strange-
+    #    looking) ordinary signal"
+    rec = record.edf2mit(record_name, pn_dir=pn_dir, delete_file=delete_file,
+                         record_only=True, rdedfann_flag=True)
+
+    # Convert from array of integers to ASCII strings
+    annotation_string = ''
+    for chunk in rec.p_signal.flatten().astype(np.int64):
+        if chunk+1 == 0:
+            continue
+        else:
+            adjusted_hex = hex(struct.unpack('<H', struct.pack('>H',chunk+1))[0])
+            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode('ascii')
+            # Remove all of the whitespace
+            for rep in ['\x00','\x14','\x15']:
+                annotation_string = annotation_string.replace(rep,' ')
+
+    # Parse the resulting annotation string
+    onset_times = []
+    sample_nums = []
+    comments = []
+    durations = []
+    all_anns = annotation_string.split('+')
+    for ann in all_anns:
+        if ann == '':
+            continue
+        try:
+            ann_split = ann.strip().split(' ')
+            onset = float(ann_split[0])
+            hours, rem = divmod(onset, 3600)
+            minutes, seconds = divmod(rem, 60)
+            onset_time =  f'{hours:02.0f}:{minutes:02.0f}:{seconds:06.3f}'
+            sample_num = int(onset*rec.sig_len)
+            duration = float(ann_split[1])
+            comment = ' '.join(ann_split[2:])
+            if verbose:
+                print(f'{onset_time}\t{sample_num}\t{comment}\t\tduration: {duration}')
+            onset_times.append(onset_time)
+            sample_nums.append(sample_num)
+            comments.append(comment)
+            durations.append(duration)
+        except IndexError:
+            continue
+
+    if info_only:
+        return {
+            'onset_time': onset_times,
+            'sample_num': sample_nums,
+            'comment': comments,
+            'duration': durations
+        }
+    elif record_only:
+        # TODO: return WFDB-formatted annotation object
+        pass
+    else:
+        # TODO: Create the WFDB annotation file and don't return the object
+        pass
 
 
 ## ------------- Annotation Field Specifications ------------- ##
