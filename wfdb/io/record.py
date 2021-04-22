@@ -3805,6 +3805,123 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
         print(*record.sig_name, sep='\n')
 
 
+def wfdbdesc(record_name, pn_dir=None):
+    """
+    Reads specifications for the signals described in the header file for
+    a record.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+
+    Returns
+    -------
+    N/A
+
+    Examples
+    --------
+    >>> wfdb.wfdbdesc('100', pn_dir='mitdb')
+    Record 100
+    Notes
+    =====
+     69 M 1085 1629 x1
+     Aldomet, Inderal
+    =====
+
+    Starting time: not specified
+    Length: 0:30:05.555556 (650000 sample intervals)
+    Sampling frequency: 360 Hz
+    2 signals
+    Group 0, Signal 0:
+     File: 100.dat
+     Description: MLII
+     Gain: 200.0 mV
+     Initial value: 995
+     Storage format: 212 (1 sample per frame)
+     I/O: can be unbuffered
+     ADC resolution: 11 bits
+     ADC zero: 1024
+     Baseline: 1024
+     Checksum: -22131
+    Group 0, Signal 1:
+     File: 100.dat
+     Description: V5
+     Gain: 200.0 mV
+     Initial value: 1011
+     Storage format: 212 (1 sample per frame)
+     I/O: can be unbuffered
+     ADC resolution: 11 bits
+     ADC zero: 1024
+     Baseline: 1024
+     Checksum: 20052
+
+    """
+    if (pn_dir is not None) and ('.' not in pn_dir):
+        dir_list = pn_dir.split('/')
+        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                 *dir_list[1:])
+
+    record = rdheader(record_name, pn_dir=pn_dir)
+    if type(record) is MultiRecord:
+        sub_string = 'fixed' if record.segments else 'variable'
+        seg_string = f' (a {sub_string}-layout multi-segment record)'
+    else:
+        seg_string = ''
+
+    print(f'Record {record_name}{seg_string}')
+
+    if record.comments:
+       print('Notes')
+       print('=====')
+       for comment in record.comments:
+            print(f' {comment}')
+       print('=====')
+    print()
+
+    try:
+        start_time = f'[{datetime.datetime.combine(record.base_date, record.base_time)}]'
+    except TypeError:
+        start_time = 'not specified'
+    print(f'Starting time: {start_time}')
+
+    record_length = str(datetime.timedelta(seconds=record.sig_len/record.fs))
+    print(f'Length: {record_length} ({record.sig_len} sample intervals)')
+
+    print(f'Sampling frequency: {record.fs} Hz')
+    print(f'{record.n_sig} signal{"" if record.n_sig==1 else "s"}')
+
+    if type(record) is not MultiRecord:
+        for i in range(record.n_sig):
+            print(f'Group 0, Signal {i}:')
+            print(f' File: {record.file_name[i]}')
+            print(f' Description: {record.sig_name[i]}')
+            print(f' Gain: {record.adc_gain[i]} {record.units[i]}')
+            print(f' Initial value: {record.init_value[i]}')
+            sample_string = '' if record.samps_per_frame[i]==1 else 's'
+            print(f' Storage format: {record.fmt[i]} ({record.samps_per_frame[i]} sample{sample_string} per frame)')
+            if record.byte_offset[i]:
+                byte_string = f'{record.byte_offset[i]}-byte blocks'
+            else:
+                byte_string = 'can be unbuffered'
+            print(f' I/O: {byte_string}')
+            print(f' ADC resolution: {record.adc_res[i]} bits')
+            print(f' ADC zero: {record.adc_zero[i]}')
+            print(f' Baseline: {record.baseline[i]}')
+            print(f' Checksum: {record.checksum[i]}')
+
+
 def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
     """
     Given some wanted signal names, and the signal names contained in a
