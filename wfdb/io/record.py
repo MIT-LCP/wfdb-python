@@ -3871,7 +3871,7 @@ def wfdbdesc(record_name, pn_dir=None):
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
-                                 *dir_list[1:])
+                                *dir_list[1:])
 
     record = rdheader(record_name, pn_dir=pn_dir)
     if type(record) is MultiRecord:
@@ -3920,6 +3920,193 @@ def wfdbdesc(record_name, pn_dir=None):
             print(f' ADC zero: {record.adc_zero[i]}')
             print(f' Baseline: {record.baseline[i]}')
             print(f' Checksum: {record.checksum[i]}')
+
+
+def wfdbtime(record_name, input_times, pn_dir=None):
+    """
+    Use the specified record as a reference for determining the length of a
+    sample interval and the absolute time represented by sample number 0. This
+    program accepts one or more time arguments (in WFDB standard time format)
+    and produces one line on the standard output for each such argument. In
+    each output line, the corresponding time is written as a sample number (in
+    the form sNNN), as an elapsed time interval in hours, minutes, and seconds
+    from the beginning of the record (in the form hh:mm:ss.sss), and as an
+    absolute time and date (in the form [hh:mm:ss.sss DD/MM/YYYY]). If the
+    base time for the record is undefined, the absolute time cannot be
+    calculated, and in this case the elapsed time appears twice instead.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If the `pn_dir`
+        parameter is set, this parameter should contain just the base
+        record name, and the files fill be searched for remotely.
+        Otherwise, the data files will be searched for in the local path.
+    input_times : str, list
+        The desired times (or samples) to be converted and displayed for the
+        chosen record. This can either be a single string, or a list of
+        strings depending on how many results the user would like. The string
+        must either be an integer (in which case '1' will be interpreted as 1
+        second), a datetime format (hh:mm:ss.sss DD/MM/YYYY), or prefixed with
+        the letter 's' if the time at a selected sample is desired (i.e. 's10'
+        for sample time). For the datetime format, 0's do not have be filled
+        for all values (i.e. '5::' will be interpreted as '05:00:00.000',
+        ':5:' will be '00:05:00.000', etc.). The string 'e' can be used to
+        represent the end of the record.
+    pn_dir : str, optional
+        Option used to stream data from Physionet. The Physionet
+        database directory from which to find the required record files.
+        eg. For record '100' in 'http://physionet.org/content/mitdb'
+        pn_dir='mitdb'.
+
+    Returns
+    -------
+    N/A
+
+    Examples
+    --------
+    * Note, the use of a single string instead of a list.
+    >>> wfdb.wfdbtime('sample-data/100', 's250')
+        s250            00:00:00.694                    00:00:00.694
+
+    * Note, the elapsed time and date fields are the same since no start time
+      or date was provided.
+    >>> wfdb.wfdbtime('sample-data/100', ['s10',':5:','2'])
+         s10            00:00:00.028                    00:00:00.028
+     s108000            00:05:00.000                    00:05:00.000
+        s720            00:00:02.000                    00:00:02.000
+
+    * Note, '01/01/0001' represents a start time was provided but not a date.
+    >>> wfdb.wfdbtime('sample-data/3000003_0003', ['s1','0:0:05','e'])
+          s1            00:00:00.008    [19:46:25.765000 01/01/0001]
+        s625            00:00:05.000    [19:46:30.757000 01/01/0001]
+       s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
+
+    * Note, the final argument results in the same date field as the argument
+      but a different value for the elapsed time.
+    >>> wfdb.wfdbtime('sample-data/3000003_0003', ['s1','::5','e','19:46:34.981 01/01/0001'])
+          s1            00:00:00.008    [19:46:25.765000 01/01/0001]
+        s625            00:00:05.000    [19:46:30.757000 01/01/0001]
+       s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
+       s1153            00:00:09.224    [19:46:34.981000 01/01/0001]
+
+    """
+    if (pn_dir is not None) and ('.' not in pn_dir):
+        dir_list = pn_dir.split('/')
+        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                *dir_list[1:])
+
+    record = rdheader(record_name, pn_dir=pn_dir)
+    try:
+        start_time = datetime.datetime.combine(record.base_date, record.base_time)
+    except TypeError:
+        try:
+            start_time = record.base_time
+        except AttributeError:
+            start_time = None
+
+    if type(input_times) is str:
+        input_times = [input_times]
+
+    for times in input_times:
+        if times == 'e':
+            sample_num = record.sig_len
+            sample_time = float(sample_num/record.fs)
+            seconds = float(sample_time)%60
+            minutes = int(float(sample_time)//60)
+            hours = int(float(sample_time)//60//60)
+        else:
+            if times.startswith('s'):
+                sample_num = int(times[1:])
+                new_times = float(sample_num/record.fs)
+                times_split = [f'{new_times}']
+            elif '/' in times:
+                out_date = datetime.datetime.strptime(times, '%H:%M:%S.%f %d/%m/%Y')
+                try:
+                    start_time = datetime.datetime.combine(datetime.date.min, start_time)
+                except TypeError:
+                    start_time = start_time
+                try:
+                    elapsed_time = out_date - start_time
+                except TypeError:
+                    raise Exception('No start date or time provided in the record.')
+                total_seconds = elapsed_time.total_seconds()
+                sample_num = 's' + str(int(elapsed_time.total_seconds() * record.fs))
+                hours = int(total_seconds//60//60)
+                minutes = int(total_seconds//60)
+                out_time = f'{hours:02}:{minutes:02}:{total_seconds:06.3f}'
+                out_date = f'[{out_date.strftime("%H:%M:%S.%f %d/%m/%Y")}]'
+                print(f'{sample_num:>12}{out_time:>24}{out_date:>32}')
+                break
+            else:
+                new_times = times
+                times_split = [t if t != '' else '0' for t in times.split(':')]
+            if len(times_split) == 1:
+                seconds = float(new_times)%60
+                minutes = int(float(new_times)//60)
+                hours = int(float(new_times)//60//60)
+            elif len(times_split) == 2:
+                seconds = float(times_split[1])
+                minutes = int(times_split[0])
+                hours = 0
+            elif len(times_split) == 3:
+                seconds = float(times_split[2])
+                minutes = int(times_split[1])
+                hours = int(times_split[0])
+            if seconds >= 60:
+                raise Exception('Seconds not in correct format')
+            if minutes >= 60:
+                raise Exception('Minutes not in correct format')
+        out_time = f'{hours:02}:{minutes:02}:{seconds:06.3f}'
+        out_date = _get_date_from_time(start_time, hours, minutes, seconds,
+                                       out_time)
+        if not times.startswith('s'):
+            sample_num = int(sum(x*60**i for i,x in enumerate([seconds,minutes,hours])) * record.fs)
+        sample_num = 's' + str(sample_num)
+        print(f'{sample_num:>12}{out_time:>24}{out_date:>32}')
+
+
+def _get_date_from_time(start_time, hours, minutes, seconds, out_time):
+    """
+    Convert a starting time to a date using the elapsed time.
+
+    Parameters
+    ----------
+    start_time : datetime object
+        The time the record start if available.
+    hours : int
+        The number of hours elapsed.
+    minutes : int
+        The number of minutes elapsed.
+    seconds : int
+        The number of seconds elapsed.
+    out_time : str
+        The string formatted time elapsed for a desired sample, if available.
+
+    Returns
+    -------
+    out_date : datetime object
+        The time the record ends after the caculcated elapsed time.
+
+    """
+    if start_time:
+        try:
+            start_time = datetime.datetime.combine(datetime.date.min, start_time) - \
+                datetime.datetime.min
+        except TypeError:
+            start_time = start_time - datetime.datetime.min
+        microseconds = int(1000000*(seconds%1))
+        elapsed_time = datetime.timedelta(hours=hours, minutes=minutes,
+                                          seconds=int(seconds),
+                                          microseconds=microseconds)
+        out_date = start_time + elapsed_time
+        out_date = f'[{(datetime.datetime.min+out_date).strftime("%H:%M:%S.%f %d/%m/%Y")}]'
+    else:
+        out_date = out_time
+    return out_date
 
 
 def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
