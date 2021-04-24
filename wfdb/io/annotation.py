@@ -2487,28 +2487,16 @@ def csv2ann(file_name, extension='atr', fs=None, record_only=False,
     if df_CSV.shape[1] == 2:
         if verbose:
             print('onset,description format detected')
+        if not header:
+            df_CSV.columns = ['onset', 'description']
         df_out = df_CSV
     elif df_CSV.shape[1] == 3:
         if verbose:
             print('onset,duration,description format detected')
             print('Converting durations to single time-point events')
-        # Create two separate dataframes for the start and end annotation
-        # then remove them from the original
-        df_start = df_CSV[df_CSV['duration'] > 0]
-        df_end = df_CSV[df_CSV['duration'] > 0]
-        df_trunc = df_CSV[df_CSV['duration'] == 0]
-        # Append parentheses at the start for annotation start and end for
-        # annotation end
-        df_start['description'] = '(' + df_start['description'].astype(str)
-        df_end['description'] = df_end['description'].astype(str) + ')'
-        # Add the duration time to the onset for the end annotation to convert
-        # to single time annotations only
-        df_end['onset'] = df_end['onset'] + df_end['duration']
-        # Concatenate all of the dataframes
-        df_out = pd.concat([df_trunc, df_start, df_end], ignore_index=True)
-        # Make sure the sorting is correct
-        df_out['col_index'] = df_out.index
-        df_out = df_out.sort_values(['onset', 'col_index'])
+        if not header:
+            df_CSV.columns = ['onset', 'duration', 'description']
+        df_out = _format_ann_from_df(df_CSV)
     else:
         raise Exception("""The number of columns in the CSV was not
                         recognized.""")
@@ -2656,6 +2644,7 @@ def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
                 annotation_string = annotation_string.replace(rep,' ')
 
     # Parse the resulting annotation string
+    onsets = []
     onset_times = []
     sample_nums = []
     comments = []
@@ -2675,6 +2664,7 @@ def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
             comment = ' '.join(ann_split[2:])
             if verbose:
                 print(f'{onset_time}\t{sample_num}\t{comment}\t\tduration: {duration}')
+            onsets.append(onset)
             onset_times.append(onset_time)
             sample_nums.append(sample_num)
             comments.append(comment)
@@ -2689,12 +2679,70 @@ def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
             'comment': comments,
             'duration': durations
         }
-    elif record_only:
-        # TODO: return WFDB-formatted annotation object
-        pass
     else:
-        # TODO: Create the WFDB annotation file and don't return the object
-        pass
+        df_in = pd.DataFrame(data={
+            'onset': onsets, 'duration': durations, 'description': comments
+        })
+        df_out = _format_ann_from_df(df_in)
+        # Remove extension from input file name
+        record_name = record_name.split(os.sep)[-1].split('.')[0]
+        extension = 'atr'
+        fs = rec.fs
+        sample = (df_out['onset'].to_numpy()*fs).astype(np.int64)
+        # Assume each annotation is a comment
+        symbol = ['"']*len(df_out.index)
+        subtype = np.array([22]*len(df_out.index))
+        # Assume each annotation belongs with the 1st channel
+        chan = np.array([0]*len(df_out.index))
+        num = np.array([0]*len(df_out.index))
+        aux_note = df_out['description'].tolist()
+
+        if record_only:
+            return Annotation(record_name=record_name, extension=extension,
+                              sample=sample, symbol=symbol, subtype=subtype,
+                              chan=chan, num=num, aux_note=aux_note, fs=fs)
+        else:
+            wrann(record_name, extension, sample=sample, symbol=symbol,
+                  subtype=subtype, chan=chan, num=num, aux_note=aux_note,
+                  fs=fs)
+
+
+def _format_ann_from_df(df_in):
+    """
+    Parameters
+    ----------
+    df_in : Pandas dataframe
+        Contains all the information needed to create WFDB-formatted
+        annotations. Of the form:
+            onset,duration,description
+            onset_1,duration_1,description_1
+            onset_2,duration_2,description_2
+            ...,...,...
+
+    Returns
+    -------
+    N/A : Pandas dataframe
+        The WFDB-formatted input dataframe.
+
+    """
+    # Create two separate dataframes for the start and end annotation
+    # then remove them from the original
+    df_start = df_in[df_in['duration'] > 0]
+    df_end = df_in[df_in['duration'] > 0]
+    df_trunc = df_in[df_in['duration'] == 0]
+    # Append parentheses at the start for annotation start and end for
+    # annotation end
+    df_start['description'] = '(' + df_start['description'].astype(str)
+    df_end['description'] = df_end['description'].astype(str) + ')'
+    # Add the duration time to the onset for the end annotation to convert
+    # to single time annotations only
+    df_end['onset'] = df_end['onset'] + df_end['duration']
+    # Concatenate all of the dataframes
+    df_out = pd.concat([df_trunc, df_start, df_end], ignore_index=True)
+    # Make sure the sorting is correct
+    df_out['col_index'] = df_out.index
+    return df_out.sort_values(['onset', 'col_index'])
+
 
 
 ## ------------- Annotation Field Specifications ------------- ##
