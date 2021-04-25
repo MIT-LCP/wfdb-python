@@ -2710,8 +2710,9 @@ def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
                   fs=fs)
 
 
-def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr', start_ann=0,
-           end_ann='e', merge_method='combine', record_only=True, verbose=False):
+def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr',
+           merge_method='combine', chan1=-1, chan2=-1, start_ann=0,
+           end_ann='e', record_only=True, verbose=False):
     """
     This function reads a pair of annotation files (specified by `ann_file1`
     and `ann_file2`) for the specified record and writes a third annotation
@@ -2736,6 +2737,19 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr', start_ann=0,
     out_file_name : string
         The name of the output file name (with extension included). The
         default is 'merged_ann.atr'.
+    merge_method : string, optional
+        The method used to merge the two annotation files. The default is
+        'combine' which simply combines the two files along every attribute;
+        duplicates will be preserved. The other options are 'replace1' which
+        replaces attributes of the first annotation file with attributes of
+        the second for the desired time range and 'replace2' which does the
+        same thing except switched (first file replaces second).
+    chan1 : int, optional
+        Sets the value of `chan` for the first annotation file. The default is
+        -1 which means to keep it the same.
+    chan2 : int, optional
+        Sets the value of `chan` for the second annotation file. The default
+        is -1 which means to keep it the same.
     start_ann : float, int, string, optional
         The location (sample, time, etc.) to start the annotation filtering.
         If float, it will be interpreted as time in seconds. If int, it will
@@ -2749,13 +2763,6 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr', start_ann=0,
         be interpreted as sample number. If string, it will be interpreted
         as time formatted in HH:MM:SS format (the same as that in `wfdbtime`).
         The default is 'e' to represent the end of the annotation.
-    merge_method : string, optional
-        The method used to merge the two annotation files. The default is
-        'combine' which simply combines the two files along every attribute;
-        duplicates will be preserved. The other options are 'replace1' which
-        replaces attributes of the first annotation file with attributes of
-        the second for the desired time range and 'replace2' which does the
-        same thing except switched (first file replaces second).
     record_only : bool, optional
         Whether to only return the annotation information (True) or not
         (False). If False, this function will generate a WFDB-formatted
@@ -2779,6 +2786,15 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr', start_ann=0,
         raise Exception('Annotation sample rates do not match up: samples '
                         'can be aligned but final sample rate can not be '
                         'determined')
+    # Apply the channel mapping if desired
+    if chan1 != -1:
+        if chan1 < -1:
+            raise Exception('Invalid value for `chan1`: must be >= 0')
+        ann1.chan = np.array([chan1] * ann1.ann_len)
+    if chan2 != -1:
+        if chan2 < -1:
+            raise Exception('Invalid value for `chan2`: must be >= 0')
+        ann2.chan = np.array([chan2] * ann2.ann_len)
 
     if start_ann == 'e':
         raise Exception('Start time can not be set to the end of the record')
