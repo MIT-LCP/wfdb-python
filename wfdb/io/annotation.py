@@ -2742,8 +2742,9 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr',
         'combine' which simply combines the two files along every attribute;
         duplicates will be preserved. The other options are 'replace1' which
         replaces attributes of the first annotation file with attributes of
-        the second for the desired time range and 'replace2' which does the
-        same thing except switched (first file replaces second).
+        the second for the desired time range, 'replace2' which does the
+        same thing except switched (first file replaces second), and 'delete'
+        which deletes all of the annotations in the desired time range.
     chan1 : int, optional
         Sets the value of `chan` for the first annotation file. The default is
         -1 which means to keep it the same.
@@ -2851,7 +2852,7 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr',
     if verbose:
         print(f'Start sample: {start_sample}, end sample: {end_sample}')
 
-    if merge_method == 'combine':
+    if (merge_method == 'combine') or (merge_method == 'delete'):
         if verbose:
             print('Combining the two files together')
         # The sample should never be empty but others can (though they
@@ -2861,8 +2862,12 @@ def mrgann(ann_file1, ann_file2, out_file_name='merged_ann.atr',
         sort_indices = np.argsort(both_sample)
         both_sample = np.sort(both_sample)
         # Find where to filter the array
-        sample_range = ((both_sample >= start_sample) &
-                        (both_sample <= end_sample))
+        if merge_method == 'combine':
+            sample_range = ((both_sample >= start_sample) &
+                            (both_sample <= end_sample))
+        if merge_method == 'delete':
+            sample_range = ((both_sample < start_sample) |
+                            (both_sample > end_sample))
         index_range = np.where(sample_range)[0]
         both_sample = both_sample[sample_range]
         # Combine both annotation attributes
