@@ -2091,7 +2091,7 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
         file_size = os.path.getsize(os.path.join(dir_name, file_name))
     else:
         file_size = download._remote_file_size(file_name=file_name,
-                                               pn_dir=pn_dir)
+                                               remote_dir=pn_dir)
 
     sig_len = int(file_size / (BYTES_PER_SAMPLE[fmt] * n_sig))
 

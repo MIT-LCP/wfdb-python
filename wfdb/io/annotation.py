@@ -1620,7 +1620,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
     >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=300000)
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0],
                                 record.get_version(dir_list[0]),
@@ -2255,7 +2255,7 @@ def ann2rr(record_name, extension, pn_dir=None, start_time=None,
     >>> 257
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], record.get_version(dir_list[0]),
                                 *dir_list[1:])

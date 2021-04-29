@@ -1457,23 +1457,32 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
 
     """
     if pn_dir is not None:
+        if pn_dir.startswith('s3'):
+            # Set up the remote AWS S3 file system
+            import s3fs
+            fs = s3fs.S3FileSystem(anon=True)
+            file_dir = posixpath.join(pn_dir, record_name)
+        else:
+            if '.' not in pn_dir:
+                dir_list = pn_dir.split('/')
+                pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                        *dir_list[1:])
 
-        if '.' not in pn_dir:
-            dir_list = pn_dir.split('/')
-            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+            file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
+            # Currently must download file for MNE to read it though can give the
+            # user the option to delete it immediately afterwards
+            r = requests.get(file_url, allow_redirects=False)
+            open(record_name, 'wb').write(r.content)
 
-        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
-        # Currently must download file for MNE to read it though can give the
-        # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
-
-    # Open the desired file
-    edf_file = open(record_name, mode='rb')
-
-    # Remove the file if the `delete_file` flag is set
-    if pn_dir is not None and delete_file:
-        os.remove(record_name)
+    try:
+        # Read the remote file
+        edf_file = fs.open(file_dir, 'rb')
+    except NameError:
+        # Open the desired file
+        edf_file = open(record_name, 'rb')
+        # Remove the file if the `delete_file` flag is set
+        if pn_dir is not None and delete_file:
+            os.remove(record_name)
 
     # Version of this data format (8 bytes)
     version = struct.unpack('<8s', edf_file.read(8))[0].decode()
@@ -1685,7 +1694,7 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
         }
 
     sig_data = np.empty((sig_len, n_sig))
-    temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
+    temp_sig_data = np.frombuffer(edf_file.read(), dtype=np.int16)
     temp_sig_data = temp_sig_data.reshape((-1,sum(samps_per_block)))
     temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
     for i in range(n_sig):
@@ -2371,25 +2380,41 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
         raise Exception('Name of the input file must end in .wav')
 
     if pn_dir is not None:
+        if pn_dir.startswith('s3'):
+            # Set up the remote AWS S3 file system
+            import s3fs
+            fs = s3fs.S3FileSystem(anon=True)
+            file_dir = posixpath.join(pn_dir, record_name)
+        else:
+            if '.' not in pn_dir:
+                dir_list = pn_dir.split('/')
+                pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                        *dir_list[1:])
 
-        if '.' not in pn_dir:
-            dir_list = pn_dir.split('/')
-            pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+            file_url = posixpath.join(download.PN_INDEX_URL, pn_dir,
+                                      record_name)
+            # Currently must download file for MNE to read it though can give the
+            # user the option to delete it immediately afterwards
+            r = requests.get(file_url, allow_redirects=False)
+            open(record_name, 'wb').write(r.content)
 
-        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
-        # Currently must download file to read it though can give the
-        # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+    try:
+        # Read the remote file
+        wave_file = fs.open(file_dir, 'rb')
+    except NameError:
+        # Open the desired file
+        wave_file = open(record_name, 'rb')
 
-    wave_file = open(record_name, mode='rb')
     record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
 
     chunk_ID = ''.join([s.decode() for s in struct.unpack('>4s', wave_file.read(4))])
     if chunk_ID != 'RIFF':
         raise Exception('{} is not a .wav-format file'.format(record_name))
 
-    correct_chunk_size = os.path.getsize(record_name) - 8
+    try:
+        correct_chunk_size = wave_file.size - 8
+    except AttributeError:
+        correct_chunk_size = os.path.getsize(record_name) - 8
     chunk_size = struct.unpack('<I', wave_file.read(4))[0]
     if chunk_size != correct_chunk_size:
         raise Exception('Header chunk has incorrect length (is {} should be {})'.format(chunk_size,correct_chunk_size))
@@ -2444,19 +2469,23 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     if subchunk2_ID != 'data':
         raise Exception('Format chunk missing or corrupt')
 
-    correct_subchunk2_size = os.path.getsize(record_name) - 44
+    try:
+        correct_subchunk2_size = wave_file.size - 44
+    except AttributeError:
+        correct_subchunk2_size = os.path.getsize(record_name) - 44
     subchunk2_size = struct.unpack('<I', wave_file.read(4))[0]
     if subchunk2_size != correct_subchunk2_size:
         raise Exception('Data chunk has incorrect length.. (is {} should be {})'.format(subchunk2_size, correct_subchunk2_size))
     sig_len = int(subchunk2_size / block_align)
 
-    sig_data = (np.fromfile(wave_file, dtype=np.int16).reshape((-1,num_channels)) / (2*adc_res)).astype(np.int16)
+    sig_data = (np.frombuffer(wave_file.read(), dtype=np.int16).reshape((-1,num_channels)) / (2*adc_res)).astype(np.int16)
 
     init_value = [int(s[0]) for s in np.transpose(sig_data)]
     checksum = [int(np.sum(v) % 65536) for v in np.transpose(sig_data)]  # not all values correct?
 
     if pn_dir is not None and delete_file:
-        os.remove(record_name)
+        if not pn_dir.startswith('s3'):
+            os.remove(record_name)
 
     record = Record(
         record_name = record_name_out,
@@ -3250,9 +3279,10 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     dir_name = os.path.abspath(dir_name)
 
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                *dir_list[1:])
 
     # Read the header file. Separate comment and non-comment lines
     header_lines, comment_lines = _header._read_header_lines(base_record_name,
@@ -3420,9 +3450,10 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
     dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
-        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
+        pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
+                                *dir_list[1:])
 
     if record_name.endswith('.edf'):
         record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
@@ -3711,7 +3742,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
                                       channel =[1,3])
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
@@ -3763,7 +3794,7 @@ def sampfreq(record_name, pn_dir=None):
     >>> ECG 4    500
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                 *dir_list[1:])
@@ -3815,7 +3846,7 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
     >>> ECG 4
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                  *dir_list[1:])
@@ -3894,7 +3925,7 @@ def wfdbdesc(record_name, pn_dir=None):
      Checksum: 20052
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                 *dir_list[1:])
@@ -3922,8 +3953,13 @@ def wfdbdesc(record_name, pn_dir=None):
         start_time = 'not specified'
     print(f'Starting time: {start_time}')
 
-    record_length = str(datetime.timedelta(seconds=record.sig_len/record.fs))
-    print(f'Length: {record_length} ({record.sig_len} sample intervals)')
+    try:
+        record_length = str(datetime.timedelta(seconds=record.sig_len/record.fs))
+        sig_len = record.sig_len
+    except TypeError:
+        record_length = 'Unknown'
+        sig_len = 'Unknown'
+    print(f'Length: {record_length} ({sig_len} sample intervals)')
 
     print(f'Sampling frequency: {record.fs} Hz')
     print(f'{record.n_sig} signal{"" if record.n_sig==1 else "s"}')
@@ -4020,7 +4056,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
        s1153            00:00:09.224    [19:46:34.981000 01/01/0001]
 
     """
-    if (pn_dir is not None) and ('.' not in pn_dir):
+    if (pn_dir is not None) and ('.' not in pn_dir) and (not pn_dir.startswith('s3')):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]),
                                 *dir_list[1:])

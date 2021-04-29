@@ -16,3 +16,4 @@ scikit-learn==0.22.2.post1
 scipy==1.4.1
 threadpoolctl==2.1.0
 urllib3==1.25.9
+s3fs==2021.4.0
