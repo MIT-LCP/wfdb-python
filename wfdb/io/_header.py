@@ -33,6 +33,12 @@ The read vs write default values are different for 2 reasons:
    so that the user doesn't need to. But when reading, it should
    be clear that the fields are missing.
 
+If all of the fields were filled out in a WFDB header file, they would appear
+in this order with these seperators:
+
+RECORD_NAME/NUM_SEG NUM_SIG SAMP_FREQ/COUNT_FREQ(BASE_COUNT_VAL) SAMPS_PER_SIG BASE_TIME BASE_DATE
+FILE_NAME FORMATxSAMP_PER_FRAME:SKEW+BYTE_OFFSET ADC_GAIN(BASELINE)/UNITS ADC_RES ADC_ZERO CHECKSUM BLOCK_SIZE DESCRIPTION
+
 """
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
 float_types = (float, np.float64, np.float32) + int_types
