@@ -1242,7 +1242,7 @@ def get_version(pn_dir):
 
     """
     db_dir = pn_dir.split('/')[0]
-    url = posixpath.join(download.PN_CONTENT_URL, db_dir)
+    url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
     response = requests.get(url)
     contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
     version_number = [v for v in contents if 'Version:' in v]
