@@ -1,8 +1,6 @@
 wfdb-python
 ===========
 
-|Build Status|
-
 .. figure:: https://raw.githubusercontent.com/MIT-LCP/wfdb-python/master/demo-img.png
    :alt: wfdb signals
 
