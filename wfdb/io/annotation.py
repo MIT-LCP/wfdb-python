@@ -3133,6 +3133,14 @@ class AnnotationLabel(object):
     def __str__(self):
         return str(self.label_store)+', '+str(self.symbol)+', '+str(self.short_description)+', '+str(self.description)
 
+is_qrs = [
+	False, True, True, True, True, True, True, True, True, True,            # 0 - 9
+	True, True, True, True, False, False, False, False, False, False,       # 10 - 19
+	False, False, False, False, False, True, False, False, False, False,    # 20 - 29
+	True, True, False, False, True, True, False, False, True, False,        # 30 - 39
+	False, True, False, False, False, False, False, False, False, False     # 40 - 49
+]
+
 ann_labels = [
     AnnotationLabel(0, " ", 'NOTANN', 'Not an actual annotation'),
     AnnotationLabel(1, "N", 'NORMAL', 'Normal beat'),
