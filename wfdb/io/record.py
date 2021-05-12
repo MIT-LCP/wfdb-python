@@ -4097,8 +4097,8 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
 
 def sigavg(record_name, extension, pn_dir=None, return_df=False,
-           start_range=-0.05, stop_range=0.05, time_start=0, time_stop=-1,
-           verbose=False):
+           start_range=-0.05, stop_range=0.05, ann_type='all', start_time=0,
+           stop_time=-1, verbose=False):
     """
     A common problem in signal processing is to determine the shape of a
     recurring waveform in the presence of noise. If the waveform recurs
@@ -4139,10 +4139,14 @@ def sigavg(record_name, extension, pn_dir=None, return_df=False,
         Set the measurement window relative to QRS annotations. Negative
         values correspond to offsets that precede the annotations. The default
         is 0.05 seconds.
-    time_start : float, int, optional
+    ann_type : list[str], str, optional
+        Include annotations of the specified types only (i.e. 'N'). Multiple
+        types are also accepted (i.e. ['V','N']). The default is 'all' which
+        means to include all QRS annotations.
+    start_time : float, int, optional
         Begin at the specified time in record. The default is 0 which denotes
         the start of the record.
-    time_stop : float, int, optional
+    stop_time : float, int, optional
         Process until the specified time in record. The default is -1 which
         denotes the end of the record.
     verbose : bool, optional
@@ -4158,14 +4162,14 @@ def sigavg(record_name, extension, pn_dir=None, return_df=False,
     """
     if start_range >= stop_range:
         raise Exception('`start_range` must be less than `stop_range`')
-    if time_start == time_stop:
-        raise Exception('`time_start` must be different than `time_stop`')
-    if (time_stop != -1) and (time_start >= time_stop):
-        raise Exception('`time_start` must be less than `time_stop`')
-    if time_start < 0:
-        raise Exception('`time_start` must be at least 0')
-    if (time_stop != -1) and (time_stop <= 0):
-        raise Exception('`time_stop` must be at least greater than 0')
+    if start_time == stop_time:
+        raise Exception('`start_time` must be different than `stop_time`')
+    if (stop_time != -1) and (start_time >= stop_time):
+        raise Exception('`start_time` must be less than `stop_time`')
+    if start_time < 0:
+        raise Exception('`start_time` must be at least 0')
+    if (stop_time != -1) and (stop_time <= 0):
+        raise Exception('`stop_time` must be at least greater than 0')
 
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split('/')
@@ -4175,10 +4179,10 @@ def sigavg(record_name, extension, pn_dir=None, return_df=False,
     rec = rdrecord(record_name, pn_dir=pn_dir, physical=False)
     ann = annotation.rdann(record_name, extension)
 
-    if time_stop == -1:
-        time_stop = max(ann.sample) / ann.fs
-    samp_start = int(time_start * ann.fs)
-    samp_stop = int(time_stop * ann.fs)
+    if stop_time == -1:
+        stop_time = max(ann.sample) / ann.fs
+    samp_start = int(start_time * ann.fs)
+    samp_stop = int(stop_time * ann.fs)
     filtered_samples = ann.sample[(ann.sample>=samp_start) & (ann.sample<=samp_stop)]
 
     times = np.arange(int(start_range*rec.fs) / rec.fs,
@@ -4188,12 +4192,16 @@ def sigavg(record_name, extension, pn_dir=None, return_df=False,
 
     n_beats = 0
     initial_sig_avgs = np.zeros((times.shape[0],rec.n_sig))
+    all_symbols = [a.symbol for a in annotation.ann_labels]
+
     for samp in filtered_samples:
         samp_i = np.where(ann.sample==samp)[0][0]
-
-        all_symbols = [a.symbol for a in annotation.ann_labels]
+        current_ann = ann.symbol[samp_i]
+        if (ann_type != 'all') and (((type(ann_type) is str) and (current_ann != ann_type)) or
+           ((type(ann_type) is list) and (current_ann not in ann_type))):
+            continue
         try:
-            if not annotation.is_qrs[all_symbols.index(ann.symbol[samp_i])]:
+            if not annotation.is_qrs[all_symbols.index(current_ann)]:
                 continue
         except ValueError:
             continue
