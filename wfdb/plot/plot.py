@@ -230,6 +230,8 @@ def create_figure(n_subplots, sharex, sharey, figsize):
     fig, axes = plt.subplots(
         nrows=n_subplots, ncols=1, sharex=sharex, sharey=sharey, figsize=figsize
     )
+    if n_subplots == 1:
+        axes = [axes]
     return fig, axes
 
 
