@@ -62,7 +62,7 @@ setup(
         'idna>=2.2',
         'joblib>=0.11',
         'kiwisolver>=1.1.0',
-        'matplotlib>=2.0.0',
+        'matplotlib>=3.3.4',
         'numpy>=1.10.1',
         'pandas>=0.17.0',
         'pyparsing>=2.0.4',
