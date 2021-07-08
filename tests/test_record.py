@@ -75,24 +75,30 @@ class TestRecord(unittest.TestCase):
     def test_1c(self):
         """
         Format 16, byte offset, selected duration, selected channels,
-        digital.
+        digital, expanded format.
 
         Target file created with:
             rdsamp -r sample-data/a103l -f 80 -s 0 1 | cut -f 2- > record-1c
         """
         record = wfdb.rdrecord('sample-data/a103l',
-                               sampfrom=20000, channels=[0, 1], physical=False)
-        sig = record.d_signal
+                               sampfrom=20000, channels=[0, 1], physical=False,
+                               smooth_frames=False)
+        # convert expanded to uniform array
+        sig = np.zeros((record.sig_len, record.n_sig))
+        for i in range(record.n_sig):
+            sig[:,i] = record.e_d_signal[i]
+
         sig_target = np.genfromtxt('tests/target-output/record-1c')
 
         # Compare data streaming from Physionet
         record_pn = wfdb.rdrecord('a103l', pn_dir='challenge-2015/training',
                                   sampfrom=20000, channels=[0, 1],
-                                  physical=False)
+                                  physical=False, smooth_frames=False)
 
         # Test file writing
-        record.wrsamp()
-        record_write = wfdb.rdrecord('a103l', physical=False)
+        record.wrsamp(expanded=True)
+        record_write = wfdb.rdrecord('a103l', physical=False,
+                                     smooth_frames=False)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
