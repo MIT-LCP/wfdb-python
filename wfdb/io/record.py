@@ -628,6 +628,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             if type(v1) == np.ndarray:
                 # Necessary for nans
                 np.testing.assert_array_equal(v1, v2)
+            elif (type(v1) == list and len(v1) == len(v2)
+                  and all(type(e) == np.ndarray for e in v1)):
+                for (e1, e2) in zip(v1, v2):
+                    np.testing.assert_array_equal(e1, e2)
             else:
                 if v1 != v2:
                     if verbose:
