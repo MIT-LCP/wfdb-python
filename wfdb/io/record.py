@@ -3363,10 +3363,9 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         directly return a WFDB MultiRecord object (False), or to convert
         it into and return a WFDB Record object (True).
     smooth_frames : bool, optional
-        Used when reading records with signals having multiple samples
-        per frame. Specifies whether to smooth the samples in signals
-        with more than one sample per frame and return an (MxN) uniform
-        numpy array as the `d_signal` or `p_signal` field (True), or to
+        Specifies whether to smooth the samples in signals with more
+        than one sample per frame and return an (MxN) uniform numpy
+        array as the `d_signal` or `p_signal` field (True), or to
         return a list of 1d numpy arrays containing every expanded
         sample as the `e_d_signal` or `e_p_signal` field (False).
     ignore_skew : bool, optional
@@ -3535,7 +3534,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
             return_res=return_res)
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
+        if smooth_frames:
             # Read signals from the associated dat files that contain
             # wanted channels
             record.d_signal = signals
