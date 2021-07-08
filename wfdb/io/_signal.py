@@ -900,7 +900,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     sampto : int
         The final sample number to be read from the signals.
     smooth_frames : bool
-        Whether to smooth channels with multiple samples/frame.
+        Whether to return the result as a two-dimensional array.
     ignore_skew : bool
         Used when reading records with at least one skewed signal.
         Specifies whether to apply the skew to align the signals in the
@@ -922,9 +922,8 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     -------
     signals : ndarray, list
         The signals read from the dat file(s). A 2d numpy array is
-        returned if the signals have uniform samples/frame or if
-        `smooth_frames` is True. Otherwise a list of 1d numpy arrays
-        is returned.
+        returned if `smooth_frames` is True. Otherwise a list of 1d
+        numpy arrays is returned.
 
     Notes
     -----
@@ -996,7 +995,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
     # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
     # Return uniform numpy array
-    if smooth_frames or sum(samps_per_frame) == n_sig:
+    if smooth_frames:
         # Figure out the largest required dtype for the segment to minimize memory usage
         max_dtype = _np_dtype(_fmt_res(fmt, max_res=True), discrete=True)
         # Allocate signal array. Minimize dtype
