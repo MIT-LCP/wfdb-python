@@ -1089,7 +1089,7 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     sampto : int
         The final sample number to be read from the signals.
     smooth_frames : bool
-        Whether to smooth channels with multiple samples/frame.
+        Whether to return the result as a two-dimensional array.
     no_file : bool, optional
         Used when using this function with just an array of signal data
         and no associated file to read the data from.
@@ -1101,9 +1101,8 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     -------
     signal : ndarray, list
         The signals read from the dat file(s). A 2d numpy array is
-        returned if the signals have uniform samples/frame or if
-        `smooth_frames` is True. Otherwise a list of 1d numpy arrays
-        is returned.
+        returned if `smooth_frames` is True. Otherwise a list of 1d
+        numpy arrays is returned.
 
     Notes
     -----
@@ -1212,7 +1211,7 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     # required for storing the final digital samples.
 
     # No extra samples/frame. Obtain original uniform numpy array
-    if tsamps_per_frame == n_sig:
+    if smooth_frames and tsamps_per_frame == n_sig:
         # Reshape into multiple channels
         signal = sig_data.reshape(-1, n_sig)
         # Skew the signal
