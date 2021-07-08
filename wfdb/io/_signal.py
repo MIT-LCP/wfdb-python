@@ -750,7 +750,7 @@ class SignalMixin(object):
 
         """
         if expanded:
-            cs = [int(np.sum(self.e_d_signal[ch]) % 65536) for ch in range(self.n_sig)]
+            cs = [int(np.sum(s) % 65536) for s in self.e_d_signal]
         else:
             cs = np.sum(self.d_signal, 0) % 65536
             cs = [int(c) for c in cs]
