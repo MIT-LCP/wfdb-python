@@ -1,6 +1,5 @@
 from multiprocessing import cpu_count, Pool
 
-import matplotlib.pyplot as plt
 import numpy as np
 import requests
 
@@ -317,6 +316,8 @@ class Comparitor(object):
             The axes information for the plot.
 
         """
+        import matplotlib.pyplot as plt
+
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(1, 1, 1)
 

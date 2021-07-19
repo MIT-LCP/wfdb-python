@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pdb
@@ -109,6 +108,8 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                         figsize=(10,4), ecg_grids='all')
 
     """
+    import matplotlib.pyplot as plt
+
     # Figure out number of subplots required
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
 
@@ -227,6 +228,8 @@ def create_figure(n_subplots, sharex, sharey, figsize):
     axes : list
         The information needed for each subplot.
     """
+    import matplotlib.pyplot as plt
+
     fig, axes = plt.subplots(
         nrows=n_subplots, ncols=1, sharex=sharex, sharey=sharey, figsize=figsize
     )
