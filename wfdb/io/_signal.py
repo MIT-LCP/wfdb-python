@@ -295,7 +295,7 @@ class SignalMixin(object):
                 self.e_p_signal = self.dac(expanded)
 
             # Use e_p_signal to set fields
-            self.check_field("e_p_signal", channels="all")
+            self.check_field("e_p_signal", "all")
             self.sig_len = int(
                 len(self.e_p_signal[0]) / self.samps_per_frame[0]
             )
@@ -361,7 +361,7 @@ class SignalMixin(object):
         if expanded:
             # adc is performed.
             if do_adc:
-                self.check_field("e_p_signal", channels="all")
+                self.check_field("e_p_signal", "all")
 
                 # If there is no fmt set it, adc_gain, and baseline
                 if self.fmt is None:
@@ -393,7 +393,7 @@ class SignalMixin(object):
                 self.d_signal = self.adc(expanded)
 
             # Use e_d_signal to set fields
-            self.check_field("e_d_signal", channels="all")
+            self.check_field("e_d_signal", "all")
             self.sig_len = int(
                 len(self.e_d_signal[0]) / self.samps_per_frame[0]
             )
