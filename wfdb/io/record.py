@@ -1300,7 +1300,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Figure out single segment fields to set for the new Record
         if self.layout == "fixed":
             # Get the fields from the first segment
-            for attr in ["fmt", "adc_gain", "baseline", "units", "sig_name"]:
+            for attr in [
+                "fmt",
+                "adc_gain",
+                "baseline",
+                "units",
+                "sig_name",
+                "samps_per_frame",
+            ]:
                 fields[attr] = getattr(self.segments[0], attr)
         else:
             # For variable layout records, inspect the segments for the
@@ -1311,9 +1318,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # must have the same fmt, gain, baseline, and units for all
             # segments.
 
+            # For either physical or digital conversion, all signals
+            # of the same name must have the same samps_per_frame,
+            # which must match the value in the layout header.
+
             # The layout header should be updated at this point to
-            # reflect channels. We can depend on it for sig_name, but
-            # not for fmt, adc_gain, units, and baseline.
+            # reflect channels. We can depend on it for sig_name and
+            # samps_per_frame, but not for fmt, adc_gain, units, and
+            # baseline.
 
             # These signal names will be the key
             signal_names = self.segments[0].sig_name
@@ -1325,6 +1337,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 "adc_gain": n_sig * [None],
                 "baseline": n_sig * [None],
                 "units": n_sig * [None],
+                "samps_per_frame": self.segments[0].samps_per_frame,
             }
 
             # For physical signals, mismatched fields will not be copied
@@ -1346,7 +1359,19 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                             reference_fields[field][ch] = item_ch
                         # mismatch case
                         elif reference_fields[field][ch] != item_ch:
-                            if physical:
+                            if field == "samps_per_frame":
+                                raise ValueError(
+                                    "Incorrect samples per frame (%s != %s) "
+                                    "for signal %s in segment %s of %s"
+                                    % (
+                                        item_ch,
+                                        reference_fields[field][ch],
+                                        signal_names[ch],
+                                        seg.record_name,
+                                        self.record_name,
+                                    )
+                                )
+                            elif physical:
                                 mismatched_fields.append(field)
                             else:
                                 raise Exception(
