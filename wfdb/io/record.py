@@ -1426,16 +1426,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # Copy over the signals directly. Recall there are no
             # empty segments in fixed layout records.
             for i in range(self.n_seg):
+                signals = getattr(self.segments[i], sig_attr)
                 if expanded:
-                    signals = getattr(self.segments[i], sig_attr)
                     for ch in range(self.n_sig):
                         start = start_samps[i] * samps_per_frame[ch]
                         end = end_samps[i] * samps_per_frame[ch]
                         combined_signal[ch][start:end] = signals[ch]
                 else:
-                    combined_signal[start_samps[i] : end_samps[i], :] = getattr(
-                        self.segments[i], sig_attr
-                    )
+                    start = start_samps[i]
+                    end = end_samps[i]
+                    combined_signal[start:end, :] = signals
         else:
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
@@ -1446,21 +1446,20 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     segment_channels = _get_wanted_channels(
                         fields["sig_name"], seg.sig_name, pad=True
                     )
+                    signals = getattr(seg, sig_attr)
                     for ch in range(self.n_sig):
                         # Copy over relevant signal
                         if segment_channels[ch] is not None:
                             if expanded:
-                                signals = getattr(seg, sig_attr)
                                 signal = signals[segment_channels[ch]]
                                 start = start_samps[i] * samps_per_frame[ch]
                                 end = end_samps[i] * samps_per_frame[ch]
                                 combined_signal[ch][start:end] = signal
                             else:
-                                combined_signal[
-                                    start_samps[i] : end_samps[i], ch
-                                ] = getattr(seg, sig_attr)[
-                                    :, segment_channels[ch]
-                                ]
+                                signal = signals[:, segment_channels[ch]]
+                                start = start_samps[i]
+                                end = end_samps[i]
+                                combined_signal[start:end, ch] = signal
 
         # Create the single segment Record object and set attributes
         record = Record()
