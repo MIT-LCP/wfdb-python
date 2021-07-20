@@ -1269,7 +1269,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
 
-    def multi_to_single(self, physical, return_res=64):
+    def multi_to_single(self, physical, return_res=64, expanded=False):
         """
         Create a Record object from the MultiRecord object. All signal
         segments will be combined into the new object's `p_signal` or
@@ -1283,6 +1283,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return_res : int, optional
             The return resolution of the `p_signal` field. Options are:
             64, 32, and 16.
+        expanded : bool, optional
+            If false, combine the sample data from `p_signal` or `d_signal`
+            into a single two-dimensional array. If true, combine the
+            sample data from `e_p_signal` or `e_d_signal` into a list of
+            one-dimensional arrays.
 
         Returns
         -------
@@ -1386,18 +1391,31 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Figure out signal attribute to set, and its dtype.
         if physical:
-            sig_attr = "p_signal"
+            if expanded:
+                sig_attr = "e_p_signal"
+            else:
+                sig_attr = "p_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=False)
             nan_vals = np.array([self.n_sig * [np.nan]], dtype=dtype)
         else:
-            sig_attr = "d_signal"
+            if expanded:
+                sig_attr = "e_d_signal"
+            else:
+                sig_attr = "d_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=True)
             nan_vals = np.array([_signal._digi_nan(fields["fmt"])], dtype=dtype)
 
+        samps_per_frame = fields["samps_per_frame"]
+
         # Initialize the full signal array
-        combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
+        if expanded:
+            combined_signal = []
+            for nan_val, spf in zip(nan_vals[0], samps_per_frame):
+                combined_signal.append(np.repeat(nan_val, spf * self.sig_len))
+        else:
+            combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
 
         # Start and end samples in the overall array to place the
         # segment samples into
@@ -1408,9 +1426,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # Copy over the signals directly. Recall there are no
             # empty segments in fixed layout records.
             for i in range(self.n_seg):
-                combined_signal[start_samps[i] : end_samps[i], :] = getattr(
-                    self.segments[i], sig_attr
-                )
+                if expanded:
+                    signals = getattr(self.segments[i], sig_attr)
+                    for ch in range(self.n_sig):
+                        start = start_samps[i] * samps_per_frame[ch]
+                        end = end_samps[i] * samps_per_frame[ch]
+                        combined_signal[ch][start:end] = signals[ch]
+                else:
+                    combined_signal[start_samps[i] : end_samps[i], :] = getattr(
+                        self.segments[i], sig_attr
+                    )
         else:
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
@@ -1424,9 +1449,18 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     for ch in range(self.n_sig):
                         # Copy over relevant signal
                         if segment_channels[ch] is not None:
-                            combined_signal[
-                                start_samps[i] : end_samps[i], ch
-                            ] = getattr(seg, sig_attr)[:, segment_channels[ch]]
+                            if expanded:
+                                signals = getattr(seg, sig_attr)
+                                signal = signals[segment_channels[ch]]
+                                start = start_samps[i] * samps_per_frame[ch]
+                                end = end_samps[i] * samps_per_frame[ch]
+                                combined_signal[ch][start:end] = signal
+                            else:
+                                combined_signal[
+                                    start_samps[i] : end_samps[i], ch
+                                ] = getattr(seg, sig_attr)[
+                                    :, segment_channels[ch]
+                                ]
 
         # Create the single segment Record object and set attributes
         record = Record()
@@ -1436,9 +1470,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Use the signal to set record features
         if physical:
-            record.set_p_features()
+            record.set_p_features(expanded=expanded)
         else:
-            record.set_d_features()
+            record.set_d_features(expanded=expanded)
 
         return record
 
