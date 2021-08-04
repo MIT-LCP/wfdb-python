@@ -1410,24 +1410,12 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
     if pn_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
-            # Numpy doesn't really like 24-bit data but we can make it work
-            if DATA_LOAD_TYPES[fmt] == '<i3':
-                raw_data_map = np.memmap(fp,
-                                         dtype=np.dtype('i2'),
-                                         mode='r')
-                temp_data = np.frombuffer(raw_data_map, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
-                sig_data = np.fromstring(temp_data, dtype='i2')
-            else:
-                sig_data = np.fromfile(fp, 
-                                       dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
-                                       count=element_count)
+            sig_data = np.fromfile(fp,
+                                   dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+                                   count=element_count)
     # Stream dat file from Physionet
     else:
-        if DATA_LOAD_TYPES[fmt] == '<i3':
-            dtype_in = '<i3'
-        else:
-            dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
-
+        dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
         sig_data = download._stream_dat(file_name, pn_dir, byte_count,
                                         start_byte, dtype_in)
 
