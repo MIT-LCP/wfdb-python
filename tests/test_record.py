@@ -140,7 +140,7 @@ class TestRecord(unittest.TestCase):
         # Test file writing
         record_2 = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
         record_2.wrsamp()
-        record_write = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
+        record_write = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
