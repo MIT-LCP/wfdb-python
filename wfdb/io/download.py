@@ -49,6 +49,29 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
     config.db_index_url = db_index_url
 
 
+def _get_url(url):
+    """
+    Retrieve an entire remote file as bytes.
+
+    Parameters
+    ----------
+    url : str
+        URL of the remote file.
+
+    Returns
+    -------
+    content : bytes
+        Content of the remote file.
+
+    """
+    response = requests.get(url)
+    if response.status_code == 404:
+        raise FileNotFoundError
+    else:
+        response.raise_for_status()
+    return response.content
+
+
 def _remote_file_size(url=None, file_name=None, pn_dir=None):
     """
     Get the remote file size in bytes.
