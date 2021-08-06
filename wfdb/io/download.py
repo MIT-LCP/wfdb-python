@@ -422,9 +422,6 @@ def dl_pn_file(inputs):
     # Full url of file
     url = posixpath.join(config.db_index_url, db, subdir, basefile)
 
-    # Supposed size of the file
-    remote_file_size = _remote_file_size(url)
-
     # Figure out where the file should be locally
     if keep_subdirs:
         dldir = os.path.join(dl_dir, subdir)
@@ -441,20 +438,19 @@ def dl_pn_file(inputs):
         # Process accordingly.
         else:
             local_file_size = os.path.getsize(local_file)
-            # Local file is smaller than it should be. Append it.
-            if local_file_size < remote_file_size:
-                print('Detected partially downloaded file: %s Appending file...' % local_file)
-                headers = {"Range": "bytes="+str(local_file_size)+"-", 'Accept-Encoding': '*'}
-                r = requests.get(url, headers=headers, stream=True)
-                print('headers: ', headers)
-                print('r content length: ', len(r.content))
-                with open(local_file, 'ba') as writefile:
-                    writefile.write(r.content)
-                print('Done appending.')
-            # Local file is larger than it should be. Redownload.
-            elif local_file_size > remote_file_size:
-                dl_full_file(url, local_file)
-            # If they're the same size, do nothing.
+            with _url.openurl(url, 'rb') as f:
+                remote_file_size = f.seek(0, os.SEEK_END)
+                # Local file is smaller than it should be. Append it.
+                if local_file_size < remote_file_size:
+                    print('Detected partially downloaded file: %s Appending file...' % local_file)
+                    f.seek(local_file_size, os.SEEK_SET)
+                    with open(local_file, 'ba') as writefile:
+                        writefile.write(f.read())
+                    print('Done appending.')
+                # Local file is larger than it should be. Redownload.
+                elif local_file_size > remote_file_size:
+                    dl_full_file(url, local_file)
+                # If they're the same size, do nothing.
 
     # The file doesn't exist. Download it.
     else:
