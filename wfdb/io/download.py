@@ -3,7 +3,6 @@ import numpy as np
 import re
 import os
 import posixpath
-import requests
 import pdb
 import json
 
