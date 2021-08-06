@@ -184,24 +184,18 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
     # Full url of dat file
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
-    # Specify the byte range
-    end_byte = start_byte + byte_count - 1
-    headers = {"Range":"bytes=%d-%d" % (start_byte, end_byte),
-               'Accept-Encoding': '*'}
-
     # Get the content
-    response = requests.get(url, headers=headers, stream=True)
-
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    with _url.openurl(url, 'rb', buffering=0) as f:
+        f.seek(start_byte)
+        content = f.read(byte_count)
 
     # Convert to numpy array
     if type(dtype) == str:
         # Convert 24-bit to 16-bit then proceed
-        temp_data = np.frombuffer(response.content, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
+        temp_data = np.frombuffer(content, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
         sig_data = np.fromstring(temp_data, dtype='i2')
     else:
-        sig_data = np.fromstring(response.content, dtype=dtype)
+        sig_data = np.fromstring(content, dtype=dtype)
 
     return sig_data
 
