@@ -305,12 +305,13 @@ def get_record_list(db_dir, records='all'):
 
     # Check for a RECORDS file
     if records == 'all':
-        response = requests.get(posixpath.join(db_url, 'RECORDS'))
-        if response.status_code == 404:
+        try:
+            content = _get_url(posixpath.join(db_url, 'RECORDS'))
+        except FileNotFoundError:
             raise ValueError('The database %s has no WFDB files to download' % db_url)
 
         # Get each line as a string
-        record_list = response.content.decode('ascii').splitlines()
+        record_list = content.decode('ascii').splitlines()
     # Otherwise the records are input manually
     else:
         record_list = records
