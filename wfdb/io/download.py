@@ -131,13 +131,12 @@ def _stream_header(file_name, pn_dir):
     """
     # Full url of header location
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
-    response = requests.get(url)
 
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    # Get the content of the remote file
+    content = _get_url(url)
 
     # Get each line as a string
-    filelines = response.content.decode('iso-8859-1').splitlines()
+    filelines = content.decode('iso-8859-1').splitlines()
 
     # Separate content into header and comment lines
     header_lines = []
