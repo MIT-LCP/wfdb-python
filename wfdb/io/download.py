@@ -484,9 +484,9 @@ def dl_full_file(url, save_file_name):
     N/A
 
     """
-    response = requests.get(url)
+    content = _get_url(url)
     with open(save_file_name, 'wb') as writefile:
-        writefile.write(response.content)
+        writefile.write(content)
 
     return
 
