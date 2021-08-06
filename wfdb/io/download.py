@@ -225,12 +225,10 @@ def _stream_annotation(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content
-    response = requests.get(url)
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    content = _get_url(url)
 
     # Convert to numpy array
-    ann_data = np.fromstring(response.content, dtype=np.dtype('<u1'))
+    ann_data = np.fromstring(content, dtype=np.dtype('<u1'))
 
     return ann_data
 
