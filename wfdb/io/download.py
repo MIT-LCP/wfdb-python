@@ -98,12 +98,8 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     if file_name and pn_dir:
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
-    response = requests.head(url, headers={'Accept-Encoding': 'identity'})
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
-
-    # Supposed size of the file
-    remote_file_size = int(response.headers['content-length'])
+    with _url.openurl(url, 'rb') as f:
+        remote_file_size = f.seek(0, os.SEEK_END)
 
     return remote_file_size
 
