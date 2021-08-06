@@ -516,7 +516,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     db_url = posixpath.join(PN_CONTENT_URL, db_dir) + '/'
 
     # Check if the database is valid
-    response = requests.get(db_url)
+    response = requests.head(db_url)
     response.raise_for_status()
 
     # Construct the urls to download
