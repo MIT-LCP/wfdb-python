@@ -342,14 +342,16 @@ def get_annotators(db_dir, annotators):
 
     if annotators is not None:
         # Check for an ANNOTATORS file
-        r = requests.get(posixpath.join(db_url, 'ANNOTATORS'))
-        if r.status_code == 404:
+        try:
+            content = _get_url(posixpath.join(db_url, 'ANNOTATORS'))
+        except FileNotFoundError:
             if annotators == 'all':
                 return
             else:
                 raise ValueError('The database %s has no annotation files to download' % db_url)
+
         # Make sure the input annotators are present in the database
-        ann_list = r.content.decode('ascii').splitlines()
+        ann_list = content.decode('ascii').splitlines()
         ann_list = [a.split('\t')[0] for a in ann_list]
 
         # Get the annotation file types required
