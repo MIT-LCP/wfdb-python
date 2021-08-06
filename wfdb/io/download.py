@@ -263,8 +263,8 @@ def get_dbs():
     ]
 
     """
-    response = requests.get('https://physionet.org/rest/database-list/')
-    dbs = json.loads(response.content)
+    content = _get_url('https://physionet.org/rest/database-list/')
+    dbs = json.loads(content)
     dbs = [[d['slug'], d['title']] for d in dbs]
     dbs.sort()
 
