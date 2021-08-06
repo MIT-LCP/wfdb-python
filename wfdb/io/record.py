@@ -14,6 +14,7 @@ import pdb
 
 from wfdb.io import _header
 from wfdb.io import _signal
+from wfdb.io import _url
 from wfdb.io import download
 from wfdb.io import annotation
 
@@ -1466,8 +1467,8 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file for MNE to read it though can give the
         # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        with _url.openurl(file_url, 'rb') as f:
+            open(record_name, 'wb').write(f.read())
 
     # Open the desired file
     edf_file = open(record_name, mode='rb')
@@ -2380,8 +2381,8 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file to read it though can give the
         # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        with _url.openurl(file_url, 'rb') as f:
+            open(record_name, 'wb').write(f.read())
 
     wave_file = open(record_name, mode='rb')
     record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
