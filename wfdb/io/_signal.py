@@ -1193,12 +1193,13 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         # List of 1d numpy arrays
         signal = []
         # Transfer over samples
+        sig_frames = sig_data.reshape(-1, tsamps_per_frame)
+        ch_start = 0
         for ch in range(n_sig):
-            # Indices of the flat signal that belong to the channel
-            ch_indices = np.concatenate([np.array(range(samps_per_frame[ch]))
-                                         + sum([0] + samps_per_frame[:ch])
-                                         + tsamps_per_frame * framenum for framenum in range(int(len(sig_data)/tsamps_per_frame))])
-            signal.append(sig_data[ch_indices])
+            ch_end = ch_start + samps_per_frame[ch]
+            ch_signal = sig_frames[:, ch_start:ch_end].reshape(-1)
+            signal.append(ch_signal)
+            ch_start = ch_end
         # Skew the signal
         signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
 
