@@ -72,7 +72,8 @@ setup(
         'scikit-learn>=0.18',
         'scipy>=0.17.0',
         'threadpoolctl>=1.0.0',
-        'urllib3>=1.22'
+        'urllib3>=1.22',
+        's3fs>=2021.4.0'
     ],
 
     # List additional groups of dependencies here (e.g. development
