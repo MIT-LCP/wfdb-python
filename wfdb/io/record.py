@@ -1245,8 +1245,9 @@ def get_version(pn_dir):
     """
     db_dir = pn_dir.split('/')[0]
     url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
-    response = requests.get(url)
-    contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
+    contents = [line.decode('utf-8').strip() for line in content.splitlines()]
     version_number = [v for v in contents if 'Version:' in v]
     version_number = version_number[0].split(':')[-1].strip().split('<')[0]
 
