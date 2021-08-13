@@ -6,7 +6,6 @@ import re
 import numpy as np
 import os
 import pandas as pd
-import requests
 import math
 import functools
 import struct
