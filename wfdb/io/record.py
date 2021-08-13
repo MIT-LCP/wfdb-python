@@ -4528,8 +4528,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         db_dir = posixpath.join(db_dir, get_version(db_dir))
     db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
     # Check if the database is valid
-    r = requests.get(db_url)
-    r.raise_for_status()
+    _url.openurl(db_url, check_access=True)
 
     # Get the list of records
     record_list = download.get_record_list(db_dir, records)
@@ -4586,10 +4585,11 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
             for a in annotators:
                 ann_file = rec+'.'+a
                 url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
-                rh = requests.head(url)
-
-                if rh.status_code != 404:
+                try:
+                    _url.openurl(url, check_access=True)
                     all_files.append(ann_file)
+                except FileNotFoundError:
+                    pass
 
     dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in all_files]
 
