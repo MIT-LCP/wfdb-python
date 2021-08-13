@@ -7,7 +7,7 @@ import requests
 import pdb
 import json
 
-from wfdb.io import record
+from wfdb.io import record, _url
 
 
 # The PhysioNet index url
@@ -133,7 +133,8 @@ def _stream_header(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content of the remote file
-    content = _get_url(url)
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
 
     # Get each line as a string
     filelines = content.decode('iso-8859-1').splitlines()
@@ -225,7 +226,8 @@ def _stream_annotation(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content
-    content = _get_url(url)
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
 
     # Convert to numpy array
     ann_data = np.fromstring(content, dtype=np.dtype('<u1'))
@@ -258,7 +260,8 @@ def get_dbs():
     ]
 
     """
-    content = _get_url('https://physionet.org/rest/database-list/')
+    with _url.openurl('https://physionet.org/rest/database-list/', 'rb') as f:
+        content = f.read()
     dbs = json.loads(content)
     dbs = [[d['slug'], d['title']] for d in dbs]
     dbs.sort()
@@ -301,7 +304,8 @@ def get_record_list(db_dir, records='all'):
     # Check for a RECORDS file
     if records == 'all':
         try:
-            content = _get_url(posixpath.join(db_url, 'RECORDS'))
+            with _url.openurl(posixpath.join(db_url, 'RECORDS'), 'rb') as f:
+                content = f.read()
         except FileNotFoundError:
             raise ValueError('The database %s has no WFDB files to download' % db_url)
 
@@ -343,7 +347,8 @@ def get_annotators(db_dir, annotators):
     if annotators is not None:
         # Check for an ANNOTATORS file
         try:
-            content = _get_url(posixpath.join(db_url, 'ANNOTATORS'))
+            with _url.openurl(posixpath.join(db_url, 'ANNOTATORS'), 'rb') as f:
+                content = f.read()
         except FileNotFoundError:
             if annotators == 'all':
                 return
@@ -484,7 +489,8 @@ def dl_full_file(url, save_file_name):
     N/A
 
     """
-    content = _get_url(url)
+    with _url.openurl(url, 'rb') as readfile:
+        content = readfile.read()
     with open(save_file_name, 'wb') as writefile:
         writefile.write(content)
 
