@@ -707,6 +707,12 @@ class TestSignal(unittest.TestCase):
 
         assert record_2.__eq__(record)
 
+        record = wfdb.rdrecord('sample-data/a103l')
+        record_2 = wfdb.rdrecord('sample-data/a103l-no-len')
+        record_2.record_name = record.record_name
+
+        assert record_2.__eq__(record)
+
 
 class TestDownload(unittest.TestCase):
     # Test that we can download records with no "dat" file
