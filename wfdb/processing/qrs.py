@@ -12,8 +12,8 @@ from wfdb.io.record import Record
 
 class XQRS(object):
     """
-    The QRS detector class for the XQRS algorithm. The `XQRS.Conf` 
-    class is the configuration class that stores initial parameters 
+    The QRS detector class for the XQRS algorithm. The `XQRS.Conf`
+    class is the configuration class that stores initial parameters
     for the detection. The `XQRS.detect` method runs the detection algorithm.
 
     The process works as follows:
@@ -85,7 +85,7 @@ class XQRS(object):
         ----------
         hr_init : int, float, optional
             Initial heart rate in beats per minute. Used for calculating
-            recent R-R intervals. 
+            recent R-R intervals.
         hr_max : int, float, optional
             Hard maximum heart rate between two beats, in beats per
             minute. Used for refractory period.
@@ -134,7 +134,7 @@ class XQRS(object):
     def _set_conf(self):
         """
         Set configuration parameters from the Conf object into the detector
-        object. Time values are converted to samples, and amplitude values 
+        object. Time values are converted to samples, and amplitude values
         are in mV.
 
         Parameters
@@ -470,7 +470,7 @@ class XQRS(object):
             The peak number of the MWI signal where the QRS is detected.
         backsearch: bool, optional
             Whether the QRS was found via backsearch.
-        
+
         Returns
         -------
         N/A
@@ -478,7 +478,7 @@ class XQRS(object):
         """
         i = self.peak_inds_i[peak_num]
 
-        # Update recent R-R interval if the beat is consecutive (do this 
+        # Update recent R-R interval if the beat is consecutive (do this
         # before updating self.last_qrs_ind)
         rr_new = i - self.last_qrs_ind
         if rr_new < self.rr_max:
@@ -514,7 +514,7 @@ class XQRS(object):
         ----------
         peak_num : int
             The peak number of the MWI signal where the QRS is detected.
-        
+
         Returns
         -------
         bool
@@ -901,7 +901,7 @@ class GQRS(object):
     class Peak(object):
         """
         Holds all of the peak information for the QRS object.
-        
+
         Attributes
         ----------
         peak_time : int, float
@@ -923,7 +923,7 @@ class GQRS(object):
     class Annotation(object):
         """
         Holds all of the annotation information for the QRS object.
-        
+
         Attributes
         ----------
         ann_time : int, float
@@ -1160,8 +1160,8 @@ class GQRS(object):
 
     def sm(self, at_t):
         """
-        Implements a trapezoidal low pass (smoothing) filter (with a gain 
-        of 4*smdt) applied to input signal sig before the QRS matched 
+        Implements a trapezoidal low pass (smoothing) filter (with a gain
+        of 4*smdt) applied to input signal sig before the QRS matched
         filter qf(). Before attempting to 'rewind' by more than BUFLN-smdt
         samples, reset smt and smt0.
 
@@ -1220,7 +1220,7 @@ class GQRS(object):
         N/A
 
         """
-        # Do this first, to ensure that all of the other smoothed values 
+        # Do this first, to ensure that all of the other smoothed values
         # needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
         dv2 -= self.smv_at(self.t - self.c.dt4)
@@ -1302,17 +1302,17 @@ class GQRS(object):
 
         def peaktype(p):
             """
-            The neighborhood consists of all other peaks within rrmin. 
-            Normally, "most prominent" is equivalent to "largest in 
-            amplitude", but this is not always true.  For example, consider 
-            three consecutive peaks a, b, c such that a and b share a 
-            neighborhood, b and c share a neighborhood, but a and c do not; 
-            and suppose that amp(a) > amp(b) > amp(c).  In this case, if 
+            The neighborhood consists of all other peaks within rrmin.
+            Normally, "most prominent" is equivalent to "largest in
+            amplitude", but this is not always true.  For example, consider
+            three consecutive peaks a, b, c such that a and b share a
+            neighborhood, b and c share a neighborhood, but a and c do not;
+            and suppose that amp(a) > amp(b) > amp(c).  In this case, if
             there are no other peaks, a is the most prominent peak in the (a, b)
-            neighborhood.  Since b is thus identified as a non-prominent peak, 
-            c becomes the most prominent peak in the (b, c) neighborhood. 
-            This is necessary to permit detection of low-amplitude beats that 
-            closely precede or follow beats with large secondary peaks (as, 
+            neighborhood.  Since b is thus identified as a non-prominent peak,
+            c becomes the most prominent peak in the (b, c) neighborhood.
+            This is necessary to permit detection of low-amplitude beats that
+            closely precede or follow beats with large secondary peaks (as,
             for example, in R-on-T PVCs).
 
             Parameters
@@ -1323,7 +1323,7 @@ class GQRS(object):
             Returns
             -------
             int
-                Whether the input peak is the most prominent peak in its 
+                Whether the input peak is the most prominent peak in its
                 neighborhood (1) or not (2).
 
             """
@@ -1534,8 +1534,8 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     """
     Detect QRS locations in a single channel ecg. Functionally, a direct port
     of the GQRS algorithm from the original WFDB package. Accepts either a
-    physical signal, or a digital signal with known adc_gain and adc_zero. See 
-    the notes below for a summary of the program. This algorithm is not being 
+    physical signal, or a digital signal with known adc_gain and adc_zero. See
+    the notes below for a summary of the program. This algorithm is not being
     developed/supported.
 
     Parameters
