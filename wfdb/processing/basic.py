@@ -230,3 +230,21 @@ def get_filter_gain(b, a, f_gain, fs):
     gain = abs(h[ind])
 
     return gain
+
+
+def normalize(X):
+    """
+    Scale input vector to unit norm (vector length).
+
+    Parameters
+    ----------
+    X : ndarray
+        The vector to normalize.
+
+    Returns
+    -------
+    ndarray
+        The normalized vector.
+
+    """
+    return X / np.linalg.norm(X)
