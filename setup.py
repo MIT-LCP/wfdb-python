@@ -69,7 +69,6 @@ setup(
         'python-dateutil>=2.4.2',
         'pytz>=2017.2',
         'requests>=2.8.1',
-        'scikit-learn>=0.18',
         'scipy>=0.17.0',
         'threadpoolctl>=1.0.0',
         'urllib3>=1.22'
