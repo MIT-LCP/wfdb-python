@@ -3,9 +3,8 @@ import pdb
 
 import numpy as np
 from scipy import signal
-from sklearn.preprocessing import normalize
 
-from wfdb.processing.basic import get_filter_gain
+from wfdb.processing.basic import get_filter_gain, normalize
 from wfdb.processing.peaks import find_local_peaks
 from wfdb.io.record import Record
 
@@ -288,10 +287,10 @@ class XQRS(object):
 
             # Question: should the signal be squared? Case for inverse QRS
             # complexes
-            sig_segment = normalize((self.sig_f[i - self.qrs_radius:
-                                                i + self.qrs_radius]).reshape(-1, 1), axis=0)
+            sig_segment = normalize(self.sig_f[i - self.qrs_radius:
+                                               i + self.qrs_radius])
 
-            xcorr = np.correlate(sig_segment[:, 0], ricker_wavelet[:,0])
+            xcorr = np.correlate(sig_segment, ricker_wavelet[:,0])
 
             # Classify as QRS if xcorr is large enough
             if xcorr > 0.6 and i-last_qrs_ind > self.rr_min:
@@ -530,8 +529,7 @@ class XQRS(object):
 
         # Get half the QRS width of the signal to the left.
         # Should this be squared?
-        sig_segment = normalize((self.sig_f[i - self.qrs_radius:i]
-                                 ).reshape(-1, 1), axis=0)
+        sig_segment = normalize(self.sig_f[i - self.qrs_radius:i])
         last_qrs_segment = self.sig_f[self.last_qrs_ind - self.qrs_radius:
                                       self.last_qrs_ind]
 
