@@ -56,23 +56,12 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'certifi>=2016.8.2',
-        'chardet>=3.0.0',
-        'cycler>=0.10.0',
-        'idna>=2.2',
-        'joblib>=0.11',
-        'kiwisolver>=1.1.0',
         'matplotlib>=3.3.4',
         'numpy>=1.10.1',
         'pandas>=0.17.0',
-        'pyparsing>=2.0.4',
-        'python-dateutil>=2.4.2',
-        'pytz>=2017.2',
         'requests>=2.8.1',
         'scikit-learn>=0.18',
         'scipy>=0.17.0',
-        'threadpoolctl>=1.0.0',
-        'urllib3>=1.22'
     ],
 
     # List additional groups of dependencies here (e.g. development
