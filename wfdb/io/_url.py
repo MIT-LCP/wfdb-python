@@ -151,10 +151,11 @@ class RangeTransfer:
             }
 
         session = _get_session()
-        response = session.request(method, url, headers=headers, stream=True)
-        self._content_iter = response.iter_content(4096)
+        self._response = session.request(method, url, headers=headers,
+                                         stream=True)
+        self._content_iter = self._response.iter_content(4096)
         try:
-            self._parse_headers(method, response)
+            self._parse_headers(method, self._response)
         except Exception:
             self.close()
             raise
@@ -264,7 +265,7 @@ class RangeTransfer:
                 pass
         except Exception:
             pass
-        self._content_iter = iter([])
+        self._response.close()
 
     def __enter__(self):
         return self
@@ -273,8 +274,15 @@ class RangeTransfer:
         # When exiting with a normal exception, shut down cleanly by
         # reading leftover response data.  When exiting abnormally
         # (SystemExit, KeyboardInterrupt), do nothing.
-        if not exc_type or isinstance(exc_type, Exception):
+        if not exc_type or issubclass(exc_type, Exception):
             self.close()
+
+    def __del__(self):
+        # If the object is deleted without calling close(), forcibly
+        # close the existing connection.
+        response = getattr(self, '_response', None)
+        if response:
+            response.close()
 
     def iter_chunks(self):
         """
