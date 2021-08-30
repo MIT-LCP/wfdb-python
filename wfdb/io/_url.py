@@ -1,9 +1,11 @@
 import io
 import logging
+import os
 import platform
 import re
 import threading
-import os
+import urllib.parse
+import urllib.request
 
 from wfdb.version import __version__
 
@@ -722,6 +724,17 @@ def openurl(url, mode='r', *, buffering=-1,
         (io.BufferedIOBase) or text file API (io.TextIOBase).
 
     """
+    (scheme, netloc, path, _, _, _) = urllib.parse.urlparse(url)
+    if scheme == '':
+        raise NetFileError('no scheme specified for URL: %r' % (url,), url=url)
+
+    if scheme == 'file':
+        if netloc.lower() not in ('', 'localhost'):
+            raise NetFileError('invalid file URL: %r' % (url,))
+        local_path = urllib.request.url2pathname(path)
+        return open(local_path, mode, buffering=buffering,
+                    encoding=encoding, errors=errors, newline=newline)
+
     nf = NetFile(url, buffering=buffering)
 
     if check_access:
