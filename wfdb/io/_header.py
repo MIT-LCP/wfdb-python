@@ -882,6 +882,8 @@ def _parse_record_line(record_line):
 
     # Read string fields from record line
     match = _rx_record.match(record_line)
+    if match is None:
+        raise HeaderSyntaxError('invalid syntax in record line')
     (record_fields['record_name'], record_fields['n_seg'],
      record_fields['n_sig'], record_fields['fs'],
      record_fields['counter_freq'], record_fields['base_counter'],
@@ -946,6 +948,8 @@ def _parse_signal_lines(signal_lines):
     # Read string fields from signal line
     for ch in range(n_sig):
         match = _rx_signal.match(signal_lines[ch])
+        if match is None:
+            raise HeaderSyntaxError('invalid syntax in signal line')
         (signal_fields['file_name'][ch], signal_fields['fmt'][ch],
          signal_fields['samps_per_frame'][ch], signal_fields['skew'][ch],
          signal_fields['byte_offset'][ch], signal_fields['adc_gain'][ch],
@@ -1003,6 +1007,8 @@ def _read_segment_lines(segment_lines):
     # Read string fields from signal line
     for i in range(len(segment_lines)):
         match = _rx_segment.match(segment_lines[i])
+        if match is None:
+            raise HeaderSyntaxError('invalid syntax in segment line')
         (segment_fields['seg_name'][i],
          segment_fields['seg_len'][i]) = match.groups()
 
@@ -1011,6 +1017,10 @@ def _read_segment_lines(segment_lines):
             segment_fields['seg_len'][i] = int(segment_fields['seg_len'][i])
 
     return segment_fields
+
+
+class HeaderSyntaxError(ValueError):
+    """Invalid syntax found in a WFDB header file."""
 
 
 def lines_to_file(file_name, write_dir, lines):
