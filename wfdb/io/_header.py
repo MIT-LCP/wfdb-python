@@ -119,7 +119,7 @@ _rx_signal = re.compile(''.join(
 )
 
 # Segment line
-_rx_segment = re.compile('(?P<seg_name>\w*~?)[ \t]+(?P<seg_len>\d+)')
+_rx_segment = re.compile('(?P<seg_name>[-\w]*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 class BaseHeaderMixin(object):
