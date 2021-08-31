@@ -101,7 +101,8 @@ FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 # Regexp objects for reading headers
 # Record line
 _rx_record = re.compile(''.join(
-    ["(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
+    ["[ \t]*",
+     "(?P<record_name>[-\w]+)/?(?P<n_seg>\d*)[ \t]+",
      "(?P<n_sig>\d+)[ \t]*(?P<fs>\d*\.?\d*)/*(?P<counter_freq>-?\d*\.?\d*)",
      "\(?(?P<base_counter>-?\d*\.?\d*)\)?[ \t]*(?P<sig_len>\d*)[ \t]*",
      "(?P<base_time>\d{,2}:?\d{,2}:?\d{,2}\.?\d{,6})[ \t]*",
@@ -110,7 +111,8 @@ _rx_record = re.compile(''.join(
 
 # Signal line
 _rx_signal = re.compile(''.join(
-    ["(?P<file_name>~?[-\w]*\.?[\w]*)[ \t]+(?P<fmt>\d+)x?"
+    ["[ \t]*",
+     "(?P<file_name>~?[-\w]*\.?[\w]*)[ \t]+(?P<fmt>\d+)x?"
      "(?P<samps_per_frame>\d*):?(?P<skew>\d*)\+?(?P<byte_offset>\d*)[ \t]*",
      "(?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)\(?(?P<baseline>-?\d*)\)?",
      "/?(?P<units>[\w\^\-\?%\/]*)[ \t]*(?P<adc_res>\d*)[ \t]*",
@@ -119,7 +121,7 @@ _rx_signal = re.compile(''.join(
 )
 
 # Segment line
-_rx_segment = re.compile('(?P<seg_name>[-\w]*~?)[ \t]+(?P<seg_len>\d+)')
+_rx_segment = re.compile('[ \t]*(?P<seg_name>[-\w]*~?)[ \t]+(?P<seg_len>\d+)')
 
 
 class BaseHeaderMixin(object):
@@ -879,11 +881,12 @@ def _parse_record_line(record_line):
     record_fields = {}
 
     # Read string fields from record line
+    match = _rx_record.match(record_line)
     (record_fields['record_name'], record_fields['n_seg'],
      record_fields['n_sig'], record_fields['fs'],
      record_fields['counter_freq'], record_fields['base_counter'],
      record_fields['sig_len'], record_fields['base_time'],
-     record_fields['base_date']) = re.findall(_rx_record, record_line)[0]
+     record_fields['base_date']) = match.groups()
 
     for field in RECORD_SPECS.index:
         # Replace empty strings with their read defaults (which are
@@ -942,6 +945,7 @@ def _parse_signal_lines(signal_lines):
 
     # Read string fields from signal line
     for ch in range(n_sig):
+        match = _rx_signal.match(signal_lines[ch])
         (signal_fields['file_name'][ch], signal_fields['fmt'][ch],
          signal_fields['samps_per_frame'][ch], signal_fields['skew'][ch],
          signal_fields['byte_offset'][ch], signal_fields['adc_gain'][ch],
@@ -949,7 +953,7 @@ def _parse_signal_lines(signal_lines):
          signal_fields['adc_res'][ch], signal_fields['adc_zero'][ch],
          signal_fields['init_value'][ch], signal_fields['checksum'][ch],
          signal_fields['block_size'][ch],
-         signal_fields['sig_name'][ch]) = _rx_signal.findall(signal_lines[ch])[0]
+         signal_fields['sig_name'][ch]) = match.groups()
 
         for field in SIGNAL_SPECS.index:
             # Replace empty strings with their read defaults (which are mostly None)
@@ -998,7 +1002,9 @@ def _read_segment_lines(segment_lines):
 
     # Read string fields from signal line
     for i in range(len(segment_lines)):
-        (segment_fields['seg_name'][i], segment_fields['seg_len'][i]) = _rx_segment.findall(segment_lines[i])[0]
+        match = _rx_segment.match(segment_lines[i])
+        (segment_fields['seg_name'][i],
+         segment_fields['seg_len'][i]) = match.groups()
 
         # Typecast strings for numerical field
         if field == 'seg_len':
