@@ -125,11 +125,13 @@ class TestRecord(unittest.TestCase):
         Format 24, entire signal, digital.
 
         Target file created with:
-            rdsamp -r sample-data/n8_evoked_raw_95_F1_R9 | cut -f 2- > record-1e
+            rdsamp -r sample-data/n8_evoked_raw_95_F1_R9 | cut -f 2- |
+            gzip -9 -n > record-1e.gz
         """
         record = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
         sig = record.d_signal
-        sig_target = np.genfromtxt('tests/target-output/record-1e')
+        sig_target = np.genfromtxt('tests/target-output/record-1e.gz')
+        sig_target[sig_target == -32768] = -2**23
 
         # Compare data streaming from Physionet
         record_pn = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False,
@@ -138,7 +140,7 @@ class TestRecord(unittest.TestCase):
         # Test file writing
         record_2 = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
         record_2.wrsamp()
-        record_write = wfdb.rdrecord('sample-data/n8_evoked_raw_95_F1_R9', physical=False)
+        record_write = wfdb.rdrecord('n8_evoked_raw_95_F1_R9', physical=False)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)

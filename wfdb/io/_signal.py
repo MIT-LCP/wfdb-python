@@ -1,5 +1,6 @@
 import math
 import os
+import sys
 
 import numpy as np
 
@@ -10,10 +11,10 @@ import pdb
 MAX_I32 = 2147483647
 MIN_I32 = -2147483648
 
-# Formats in which all samples align with byte boundaries
-ALIGNED_FMTS = ['8', '16', '24', '32', '61', '80', '160']
-# Formats in which not all samples align with byte boundaries
-UNALIGNED_FMTS = ['212', '310', '311']
+# Formats in which all samples align with integer (power-of-two) boundaries
+ALIGNED_FMTS = ['8', '16', '32', '61', '80', '160']
+# Formats in which not all samples align with integer boundaries
+UNALIGNED_FMTS = ['212', '310', '311', '24']
 # Formats which are stored in offset binary form
 OFFSET_FMTS = ['80', '160']
 # All WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
@@ -29,7 +30,7 @@ BIT_RES = {'8': 8, '16': 16, '24': 24, '32': 32, '61': 16, '80': 8,
            '160': 16, '212': 12, '310': 10, '311': 10}
 
 # Numpy dtypes used to load dat files of each format.
-DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<i3', '32': '<i4',
+DATA_LOAD_TYPES = {'8': '<i1', '16': '<i2', '24': '<u1', '32': '<i4',
                    '61': '>i2', '80': '<u1', '160': '<u2', '212': '<u1',
                    '310': '<u1', '311': '<u1'}
 
@@ -1399,6 +1400,9 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
     elif fmt in ['310', '311']:
         byte_count = _required_byte_num('read', fmt, n_samp)
         element_count = byte_count
+    elif fmt == '24':
+        byte_count = n_samp * 3
+        element_count = byte_count
     else:
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
@@ -1407,24 +1411,12 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
     if pn_dir is None:
         with open(os.path.join(dir_name, file_name), 'rb') as fp:
             fp.seek(start_byte)
-            # Numpy doesn't really like 24-bit data but we can make it work
-            if DATA_LOAD_TYPES[fmt] == '<i3':
-                raw_data_map = np.memmap(fp,
-                                         dtype=np.dtype('i2'),
-                                         mode='r')
-                temp_data = np.frombuffer(raw_data_map, 'b').reshape(-1,3)[:,1:].flatten().view('i2')
-                sig_data = np.fromstring(temp_data, dtype='i2')
-            else:
-                sig_data = np.fromfile(fp, 
-                                       dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
-                                       count=element_count)
+            sig_data = np.fromfile(fp,
+                                   dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+                                   count=element_count)
     # Stream dat file from Physionet
     else:
-        if DATA_LOAD_TYPES[fmt] == '<i3':
-            dtype_in = '<i3'
-        else:
-            dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
-
+        dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
         sig_data = download._stream_dat(file_name, pn_dir, byte_count,
                                         start_byte, dtype_in)
 
@@ -1536,6 +1528,26 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         # Loaded values as un_signed. Convert to 2's complement form.
         # Values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
+
+    elif fmt == '24':
+        # The following is equivalent to:
+        #   sig = (sig_data[2::3].view('int8').astype('int32') * 65536
+        #          + sig_data[1::3].astype('uint16') * 256
+        #          + sig_data[0::3])
+
+        # Treat the high byte as signed and shift it by 16 bits.
+        sig = np.left_shift(sig_data[2::3].view('int8'), 16, dtype='int32')
+
+        # Directly copy the low and middle bytes.
+        if sys.byteorder == 'little':
+            sig.view('uint8')[0::4] = sig_data[0::3]
+            sig.view('uint8')[1::4] = sig_data[1::3]
+        elif sys.byteorder == 'big':
+            sig.view('uint8')[3::4] = sig_data[0::3]
+            sig.view('uint8')[2::4] = sig_data[1::3]
+        else:
+            raise NotImplementedError
+
     return sig
 
 
