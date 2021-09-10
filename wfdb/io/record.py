@@ -3441,9 +3441,19 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
             if record.n_sig == 0:
                 record.sig_len = 0
             else:
+                # Calculate total number of samples per frame in the
+                # first dat file.
+                tsamps_per_frame = 0
+                for fname, spf in zip(record.file_name,
+                                      record.samps_per_frame):
+                    if fname == record.file_name[0]:
+                        tsamps_per_frame += spf
+
+                # Calculate length from size of the dat file.
                 record.sig_len = _signal._infer_sig_len(
                     file_name=record.file_name[0], fmt=record.fmt[0],
-                    n_sig=record.file_name.count(record.file_name[0]),
+                    tsamps_per_frame=tsamps_per_frame,
+                    byte_offset=record.byte_offset[0],
                     dir_name=dir_name, pn_dir=pn_dir)
         sampto = record.sig_len
 

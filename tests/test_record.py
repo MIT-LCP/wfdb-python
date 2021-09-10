@@ -703,9 +703,15 @@ class TestSignal(unittest.TestCase):
         Read two headers. The records should be the same.
         """
 
-        record = wfdb.rdrecord('sample-data/100')
-        record_2 = wfdb.rdrecord('sample-data/100-no-len')
-        record_2.record_name = '100'
+        record = wfdb.rdrecord('sample-data/drive02')
+        record_2 = wfdb.rdrecord('sample-data/drive02-no-len')
+        record_2.record_name = record.record_name
+
+        assert record_2.__eq__(record)
+
+        record = wfdb.rdrecord('sample-data/a103l')
+        record_2 = wfdb.rdrecord('sample-data/a103l-no-len')
+        record_2.record_name = record.record_name
 
         assert record_2.__eq__(record)
 

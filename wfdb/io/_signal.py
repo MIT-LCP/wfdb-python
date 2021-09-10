@@ -2071,7 +2071,8 @@ def describe_list_indices(full_list):
     return unique_elements, element_indices
 
 
-def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
+def _infer_sig_len(file_name, fmt, tsamps_per_frame, byte_offset,
+                   dir_name, pn_dir=None):
     """
     Infer the length of a signal from a dat file.
 
@@ -2081,8 +2082,10 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
         Name of the dat file.
     fmt : str
         WFDB fmt of the dat file.
-    n_sig : int
-        Number of signals contained in the dat file.
+    tsamps_per_frame : int
+        Total number of samples per frame contained in the dat file.
+    byte_offset : int or None
+        The byte offset of the dat file.  None is equivalent to zero.
     dir_name : str
         The full directory where the dat file(s) are located, if the dat
         file(s) are local.
@@ -2093,11 +2096,11 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
     Returns
     -------
     sig_len : int
-        The length of the signal.
+        The length of the signal file in frames.
 
     Notes
     -----
-    sig_len * n_sig * bytes_per_sample == file_size
+    sig_len * tsamps_per_frame * bytes_per_sample == file_size
 
     """
     if pn_dir is None:
@@ -2106,7 +2109,10 @@ def _infer_sig_len(file_name, fmt, n_sig, dir_name, pn_dir=None):
         file_size = download._remote_file_size(file_name=file_name,
                                                pn_dir=pn_dir)
 
-    sig_len = int(file_size / (BYTES_PER_SAMPLE[fmt] * n_sig))
+    if byte_offset is None:
+        byte_offset = 0
+    data_size = file_size - byte_offset
+    sig_len = int(data_size / (BYTES_PER_SAMPLE[fmt] * tsamps_per_frame))
 
     return sig_len
 
