@@ -103,13 +103,13 @@ class XQRS(object):
         ref_period : int, float, optional
             The QRS refractory period.
         t_inspect_period : int, float, optional
-            The period below which a potential QRS complex is
-            inspected to see if it is a T-wave.
+            The period below which a potential QRS complex is inspected to
+            see if it is a T-wave. Leave as 0 for no T-wave inspection.
 
         """
         def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
                      qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2,
-                     t_inspect_period=0.36):
+                     t_inspect_period=0):
             if hr_min < 0:
                 raise ValueError("'hr_min' must be >= 0")
 
