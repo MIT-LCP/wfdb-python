@@ -3,17 +3,16 @@ import pdb
 
 import numpy as np
 from scipy import signal
-from sklearn.preprocessing import normalize
 
-from wfdb.processing.basic import get_filter_gain
+from wfdb.processing.basic import get_filter_gain, normalize
 from wfdb.processing.peaks import find_local_peaks
 from wfdb.io.record import Record
 
 
 class XQRS(object):
     """
-    The QRS detector class for the XQRS algorithm. The `XQRS.Conf` 
-    class is the configuration class that stores initial parameters 
+    The QRS detector class for the XQRS algorithm. The `XQRS.Conf`
+    class is the configuration class that stores initial parameters
     for the detection. The `XQRS.detect` method runs the detection algorithm.
 
     The process works as follows:
@@ -85,7 +84,7 @@ class XQRS(object):
         ----------
         hr_init : int, float, optional
             Initial heart rate in beats per minute. Used for calculating
-            recent R-R intervals. 
+            recent R-R intervals.
         hr_max : int, float, optional
             Hard maximum heart rate between two beats, in beats per
             minute. Used for refractory period.
@@ -104,13 +103,13 @@ class XQRS(object):
         ref_period : int, float, optional
             The QRS refractory period.
         t_inspect_period : int, float, optional
-            The period below which a potential QRS complex is
-            inspected to see if it is a T-wave.
+            The period below which a potential QRS complex is inspected to
+            see if it is a T-wave. Leave as 0 for no T-wave inspection.
 
         """
         def __init__(self, hr_init=75, hr_max=200, hr_min=25, qrs_width=0.1,
                      qrs_thr_init=0.13, qrs_thr_min=0, ref_period=0.2,
-                     t_inspect_period=0.36):
+                     t_inspect_period=0):
             if hr_min < 0:
                 raise ValueError("'hr_min' must be >= 0")
 
@@ -134,7 +133,7 @@ class XQRS(object):
     def _set_conf(self):
         """
         Set configuration parameters from the Conf object into the detector
-        object. Time values are converted to samples, and amplitude values 
+        object. Time values are converted to samples, and amplitude values
         are in mV.
 
         Parameters
@@ -288,10 +287,10 @@ class XQRS(object):
 
             # Question: should the signal be squared? Case for inverse QRS
             # complexes
-            sig_segment = normalize((self.sig_f[i - self.qrs_radius:
-                                                i + self.qrs_radius]).reshape(-1, 1), axis=0)
+            sig_segment = normalize(self.sig_f[i - self.qrs_radius:
+                                               i + self.qrs_radius])
 
-            xcorr = np.correlate(sig_segment[:, 0], ricker_wavelet[:,0])
+            xcorr = np.correlate(sig_segment, ricker_wavelet[:,0])
 
             # Classify as QRS if xcorr is large enough
             if xcorr > 0.6 and i-last_qrs_ind > self.rr_min:
@@ -470,7 +469,7 @@ class XQRS(object):
             The peak number of the MWI signal where the QRS is detected.
         backsearch: bool, optional
             Whether the QRS was found via backsearch.
-        
+
         Returns
         -------
         N/A
@@ -478,7 +477,7 @@ class XQRS(object):
         """
         i = self.peak_inds_i[peak_num]
 
-        # Update recent R-R interval if the beat is consecutive (do this 
+        # Update recent R-R interval if the beat is consecutive (do this
         # before updating self.last_qrs_ind)
         rr_new = i - self.last_qrs_ind
         if rr_new < self.rr_max:
@@ -514,7 +513,7 @@ class XQRS(object):
         ----------
         peak_num : int
             The peak number of the MWI signal where the QRS is detected.
-        
+
         Returns
         -------
         bool
@@ -530,8 +529,7 @@ class XQRS(object):
 
         # Get half the QRS width of the signal to the left.
         # Should this be squared?
-        sig_segment = normalize((self.sig_f[i - self.qrs_radius:i]
-                                 ).reshape(-1, 1), axis=0)
+        sig_segment = normalize(self.sig_f[i - self.qrs_radius:i])
         last_qrs_segment = self.sig_f[self.last_qrs_ind - self.qrs_radius:
                                       self.last_qrs_ind]
 
@@ -901,7 +899,7 @@ class GQRS(object):
     class Peak(object):
         """
         Holds all of the peak information for the QRS object.
-        
+
         Attributes
         ----------
         peak_time : int, float
@@ -923,7 +921,7 @@ class GQRS(object):
     class Annotation(object):
         """
         Holds all of the annotation information for the QRS object.
-        
+
         Attributes
         ----------
         ann_time : int, float
@@ -1160,8 +1158,8 @@ class GQRS(object):
 
     def sm(self, at_t):
         """
-        Implements a trapezoidal low pass (smoothing) filter (with a gain 
-        of 4*smdt) applied to input signal sig before the QRS matched 
+        Implements a trapezoidal low pass (smoothing) filter (with a gain
+        of 4*smdt) applied to input signal sig before the QRS matched
         filter qf(). Before attempting to 'rewind' by more than BUFLN-smdt
         samples, reset smt and smt0.
 
@@ -1220,7 +1218,7 @@ class GQRS(object):
         N/A
 
         """
-        # Do this first, to ensure that all of the other smoothed values 
+        # Do this first, to ensure that all of the other smoothed values
         # needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
         dv2 -= self.smv_at(self.t - self.c.dt4)
@@ -1302,17 +1300,17 @@ class GQRS(object):
 
         def peaktype(p):
             """
-            The neighborhood consists of all other peaks within rrmin. 
-            Normally, "most prominent" is equivalent to "largest in 
-            amplitude", but this is not always true.  For example, consider 
-            three consecutive peaks a, b, c such that a and b share a 
-            neighborhood, b and c share a neighborhood, but a and c do not; 
-            and suppose that amp(a) > amp(b) > amp(c).  In this case, if 
+            The neighborhood consists of all other peaks within rrmin.
+            Normally, "most prominent" is equivalent to "largest in
+            amplitude", but this is not always true.  For example, consider
+            three consecutive peaks a, b, c such that a and b share a
+            neighborhood, b and c share a neighborhood, but a and c do not;
+            and suppose that amp(a) > amp(b) > amp(c).  In this case, if
             there are no other peaks, a is the most prominent peak in the (a, b)
-            neighborhood.  Since b is thus identified as a non-prominent peak, 
-            c becomes the most prominent peak in the (b, c) neighborhood. 
-            This is necessary to permit detection of low-amplitude beats that 
-            closely precede or follow beats with large secondary peaks (as, 
+            neighborhood.  Since b is thus identified as a non-prominent peak,
+            c becomes the most prominent peak in the (b, c) neighborhood.
+            This is necessary to permit detection of low-amplitude beats that
+            closely precede or follow beats with large secondary peaks (as,
             for example, in R-on-T PVCs).
 
             Parameters
@@ -1323,7 +1321,7 @@ class GQRS(object):
             Returns
             -------
             int
-                Whether the input peak is the most prominent peak in its 
+                Whether the input peak is the most prominent peak in its
                 neighborhood (1) or not (2).
 
             """
@@ -1534,8 +1532,8 @@ def gqrs_detect(sig=None, fs=None, d_sig=None, adc_gain=None, adc_zero=None,
     """
     Detect QRS locations in a single channel ecg. Functionally, a direct port
     of the GQRS algorithm from the original WFDB package. Accepts either a
-    physical signal, or a digital signal with known adc_gain and adc_zero. See 
-    the notes below for a summary of the program. This algorithm is not being 
+    physical signal, or a digital signal with known adc_gain and adc_zero. See
+    the notes below for a summary of the program. This algorithm is not being
     developed/supported.
 
     Parameters

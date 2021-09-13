@@ -60,7 +60,6 @@ setup(
         'numpy>=1.10.1',
         'pandas>=0.17.0',
         'requests>=2.8.1',
-        'scikit-learn>=0.18',
         'scipy>=0.17.0',
     ],
 
