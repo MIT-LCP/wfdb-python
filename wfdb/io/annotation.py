@@ -466,8 +466,6 @@ class Annotation(object):
                 raise ValueError("The 'sample' field must only contain non-negative integers")
             if min(sampdiffs) < 0 :
                 raise ValueError("The 'sample' field must contain monotonically increasing sample numbers")
-            if max(sampdiffs) > 2147483648:
-                raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
 
         elif field == 'label_store':
             if min(item) < 1 or max(item) > 49:
@@ -1370,19 +1368,19 @@ def field2bytes(field, value):
         # sample difference
         sd = value[0]
 
-        # Add SKIP element if value is too large for single byte
-        if sd>1023:
-            # 8 bytes in total:
-            # - [0, 59>>2] indicates SKIP
-            # - Next 4 gives sample difference
-            # - Final 2 give 0 and sym
-            data_bytes = [0, 236, (sd&16711680)>>16, (sd&4278190080)>>24, sd&255, (sd&65280)>>8, 0, 4*typecode]
-        # Just need samp and sym
-        else:
-            # - First byte stores low 8 bits of samp
-            # - Second byte stores high 2 bits of samp
-            #   and sym
-            data_bytes = [sd & 255, ((sd & 768) >> 8) + 4*typecode]
+        data_bytes = []
+        # Add SKIP elements if value is too large
+        while sd > 0x7fffffff:
+            data_bytes += [0, 59 << 2, 0xff, 0x7f, 0xff, 0xff]
+            sd -= 0x7fffffff
+        if sd > 1023:
+            data_bytes += [0, 59 << 2,
+                           (sd >> 16) & 255,
+                           (sd >> 24) & 255,
+                           (sd >> 0) & 255,
+                           (sd >> 8) & 255]
+            sd = 0
+        data_bytes += [sd & 255, ((sd & 768) >> 8) + 4 * typecode]
 
     elif field == 'num':
         # First byte stores num
