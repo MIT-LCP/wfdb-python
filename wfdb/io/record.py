@@ -6,7 +6,6 @@ import re
 import numpy as np
 import os
 import pandas as pd
-import requests
 import math
 import functools
 import struct
@@ -14,6 +13,7 @@ import pdb
 
 from wfdb.io import _header
 from wfdb.io import _signal
+from wfdb.io import _url
 from wfdb.io import download
 from wfdb.io import annotation
 
@@ -1244,8 +1244,9 @@ def get_version(pn_dir):
     """
     db_dir = pn_dir.split('/')[0]
     url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
-    response = requests.get(url)
-    contents = [line.decode('utf-8').strip() for line in response.content.splitlines()]
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
+    contents = [line.decode('utf-8').strip() for line in content.splitlines()]
     version_number = [v for v in contents if 'Version:' in v]
     version_number = version_number[0].split(':')[-1].strip().split('<')[0]
 
@@ -1466,8 +1467,8 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file for MNE to read it though can give the
         # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        with _url.openurl(file_url, 'rb') as f:
+            open(record_name, 'wb').write(f.read())
 
     # Open the desired file
     edf_file = open(record_name, mode='rb')
@@ -2380,8 +2381,8 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file to read it though can give the
         # user the option to delete it immediately afterwards
-        r = requests.get(file_url, allow_redirects=False)
-        open(record_name, 'wb').write(r.content)
+        with _url.openurl(file_url, 'rb') as f:
+            open(record_name, 'wb').write(f.read())
 
     wave_file = open(record_name, mode='rb')
     record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
@@ -4526,8 +4527,7 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
         db_dir = posixpath.join(db_dir, get_version(db_dir))
     db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + '/'
     # Check if the database is valid
-    r = requests.get(db_url)
-    r.raise_for_status()
+    _url.openurl(db_url, check_access=True)
 
     # Get the list of records
     record_list = download.get_record_list(db_dir, records)
@@ -4584,10 +4584,11 @@ def dl_database(db_dir, dl_dir, records='all', annotators='all',
             for a in annotators:
                 ann_file = rec+'.'+a
                 url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
-                rh = requests.head(url)
-
-                if rh.status_code != 404:
+                try:
+                    _url.openurl(url, check_access=True)
                     all_files.append(ann_file)
+                except FileNotFoundError:
+                    pass
 
     dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in all_files]
 

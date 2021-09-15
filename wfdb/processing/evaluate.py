@@ -1,7 +1,6 @@
 from multiprocessing import cpu_count, Pool
 
 import numpy as np
-import requests
 
 from wfdb.io.annotation import rdann
 from wfdb.io.download import get_record_list

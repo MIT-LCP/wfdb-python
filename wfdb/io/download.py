@@ -3,11 +3,10 @@ import numpy as np
 import re
 import os
 import posixpath
-import requests
 import pdb
 import json
 
-from wfdb.io import record
+from wfdb.io import record, _url
 
 
 # The PhysioNet index url
@@ -75,12 +74,8 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     if file_name and pn_dir:
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
-    response = requests.head(url, headers={'Accept-Encoding': 'identity'})
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
-
-    # Supposed size of the file
-    remote_file_size = int(response.headers['content-length'])
+    with _url.openurl(url, 'rb') as f:
+        remote_file_size = f.seek(0, os.SEEK_END)
 
     return remote_file_size
 
@@ -108,13 +103,13 @@ def _stream_header(file_name, pn_dir):
     """
     # Full url of header location
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
-    response = requests.get(url)
 
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    # Get the content of the remote file
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
 
     # Get each line as a string
-    filelines = response.content.decode('iso-8859-1').splitlines()
+    filelines = content.decode('iso-8859-1').splitlines()
 
     # Separate content into header and comment lines
     header_lines = []
@@ -165,19 +160,13 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
     # Full url of dat file
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
-    # Specify the byte range
-    end_byte = start_byte + byte_count - 1
-    headers = {"Range":"bytes=%d-%d" % (start_byte, end_byte),
-               'Accept-Encoding': '*'}
-
     # Get the content
-    response = requests.get(url, headers=headers, stream=True)
-
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    with _url.openurl(url, 'rb', buffering=0) as f:
+        f.seek(start_byte)
+        content = f.read(byte_count)
 
     # Convert to numpy array
-    sig_data = np.fromstring(response.content, dtype=dtype)
+    sig_data = np.fromstring(content, dtype=dtype)
 
     return sig_data
 
@@ -203,12 +192,11 @@ def _stream_annotation(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content
-    response = requests.get(url)
-    # Raise HTTPError if invalid url
-    response.raise_for_status()
+    with _url.openurl(url, 'rb') as f:
+        content = f.read()
 
     # Convert to numpy array
-    ann_data = np.fromstring(response.content, dtype=np.dtype('<u1'))
+    ann_data = np.fromstring(content, dtype=np.dtype('<u1'))
 
     return ann_data
 
@@ -238,8 +226,9 @@ def get_dbs():
     ]
 
     """
-    response = requests.get('https://physionet.org/rest/database-list/')
-    dbs = json.loads(response.content)
+    with _url.openurl('https://physionet.org/rest/database-list/', 'rb') as f:
+        content = f.read()
+    dbs = json.loads(content)
     dbs = [[d['slug'], d['title']] for d in dbs]
     dbs.sort()
 
@@ -280,12 +269,14 @@ def get_record_list(db_dir, records='all'):
 
     # Check for a RECORDS file
     if records == 'all':
-        response = requests.get(posixpath.join(db_url, 'RECORDS'))
-        if response.status_code == 404:
+        try:
+            with _url.openurl(posixpath.join(db_url, 'RECORDS'), 'rb') as f:
+                content = f.read()
+        except FileNotFoundError:
             raise ValueError('The database %s has no WFDB files to download' % db_url)
 
         # Get each line as a string
-        record_list = response.content.decode('ascii').splitlines()
+        record_list = content.decode('ascii').splitlines()
     # Otherwise the records are input manually
     else:
         record_list = records
@@ -321,14 +312,17 @@ def get_annotators(db_dir, annotators):
 
     if annotators is not None:
         # Check for an ANNOTATORS file
-        r = requests.get(posixpath.join(db_url, 'ANNOTATORS'))
-        if r.status_code == 404:
+        try:
+            with _url.openurl(posixpath.join(db_url, 'ANNOTATORS'), 'rb') as f:
+                content = f.read()
+        except FileNotFoundError:
             if annotators == 'all':
                 return
             else:
                 raise ValueError('The database %s has no annotation files to download' % db_url)
+
         # Make sure the input annotators are present in the database
-        ann_list = r.content.decode('ascii').splitlines()
+        ann_list = content.decode('ascii').splitlines()
         ann_list = [a.split('\t')[0] for a in ann_list]
 
         # Get the annotation file types required
@@ -404,9 +398,6 @@ def dl_pn_file(inputs):
     # Full url of file
     url = posixpath.join(config.db_index_url, db, subdir, basefile)
 
-    # Supposed size of the file
-    remote_file_size = _remote_file_size(url)
-
     # Figure out where the file should be locally
     if keep_subdirs:
         dldir = os.path.join(dl_dir, subdir)
@@ -423,20 +414,19 @@ def dl_pn_file(inputs):
         # Process accordingly.
         else:
             local_file_size = os.path.getsize(local_file)
-            # Local file is smaller than it should be. Append it.
-            if local_file_size < remote_file_size:
-                print('Detected partially downloaded file: %s Appending file...' % local_file)
-                headers = {"Range": "bytes="+str(local_file_size)+"-", 'Accept-Encoding': '*'}
-                r = requests.get(url, headers=headers, stream=True)
-                print('headers: ', headers)
-                print('r content length: ', len(r.content))
-                with open(local_file, 'ba') as writefile:
-                    writefile.write(r.content)
-                print('Done appending.')
-            # Local file is larger than it should be. Redownload.
-            elif local_file_size > remote_file_size:
-                dl_full_file(url, local_file)
-            # If they're the same size, do nothing.
+            with _url.openurl(url, 'rb') as f:
+                remote_file_size = f.seek(0, os.SEEK_END)
+                # Local file is smaller than it should be. Append it.
+                if local_file_size < remote_file_size:
+                    print('Detected partially downloaded file: %s Appending file...' % local_file)
+                    f.seek(local_file_size, os.SEEK_SET)
+                    with open(local_file, 'ba') as writefile:
+                        writefile.write(f.read())
+                    print('Done appending.')
+                # Local file is larger than it should be. Redownload.
+                elif local_file_size > remote_file_size:
+                    dl_full_file(url, local_file)
+                # If they're the same size, do nothing.
 
     # The file doesn't exist. Download it.
     else:
@@ -461,9 +451,10 @@ def dl_full_file(url, save_file_name):
     N/A
 
     """
-    response = requests.get(url)
+    with _url.openurl(url, 'rb') as readfile:
+        content = readfile.read()
     with open(save_file_name, 'wb') as writefile:
-        writefile.write(response.content)
+        writefile.write(content)
 
     return
 
@@ -511,8 +502,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     db_url = posixpath.join(PN_CONTENT_URL, db_dir) + '/'
 
     # Check if the database is valid
-    response = requests.get(db_url)
-    response.raise_for_status()
+    _url.openurl(db_url, check_access=True)
 
     # Construct the urls to download
     dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in files]
