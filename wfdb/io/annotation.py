@@ -1869,31 +1869,26 @@ def proc_core_fields(filebytes, bpi):
         The index to start the conversion.
 
     """
-    label_store = filebytes[bpi, 1] >> 2
+    sample_diff = 0
 
     # The current byte pair will contain either the actual d_sample + annotation store value,
     # or 0 + SKIP.
-
-    # Not a skip - it is the actual sample number + annotation type store value
-    if label_store != 59:
-        sample_diff = filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
-        bpi = bpi + 1
-    # Skip. Note: Could there be another skip after the first?
-    else:
+    while filebytes[bpi, 1] >> 2 == 59:
         # 4 bytes storing dt
-        sample_diff = 65536 * filebytes[bpi + 1,0] + 16777216 * filebytes[bpi + 1,1] \
+        skip_diff = 65536 * filebytes[bpi + 1,0] + 16777216 * filebytes[bpi + 1,1] \
              + filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]
 
         # Data type is long integer (stored in two's complement). Range -2**31 to 2**31 - 1
-        if sample_diff > 2147483647:
-            sample_diff = sample_diff - 4294967296
+        if skip_diff > 2147483647:
+            skip_diff = skip_diff - 4294967296
 
-        # After the 4 bytes, the next pair's samp is also added
-        sample_diff = sample_diff + filebytes[bpi + 3, 0] + 256 * (filebytes[bpi + 3, 1] & 3)
+        sample_diff += skip_diff
+        bpi = bpi + 3
 
-        # The label is stored after the 4 bytes. Samples here should be 0.
-        label_store = filebytes[bpi + 3, 1] >> 2
-        bpi = bpi + 4
+    # Not a skip - it is the actual sample number + annotation type store value
+    label_store = filebytes[bpi, 1] >> 2
+    sample_diff += filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
+    bpi = bpi + 1
 
     return sample_diff, label_store, bpi
 
