@@ -865,7 +865,7 @@ class SignalMixin(object):
 
 
 def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
-                samps_per_frame, skew, sampfrom, sampto, channels,
+                samps_per_frame, skew, init_value, sampfrom, sampto, channels,
                 smooth_frames, ignore_skew, no_file=False, sig_data=None, return_res=64):
     """
     Read the digital samples from a single segment record's associated
@@ -893,6 +893,8 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         The samples/frame for each signal of the dat file.
     skew : list
         The skew for the signals of the dat file.
+    init_value : list
+        The initial value for each signal of the dat file.
     sampfrom : int
         The starting sample number to be read from the signals.
     sampto : int
