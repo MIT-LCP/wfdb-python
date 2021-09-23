@@ -1182,6 +1182,32 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         elif fmt == '160':
             sig_data = (sig_data.astype('int32') - 32768).astype('int16')
 
+    # For format 8, convert sample differences to absolute samples.  Note
+    # that if sampfrom is not 0, the results will be wrong, since we can't
+    # know the starting value without reading the entire record from the
+    # beginning - an inherent limitation of the format, and the use of
+    # format 8 is discouraged for this reason!  However, the following is
+    # consistent with the behavior of the WFDB library: the initial value
+    # specified by the header file is used as the starting sample value,
+    # regardless of where in the record we begin reading.  Therefore, the
+    # following should give the same results as rdsamp.
+    if fmt == '8':
+        dif_frames = sig_data.reshape(-1, tsamps_per_frame)
+        abs_frames = np.empty(dif_frames.shape, dtype='int32')
+        ch_start = 0
+        for ch in range(n_sig):
+            ch_end = ch_start + samps_per_frame[ch]
+            # Extract sample differences as a 2D array
+            ch_dif_signal = dif_frames[:, ch_start:ch_end]
+            # Convert to a 1D array of absolute samples
+            ch_abs_signal = ch_dif_signal.cumsum(dtype=abs_frames.dtype)
+            ch_abs_signal += init_value[ch]
+            # Transfer to the output array
+            ch_abs_signal = ch_abs_signal.reshape(ch_dif_signal.shape)
+            abs_frames[:, ch_start:ch_end] = ch_abs_signal
+            ch_start = ch_end
+        sig_data = abs_frames.reshape(-1)
+
     # At this point, dtype of sig_data is the minimum integer format
     # required for storing the final digital samples.
 
