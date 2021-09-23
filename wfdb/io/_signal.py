@@ -997,17 +997,22 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            if no_file:
-                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
-                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
-                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
-                    sampfrom, sampto, smooth_frames, no_file=True,
-                    sig_data=sig_data)[:, r_w_channel[fn]]
-            else:
-                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
-                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
-                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
-                    sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
+            datsignals = _rd_dat_signals(
+                file_name=fn,
+                dir_name=dir_name,
+                pn_dir=pn_dir,
+                fmt=w_fmt[fn],
+                n_sig=len(datchannel[fn]),
+                sig_len=sig_len,
+                byte_offset=w_byte_offset[fn],
+                samps_per_frame=w_samps_per_frame[fn],
+                skew=w_skew[fn],
+                sampfrom=sampfrom,
+                sampto=sampto,
+                smooth_frames=smooth_frames,
+                no_file=no_file,
+                sig_data=sig_data)
+            signals[:, out_dat_channel[fn]] = datsignals[:, r_w_channel[fn]]
 
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
@@ -1016,16 +1021,21 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
-            if no_file:
-                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
-                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                    smooth_frames, no_file=True, sig_data=sig_data)
-            else:
-                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
-                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                    smooth_frames)
+            datsignals = _rd_dat_signals(
+                file_name=fn,
+                dir_name=dir_name,
+                pn_dir=pn_dir,
+                fmt=w_fmt[fn],
+                n_sig=len(datchannel[fn]),
+                sig_len=sig_len,
+                byte_offset=w_byte_offset[fn],
+                samps_per_frame=w_samps_per_frame[fn],
+                skew=w_skew[fn],
+                sampfrom=sampfrom,
+                sampto=sampto,
+                smooth_frames=smooth_frames,
+                no_file=no_file,
+                sig_data=sig_data)
 
             # Copy over the wanted signals
             for cn in range(len(out_dat_channel[fn])):
