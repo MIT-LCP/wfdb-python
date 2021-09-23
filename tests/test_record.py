@@ -146,6 +146,35 @@ class TestRecord(unittest.TestCase):
         assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
+    def test_1f(self):
+        """
+        All binary formats, multiple signal files in one record.
+
+        Target file created with:
+            rdsamp -r sample-data/binformats | cut -f 2- |
+            gzip -9 -n > record-1f.gz
+        """
+        record = wfdb.rdrecord('sample-data/binformats', physical=False)
+        sig_target = np.genfromtxt('tests/target-output/record-1f.gz')
+
+        for n, name in enumerate(record.sig_name):
+            np.testing.assert_array_equal(
+                record.d_signal[:, n],
+                sig_target[:, n],
+                "Mismatch in %s" % name)
+
+        for sampfrom in range(0, 3):
+            for sampto in range(record.sig_len - 3, record.sig_len):
+                record_2 = wfdb.rdrecord('sample-data/binformats',
+                                         physical=False,
+                                         sampfrom=sampfrom, sampto=sampto)
+                for n, name in enumerate(record.sig_name):
+                    if record.fmt[n] != '8':
+                        np.testing.assert_array_equal(
+                            record_2.d_signal[:, n],
+                            sig_target[sampfrom:sampto, n],
+                            "Mismatch in %s" % name)
+
     # ------------------ 2. Special format records ------------------ #
 
     def test_2a(self):
