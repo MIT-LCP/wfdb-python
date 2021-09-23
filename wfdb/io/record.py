@@ -3507,39 +3507,37 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
     # A single segment record
     elif isinstance(record, Record):
+        if record_name.endswith('.edf') or record_name.endswith('.wav'):
+            no_file = True
+            sig_data = record.d_signal
+        else:
+            no_file = False
+            sig_data = None
+
+        signals = _signal._rd_segment(
+            file_name=record.file_name,
+            dir_name=dir_name,
+            pn_dir=pn_dir,
+            fmt=record.fmt,
+            n_sig=record.n_sig,
+            sig_len=record.sig_len,
+            byte_offset=record.byte_offset,
+            samps_per_frame=record.samps_per_frame,
+            skew=record.skew,
+            sampfrom=sampfrom,
+            sampto=sampto,
+            channels=channels,
+            smooth_frames=smooth_frames,
+            ignore_skew=ignore_skew,
+            no_file=no_file,
+            sig_data=sig_data,
+            return_res=return_res)
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
         if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
             # Read signals from the associated dat files that contain
             # wanted channels
-            if record_name.endswith('.edf') or record_name.endswith('.wav'):
-                record.d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      no_file=True,
-                                                      sig_data=record.d_signal,
-                                                      return_res=return_res)
-            else:
-                record.d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      return_res=return_res)
+            record.d_signal = signals
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
@@ -3552,34 +3550,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            if record_name.endswith('.edf') or record_name.endswith('.wav'):
-                record.e_d_signal = _signal._rd_segment(record.file_name,
-                                                      dir_name, pn_dir,
-                                                      record.fmt,
-                                                      record.n_sig,
-                                                      record.sig_len,
-                                                      record.byte_offset,
-                                                      record.samps_per_frame,
-                                                      record.skew, sampfrom,
-                                                      sampto, channels,
-                                                      smooth_frames,
-                                                      ignore_skew,
-                                                      no_file=True,
-                                                      sig_data=record.d_signal,
-                                                      return_res=return_res)
-            else:
-                record.e_d_signal = _signal._rd_segment(record.file_name,
-                                                        dir_name, pn_dir,
-                                                        record.fmt,
-                                                        record.n_sig,
-                                                        record.sig_len,
-                                                        record.byte_offset,
-                                                        record.samps_per_frame,
-                                                        record.skew, sampfrom,
-                                                        sampto, channels,
-                                                        smooth_frames,
-                                                        ignore_skew,
-                                                        return_res=return_res)
+            record.e_d_signal = signals
 
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
