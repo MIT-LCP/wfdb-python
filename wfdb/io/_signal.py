@@ -941,6 +941,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     byte_offset = byte_offset[:]
     samps_per_frame = samps_per_frame[:]
     skew = skew[:]
+    init_value = init_value[:]
 
     # Set defaults for empty fields
     for i in range(n_sig):
@@ -950,6 +951,8 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
             samps_per_frame[i] = 1
         if skew[i] == None:
             skew[i] = 0
+        if init_value[i] == None:
+            init_value[i] = 0
 
     # If skew is to be ignored, set all to 0
     if ignore_skew:
@@ -966,6 +969,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     w_byte_offset = {} # one scalar per dat file
     w_samps_per_frame = {} # one list per dat file
     w_skew = {} # one list per dat file
+    w_init_value = {} # one list per dat file
     w_channel = {} # one list per dat file
 
     for fn in file_name:
@@ -979,6 +983,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
             w_byte_offset[fn] = byte_offset[datchannel[fn][0]]
             w_samps_per_frame[fn] = [samps_per_frame[c] for c in datchannel[fn]]
             w_skew[fn] = [skew[c] for c in datchannel[fn]]
+            w_init_value[fn] = [init_value[c] for c in datchannel[fn]]
             w_channel[fn] = idc
 
     # Wanted dat channels, relative to the dat file itself
@@ -1009,6 +1014,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 byte_offset=w_byte_offset[fn],
                 samps_per_frame=w_samps_per_frame[fn],
                 skew=w_skew[fn],
+                init_value=w_init_value[fn],
                 sampfrom=sampfrom,
                 sampto=sampto,
                 smooth_frames=smooth_frames,
@@ -1033,6 +1039,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 byte_offset=w_byte_offset[fn],
                 samps_per_frame=w_samps_per_frame[fn],
                 skew=w_skew[fn],
+                init_value=w_init_value[fn],
                 sampfrom=sampfrom,
                 sampto=sampto,
                 smooth_frames=smooth_frames,
@@ -1047,8 +1054,9 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
 
 def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
-                   byte_offset, samps_per_frame, skew, sampfrom, sampto,
-                   smooth_frames, no_file=False, sig_data=None):
+                    byte_offset, samps_per_frame, skew, init_value,
+                    sampfrom, sampto, smooth_frames,
+                    no_file=False, sig_data=None):
     """
     Read all signals from a WFDB dat file.
 
@@ -1074,6 +1082,8 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         The samples/frame for each signal of the dat file.
     skew : list
         The skew for the signals of the dat file.
+    init_value : list
+        The initial value for each signal of the dat file.
     sampfrom : int
         The starting sample number to be read from the signals.
     sampto : int
