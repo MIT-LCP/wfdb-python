@@ -1520,14 +1520,6 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         sig[sig > 2047] -= 4096
 
     elif fmt == '310':
-        # Easier to process when dealing with whole blocks
-        if n_samp % 3:
-            n_samp = upround(n_samp,3)
-            added_samps = n_samp % 3
-            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
-        else:
-            added_samps = 0
-
         sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
@@ -1539,24 +1531,11 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         # Third signal is 5 msb of second byte and 5 msb of forth byte
         sig[2::3] = np.bitwise_and((sig_data[1::4] >> 3), 0x1f)[0:len(sig[2::3])] + 32 * np.bitwise_and(sig_data[3::4] >> 3, 0x1f)[0:len(sig[2::3])]
 
-        # Remove trailing samples read within the byte block if
-        # originally not 3n sampled
-        if added_samps:
-            sig = sig[:-added_samps]
-
         # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
 
     elif fmt == '311':
-        # Easier to process when dealing with whole blocks
-        if n_samp % 3:
-            n_samp = upround(n_samp,3)
-            added_samps = n_samp % 3
-            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
-        else:
-            added_samps = 0
-
         sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
@@ -1567,11 +1546,6 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         sig[1::3] = (sig_data[1::4] >> 2)[0:len(sig[1::3])] + 64 * np.bitwise_and(sig_data[2::4], 0x0f)[0:len(sig[1::3])]
         # Third sample is 4 msb of third byte and 6 msb of forth byte
         sig[2::3] = (sig_data[2::4] >> 4)[0:len(sig[2::3])] + 16 * np.bitwise_and(sig_data[3::4], 0x7f)[0:len(sig[2::3])]
-
-        # Remove trailing samples read within the byte block if
-        # originally not 3n sampled
-        if added_samps:
-            sig = sig[:-added_samps]
 
         # Loaded values as un_signed. Convert to 2's complement form.
         # Values > 2^9-1 are negative.
