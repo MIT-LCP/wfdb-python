@@ -521,9 +521,9 @@ class TestRecord(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         "Clean up written files"
-        writefiles = ['03700181.dat','03700181.hea','100.atr','100.dat',
-                      '100.hea','1003.atr','100_3chan.dat','100_3chan.hea',
-                      '12726.anI','a103l.hea','a103l.mat','s0010_re.dat',
+        writefiles = ['03700181.dat','03700181.hea','100.dat',
+                      '100.hea','100_3chan.dat','100_3chan.hea',
+                      'a103l.hea','a103l.mat','s0010_re.dat',
                       's0010_re.hea','s0010_re.xyz','test01_00s.dat',
                       'test01_00s.hea','test01_00s_skewframe.hea',
                       'n8_evoked_raw_95_F1_R9.dat', 'n8_evoked_raw_95_F1_R9.hea']

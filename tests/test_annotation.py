@@ -1,10 +1,13 @@
+import os
 import re
+import unittest
 
 import numpy as np
 
 import wfdb
 
-class test_annotation():
+
+class TestAnnotation(unittest.TestCase):
     """
     Testing read and write of WFDB annotations, including Physionet
     streaming.
@@ -183,3 +186,18 @@ class test_annotation():
         assert (comp == [True] * 6)
         assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
+
+    @classmethod
+    def tearDownClass(cls):
+        writefiles = [
+            '100.atr',
+            '1003.atr',
+            '12726.anI',
+        ]
+        for file in writefiles:
+            if os.path.isfile(file):
+                os.remove(file)
+
+
+if __name__ == '__main__':
+    unittest.main()
