@@ -187,12 +187,28 @@ class TestAnnotation(unittest.TestCase):
         assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
+    def test_4(self):
+        """
+        Read and write annotations with large time skips
+
+        Annotation file created by:
+            echo "xxxxxxxxx 10000000000 N 0 0 0" | wrann -r huge -a qrs
+        """
+        annotation = wfdb.rdann('sample-data/huge', 'qrs')
+        self.assertEqual(annotation.sample[0], 10000000000)
+        annotation.wrann()
+
+        annotation1 = wfdb.rdann('sample-data/huge', 'qrs')
+        annotation2 = wfdb.rdann('huge', 'qrs')
+        self.assertEqual(annotation1, annotation2)
+
     @classmethod
     def tearDownClass(cls):
         writefiles = [
             '100.atr',
             '1003.atr',
             '12726.anI',
+            'huge.qrs',
         ]
         for file in writefiles:
             if os.path.isfile(file):
