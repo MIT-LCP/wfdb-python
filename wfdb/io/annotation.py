@@ -1653,8 +1653,11 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
                                              subtype, chan, num, aux_note)
 
     # Convert lists to numpy arrays dtype='int'
-    (sample, label_store, subtype,
-     chan, num) = lists_to_int_arrays(sample, label_store, subtype, chan, num)
+    (label_store, subtype,
+     chan, num) = lists_to_int_arrays(label_store, subtype, chan, num)
+
+    # Convert sample numbers to a numpy array of 'int64'
+    sample = np.array(sample, dtype='int64')
 
     # Try to get fs from the header file if it is not contained in the
     # annotation file
