@@ -1748,8 +1748,8 @@ def load_byte_pairs(record_name, extension, pn_dir):
 
     Returns
     -------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
 
     """
     # local file
@@ -1769,8 +1769,8 @@ def proc_ann_bytes(filebytes, sampto):
 
     Parameters
     ----------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
     sampto : int
         The maximum sample number for annotations to be returned.
     
@@ -1852,8 +1852,8 @@ def proc_core_fields(filebytes, bpi):
 
     Parameters
     ----------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
     bpi : int
         The index to start the conversion.
 
