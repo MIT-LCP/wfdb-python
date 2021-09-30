@@ -1875,8 +1875,10 @@ def proc_core_fields(filebytes, bpi):
     # or 0 + SKIP.
     while filebytes[bpi, 1] >> 2 == 59:
         # 4 bytes storing dt
-        skip_diff = 65536 * filebytes[bpi + 1,0] + 16777216 * filebytes[bpi + 1,1] \
-             + filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]
+        skip_diff = ((int(filebytes[bpi + 1, 0]) << 16)
+                     + (int(filebytes[bpi + 1, 1]) << 24)
+                     + (int(filebytes[bpi + 2, 0]) << 0)
+                     + (int(filebytes[bpi + 2, 1]) << 8))
 
         # Data type is long integer (stored in two's complement). Range -2**31 to 2**31 - 1
         if skip_diff > 2147483647:
@@ -1887,7 +1889,7 @@ def proc_core_fields(filebytes, bpi):
 
     # Not a skip - it is the actual sample number + annotation type store value
     label_store = filebytes[bpi, 1] >> 2
-    sample_diff += filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
+    sample_diff += int(filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3))
     bpi = bpi + 1
 
     return sample_diff, label_store, bpi
