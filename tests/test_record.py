@@ -746,6 +746,41 @@ class TestMultiRecord(unittest.TestCase):
         np.testing.assert_equal(sig_round, sig_target)
         assert record.__eq__(record_named)
 
+    def test_multi_fixed_d(self):
+        """
+        Multi-segment, fixed layout, multi-frequency, selected channels
+
+        Target file created with:
+            rdsamp -r sample-data/multi-segment/041s/ -s 3 2 1 -H |
+            cut -f 2- | sed s/-32768/-2048/ |
+            gzip -9 -n > tests/target-output/record-multi-fixed-d.gz
+        """
+        record = wfdb.rdrecord(
+            "sample-data/multi-segment/041s/041s",
+            channels=[3, 2, 1],
+            physical=False,
+            smooth_frames=False,
+        )
+
+        # Convert expanded to uniform array (high-resolution)
+        sig = np.zeros((record.sig_len * 4, record.n_sig), dtype=int)
+        for i, s in enumerate(record.e_d_signal):
+            sig[:, i] = np.repeat(s, len(sig[:, i]) // len(s))
+
+        sig_target = np.genfromtxt(
+            "tests/target-output/record-multi-fixed-d.gz"
+        )
+
+        record_named = wfdb.rdrecord(
+            "sample-data/multi-segment/041s/041s",
+            channel_names=["ABP", "V", "I"],
+            physical=False,
+            smooth_frames=False,
+        )
+
+        np.testing.assert_array_equal(sig, sig_target)
+        assert record.__eq__(record_named)
+
     def test_multi_variable_a(self):
         """
         Multi-segment, variable layout, selected duration, samples read
