@@ -1,0 +1,11 @@
+binformats 10 200 499
+binformats.d0 8 200/mV 12 0 -2047 -31143 0 sig 0, fmt 8
+binformats.d1 16 200/mV 16 0 -32766 -750 0 sig 1, fmt 16
+binformats.d2 61 200/mV 16 0 -32765 -251 0 sig 2, fmt 61
+binformats.d3 80 200/mV 8 0 -124 -517 0 sig 3, fmt 80
+binformats.d4 160 200/mV 16 0 -32763 747 0 sig 4, fmt 160
+binformats.d5 212 200/mV 12 0 -2042 -6824 0 sig 5, fmt 212
+binformats.d6 310 200/mV 10 0 -505 -1621 0 sig 6, fmt 310
+binformats.d7 311 200/mV 10 0 -504 -2145 0 sig 7, fmt 311
+binformats.d8 24 200/mV 24 0 -8388599 11715 0 sig 8, fmt 24
+binformats.d9 32 200/mV 32 0 -2147483638 19035 0 sig 9, fmt 32

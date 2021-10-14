@@ -1,0 +1,14 @@
+*.py        diff=python
+
+*.anI       binary
+*.atr       binary
+*.d[0-9]    binary
+*.dat       binary
+*.edf       binary
+*.gz        binary
+*.mat       binary
+*.qrs       binary
+*.wabp      binary
+*.wav       binary
+*.wqrs      binary
+*.xyz       binary

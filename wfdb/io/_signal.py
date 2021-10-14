@@ -865,7 +865,7 @@ class SignalMixin(object):
 
 
 def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
-                samps_per_frame, skew, sampfrom, sampto, channels,
+                samps_per_frame, skew, init_value, sampfrom, sampto, channels,
                 smooth_frames, ignore_skew, no_file=False, sig_data=None, return_res=64):
     """
     Read the digital samples from a single segment record's associated
@@ -893,6 +893,8 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         The samples/frame for each signal of the dat file.
     skew : list
         The skew for the signals of the dat file.
+    init_value : list
+        The initial value for each signal of the dat file.
     sampfrom : int
         The starting sample number to be read from the signals.
     sampto : int
@@ -939,6 +941,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     byte_offset = byte_offset[:]
     samps_per_frame = samps_per_frame[:]
     skew = skew[:]
+    init_value = init_value[:]
 
     # Set defaults for empty fields
     for i in range(n_sig):
@@ -948,6 +951,8 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
             samps_per_frame[i] = 1
         if skew[i] == None:
             skew[i] = 0
+        if init_value[i] == None:
+            init_value[i] = 0
 
     # If skew is to be ignored, set all to 0
     if ignore_skew:
@@ -964,6 +969,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     w_byte_offset = {} # one scalar per dat file
     w_samps_per_frame = {} # one list per dat file
     w_skew = {} # one list per dat file
+    w_init_value = {} # one list per dat file
     w_channel = {} # one list per dat file
 
     for fn in file_name:
@@ -977,6 +983,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
             w_byte_offset[fn] = byte_offset[datchannel[fn][0]]
             w_samps_per_frame[fn] = [samps_per_frame[c] for c in datchannel[fn]]
             w_skew[fn] = [skew[c] for c in datchannel[fn]]
+            w_init_value[fn] = [init_value[c] for c in datchannel[fn]]
             w_channel[fn] = idc
 
     # Wanted dat channels, relative to the dat file itself
@@ -997,17 +1004,23 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         # Read each wanted dat file and store signals
         for fn in w_file_name:
-            if no_file:
-                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
-                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
-                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
-                    sampfrom, sampto, smooth_frames, no_file=True,
-                    sig_data=sig_data)[:, r_w_channel[fn]]
-            else:
-                signals[:, out_dat_channel[fn]] = _rd_dat_signals(fn, dir_name,
-                    pn_dir, w_fmt[fn], len(datchannel[fn]), sig_len,
-                    w_byte_offset[fn], w_samps_per_frame[fn], w_skew[fn],
-                    sampfrom, sampto, smooth_frames)[:, r_w_channel[fn]]
+            datsignals = _rd_dat_signals(
+                file_name=fn,
+                dir_name=dir_name,
+                pn_dir=pn_dir,
+                fmt=w_fmt[fn],
+                n_sig=len(datchannel[fn]),
+                sig_len=sig_len,
+                byte_offset=w_byte_offset[fn],
+                samps_per_frame=w_samps_per_frame[fn],
+                skew=w_skew[fn],
+                init_value=w_init_value[fn],
+                sampfrom=sampfrom,
+                sampto=sampto,
+                smooth_frames=smooth_frames,
+                no_file=no_file,
+                sig_data=sig_data)
+            signals[:, out_dat_channel[fn]] = datsignals[:, r_w_channel[fn]]
 
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
@@ -1016,16 +1029,22 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
         for fn in w_file_name:
             # Get the list of all signals contained in the dat file
-            if no_file:
-                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
-                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                    smooth_frames, no_file=True, sig_data=sig_data)
-            else:
-                datsignals = _rd_dat_signals(fn, dir_name, pn_dir, w_fmt[fn],
-                    len(datchannel[fn]), sig_len, w_byte_offset[fn],
-                    w_samps_per_frame[fn], w_skew[fn], sampfrom, sampto,
-                    smooth_frames)
+            datsignals = _rd_dat_signals(
+                file_name=fn,
+                dir_name=dir_name,
+                pn_dir=pn_dir,
+                fmt=w_fmt[fn],
+                n_sig=len(datchannel[fn]),
+                sig_len=sig_len,
+                byte_offset=w_byte_offset[fn],
+                samps_per_frame=w_samps_per_frame[fn],
+                skew=w_skew[fn],
+                init_value=w_init_value[fn],
+                sampfrom=sampfrom,
+                sampto=sampto,
+                smooth_frames=smooth_frames,
+                no_file=no_file,
+                sig_data=sig_data)
 
             # Copy over the wanted signals
             for cn in range(len(out_dat_channel[fn])):
@@ -1035,8 +1054,9 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
 
 def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
-                   byte_offset, samps_per_frame, skew, sampfrom, sampto,
-                   smooth_frames, no_file=False, sig_data=None):
+                    byte_offset, samps_per_frame, skew, init_value,
+                    sampfrom, sampto, smooth_frames,
+                    no_file=False, sig_data=None):
     """
     Read all signals from a WFDB dat file.
 
@@ -1062,6 +1082,8 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         The samples/frame for each signal of the dat file.
     skew : list
         The skew for the signals of the dat file.
+    init_value : list
+        The initial value for each signal of the dat file.
     sampfrom : int
         The starting sample number to be read from the signals.
     sampto : int
@@ -1159,6 +1181,32 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
             sig_data = (sig_data.astype('int16') - 128).astype('int8')
         elif fmt == '160':
             sig_data = (sig_data.astype('int32') - 32768).astype('int16')
+
+    # For format 8, convert sample differences to absolute samples.  Note
+    # that if sampfrom is not 0, the results will be wrong, since we can't
+    # know the starting value without reading the entire record from the
+    # beginning - an inherent limitation of the format, and the use of
+    # format 8 is discouraged for this reason!  However, the following is
+    # consistent with the behavior of the WFDB library: the initial value
+    # specified by the header file is used as the starting sample value,
+    # regardless of where in the record we begin reading.  Therefore, the
+    # following should give the same results as rdsamp.
+    if fmt == '8':
+        dif_frames = sig_data.reshape(-1, tsamps_per_frame)
+        abs_frames = np.empty(dif_frames.shape, dtype='int32')
+        ch_start = 0
+        for ch in range(n_sig):
+            ch_end = ch_start + samps_per_frame[ch]
+            # Extract sample differences as a 2D array
+            ch_dif_signal = dif_frames[:, ch_start:ch_end]
+            # Convert to a 1D array of absolute samples
+            ch_abs_signal = ch_dif_signal.cumsum(dtype=abs_frames.dtype)
+            ch_abs_signal += init_value[ch]
+            # Transfer to the output array
+            ch_abs_signal = ch_abs_signal.reshape(ch_dif_signal.shape)
+            abs_frames[:, ch_start:ch_end] = ch_abs_signal
+            ch_start = ch_end
+        sig_data = abs_frames.reshape(-1)
 
     # At this point, dtype of sig_data is the minimum integer format
     # required for storing the final digital samples.
@@ -1472,14 +1520,6 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         sig[sig > 2047] -= 4096
 
     elif fmt == '310':
-        # Easier to process when dealing with whole blocks
-        if n_samp % 3:
-            n_samp = upround(n_samp,3)
-            added_samps = n_samp % 3
-            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
-        else:
-            added_samps = 0
-
         sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
@@ -1491,24 +1531,11 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         # Third signal is 5 msb of second byte and 5 msb of forth byte
         sig[2::3] = np.bitwise_and((sig_data[1::4] >> 3), 0x1f)[0:len(sig[2::3])] + 32 * np.bitwise_and(sig_data[3::4] >> 3, 0x1f)[0:len(sig[2::3])]
 
-        # Remove trailing samples read within the byte block if
-        # originally not 3n sampled
-        if added_samps:
-            sig = sig[:-added_samps]
-
         # Loaded values as un_signed. Convert to 2's complement form:
         # values > 2^9-1 are negative.
         sig[sig > 511] -= 1024
 
     elif fmt == '311':
-        # Easier to process when dealing with whole blocks
-        if n_samp % 3:
-            n_samp = upround(n_samp,3)
-            added_samps = n_samp % 3
-            sig_data = np.append(sig_data, np.zeros(added_samps, dtype='uint8'))
-        else:
-            added_samps = 0
-
         sig_data = sig_data.astype('int16')
         sig = np.zeros(n_samp, dtype='int16')
 
@@ -1519,11 +1546,6 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         sig[1::3] = (sig_data[1::4] >> 2)[0:len(sig[1::3])] + 64 * np.bitwise_and(sig_data[2::4], 0x0f)[0:len(sig[1::3])]
         # Third sample is 4 msb of third byte and 6 msb of forth byte
         sig[2::3] = (sig_data[2::4] >> 4)[0:len(sig[2::3])] + 16 * np.bitwise_and(sig_data[3::4], 0x7f)[0:len(sig[2::3])]
-
-        # Remove trailing samples read within the byte block if
-        # originally not 3n sampled
-        if added_samps:
-            sig = sig[:-added_samps]
 
         # Loaded values as un_signed. Convert to 2's complement form.
         # Values > 2^9-1 are negative.
