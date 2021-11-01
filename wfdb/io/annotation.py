@@ -1369,17 +1369,28 @@ def field2bytes(field, value):
         sd = value[0]
 
         data_bytes = []
-        # Add SKIP elements if value is too large
-        while sd > 0x7fffffff:
-            data_bytes += [0, 59 << 2, 0xff, 0x7f, 0xff, 0xff]
-            sd -= 0x7fffffff
-        if sd > 1023:
+
+        # Add SKIP element(s) if the sample difference is too large to
+        # be stored in the annotation type word.
+        #
+        # Each SKIP element consists of three words (6 bytes):
+        #  - Bytes 0-1 contain the SKIP indicator (59 << 10)
+        #  - Bytes 2-3 contain the high 16 bits of the sample difference
+        #  - Bytes 4-5 contain the low 16 bits of the sample difference
+        # If the total difference exceeds 2**31 - 1, multiple skips must
+        # be used.
+        while sd > 1023:
+            n = min(sd, 0x7fffffff)
             data_bytes += [0, 59 << 2,
-                           (sd >> 16) & 255,
-                           (sd >> 24) & 255,
-                           (sd >> 0) & 255,
-                           (sd >> 8) & 255]
-            sd = 0
+                           (n >> 16) & 255,
+                           (n >> 24) & 255,
+                           (n >> 0) & 255,
+                           (n >> 8) & 255]
+            sd -= n
+
+        # Annotation type itself is stored as a single word:
+        #  - bits 0 to 9 store the sample difference (0 to 1023)
+        #  - bits 10 to 15 store the type code
         data_bytes += [sd & 255, ((sd & 768) >> 8) + 4 * typecode]
 
     elif field == 'num':
