@@ -705,14 +705,9 @@ class SignalMixin(object):
                 if current_dtype != return_dtype:
                     self.p_signal = self.p_signal.astype(return_dtype, copy=False)
             else:
-                if self.e_p_signal is not None:
-                    for ch in range(self.n_sig):
-                        if self.e_p_signal[ch].dtype != return_dtype:
-                            self.e_p_signal[ch] = self.e_p_signal[ch].astype(return_dtype, copy=False)
-                else:
-                    for ch in range(self.n_sig):
-                        if self.p_signal[ch].dtype != return_dtype:
-                            self.p_signal[ch] = self.p_signal[ch].astype(return_dtype, copy=False)
+                for ch in range(self.n_sig):
+                    if self.e_p_signal[ch].dtype != return_dtype:
+                        self.e_p_signal[ch] = self.e_p_signal[ch].astype(return_dtype, copy=False)
         else:
             return_dtype = 'int'+str(return_res)
             if smooth_frames:
