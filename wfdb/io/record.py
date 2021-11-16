@@ -625,11 +625,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                     print('Mismatch in attribute: %s' % k, v1, v2)
                 return False
 
-            if type(v1) == np.ndarray:
+            if isinstance(v1, np.ndarray):
                 # Necessary for nans
                 np.testing.assert_array_equal(v1, v2)
-            elif (type(v1) == list and len(v1) == len(v2)
-                  and all(type(e) == np.ndarray for e in v1)):
+            elif (isinstance(v1, list) and len(v1) == len(v2)
+                  and all(isinstance(e, np.ndarray) for e in v1)):
                 for (e1, e2) in zip(v1, v2):
                     np.testing.assert_array_equal(e1, e2)
             else:
