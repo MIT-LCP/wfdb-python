@@ -54,7 +54,7 @@ setup(
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
-    # https://packaging.python.org/en/latest/requirements.html
+    # https://packaging.python.org/en/latest/discussions/install-requires-vs-requirements/?highlight=requirements
     install_requires=[
         'matplotlib>=3.3.4',
         'numpy>=1.10.1',
