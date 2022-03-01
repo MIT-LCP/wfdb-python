@@ -698,9 +698,9 @@ class SignalMixin(object):
         N/A
 
         """
-        if physical is True:
+        if physical:
             return_dtype = 'float'+str(return_res)
-            if smooth_frames is True:
+            if smooth_frames:
                 current_dtype = self.p_signal.dtype
                 if current_dtype != return_dtype:
                     self.p_signal = self.p_signal.astype(return_dtype, copy=False)
@@ -715,7 +715,7 @@ class SignalMixin(object):
                             self.p_signal[ch] = self.p_signal[ch].astype(return_dtype, copy=False)
         else:
             return_dtype = 'int'+str(return_res)
-            if smooth_frames is True:
+            if smooth_frames:
                 current_dtype = self.d_signal.dtype
                 if current_dtype != return_dtype:
                     # Do not allow changing integer dtype to lower value due to over/underflow
