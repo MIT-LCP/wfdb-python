@@ -1891,7 +1891,7 @@ def _np_dtype(bit_res, discrete):
         if bit_res <= np_res:
             break
 
-    if discrete is True:
+    if discrete:
         return 'int' + str(np_res)
     else:
         # No float8 dtype
