@@ -841,6 +841,12 @@ class SignalMixin(object):
 
         n_sig = len(expanded_signal)
         sig_len = int(len(expanded_signal[0])/spf[0])
+        for ch in range(n_sig):
+            if len(expanded_signal[ch]) != sig_len * spf[ch]:
+                raise ValueError("length mismatch: signal %d has %d samples,"
+                                 " expected %dx%d"
+                                 % (ch, len(expanded_signal),
+                                    sig_len, spf[ch]))
         signal = np.zeros((sig_len, n_sig), dtype=output_dtype)
 
         for ch in range(n_sig):
