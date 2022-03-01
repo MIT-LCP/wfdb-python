@@ -831,32 +831,25 @@ class SignalMixin(object):
         tspf = sum(spf)
 
         if sigtype == 'physical':
-            n_sig = len(self.e_p_signal)
-            sig_len = int(len(self.e_p_signal[0])/spf[0])
-            signal = np.zeros((sig_len, n_sig), dtype='float64')
-
-            for ch in range(n_sig):
-                if spf[ch] == 1:
-                    signal[:, ch] = self.e_p_signal[ch]
-                else:
-                    for frame in range(spf[ch]):
-                        signal[:, ch] += self.e_p_signal[ch][frame::spf[ch]]
-                    signal[:, ch] = signal[:, ch] / spf[ch]
-
+            expanded_signal = self.e_p_signal
+            output_dtype = np.dtype('float64')
         elif sigtype == 'digital':
-            n_sig = len(self.e_d_signal)
-            sig_len = int(len(self.e_d_signal[0])/spf[0])
-            signal = np.zeros((sig_len, n_sig), dtype='int64')
-
-            for ch in range(n_sig):
-                if spf[ch] == 1:
-                    signal[:, ch] = self.e_d_signal[ch]
-                else:
-                    for frame in range(spf[ch]):
-                        signal[:, ch] += self.e_d_signal[ch][frame::spf[ch]]
-                    signal[:, ch] = signal[:, ch] / spf[ch]
+            expanded_signal = self.e_d_signal
+            output_dtype = np.dtype('int64')
         else:
             raise ValueError("sigtype must be 'physical' or 'digital'")
+
+        n_sig = len(expanded_signal)
+        sig_len = int(len(expanded_signal[0])/spf[0])
+        signal = np.zeros((sig_len, n_sig), dtype=output_dtype)
+
+        for ch in range(n_sig):
+            if spf[ch] == 1:
+                signal[:, ch] = expanded_signal[ch]
+            else:
+                for frame in range(spf[ch]):
+                    signal[:, ch] += expanded_signal[ch][frame::spf[ch]]
+                signal[:, ch] = signal[:, ch] / spf[ch]
 
         return signal
 
