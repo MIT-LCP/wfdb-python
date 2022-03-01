@@ -827,9 +827,6 @@ class SignalMixin(object):
             if spf[ch] is None:
                 spf[ch] = 1
 
-        # Total samples per frame
-        tspf = sum(spf)
-
         # The output data type should be the smallest type that can
         # represent any input sample value.  The intermediate data type
         # must be able to represent the sum of spf[ch] sample values.
@@ -854,7 +851,7 @@ class SignalMixin(object):
             raise ValueError("sigtype must be 'physical' or 'digital'")
 
         n_sig = len(expanded_signal)
-        sig_len = int(len(expanded_signal[0])/spf[0])
+        sig_len = len(expanded_signal[0]) // spf[0]
         input_dtypes = set()
         for ch in range(n_sig):
             if len(expanded_signal[ch]) != sig_len * spf[ch]:
@@ -868,15 +865,22 @@ class SignalMixin(object):
             if all(dt <= output_dtype for dt in input_dtypes):
                 break
 
-        signal = np.zeros((sig_len, n_sig), dtype=output_dtype)
+        signal = np.empty((sig_len, n_sig), dtype=output_dtype)
+
+        # Large input arrays will be processed in chunks to avoid the need
+        # to allocate a single huge temporary array.
+        CHUNK_SIZE = 65536
 
         for ch in range(n_sig):
             if spf[ch] == 1:
                 signal[:, ch] = expanded_signal[ch]
             else:
                 frames = expanded_signal[ch].reshape(-1, spf[ch])
-                signal_sum = np.sum(frames, axis=1, dtype=intermediate_dtype)
-                signal[:, ch] = signal_sum / spf[ch]
+                for chunk_start in range(0, sig_len, CHUNK_SIZE):
+                    chunk_end = chunk_start + CHUNK_SIZE
+                    signal_sum = np.sum(frames[chunk_start:chunk_end, :],
+                                        axis=1, dtype=intermediate_dtype)
+                    signal[chunk_start:chunk_end, ch] = signal_sum / spf[ch]
 
         return signal
 
