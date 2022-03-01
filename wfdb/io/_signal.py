@@ -830,32 +830,53 @@ class SignalMixin(object):
         # Total samples per frame
         tspf = sum(spf)
 
+        # The output data type should be the smallest type that can
+        # represent any input sample value.  The intermediate data type
+        # must be able to represent the sum of spf[ch] sample values.
+
         if sigtype == 'physical':
             expanded_signal = self.e_p_signal
-            output_dtype = np.dtype('float64')
+            intermediate_dtype = np.dtype('float64')
+            allowed_dtypes = [
+                np.dtype('float32'),
+                np.dtype('float64'),
+            ]
         elif sigtype == 'digital':
             expanded_signal = self.e_d_signal
-            output_dtype = np.dtype('int64')
+            intermediate_dtype = np.dtype('int64')
+            allowed_dtypes = [
+                np.dtype('int8'),
+                np.dtype('int16'),
+                np.dtype('int32'),
+                np.dtype('int64'),
+            ]
         else:
             raise ValueError("sigtype must be 'physical' or 'digital'")
 
         n_sig = len(expanded_signal)
         sig_len = int(len(expanded_signal[0])/spf[0])
+        input_dtypes = set()
         for ch in range(n_sig):
             if len(expanded_signal[ch]) != sig_len * spf[ch]:
                 raise ValueError("length mismatch: signal %d has %d samples,"
                                  " expected %dx%d"
                                  % (ch, len(expanded_signal),
                                     sig_len, spf[ch]))
+            input_dtypes.add(expanded_signal[ch].dtype)
+
+        for output_dtype in allowed_dtypes:
+            if all(dt <= output_dtype for dt in input_dtypes):
+                break
+
         signal = np.zeros((sig_len, n_sig), dtype=output_dtype)
 
         for ch in range(n_sig):
             if spf[ch] == 1:
                 signal[:, ch] = expanded_signal[ch]
             else:
-                for frame in range(spf[ch]):
-                    signal[:, ch] += expanded_signal[ch][frame::spf[ch]]
-                signal[:, ch] = signal[:, ch] / spf[ch]
+                frames = expanded_signal[ch].reshape(-1, spf[ch])
+                signal_sum = np.sum(frames, axis=1, dtype=intermediate_dtype)
+                signal[:, ch] = signal_sum / spf[ch]
 
         return signal
 
