@@ -409,12 +409,12 @@ class BaseRecord(object):
 
         if return_res not in [64, 32, 16, 8]:
             raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
-        if physical is True and return_res == 8:
+        if physical and return_res == 8:
             raise ValueError("return_res must be one of the following when physical is True: 64, 32, 16")
 
         # Cannot expand multiple samples/frame for multi-segment records
         if isinstance(self, MultiRecord):
-            if smooth_frames is False:
+            if not smooth_frames:
                 raise ValueError('This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing.')
 
 
