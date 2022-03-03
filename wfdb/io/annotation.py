@@ -466,8 +466,6 @@ class Annotation(object):
                 raise ValueError("The 'sample' field must only contain non-negative integers")
             if min(sampdiffs) < 0 :
                 raise ValueError("The 'sample' field must contain monotonically increasing sample numbers")
-            if max(sampdiffs) > 2147483648:
-                raise ValueError('WFDB annotation files cannot store sample differences greater than 2**31')
 
         elif field == 'label_store':
             if min(item) < 1 or max(item) > 49:
@@ -1370,19 +1368,30 @@ def field2bytes(field, value):
         # sample difference
         sd = value[0]
 
-        # Add SKIP element if value is too large for single byte
-        if sd>1023:
-            # 8 bytes in total:
-            # - [0, 59>>2] indicates SKIP
-            # - Next 4 gives sample difference
-            # - Final 2 give 0 and sym
-            data_bytes = [0, 236, (sd&16711680)>>16, (sd&4278190080)>>24, sd&255, (sd&65280)>>8, 0, 4*typecode]
-        # Just need samp and sym
-        else:
-            # - First byte stores low 8 bits of samp
-            # - Second byte stores high 2 bits of samp
-            #   and sym
-            data_bytes = [sd & 255, ((sd & 768) >> 8) + 4*typecode]
+        data_bytes = []
+
+        # Add SKIP element(s) if the sample difference is too large to
+        # be stored in the annotation type word.
+        #
+        # Each SKIP element consists of three words (6 bytes):
+        #  - Bytes 0-1 contain the SKIP indicator (59 << 10)
+        #  - Bytes 2-3 contain the high 16 bits of the sample difference
+        #  - Bytes 4-5 contain the low 16 bits of the sample difference
+        # If the total difference exceeds 2**31 - 1, multiple skips must
+        # be used.
+        while sd > 1023:
+            n = min(sd, 0x7fffffff)
+            data_bytes += [0, 59 << 2,
+                           (n >> 16) & 255,
+                           (n >> 24) & 255,
+                           (n >> 0) & 255,
+                           (n >> 8) & 255]
+            sd -= n
+
+        # Annotation type itself is stored as a single word:
+        #  - bits 0 to 9 store the sample difference (0 to 1023)
+        #  - bits 10 to 15 store the type code
+        data_bytes += [sd & 255, ((sd & 768) >> 8) + 4 * typecode]
 
     elif field == 'num':
         # First byte stores num
@@ -1653,8 +1662,11 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
                                              subtype, chan, num, aux_note)
 
     # Convert lists to numpy arrays dtype='int'
-    (sample, label_store, subtype,
-     chan, num) = lists_to_int_arrays(sample, label_store, subtype, chan, num)
+    (label_store, subtype,
+     chan, num) = lists_to_int_arrays(label_store, subtype, chan, num)
+
+    # Convert sample numbers to a numpy array of 'int64'
+    sample = np.array(sample, dtype='int64')
 
     # Try to get fs from the header file if it is not contained in the
     # annotation file
@@ -1748,8 +1760,8 @@ def load_byte_pairs(record_name, extension, pn_dir):
 
     Returns
     -------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
 
     """
     # local file
@@ -1769,8 +1781,8 @@ def proc_ann_bytes(filebytes, sampto):
 
     Parameters
     ----------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
     sampto : int
         The maximum sample number for annotations to be returned.
     
@@ -1852,8 +1864,8 @@ def proc_core_fields(filebytes, bpi):
 
     Parameters
     ----------
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : ndarray
+        The input filestream converted to an Nx2 array of unsigned bytes.
     bpi : int
         The index to start the conversion.
 
@@ -1869,31 +1881,28 @@ def proc_core_fields(filebytes, bpi):
         The index to start the conversion.
 
     """
-    label_store = filebytes[bpi, 1] >> 2
+    sample_diff = 0
 
     # The current byte pair will contain either the actual d_sample + annotation store value,
     # or 0 + SKIP.
-
-    # Not a skip - it is the actual sample number + annotation type store value
-    if label_store != 59:
-        sample_diff = filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3)
-        bpi = bpi + 1
-    # Skip. Note: Could there be another skip after the first?
-    else:
+    while filebytes[bpi, 1] >> 2 == 59:
         # 4 bytes storing dt
-        sample_diff = 65536 * filebytes[bpi + 1,0] + 16777216 * filebytes[bpi + 1,1] \
-             + filebytes[bpi + 2,0] + 256 * filebytes[bpi + 2,1]
+        skip_diff = ((int(filebytes[bpi + 1, 0]) << 16)
+                     + (int(filebytes[bpi + 1, 1]) << 24)
+                     + (int(filebytes[bpi + 2, 0]) << 0)
+                     + (int(filebytes[bpi + 2, 1]) << 8))
 
         # Data type is long integer (stored in two's complement). Range -2**31 to 2**31 - 1
-        if sample_diff > 2147483647:
-            sample_diff = sample_diff - 4294967296
+        if skip_diff > 2147483647:
+            skip_diff = skip_diff - 4294967296
 
-        # After the 4 bytes, the next pair's samp is also added
-        sample_diff = sample_diff + filebytes[bpi + 3, 0] + 256 * (filebytes[bpi + 3, 1] & 3)
+        sample_diff += skip_diff
+        bpi = bpi + 3
 
-        # The label is stored after the 4 bytes. Samples here should be 0.
-        label_store = filebytes[bpi + 3, 1] >> 2
-        bpi = bpi + 4
+    # Not a skip - it is the actual sample number + annotation type store value
+    label_store = filebytes[bpi, 1] >> 2
+    sample_diff += int(filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3))
+    bpi = bpi + 1
 
     return sample_diff, label_store, bpi
 
