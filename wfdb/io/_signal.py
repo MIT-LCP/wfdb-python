@@ -900,7 +900,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
     sampto : int
         The final sample number to be read from the signals.
     smooth_frames : bool
-        Whether to return the result as a two-dimensional array.
+        Deprecated.  Must be set to False.
     ignore_skew : bool
         Used when reading records with at least one skewed signal.
         Specifies whether to apply the skew to align the signals in the
@@ -920,16 +920,14 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
     Returns
     -------
-    signals : ndarray, list
-        The signals read from the dat file(s). A 2d numpy array is
-        returned if `smooth_frames` is True. Otherwise a list of 1d
-        numpy arrays is returned.
+    signals : list
+        The signals read from the dat file(s). Each signal is returned as a
+        one-dimensional numpy array.
 
     Notes
     -----
-    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
-    are user desired input fields. All other parameters are
-    specifications of the segment.
+    'channels', 'sampfrom', 'sampto', and 'ignore_skew' are user desired
+    input fields. All other parameters are specifications of the segment.
 
     """
     # Check for valid inputs
@@ -993,61 +991,35 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
         out_dat_channel[fn] = [channels.index(c) for c in w_channel[fn]]
 
-    # Signals with multiple samples/frame are smoothed, or all signals have 1 sample/frame.
-    # Return uniform numpy array
     if smooth_frames:
-        # Figure out the largest required dtype for the segment to minimize memory usage
-        max_dtype = _np_dtype(_fmt_res(fmt, max_res=True), discrete=True)
-        # Allocate signal array. Minimize dtype
-        signals = np.zeros([sampto-sampfrom, len(channels)], dtype=max_dtype)
-
-        # Read each wanted dat file and store signals
-        for fn in w_file_name:
-            datsignals = _rd_dat_signals(
-                file_name=fn,
-                dir_name=dir_name,
-                pn_dir=pn_dir,
-                fmt=w_fmt[fn],
-                n_sig=len(datchannel[fn]),
-                sig_len=sig_len,
-                byte_offset=w_byte_offset[fn],
-                samps_per_frame=w_samps_per_frame[fn],
-                skew=w_skew[fn],
-                init_value=w_init_value[fn],
-                sampfrom=sampfrom,
-                sampto=sampto,
-                smooth_frames=smooth_frames,
-                no_file=no_file,
-                sig_data=sig_data)
-            signals[:, out_dat_channel[fn]] = datsignals[:, r_w_channel[fn]]
+        raise ValueError('smooth_frames=True is not supported')
 
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
-    else:
-        signals = [None] * len(channels)
+    signals = [None] * len(channels)
 
-        for fn in w_file_name:
-            # Get the list of all signals contained in the dat file
-            datsignals = _rd_dat_signals(
-                file_name=fn,
-                dir_name=dir_name,
-                pn_dir=pn_dir,
-                fmt=w_fmt[fn],
-                n_sig=len(datchannel[fn]),
-                sig_len=sig_len,
-                byte_offset=w_byte_offset[fn],
-                samps_per_frame=w_samps_per_frame[fn],
-                skew=w_skew[fn],
-                init_value=w_init_value[fn],
-                sampfrom=sampfrom,
-                sampto=sampto,
-                smooth_frames=smooth_frames,
-                no_file=no_file,
-                sig_data=sig_data)
+    for fn in w_file_name:
+        # Get the list of all signals contained in the dat file
+        datsignals = _rd_dat_signals(
+            file_name=fn,
+            dir_name=dir_name,
+            pn_dir=pn_dir,
+            fmt=w_fmt[fn],
+            n_sig=len(datchannel[fn]),
+            sig_len=sig_len,
+            byte_offset=w_byte_offset[fn],
+            samps_per_frame=w_samps_per_frame[fn],
+            skew=w_skew[fn],
+            init_value=w_init_value[fn],
+            sampfrom=sampfrom,
+            sampto=sampto,
+            smooth_frames=smooth_frames,
+            no_file=no_file,
+            sig_data=sig_data)
 
-            # Copy over the wanted signals
-            for cn in range(len(out_dat_channel[fn])):
-                signals[out_dat_channel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
+        # Copy over the wanted signals
+        for cn in range(len(out_dat_channel[fn])):
+            signals[out_dat_channel[fn][cn]] = datsignals[r_w_channel[fn][cn]]
 
     return signals
 
@@ -1088,7 +1060,7 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     sampto : int
         The final sample number to be read from the signals.
     smooth_frames : bool
-        Whether to return the result as a two-dimensional array.
+        Deprecated.  Must be set to False.
     no_file : bool, optional
         Used when using this function with just an array of signal data
         and no associated file to read the data from.
@@ -1099,15 +1071,13 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     Returns
     -------
     signal : ndarray, list
-        The signals read from the dat file(s). A 2d numpy array is
-        returned if `smooth_frames` is True. Otherwise a list of 1d
-        numpy arrays is returned.
+        The signals read from the dat file(s). Each signal is returned as a
+        one-dimensional numpy array.
 
     Notes
     -----
-    'channels', 'sampfrom', 'sampto', 'smooth_frames', and 'ignore_skew'
-    are user desired input fields. All other parameters are
-    specifications of the segment.
+    'channels', 'sampfrom', 'sampto', and 'ignore_skew' are user desired
+    input fields. All other parameters are specifications of the segment.
 
     """
     # Check for valid inputs
@@ -1209,46 +1179,21 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
     # At this point, dtype of sig_data is the minimum integer format
     # required for storing the final digital samples.
 
-    # No extra samples/frame. Obtain original uniform numpy array
-    if smooth_frames and tsamps_per_frame == n_sig:
-        # Reshape into multiple channels
-        signal = sig_data.reshape(-1, n_sig)
-        # Skew the signal
-        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace)
-    # Extra frames present to be smoothed. Obtain averaged uniform numpy array
-    elif smooth_frames:
-        # Allocate memory for smoothed signal.
-        signal = np.zeros((int(len(sig_data) / tsamps_per_frame) , n_sig),
-                       dtype=sig_data.dtype)
+    if smooth_frames:
+        raise ValueError('smooth_frames=True is not supported')
 
-        # Transfer and average samples
-        for ch in range(n_sig):
-            if samps_per_frame[ch] == 1:
-                signal[:, ch] = sig_data[sum(([0] + samps_per_frame)[:ch + 1])::tsamps_per_frame]
-            else:
-                if ch == 0:
-                    startind = 0
-                else:
-                    startind = np.sum(samps_per_frame[:ch])
-                signal[:,ch] = [np.average(sig_data[ind:ind+samps_per_frame[ch]]) for ind in range(startind,len(sig_data),tsamps_per_frame)]
-        # Skew the signal
-        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace)
-
-    # Extra frames present without wanting smoothing. Return all
-    # expanded samples.
-    else:
-        # List of 1d numpy arrays
-        signal = []
-        # Transfer over samples
-        sig_frames = sig_data.reshape(-1, tsamps_per_frame)
-        ch_start = 0
-        for ch in range(n_sig):
-            ch_end = ch_start + samps_per_frame[ch]
-            ch_signal = sig_frames[:, ch_start:ch_end].reshape(-1)
-            signal.append(ch_signal)
-            ch_start = ch_end
-        # Skew the signal
-        signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
+    # List of 1d numpy arrays
+    signal = []
+    # Transfer over samples
+    sig_frames = sig_data.reshape(-1, tsamps_per_frame)
+    ch_start = 0
+    for ch in range(n_sig):
+        ch_end = ch_start + samps_per_frame[ch]
+        ch_signal = sig_frames[:, ch_start:ch_end].reshape(-1)
+        signal.append(ch_signal)
+        ch_start = ch_end
+    # Skew the signal
+    signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
 
     # Integrity check of signal shape after reading
     _check_sig_dims(signal, read_len, n_sig, samps_per_frame)
