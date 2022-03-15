@@ -866,7 +866,7 @@ class SignalMixin(object):
 
 def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
                 samps_per_frame, skew, init_value, sampfrom, sampto, channels,
-                smooth_frames, ignore_skew, no_file=False, sig_data=None, return_res=64):
+                ignore_skew, no_file=False, sig_data=None, return_res=64):
     """
     Read the digital samples from a single segment record's associated
     dat file(s).
@@ -899,8 +899,6 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         The starting sample number to be read from the signals.
     sampto : int
         The final sample number to be read from the signals.
-    smooth_frames : bool
-        Deprecated.  Must be set to False.
     ignore_skew : bool
         Used when reading records with at least one skewed signal.
         Specifies whether to apply the skew to align the signals in the
@@ -991,9 +989,6 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
         r_w_channel[fn] = [c - min(datchannel[fn]) for c in w_channel[fn]]
         out_dat_channel[fn] = [channels.index(c) for c in w_channel[fn]]
 
-    if smooth_frames:
-        raise ValueError('smooth_frames=True is not supported')
-
     # Return each sample in signals with multiple samples/frame, without smoothing.
     # Return a list of numpy arrays for each signal.
     signals = [None] * len(channels)
@@ -1013,7 +1008,6 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
             init_value=w_init_value[fn],
             sampfrom=sampfrom,
             sampto=sampto,
-            smooth_frames=smooth_frames,
             no_file=no_file,
             sig_data=sig_data)
 
@@ -1026,8 +1020,7 @@ def _rd_segment(file_name, dir_name, pn_dir, fmt, n_sig, sig_len, byte_offset,
 
 def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
                     byte_offset, samps_per_frame, skew, init_value,
-                    sampfrom, sampto, smooth_frames,
-                    no_file=False, sig_data=None):
+                    sampfrom, sampto, no_file=False, sig_data=None):
     """
     Read all signals from a WFDB dat file.
 
@@ -1059,8 +1052,6 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
         The starting sample number to be read from the signals.
     sampto : int
         The final sample number to be read from the signals.
-    smooth_frames : bool
-        Deprecated.  Must be set to False.
     no_file : bool, optional
         Used when using this function with just an array of signal data
         and no associated file to read the data from.
@@ -1178,9 +1169,6 @@ def _rd_dat_signals(file_name, dir_name, pn_dir, fmt, n_sig, sig_len,
 
     # At this point, dtype of sig_data is the minimum integer format
     # required for storing the final digital samples.
-
-    if smooth_frames:
-        raise ValueError('smooth_frames=True is not supported')
 
     # List of 1d numpy arrays
     signal = []
