@@ -355,7 +355,8 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                 raise Exception('IndexError: try setting shift_samps=True in ' 
                                 'the "rdann" function?')
 
-            axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch])
+            axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch],
+                          zorder=4)
 
             # Plot the annotation symbols if any
             if ann_sym is not None and ann_sym[ch] is not None:
