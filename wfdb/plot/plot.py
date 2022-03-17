@@ -779,12 +779,25 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                                                               annotation=annotation,
                                                               plot_sym=plot_sym)
 
+    if record:
+        sampling_freq = record.fs
+    else:
+        sampling_freq = None
+
+    if annotation and annotation.fs is not None:
+        ann_freq = annotation.fs
+    elif record:
+        ann_freq = record.fs
+    else:
+        ann_freq = None
+
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
                       time_units=time_units, ylabel=ylabel,
                       title=(title or record_name),
                       sig_style=sig_style, sig_units=sig_units,
                       ann_style=ann_style, ecg_grids=ecg_grids,
-                      figsize=figsize, return_fig=return_fig)
+                      figsize=figsize, return_fig=return_fig,
+                      sampling_freq=sampling_freq, ann_freq=ann_freq)
 
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
