@@ -364,10 +364,14 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
 
     Parameters
     ----------
-    signal : ndarray
-        Tranformed expanded signal into uniform signal.
+    signal : 1d or 2d numpy array or list
+        The uniformly sampled signal or signals to be plotted.  If signal
+        is a one-dimensional array, it is assumed to represent a single
+        channel.  If it is a two-dimensional array, axes 0 and 1 must
+        represent time and channel number respectively.  Otherwise it must
+        be a list of one-dimensional arrays (one for each channel).
     sig_len : int
-        The signal length (per channel) of the dat file.
+        The signal length (per channel) of the dat file.  Deprecated.
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
@@ -392,6 +396,8 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
     N/A
 
     """
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
     if n_sig == 0:
         return
 
@@ -402,27 +408,24 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
     # Convert sampling_freq to a list if needed
     sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
 
-    if any(f != sampling_freq[0] for f in sampling_freq):
-        raise NotImplementedError(
-            'multiple sampling frequencies are not supported')
-
-    # Figure out time indices
-    if time_units == 'samples':
-        t = np.linspace(0, sig_len-1, sig_len)
-    else:
-        downsample_factor = {
-            'seconds': sampling_freq[0],
-            'minutes': sampling_freq[0] * 60,
-            'hours': sampling_freq[0] * 3600
-        }
-        t = np.linspace(0, sig_len-1, sig_len) / downsample_factor[time_units]
-
     # Plot the signals
-    if signal.ndim == 1:
-        axes[0].plot(t, signal, sig_style[0], zorder=3)
-    else:
-        for ch in range(n_sig):
-            axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3)
+    for ch in range(n_sig):
+        ch_len = len(signal[ch])
+        ch_freq = sampling_freq[ch]
+
+        # Figure out time indices
+        if time_units == 'samples':
+            t = np.linspace(0, ch_len-1, ch_len)
+        else:
+            downsample_factor = {
+                'seconds': ch_freq,
+                'minutes': ch_freq * 60,
+                'hours': ch_freq * 3600
+            }
+            t = np.linspace(0, ch_len-1, ch_len)
+            t /= downsample_factor[time_units]
+
+        axes[ch].plot(t, signal[ch], sig_style[ch], zorder=3)
 
 
 def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
