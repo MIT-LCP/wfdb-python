@@ -857,14 +857,19 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     if record:
         if record.p_signal is not None:
             signal = record.p_signal
+            physical = True
         elif record.d_signal is not None:
             signal = record.d_signal
+            physical = False
         else:
             raise ValueError('The record has no signal to plot')
 
         fs = record.fs
         sig_name = [str(s) for s in record.sig_name]
-        sig_units = [str(s) for s in record.units]
+        if physical:
+            sig_units = [str(s) for s in record.units]
+        else:
+            sig_units = ['adu'] * n_sig
         record_name = 'Record: %s' % record.record_name
         ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
