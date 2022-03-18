@@ -275,10 +275,12 @@ def get_plot_dims(signal, ann_samp):
 
     Parameters
     ----------
-    signal : 1d or 2d numpy array, optional
-        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
-        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
-        represent time and channel number respectively.
+    signal : 1d or 2d numpy array or list, optional
+        The uniformly sampled signal or signals to be plotted.  If signal
+        is a one-dimensional array, it is assumed to represent a single
+        channel.  If it is a two-dimensional array, axes 0 and 1 must
+        represent time and channel number respectively.  Otherwise it must
+        be a list of one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -297,7 +299,7 @@ def get_plot_dims(signal, ann_samp):
     Returns
     -------
     sig_len : int
-        The signal length (per channel) of the dat file.
+        The signal length (per channel) of the dat file.  Deprecated.
     n_sig : int
         The number of signals contained in the dat file.
     n_annot : int
@@ -306,13 +308,14 @@ def get_plot_dims(signal, ann_samp):
         The max between number of signals and annotations.
 
     """
-    if signal is not None:
-        if signal.ndim == 1:
-            sig_len = len(signal)
-            n_sig = 1
-        else:
-            sig_len = signal.shape[0]
-            n_sig = signal.shape[1]
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+
+    if signal:
+        n_sig = len(signal)
+        sig_len = len(signal[0])
+        if any(len(s) != sig_len for s in signal):
+            sig_len = None
     else:
         sig_len = 0
         n_sig = 0
