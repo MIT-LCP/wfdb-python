@@ -404,8 +404,6 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         The values of the annotation symbol locations.
     signal : ndarray
         Tranformed expanded signal into uniform signal.
-    sig_len : int
-        The signal length (per channel) of the dat file.
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
