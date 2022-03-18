@@ -768,8 +768,9 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     function, while allowing direct input of WFDB objects.
 
     If the record object is input, the function will extract from it:
-      - signal values, from the `p_signal` (priority) or `d_signal` attribute
-      - sampling frequency, from the `fs` attribute
+      - signal values, from the `e_p_signal`, `e_d_signal`, `p_signal`, or
+        `d_signal` attribute (in that order of priority.)
+      - frame frequency, from the `fs` attribute
       - signal names, from the `sig_name` attribute
       - signal units, from the `units` attribute
 
@@ -836,7 +837,10 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                                                               plot_sym=plot_sym)
 
     if record:
-        sampling_freq = record.fs
+        if record.e_p_signal is not None or record.e_d_signal is not None:
+            sampling_freq = [spf * record.fs for spf in record.samps_per_frame]
+        else:
+            sampling_freq = record.fs
     else:
         sampling_freq = None
 
@@ -913,11 +917,21 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     """
     # Get record attributes
     if record:
-        if record.p_signal is not None:
+        if record.e_p_signal is not None:
+            signal = record.e_p_signal
+            n_sig = len(signal)
+            physical = True
+        elif record.e_d_signal is not None:
+            signal = record.e_d_signal
+            n_sig = len(signal)
+            physical = False
+        elif record.p_signal is not None:
             signal = record.p_signal
+            n_sig = signal.shape[1]
             physical = True
         elif record.d_signal is not None:
             signal = record.d_signal
+            n_sig = signal.shape[1]
             physical = False
         else:
             raise ValueError('The record has no signal to plot')
@@ -972,7 +986,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         # In this case, omit empty middle channels. This function should
         # already process labels and arrangements before passing into
         # `plot_items`
-        sig_chans = set(range(signal.shape[1]))
+        sig_chans = set(range(n_sig))
         all_chans = sorted(sig_chans.union(ann_chans))
 
         # Need to update ylabels and annotation values
