@@ -8,6 +8,43 @@ from wfdb.io._signal import downround, upround
 from wfdb.io.annotation import Annotation
 
 
+def _expand_channels(signal):
+    """
+    Convert application-specified signal data to a list.
+
+    Parameters
+    ----------
+    signal : 1d or 2d numpy array or list or None
+        The uniformly sampled signal or signals to be plotted.  If signal
+        is a one-dimensional array, it is assumed to represent a single
+        channel.  If it is a two-dimensional array, axes 0 and 1 must
+        represent time and channel number respectively.  Otherwise it must
+        be a list of one-dimensional arrays (one for each channel.)
+
+    Returns
+    -------
+    signal : list
+        A list of one-dimensional arrays (one for each channel.)
+
+    """
+    if signal is None:
+        return []
+    elif hasattr(signal, 'ndim'):
+        if signal.ndim == 1:
+            return [signal]
+        elif signal.ndim == 2:
+            return list(signal.transpose())
+        else:
+            raise ValueError('invalid shape for signal array: {}'.format(
+                signal.shape))
+    else:
+        signal = list(signal)
+        if any(s.ndim != 1 for s in signal):
+            raise ValueError('invalid shape for signal array(s): {}'.format(
+                [s.shape for s in signal]))
+        return signal
+
+
 def _get_sampling_freq(sampling_freq, n_sig, frame_freq):
     """
     Convert application-specified sampling frequency to a list.
