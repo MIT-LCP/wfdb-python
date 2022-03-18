@@ -2,6 +2,7 @@ import datetime
 import multiprocessing
 import posixpath
 import re
+import pathlib
 
 import numpy as np
 import os
@@ -176,7 +177,7 @@ class BaseRecord(object):
                  fs=None, counter_freq=None, base_counter=None,
                  sig_len=None, base_time=None, base_date=None,
                  comments=None, sig_name=None):
-        self.record_name = record_name
+        self.record_name = str(record_name)
         self.n_sig = n_sig
         self.fs = fs
         self.counter_freq = counter_freq
@@ -1373,7 +1374,7 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the input EDF record to be read.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
@@ -1632,7 +1633,7 @@ def edf2mit(record_name, pn_dir=None, delete_file=True, record_only=True,
         struct.unpack('<32s', edf_file.read(32))[0].decode()
 
     # Pre-process the acquired data before creating the record
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.edf','')
+    record_name_out = pathlib.Path(record_name).stem.replace('-','_')
     sample_rate = [int(i/block_duration) for i in samps_per_block]
     fs = functools.reduce(math.gcd, sample_rate)
     samps_per_frame = [int(s/min(samps_per_block)) for s in samps_per_block]
@@ -1773,7 +1774,7 @@ def mit2edf(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the input WFDB record to be read. Can also work with both
         EDF and WAV files.
     pn_dir : str, optional
@@ -1853,7 +1854,7 @@ def mit2edf(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None,
     """
     record = rdrecord(record_name, pn_dir=pn_dir, sampfrom=sampfrom,
                       sampto=sampto, smooth_frames=False)
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_')
+    record_name_out = pathlib.Path(record_name).name.replace('-','_')
 
     # Maximum data block length, in bytes
     edf_max_block = 61440
@@ -2304,7 +2305,7 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the input .wav record to be read.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
@@ -2369,7 +2370,7 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
     >>> wav_record = wfdb.wav2mit('sample-data/SC4001E0-PSG.wav', record_only=True)
 
     """
-    if not record_name.endswith('.wav'):
+    if not pathlib.Path(record_name).suffix == '.wav':
         raise Exception('Name of the input file must end in .wav')
 
     if pn_dir is not None:
@@ -2385,7 +2386,7 @@ def wav2mit(record_name, pn_dir=None, delete_file=True, record_only=False):
             open(record_name, 'wb').write(f.read())
 
     wave_file = open(record_name, mode='rb')
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_').replace('.wav','')
+    record_name_out = pathlib.Path(record_name).stem.replace('-','_')
 
     chunk_ID = ''.join([s.decode() for s in struct.unpack('>4s', wave_file.read(4))])
     if chunk_ID != 'RIFF':
@@ -2538,7 +2539,7 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the input WFDB record to be read. Can also work with both
         EDF and WAV files.
     pn_dir : str, optional
@@ -2583,7 +2584,7 @@ def wfdb2mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
 
     """
     record = rdrecord(record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto)
-    record_name_out = record_name.split(os.sep)[-1].replace('-','_') + 'm'
+    record_name_out = pathlib.Path(record_name).name.replace('-','_') + 'm'
 
     # Some variables describing the format of the .mat file
     field_version = 256         # 0x0100 or 256
@@ -2781,7 +2782,7 @@ def csv2mit(file_name, fs, units, fmt=None, adc_gain=None, baseline=None,
 
     Parameters
     ----------
-    file_name : str
+    file_name : str or pathlib.Path
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
@@ -3059,14 +3060,12 @@ def csv2mit(file_name, fs, units, fmt=None, adc_gain=None, baseline=None,
                 print('Signal names: {}'.format(sig_name))
 
     # Set the output header file name to be the same, remove path
-    if os.sep in file_name:
-        file_name = file_name.split(os.sep)[-1]
-    record_name = file_name.replace('.csv','')
+    record_name = pathlib.Path(file_name).stem
     if verbose:
         print('Output header: {}.hea'.format(record_name))
 
     # Replace the CSV file tag with DAT
-    dat_file_name = file_name.replace('.csv','.dat')
+    dat_file_name = str(pathlib.Path(file_name).with_suffix('.dat'))
     dat_file_name = [dat_file_name] * n_sig
     if verbose:
         print('Output record: {}'.format(dat_file_name[0]))
@@ -3220,7 +3219,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
@@ -3331,7 +3330,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
@@ -3418,20 +3417,22 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
                                channels=[1, 3])
 
     """
-    dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
+    _record_name = pathlib.Path(record_name)
+    base_record_name = _record_name.name
+    dir_name = _record_name.absolute().parent
+    record_suffix = _record_name.suffix
 
     # Read the header fields
     if (pn_dir is not None) and ('.' not in pn_dir):
         dir_list = pn_dir.split('/')
         pn_dir = posixpath.join(dir_list[0], get_version(dir_list[0]), *dir_list[1:])
 
-    if record_name.endswith('.edf'):
-        record = edf2mit(record_name, pn_dir=pn_dir, record_only=True)
-    elif record_name.endswith('.wav'):
-        record = wav2mit(record_name, pn_dir=pn_dir, record_only=True)
+    if record_suffix == '.edf':
+        record = edf2mit(_record_name, pn_dir=pn_dir, record_only=True)
+    elif record_suffix == '.wav':
+        record = wav2mit(_record_name, pn_dir=pn_dir, record_only=True)
     else:
-        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+        record = rdheader(_record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -3507,7 +3508,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
     # A single segment record
     elif isinstance(record, Record):
-        if record_name.endswith('.edf') or record_name.endswith('.wav'):
+        if record_suffix in ['.edf', '.wav',]:
             no_file = True
             sig_data = record.d_signal
         else:
@@ -3630,7 +3631,7 @@ def rdsamp(record_name, sampfrom=0, sampto=None, channels=None, pn_dir=None,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The name of the WFDB record to be read (without any file
         extensions). If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/baserecord
@@ -4304,7 +4305,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The string name of the WFDB record to be written (without any file
         extensions). Must not contain any "." since this would indicate an
         EDF file which is not compatible at this point.
@@ -4373,7 +4374,7 @@ def wrsamp(record_name, fs, units, sig_name, p_signal=None, d_signal=None,
 
     """
     # Check for valid record name
-    if '.' in record_name: 
+    if '.' in str(record_name): 
         raise Exception("Record name must not contain '.'")
     # Check input field combinations
     if p_signal is not None and d_signal is not None:

@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import re
 import posixpath
+import pathlib
 import pdb
 import struct
 import sys
@@ -146,7 +147,7 @@ class Annotation(object):
                  label_store=None, description=None, custom_labels=None,
                  contained_labels=None):
 
-        self.record_name = record_name
+        self.record_name = str(record_name)
         self.extension = extension
 
         self.sample = sample
@@ -1584,7 +1585,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The record name of the WFDB annotation file. ie. for file '100.atr',
         record_name='100'.
     extension : str
@@ -1678,7 +1679,7 @@ def rdann(record_name, extension, sampfrom=0, sampto=None, shift_samps=False,
             pass
 
     # Create the annotation object
-    annotation = Annotation(record_name=os.path.split(record_name)[1],
+    annotation = Annotation(record_name=pathlib.Path(record_name).name,
                             extension=extension, sample=sample,
                             label_store=label_store,  subtype=subtype,
                             chan=chan, num=num, aux_note=aux_note, fs=fs,
@@ -1747,7 +1748,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or pathlib.Path
         The record name of the WFDB annotation file. ie. for file '100.atr',
         record_name='100'.
     extension : str
@@ -1764,13 +1765,14 @@ def load_byte_pairs(record_name, extension, pn_dir):
         The input filestream converted to an Nx2 array of unsigned bytes.
 
     """
+    file_name = pathlib.Path(record_name).with_suffix('.' + extension)
     # local file
     if pn_dir is None:
-        with open(record_name + '.' + extension, 'rb') as f:
+        with open(file_name, 'rb') as f:
             filebytes = np.fromfile(f, '<u1').reshape([-1, 2])
     # PhysioNet file
     else:
-        filebytes = download._stream_annotation(record_name+'.'+extension, pn_dir).reshape([-1, 2])
+        filebytes = download._stream_annotation(file_name, pn_dir).reshape([-1, 2])
 
     return filebytes
 
@@ -2697,7 +2699,7 @@ def rdedfann(record_name, pn_dir=None, delete_file=True, info_only=True,
         })
         df_out = _format_ann_from_df(df_in)
         # Remove extension from input file name
-        record_name = record_name.split(os.sep)[-1].split('.')[0]
+        record_name = pathlib.Path(record_name).stem
         extension = 'atr'
         fs = rec.fs
         sample = (df_out['onset'].to_numpy()*fs).astype(np.int64)
