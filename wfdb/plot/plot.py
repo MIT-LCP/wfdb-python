@@ -123,10 +123,12 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
 
     Parameters
     ----------
-    signal : 1d or 2d numpy array, optional
-        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
-        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
-        represent time and channel number respectively.
+    signal : 1d or 2d numpy array or list, optional
+        The uniformly sampled signal or signals to be plotted.  If signal
+        is a one-dimensional array, it is assumed to represent a single
+        channel.  If it is a two-dimensional array, axes 0 and 1 must
+        represent time and channel number respectively.  Otherwise it must
+        be a list of one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -221,6 +223,9 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
 
     """
     import matplotlib.pyplot as plt
+
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
 
     # Figure out number of subplots required
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
