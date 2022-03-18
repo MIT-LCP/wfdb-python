@@ -408,22 +408,28 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
     # Convert sampling_freq to a list if needed
     sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
 
+    tarrays = {}
+
     # Plot the signals
     for ch in range(n_sig):
         ch_len = len(signal[ch])
         ch_freq = sampling_freq[ch]
 
         # Figure out time indices
-        if time_units == 'samples':
-            t = np.linspace(0, ch_len-1, ch_len)
-        else:
-            downsample_factor = {
-                'seconds': ch_freq,
-                'minutes': ch_freq * 60,
-                'hours': ch_freq * 3600
-            }
-            t = np.linspace(0, ch_len-1, ch_len)
-            t /= downsample_factor[time_units]
+        try:
+            t = tarrays[ch_len, ch_freq]
+        except KeyError:
+            if time_units == 'samples':
+                t = np.linspace(0, ch_len-1, ch_len)
+            else:
+                downsample_factor = {
+                    'seconds': ch_freq,
+                    'minutes': ch_freq * 60,
+                    'hours': ch_freq * 3600
+                }
+                t = np.linspace(0, ch_len-1, ch_len)
+                t /= downsample_factor[time_units]
+            tarrays[ch_len, ch_freq] = t
 
         axes[ch].plot(t, signal[ch], sig_style[ch], zorder=3)
 
