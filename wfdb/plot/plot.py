@@ -439,8 +439,12 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         The number of annotations contained in the dat file.
     ann_sym : list
         The values of the annotation symbol locations.
-    signal : ndarray
-        Tranformed expanded signal into uniform signal.
+    signal : 1d or 2d numpy array or list
+        The uniformly sampled signal or signals to be plotted.  If signal
+        is a one-dimensional array, it is assumed to represent a single
+        channel.  If it is a two-dimensional array, axes 0 and 1 must
+        represent time and channel number respectively.  Otherwise it must
+        be a list of one-dimensional arrays (one for each channel).
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
@@ -469,6 +473,9 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
     N/A
 
     """
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+
     # Extend annotation style if necessary
     if len(ann_style) == 1:
         ann_style = n_annot * ann_style
@@ -508,10 +515,7 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                         index = ann_samp[ch]
                     else:
                         index = (sfreq / afreq * ann_samp[ch]).astype('int')
-                    if signal.ndim == 1:
-                        y = signal[index]
-                    else:
-                        y = signal[index, ch]
+                    y = signal[ch][index]
                 else:
                     y = np.zeros(len(ann_samp[ch]))
             except IndexError:
