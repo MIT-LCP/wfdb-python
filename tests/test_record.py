@@ -26,19 +26,22 @@ class TestRecord(unittest.TestCase):
         Target file created with:
             rdsamp -r sample-data/test01_00s | cut -f 2- > record-1a
         """
-        record = wfdb.rdrecord('sample-data/test01_00s', physical=False)
+        record = wfdb.rdrecord('sample-data/test01_00s',
+                               physical=False, return_res=16)
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-1a')
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord('test01_00s', physical=False,
-                                  pn_dir='macecgdb')
+        record_pn = wfdb.rdrecord('test01_00s', pn_dir='macecgdb',
+                                  physical=False, return_res=16)
 
         # Test file writing
-        record_2 = wfdb.rdrecord('sample-data/test01_00s', physical=False)
+        record_2 = wfdb.rdrecord('sample-data/test01_00s',
+                                 physical=False, return_res=16)
         record_2.sig_name = ['ECG_1', 'ECG_2', 'ECG_3', 'ECG_4']
         record_2.wrsamp()
-        record_write = wfdb.rdrecord('test01_00s', physical=False)
+        record_write = wfdb.rdrecord('test01_00s',
+                                     physical=False, return_res=16)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
