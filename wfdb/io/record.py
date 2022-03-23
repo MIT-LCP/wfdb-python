@@ -1226,6 +1226,9 @@ ALLOWED_TYPES.update({'comments': (str,), 'p_signal': (np.ndarray,),
 LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + ('comments', 'e_p_signal',
                                                    'e_d_signal', 'segments')
 
+# Database Version Pattern
+DB_VERSION_PATTERN = re.compile("\d+.\d+\.\d+")
+
 def get_version(pn_dir):
     """
     Get the version number of the desired project.
