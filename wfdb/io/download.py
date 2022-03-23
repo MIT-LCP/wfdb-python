@@ -3,6 +3,7 @@ import numpy as np
 import re
 import os
 import posixpath
+import pathlib
 import pdb
 import json
 
@@ -48,6 +49,47 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
     config.db_index_url = db_index_url
 
 
+def _get_url(*dir_or_file):
+    """
+    Get the remote file url or directory url.
+
+    Parameters
+    ----------
+    dir_or_file : a sequence of str or pathlib.Path,
+        Including the PhysioNet directory and subdirectories,
+        and the base file name.
+
+    Returns
+    -------
+    url : str
+        The full url of the file or directory.
+
+    Examples
+    --------
+    >>> url = _get_url('mitdb/1.0.0', '100.dat')
+    >>> url
+    'https://physionet.org/content/mitdb/100.dat'
+    >>> url = _get_url('mitdb/1.0.0/', 'x_mitdb/x_111.dat')
+    >>> url
+    'https://physionet.org/files/mitdb/1.0.0/x_mitdb/x_111.dat'
+    >>> url = _get_url('mitdb', '1.0.0', 'x_mitdb', 'x_111.dat')
+    >>> url
+    'https://physionet.org/files/mitdb/1.0.0/x_mitdb/x_111.dat'
+    >>> import pathlib
+    >>> pp = pathlib.PureWindowsPath('x_mitdb\\x_111.dat')
+    >>> url = _get_url('mitdb/1.0.0', pp)
+    'https://physionet.org/files/mitdb/1.0.0/x_mitdb/x_111.dat'
+    >>> sp = 'x_mitdb\\x_111.dat'  # on a Windows machine
+    >>> url = _get_url('mitdb/1.0.0', sp)
+    'https://physionet.org/files/mitdb/1.0.0/x_mitdb/x_111.dat'
+
+    """
+    url = config.db_index_url
+    for item in dir_or_file:
+        url = posixpath.join(url, pathlib.PurePosixPath(pathlib.Path(item)))
+    return url
+
+
 def _remote_file_size(url=None, file_name=None, pn_dir=None):
     """
     Get the remote file size in bytes.
@@ -57,11 +99,12 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     url : str, optional
         The full url of the file. Use this option to explicitly
         state the full url.
-    file_name : str, optional
+    file_name : str or pathlib.Path, optional
         The base file name. Use this argument along with pn_dir if you
         want the full url to be constructed.
     pn_dir : str, optional
-        The base file name. Use this argument along with file_name if
+        The PhysioNet directory where the file is located.
+        Use this argument along with file_name if
         you want the full url to be constructed.
 
     Returns
@@ -72,7 +115,7 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     """
     # Option to construct the url
     if file_name and pn_dir:
-        url = posixpath.join(config.db_index_url, pn_dir, file_name)
+        url = _get_url(pn_dir, file_name)
 
     with _url.openurl(url, 'rb') as f:
         remote_file_size = f.seek(0, os.SEEK_END)
@@ -86,7 +129,7 @@ def _stream_header(file_name, pn_dir):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str or pathlib.Path
         The name of the headerr file to be read.
     pn_dir : str
         The PhysioNet database directory from which to find the
@@ -102,7 +145,7 @@ def _stream_header(file_name, pn_dir):
 
     """
     # Full url of header location
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
+    url = _get_url(pn_dir, file_name)
 
     # Get the content of the remote file
     with _url.openurl(url, 'rb') as f:
@@ -140,7 +183,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str or pathlib.Path
         The name of the dat file to be read.
     pn_dir : str
         The PhysioNet directory where the dat file is located.
@@ -158,7 +201,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
 
     """
     # Full url of dat file
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
+    url = _get_url(pn_dir, file_name)
 
     # Get the content
     with _url.openurl(url, 'rb', buffering=0) as f:
@@ -177,7 +220,7 @@ def _stream_annotation(file_name, pn_dir):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str or pathlib.Path
         The name of the annotation file to be read.
     pn_dir : str
         The PhysioNet directory where the annotation file is located.
@@ -189,7 +232,7 @@ def _stream_annotation(file_name, pn_dir):
 
     """
     # Full url of annotation file
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
+    url = _get_url(pn_dir, file_name)
 
     # Get the content
     with _url.openurl(url, 'rb') as f:
@@ -262,10 +305,14 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url PhysioNet database
-    if '/' not in db_dir:
-        db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
+    # if '/' not in db_dir:
+    #     db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
+    # else:
+    #     db_url = posixpath.join(config.db_index_url, db_dir)
+    if not re.search(record.DB_VERSION_PATTERN, db_dir):
+        db_url = _get_url(db_dir, record.get_version(db_dir))
     else:
-        db_url = posixpath.join(config.db_index_url, db_dir)
+        db_url = _get_url(db_dir)
 
     # Check for a RECORDS file
     if records == 'all':
@@ -308,7 +355,7 @@ def get_annotators(db_dir, annotators):
 
     """
     # Full url PhysioNet database
-    db_url = posixpath.join(config.db_index_url, db_dir)
+    db_url = _get_url(db_dir)
 
     if annotators is not None:
         # Check for an ANNOTATORS file
@@ -396,7 +443,7 @@ def dl_pn_file(inputs):
     basefile, subdir, db, dl_dir, keep_subdirs, overwrite = inputs
 
     # Full url of file
-    url = posixpath.join(config.db_index_url, db, subdir, basefile)
+    url = _get_url(db, subdir, basefile)
 
     # Figure out where the file should be locally
     if keep_subdirs:
