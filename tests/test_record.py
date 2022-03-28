@@ -26,19 +26,22 @@ class TestRecord(unittest.TestCase):
         Target file created with:
             rdsamp -r sample-data/test01_00s | cut -f 2- > record-1a
         """
-        record = wfdb.rdrecord('sample-data/test01_00s', physical=False)
+        record = wfdb.rdrecord('sample-data/test01_00s',
+                               physical=False, return_res=16)
         sig = record.d_signal
         sig_target = np.genfromtxt('tests/target-output/record-1a')
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord('test01_00s', physical=False,
-                                  pn_dir='macecgdb')
+        record_pn = wfdb.rdrecord('test01_00s', pn_dir='macecgdb',
+                                  physical=False, return_res=16)
 
         # Test file writing
-        record_2 = wfdb.rdrecord('sample-data/test01_00s', physical=False)
+        record_2 = wfdb.rdrecord('sample-data/test01_00s',
+                                 physical=False, return_res=16)
         record_2.sig_name = ['ECG_1', 'ECG_2', 'ECG_3', 'ECG_4']
         record_2.wrsamp()
-        record_write = wfdb.rdrecord('test01_00s', physical=False)
+        record_write = wfdb.rdrecord('test01_00s',
+                                     physical=False, return_res=16)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
@@ -75,24 +78,30 @@ class TestRecord(unittest.TestCase):
     def test_1c(self):
         """
         Format 16, byte offset, selected duration, selected channels,
-        digital.
+        digital, expanded format.
 
         Target file created with:
             rdsamp -r sample-data/a103l -f 80 -s 0 1 | cut -f 2- > record-1c
         """
         record = wfdb.rdrecord('sample-data/a103l',
-                               sampfrom=20000, channels=[0, 1], physical=False)
-        sig = record.d_signal
+                               sampfrom=20000, channels=[0, 1], physical=False,
+                               smooth_frames=False)
+        # convert expanded to uniform array
+        sig = np.zeros((record.sig_len, record.n_sig))
+        for i in range(record.n_sig):
+            sig[:,i] = record.e_d_signal[i]
+
         sig_target = np.genfromtxt('tests/target-output/record-1c')
 
         # Compare data streaming from Physionet
         record_pn = wfdb.rdrecord('a103l', pn_dir='challenge-2015/training',
                                   sampfrom=20000, channels=[0, 1],
-                                  physical=False)
+                                  physical=False, smooth_frames=False)
 
         # Test file writing
-        record.wrsamp()
-        record_write = wfdb.rdrecord('a103l', physical=False)
+        record.wrsamp(expanded=True)
+        record_write = wfdb.rdrecord('a103l', physical=False,
+                                     smooth_frames=False)
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
