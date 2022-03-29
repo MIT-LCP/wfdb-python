@@ -626,9 +626,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                     print('Mismatch in attribute: %s' % k, v1, v2)
                 return False
 
-            if type(v1) == np.ndarray:
+            if isinstance(v1, np.ndarray):
                 # Necessary for nans
                 np.testing.assert_array_equal(v1, v2)
+            elif (isinstance(v1, list) and len(v1) == len(v2)
+                  and all(isinstance(e, np.ndarray) for e in v1)):
+                for (e1, e2) in zip(v1, v2):
+                    np.testing.assert_array_equal(e1, e2)
             else:
                 if v1 != v2:
                     if verbose:
@@ -665,7 +669,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.wr_dats(expanded=expanded, write_dir=write_dir)
 
 
-    def _arrange_fields(self, channels, sampfrom=0, expanded=False):
+    def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """
         Arrange/edit object fields to reflect user channel and/or signal
         range input.
@@ -674,10 +678,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         ----------
         channels : list
             List of channel numbers specified.
-        sampfrom : int, optional
+        sampfrom : int
             Starting sample number read.
-        expanded : bool, optional
-            Whether the record was read in expanded mode.
+        smooth_frames : bool
+            Whether to convert the expanded signal array (e_d_signal) into
+            a smooth signal array (d_signal).
 
         Returns
         -------
@@ -690,11 +695,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             setattr(self, field, [item[c] for c in channels])
 
         # Expanded signals - multiple samples per frame.
-        if expanded:
+        if not smooth_frames:
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
             if self.sig_len != int(len(self.e_d_signal[0]) / self.samps_per_frame[0]):
-                self.checksum = self.calc_checksum(expanded)
+                self.checksum = self.calc_checksum(True)
                 self.init_value = [s[0] for s in self.e_d_signal]
 
             self.n_sig = len(channels)
@@ -702,6 +707,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         # MxN numpy array d_signal
         else:
+            self.d_signal = self.smooth_frames('digital')
+            self.e_d_signal = None
+
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
             if self.sig_len != self.d_signal.shape[0]:
@@ -3365,10 +3373,9 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
         directly return a WFDB MultiRecord object (False), or to convert
         it into and return a WFDB Record object (True).
     smooth_frames : bool, optional
-        Used when reading records with signals having multiple samples
-        per frame. Specifies whether to smooth the samples in signals
-        with more than one sample per frame and return an (MxN) uniform
-        numpy array as the `d_signal` or `p_signal` field (True), or to
+        Specifies whether to smooth the samples in signals with more
+        than one sample per frame and return an (MxN) uniform numpy
+        array as the `d_signal` or `p_signal` field (True), or to
         return a list of 1d numpy arrays containing every expanded
         sample as the `e_d_signal` or `e_p_signal` field (False).
     ignore_skew : bool, optional
@@ -3518,7 +3525,7 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
             no_file = False
             sig_data = None
 
-        signals = _signal._rd_segment(
+        record.e_d_signal = _signal._rd_segment(
             file_name=record.file_name,
             dir_name=dir_name,
             pn_dir=pn_dir,
@@ -3532,22 +3539,17 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
             sampfrom=sampfrom,
             sampto=sampto,
             channels=channels,
-            smooth_frames=smooth_frames,
             ignore_skew=ignore_skew,
             no_file=no_file,
             sig_data=sig_data,
             return_res=return_res)
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smooth_frames or max([record.samps_per_frame[c] for c in channels]) == 1:
-            # Read signals from the associated dat files that contain
-            # wanted channels
-            record.d_signal = signals
-
+        if smooth_frames:
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
             record._arrange_fields(channels=channels, sampfrom=sampfrom,
-                                   expanded=False)
+                                   smooth_frames=True)
 
             if physical:
                 # Perform inplace dac to get physical signal
@@ -3555,12 +3557,10 @@ def rdrecord(record_name, sampfrom=0, sampto=None, channels=None,
 
         # Return each sample of the signals with multiple samples per frame
         else:
-            record.e_d_signal = signals
-
             # Arrange/edit the object fields to reflect user channel
             # and/or signal range input
             record._arrange_fields(channels=channels, sampfrom=sampfrom,
-                                   expanded=True)
+                                   smooth_frames=False)
 
             if physical:
                 # Perform dac to get physical signal
