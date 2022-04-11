@@ -69,3 +69,6 @@ target/
 
 # OSX .DS_Store
 .DS_Store
+
+# pyenv
+.python-version
