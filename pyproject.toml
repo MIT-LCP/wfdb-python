@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "wfdb-python"
-version = "3.4.1"
-description = "The WFDB Python Package"
+name = "wfdb"
+version = "4.0.0-alpha"
+description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = ["The Laboratory for Computational Physiology <support@physionet.org>"]
 license = "MIT"
 
