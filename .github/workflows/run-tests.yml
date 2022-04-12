@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: [3.8, 3.9, 3.10]
+        python-version: ["3.8", "3.9", "3.10"]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -34,9 +34,9 @@ jobs:
         run: |
           nosetests
 
-  test-deb10-i386:
+  test-deb11-i386:
     runs-on: ubuntu-latest
-    container: i386/debian:10
+    container: i386/debian:11
     steps:
       - name: Install dependencies
         run: |
