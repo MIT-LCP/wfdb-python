@@ -32,8 +32,7 @@ jobs:
           python -m poetry install --no-root -E plot -E processing
       - name: Run nosetests
         run: |
-          python -m poetry show
-          python -m nose
+          nosetests
 
   test-deb11-i386:
     runs-on: ubuntu-latest
