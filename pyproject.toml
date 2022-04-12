@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "wfdb"
-version = "4.0.0-alpha"
+version = "4.0.0-alpha0"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = ["The Laboratory for Computational Physiology <support@physionet.org>"]
 license = "MIT"
@@ -19,6 +19,7 @@ processing = ["scipy"]
 
 [tool.poetry.dev-dependencies]
 nose = "~1.3.7"
+Sphinx = "^4.5.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
