@@ -28,6 +28,7 @@ setup(
 
     description='The WFDB Python Toolbox',
     long_description=long_description,
+    long_description_content_type="text/markdown",
 
     # The project's main homepage.
     url='https://github.com/MIT-LCP/wfdb-python',
