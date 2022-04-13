@@ -21,21 +21,31 @@ See the [demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/master/demo.ipy
 
 ## Installation
 
-The distribution is hosted on pypi at: <https://pypi.python.org/pypi/wfdb/>. To directly install the package from pypi, run from your terminal::
+**Important**: the base dependencies include only the required packages for the I/O functionality. The dependencies for the plotting and processing cunctionality must be explicitly installed.
+
+The distribution is hosted on pypi at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from pypi using either pip or poetry:
 
 ```sh
+# Install wfdb with just the core I/O dependencies
+# Using pip:
 pip install wfdb
+# Using poetry:
+poetry add wfdb
+
+# Install wfdb with extra dependencies
+# Using pip:
+pip install wfdb\[processing,plot\]
+# Using poetry
+poetry add wfdb -E processing -E plot
 ```
 
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh
-pip install .
+pip install -e .
+
+poetry install -E processing -E plot
 ```
-
-## Development
-
-The package is to be expanded with physiological signal-processing tools, and general improvements. Development is made for Python 3.6+ only.
 
 ## Contributing
 
