@@ -34,9 +34,9 @@ jobs:
         run: |
           nosetests
 
-  test-deb11-i386:
+  test-deb10-i386:
     runs-on: ubuntu-latest
-    container: i386/debian:11
+    container: i386/debian:10
     steps:
       - name: Install dependencies
         run: |
