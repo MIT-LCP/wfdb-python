@@ -7,7 +7,7 @@ import threading
 import urllib.parse
 import urllib.request
 
-from importlib.metadata import version
+from wfdb.version import __version__
 
 
 # Value for 'buffering' indicating that the entire file should be
@@ -53,7 +53,7 @@ def _get_session():
         if _SESSION is None:
             _SESSION = requests.Session()
             _SESSION.headers['User-Agent'] = ' '.join([
-                '%s/%s' % ('wfdb-python', version('wfdb')),
+                '%s/%s' % ('wfdb-python', __version__),
                 '%s/%s' % ('python-requests', requests.__version__),
                 '%s/%s' % (platform.python_implementation(),
                            platform.python_version()),
