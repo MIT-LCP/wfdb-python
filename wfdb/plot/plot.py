@@ -15,11 +15,11 @@ def _expand_channels(signal):
     Parameters
     ----------
     signal : 1d or 2d numpy array or list or None
-        The uniformly sampled signal or signals to be plotted.  If signal
-        is a one-dimensional array, it is assumed to represent a single
-        channel.  If it is a two-dimensional array, axes 0 and 1 must
-        represent time and channel number respectively.  Otherwise it must
-        be a list of one-dimensional arrays (one for each channel.)
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel.)
 
     Returns
     -------
@@ -124,11 +124,11 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     Parameters
     ----------
     signal : 1d or 2d numpy array or list, optional
-        The uniformly sampled signal or signals to be plotted.  If signal
-        is a one-dimensional array, it is assumed to represent a single
-        channel.  If it is a two-dimensional array, axes 0 and 1 must
-        represent time and channel number respectively.  Otherwise it must
-        be a list of one-dimensional arrays (one for each channel).
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -281,11 +281,11 @@ def get_plot_dims(signal, ann_samp):
     Parameters
     ----------
     signal : 1d or 2d numpy array or list, optional
-        The uniformly sampled signal or signals to be plotted.  If signal
-        is a one-dimensional array, it is assumed to represent a single
-        channel.  If it is a two-dimensional array, axes 0 and 1 must
-        represent time and channel number respectively.  Otherwise it must
-        be a list of one-dimensional arrays (one for each channel).
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -373,11 +373,11 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
     Parameters
     ----------
     signal : 1d or 2d numpy array or list
-        The uniformly sampled signal or signals to be plotted.  If signal
-        is a one-dimensional array, it is assumed to represent a single
-        channel.  If it is a two-dimensional array, axes 0 and 1 must
-        represent time and channel number respectively.  Otherwise it must
-        be a list of one-dimensional arrays (one for each channel).
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     sig_len : int
         The signal length (per channel) of the dat file.  Deprecated.
     n_sig : int
@@ -457,11 +457,11 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
     ann_sym : list
         The values of the annotation symbol locations.
     signal : 1d or 2d numpy array or list
-        The uniformly sampled signal or signals to be plotted.  If signal
-        is a one-dimensional array, it is assumed to represent a single
-        channel.  If it is a two-dimensional array, axes 0 and 1 must
-        represent time and channel number respectively.  Otherwise it must
-        be a list of one-dimensional arrays (one for each channel).
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
