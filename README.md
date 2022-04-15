@@ -21,30 +21,18 @@ See the [demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/master/demo.ipy
 
 ## Installation
 
-**Important**: the base dependencies include only the required packages for the I/O functionality. The dependencies for the plotting and processing cunctionality must be explicitly installed.
-
 The distribution is hosted on pypi at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from pypi using either pip or poetry:
 
 ```sh
-# Install wfdb with just the core I/O dependencies
-# Using pip:
 pip install wfdb
-# Using poetry:
 poetry add wfdb
-
-# Install wfdb with extra dependencies
-# Using pip:
-pip install wfdb\[processing,plot\]
-# Using poetry
-poetry add wfdb -E processing -E plot
 ```
 
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh
 pip install -e .
-
-poetry install -E processing -E plot
+poetry install
 ```
 
 ## Contributing
