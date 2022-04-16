@@ -31,7 +31,7 @@ jobs:
           python -m poetry install
       - name: Run nosetests
         run: |
-          nosetests
+          python -m nose
 
   test-deb10-i386:
     runs-on: ubuntu-latest
