@@ -36,7 +36,7 @@ pip install .
 poetry install
 
 # With dev dependencies
-pip install .\[dev\]
+pip install ".[dev]"
 poetry install -E dev
 ```
 
