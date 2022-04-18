@@ -31,17 +31,46 @@ poetry add wfdb
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh
-pip install -e .
+# Without dev dependencies
+pip install .
 poetry install
+
+# With dev dependencies
+pip install .\[dev\]
+poetry install -E dev
 ```
 
-## Contributing
+See the [note](#package-management) below about dev dependencies.
+
+## Developing
 
 We welcome community contributions in the form of pull requests. When contributing code, please ensure:
 
 - [PEP8](https://www.python.org/dev/peps/pep-0008/) style guidelines are followed.
 - Documentation is provided. New functions and classes should have numpy/scipy style [docstrings](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt).
 - Unit tests are written for new features that are not covered by [existing tests](https://github.com/MIT-LCP/wfdb-python/tree/master/tests).
+
+### Package Management
+
+This project uses poetry for metadata and dependency management, and distribution.
+
+Development dependencies are specified as optional dependencies, and then added to the "dev" extra group.
+
+```sh
+poetry add --optional <somepackage>
+
+# Do NOT use: poetry add <somepackage> --dev
+```
+
+The `[tool.poetry.dev-dependencies]` attribute is NOT used because of <https://github.com/python-poetry/poetry/issues/3514>. Therefore, dev dependencies are not installed when running `poetry install`, and the `--no-dev` flag has no meaning.
+
+Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are kept in sync.
+
+To upload a new distribution to Pypi:
+
+```sh
+poetry publish
+```
 
 ## Citing
 
