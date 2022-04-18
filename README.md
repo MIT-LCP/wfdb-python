@@ -21,7 +21,7 @@ See the [demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/master/demo.ipy
 
 ## Installation
 
-The distribution is hosted on pypi at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from pypi using either pip or poetry:
+The distribution is hosted on PyPI at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from PyPI using either pip or poetry:
 
 ```sh
 pip install wfdb
@@ -52,21 +52,20 @@ We welcome community contributions in the form of pull requests. When contributi
 
 ### Package Management
 
-This project uses poetry for metadata and dependency management, and distribution.
+This project uses [poetry](https://python-poetry.org/docs/) for package management and distribution.
 
-Development dependencies are specified as optional dependencies, and then added to the "dev" extra group.
+Development dependencies are specified as optional dependencies, and then added to the "dev" extra group in the [pyproject.toml](./pyproject.toml) file.
 
 ```sh
-poetry add --optional <somepackage>
-
 # Do NOT use: poetry add <somepackage> --dev
+poetry add --optional <somepackage>
 ```
 
-The `[tool.poetry.dev-dependencies]` attribute is NOT used because of <https://github.com/python-poetry/poetry/issues/3514>. Therefore, dev dependencies are not installed when running `poetry install`, and the `--no-dev` flag has no meaning.
+The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitation](https://github.com/python-poetry/poetry/issues/3514) that prevents these dependencies from being pip installable. Therefore, dev dependencies are not installed when purely running `poetry install`, and the `--no-dev` flag has no meaning in this project.
 
 Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are kept in sync.
 
-To upload a new distribution to Pypi:
+To upload a new distribution to PyPI:
 
 ```sh
 poetry publish
