@@ -8,21 +8,127 @@ from wfdb.io._signal import downround, upround
 from wfdb.io.annotation import Annotation
 
 
+def _expand_channels(signal):
+    """
+    Convert application-specified signal data to a list.
+
+    Parameters
+    ----------
+    signal : 1d or 2d numpy array or list or None
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel.)
+
+    Returns
+    -------
+    signal : list
+        A list of one-dimensional arrays (one for each channel.)
+
+    """
+    if signal is None:
+        return []
+    elif hasattr(signal, 'ndim'):
+        if signal.ndim == 1:
+            return [signal]
+        elif signal.ndim == 2:
+            return list(signal.transpose())
+        else:
+            raise ValueError('invalid shape for signal array: {}'.format(
+                signal.shape))
+    else:
+        signal = list(signal)
+        if any(s.ndim != 1 for s in signal):
+            raise ValueError('invalid shape for signal array(s): {}'.format(
+                [s.shape for s in signal]))
+        return signal
+
+
+def _get_sampling_freq(sampling_freq, n_sig, frame_freq):
+    """
+    Convert application-specified sampling frequency to a list.
+
+    Parameters
+    ----------
+    sampling_freq : number or sequence or None
+        The sampling frequency or frequencies of the signals.  If this is a
+        list, its length must equal `n_sig`.  If unset, defaults to
+        `frame_freq`.
+    n_sig : int
+        Number of channels.
+    frame_freq : number or None
+        Default sampling frequency (record frame frequency).
+
+    Returns
+    -------
+    sampling_freq : list
+        The sampling frequency for each channel (a list of length `n_sig`.)
+
+    """
+    if sampling_freq is None:
+        return [frame_freq] * n_sig
+    elif hasattr(sampling_freq, '__len__'):
+        if len(sampling_freq) != n_sig:
+            raise ValueError('length mismatch: n_sig = {}, '
+                             'len(sampling_freq) = {}'.format(
+                                 n_sig, len(sampling_freq)))
+        return list(sampling_freq)
+    else:
+        return [sampling_freq] * n_sig
+
+
+def _get_ann_freq(ann_freq, n_annot, frame_freq):
+    """
+    Convert application-specified annotation frequency to a list.
+
+    Parameters
+    ----------
+    ann_freq : number or sequence or None
+        The sampling frequency or frequencies of the annotations.  If this
+        is a list, its length must equal `n_annot`.  If unset, defaults to
+        `frame_freq`.
+    n_annot : int
+        Number of channels.
+    frame_freq : number or None
+        Default sampling frequency (record frame frequency).
+
+    Returns
+    -------
+    ann_freq : list
+        The sampling frequency for each channel (a list of length `n_annot`).
+
+    """
+    if ann_freq is None:
+        return [frame_freq] * n_annot
+    elif hasattr(ann_freq, '__len__'):
+        if len(ann_freq) != n_annot:
+            raise ValueError('length mismatch: n_annot = {}, '
+                             'len(ann_freq) = {}'.format(
+                                 n_annot, len(ann_freq)))
+        return list(ann_freq)
+    else:
+        return [ann_freq] * n_annot
+
+
 def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
                time_units='samples', sig_name=None, sig_units=None,
                xlabel=None, ylabel=None, title=None, sig_style=[''],
                ann_style=['r*'], ecg_grids=[], figsize=None,
                sharex=False, sharey=False, return_fig=False, 
-               return_fig_axes=False):
+               return_fig_axes=False, sampling_freq=None,
+               ann_freq=None):
     """
     Subplot individual channels of signals and/or annotations.
 
     Parameters
     ----------
-    signal : 1d or 2d numpy array, optional
-        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
-        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
-        represent time and channel number respectively.
+    signal : 1d or 2d numpy array or list, optional
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -87,6 +193,14 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
     return_fig : bool, optional
         Whether the figure is to be returned as an output argument.
+    sampling_freq : number or sequence, optional
+        The sampling frequency or frequencies of the signals.  If this is a
+        list, it must have the same length as the number of channels.  If
+        unspecified, defaults to `fs`.
+    ann_freq : number or sequence, optional
+        The sampling frequency or frequencies of the annotations.  If this
+        is a list, it must have the same length as `ann_samp`.  If
+        unspecified, defaults to `fs`.
 
     Returns
     -------
@@ -110,21 +224,31 @@ def plot_items(signal=None, ann_samp=None, ann_sym=None, fs=None,
     """
     import matplotlib.pyplot as plt
 
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+
     # Figure out number of subplots required
     sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
+
+    # Convert sampling_freq and ann_freq to lists if needed
+    sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
+    ann_freq = _get_ann_freq(ann_freq, n_annot, fs)
 
     # Create figure
     fig, axes = create_figure(n_subplots, sharex, sharey, figsize)
 
     if signal is not None:
-        plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes)
+        plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
+                    sampling_freq=sampling_freq)
 
     if ann_samp is not None:
         plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs,
-                        time_units, ann_style, axes)
+                        time_units, ann_style, axes,
+                        sampling_freq=sampling_freq, ann_freq=ann_freq)
 
     if ecg_grids:
-        plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes)
+        plot_ecg_grids(ecg_grids, fs, sig_units, time_units, axes,
+                       sampling_freq=sampling_freq)
 
     # Add title and axis labels.
     # First, make sure that xlabel and ylabel inputs are valid
@@ -156,10 +280,12 @@ def get_plot_dims(signal, ann_samp):
 
     Parameters
     ----------
-    signal : 1d or 2d numpy array, optional
-        The uniformly sampled signal to be plotted. If signal.ndim is 1, it is
-        assumed to be a one channel signal. If it is 2, axes 0 and 1, must
-        represent time and channel number respectively.
+    signal : 1d or 2d numpy array or list, optional
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     ann_samp: list, optional
         A list of annotation locations to plot, with each list item
         corresponding to a different channel. List items may be:
@@ -178,7 +304,7 @@ def get_plot_dims(signal, ann_samp):
     Returns
     -------
     sig_len : int
-        The signal length (per channel) of the dat file.
+        The signal length (per channel) of the dat file.  Deprecated.
     n_sig : int
         The number of signals contained in the dat file.
     n_annot : int
@@ -187,13 +313,14 @@ def get_plot_dims(signal, ann_samp):
         The max between number of signals and annotations.
 
     """
-    if signal is not None:
-        if signal.ndim == 1:
-            sig_len = len(signal)
-            n_sig = 1
-        else:
-            sig_len = signal.shape[0]
-            n_sig = signal.shape[1]
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+
+    if signal:
+        n_sig = len(signal)
+        sig_len = len(signal[0])
+        if any(len(s) != sig_len for s in signal):
+            sig_len = None
     else:
         sig_len = 0
         n_sig = 0
@@ -238,16 +365,21 @@ def create_figure(n_subplots, sharex, sharey, figsize):
     return fig, axes
 
 
-def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
+def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes,
+                sampling_freq=None):
     """
     Plot signal channels.
 
     Parameters
     ----------
-    signal : ndarray
-        Tranformed expanded signal into uniform signal.
+    signal : 1d or 2d numpy array or list
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     sig_len : int
-        The signal length (per channel) of the dat file.
+        The signal length (per channel) of the dat file.  Deprecated.
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
@@ -262,34 +394,56 @@ def plot_signal(signal, sig_len, n_sig, fs, time_units, sig_style, axes):
         will be used for all channels.
     axes : list
         The information needed for each subplot.
+    sampling_freq : number or sequence, optional
+        The sampling frequency or frequencies of the signals.  If this is a
+        list, it must have the same length as the number of channels.  If
+        unspecified, defaults to `fs`.
 
     Returns
     -------
     N/A
 
     """
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+    if n_sig == 0:
+        return
+
     # Extend signal style if necessary
     if len(sig_style) == 1:
         sig_style = n_sig * sig_style
 
-    # Figure out time indices
-    if time_units == 'samples':
-        t = np.linspace(0, sig_len-1, sig_len)
-    else:
-        downsample_factor = {'seconds':fs, 'minutes':fs * 60,
-                             'hours':fs * 3600}
-        t = np.linspace(0, sig_len-1, sig_len) / downsample_factor[time_units]
+    # Convert sampling_freq to a list if needed
+    sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
+
+    tarrays = {}
 
     # Plot the signals
-    if signal.ndim == 1:
-        axes[0].plot(t, signal, sig_style[0], zorder=3)
-    else:
-        for ch in range(n_sig):
-            axes[ch].plot(t, signal[:,ch], sig_style[ch], zorder=3)
+    for ch in range(n_sig):
+        ch_len = len(signal[ch])
+        ch_freq = sampling_freq[ch]
+
+        # Figure out time indices
+        try:
+            t = tarrays[ch_len, ch_freq]
+        except KeyError:
+            if time_units == 'samples':
+                t = np.linspace(0, ch_len-1, ch_len)
+            else:
+                downsample_factor = {
+                    'seconds': ch_freq,
+                    'minutes': ch_freq * 60,
+                    'hours': ch_freq * 3600
+                }
+                t = np.linspace(0, ch_len-1, ch_len)
+                t /= downsample_factor[time_units]
+            tarrays[ch_len, ch_freq] = t
+
+        axes[ch].plot(t, signal[ch], sig_style[ch], zorder=3)
 
 
 def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
-                    ann_style, axes):
+                    ann_style, axes, sampling_freq=None, ann_freq=None):
     """
     Plot annotations, possibly overlaid on signals.
     ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
@@ -302,10 +456,12 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         The number of annotations contained in the dat file.
     ann_sym : list
         The values of the annotation symbol locations.
-    signal : ndarray
-        Tranformed expanded signal into uniform signal.
-    sig_len : int
-        The signal length (per channel) of the dat file.
+    signal : 1d or 2d numpy array or list
+        The signal or signals to be plotted.  If signal is a
+        one-dimensional array, it is assumed to represent a single channel.
+        If it is a two-dimensional array, axes 0 and 1 must represent time
+        and channel number respectively.  Otherwise it must be a list of
+        one-dimensional arrays (one for each channel).
     n_sig : int
         The number of signals contained in the dat file.
     fs : float
@@ -320,35 +476,63 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
         will be used for all channels.
     axes : list
         The information needed for each subplot.
+    sampling_freq : number or sequence, optional
+        The sampling frequency or frequencies of the signals.  If this is a
+        list, it must have the same length as the number of channels.  If
+        unspecified, defaults to `fs`.
+    ann_freq : number or sequence, optional
+        The sampling frequency or frequencies of the annotations.  If this
+        is a list, it must have the same length as `ann_samp`.  If
+        unspecified, defaults to `fs`.
 
     Returns
     -------
     N/A
 
     """
+    # Convert signal to a list if needed
+    signal = _expand_channels(signal)
+
     # Extend annotation style if necessary
     if len(ann_style) == 1:
         ann_style = n_annot * ann_style
 
-    # Figure out downsample factor for time indices
-    if time_units == 'samples':
-        downsample_factor = 1
-    else:
-        downsample_factor = {'seconds':float(fs), 'minutes':float(fs)*60,
-                             'hours':float(fs)*3600}[time_units]
+    # Convert sampling_freq and ann_freq to lists if needed
+    sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
+    ann_freq = _get_ann_freq(ann_freq, n_annot, fs)
 
     # Plot the annotations
     for ch in range(n_annot):
+        afreq = ann_freq[ch]
+        if ch < n_sig:
+            sfreq = sampling_freq[ch]
+        else:
+            sfreq = afreq
+
+        # Figure out downsample factor for time indices
+        if time_units == 'samples':
+            if afreq is None and sfreq is None:
+                downsample_factor = 1
+            else:
+                downsample_factor = afreq / sfreq
+        else:
+            downsample_factor = {
+                'seconds': float(afreq),
+                'minutes': float(afreq) * 60,
+                'hours': float(afreq) * 3600
+            }[time_units]
+
         if ann_samp[ch] is not None and len(ann_samp[ch]):
             # Figure out the y values to plot on a channel basis
 
             # 1 dimensional signals
             try:
                 if n_sig > ch:
-                    if signal.ndim == 1:
-                        y = signal[ann_samp[ch]]
+                    if sfreq == afreq:
+                        index = ann_samp[ch]
                     else:
-                        y = signal[ann_samp[ch], ch]
+                        index = (sfreq / afreq * ann_samp[ch]).astype('int')
+                    y = signal[ch][index]
                 else:
                     y = np.zeros(len(ann_samp[ch]))
             except IndexError:
@@ -365,7 +549,7 @@ def plot_annotation(ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units,
                                           y[i]))
 
 
-def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
+def plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
     """
     Add ECG grids to the axes.
     
@@ -382,6 +566,10 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
         and 'hours'.
     axes : list
         The information needed for each subplot.
+    sampling_freq : number or sequence, optional
+        The sampling frequency or frequencies of the signals.  If this is a
+        list, it must have the same length as the number of channels.  If
+        unspecified, defaults to `fs`.
 
     Returns
     -------
@@ -391,6 +579,9 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
     if ecg_grids == 'all':
         ecg_grids = range(0, len(axes))
 
+    # Convert sampling_freq to a list if needed
+    sampling_freq = _get_sampling_freq(sampling_freq, len(axes), fs)
+
     for ch in ecg_grids:
         # Get the initial plot limits
         auto_xlims = axes[ch].get_xlim()
@@ -398,8 +589,8 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes):
 
         (major_ticks_x, minor_ticks_x, major_ticks_y,
             minor_ticks_y) = calc_ecg_grids(auto_ylims[0], auto_ylims[1],
-                                            units[ch], fs, auto_xlims[1],
-                                            time_units)
+                                            units[ch], sampling_freq[ch],
+                                            auto_xlims[1], time_units)
 
         min_x, max_x = np.min(minor_ticks_x), np.max(minor_ticks_x)
         min_y, max_y = np.min(minor_ticks_y), np.max(minor_ticks_y)
@@ -440,7 +631,7 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     sig_units : list
         The units used for plotting each signal.
     fs : float
-        The sampling frequency of the record.
+        The sampling frequency of the signal.
     maxt : float
         The max time of the signal.
     time_units : str
@@ -578,8 +769,9 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
     function, while allowing direct input of WFDB objects.
 
     If the record object is input, the function will extract from it:
-      - signal values, from the `p_signal` (priority) or `d_signal` attribute
-      - sampling frequency, from the `fs` attribute
+      - signal values, from the `e_p_signal`, `e_d_signal`, `p_signal`, or
+        `d_signal` attribute (in that order of priority.)
+      - frame frequency, from the `fs` attribute
       - signal names, from the `sig_name` attribute
       - signal units, from the `units` attribute
 
@@ -645,12 +837,28 @@ def plot_wfdb(record=None, annotation=None, plot_sym=False,
                                                               annotation=annotation,
                                                               plot_sym=plot_sym)
 
+    if record:
+        if record.e_p_signal is not None or record.e_d_signal is not None:
+            sampling_freq = [spf * record.fs for spf in record.samps_per_frame]
+        else:
+            sampling_freq = record.fs
+    else:
+        sampling_freq = None
+
+    if annotation and annotation.fs is not None:
+        ann_freq = annotation.fs
+    elif record:
+        ann_freq = record.fs
+    else:
+        ann_freq = None
+
     return plot_items(signal=signal, ann_samp=ann_samp, ann_sym=ann_sym, fs=fs,
                       time_units=time_units, ylabel=ylabel,
                       title=(title or record_name),
                       sig_style=sig_style, sig_units=sig_units,
                       ann_style=ann_style, ecg_grids=ecg_grids,
-                      figsize=figsize, return_fig=return_fig)
+                      figsize=figsize, return_fig=return_fig,
+                      sampling_freq=sampling_freq, ann_freq=ann_freq)
 
 
 def get_wfdb_plot_items(record, annotation, plot_sym):
@@ -710,16 +918,31 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
     """
     # Get record attributes
     if record:
-        if record.p_signal is not None:
+        if record.e_p_signal is not None:
+            signal = record.e_p_signal
+            n_sig = len(signal)
+            physical = True
+        elif record.e_d_signal is not None:
+            signal = record.e_d_signal
+            n_sig = len(signal)
+            physical = False
+        elif record.p_signal is not None:
             signal = record.p_signal
+            n_sig = signal.shape[1]
+            physical = True
         elif record.d_signal is not None:
             signal = record.d_signal
+            n_sig = signal.shape[1]
+            physical = False
         else:
             raise ValueError('The record has no signal to plot')
 
         fs = record.fs
         sig_name = [str(s) for s in record.sig_name]
-        sig_units = [str(s) for s in record.units]
+        if physical:
+            sig_units = [str(s) for s in record.units]
+        else:
+            sig_units = ['adu'] * n_sig
         record_name = 'Record: %s' % record.record_name
         ylabel = ['/'.join(pair) for pair in zip(sig_name, sig_units)]
     else:
@@ -764,7 +987,7 @@ def get_wfdb_plot_items(record, annotation, plot_sym):
         # In this case, omit empty middle channels. This function should
         # already process labels and arrangements before passing into
         # `plot_items`
-        sig_chans = set(range(signal.shape[1]))
+        sig_chans = set(range(n_sig))
         all_chans = sorted(sig_chans.union(ann_chans))
 
         # Need to update ylabels and annotation values
