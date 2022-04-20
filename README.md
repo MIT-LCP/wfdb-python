@@ -21,29 +21,55 @@ See the [demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/master/demo.ipy
 
 ## Installation
 
-The distribution is hosted on pypi at: <https://pypi.python.org/pypi/wfdb/>. To directly install the package from pypi, run from your terminal::
+The distribution is hosted on PyPI at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from PyPI using either pip or poetry:
 
 ```sh
 pip install wfdb
+poetry add wfdb
 ```
 
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh
+# Without dev dependencies
 pip install .
+poetry install
+
+# With dev dependencies
+pip install ".[dev]"
+poetry install -E dev
 ```
 
-## Development
+See the [note](#package-management) below about dev dependencies.
 
-The package is to be expanded with physiological signal-processing tools, and general improvements. Development is made for Python 3.6+ only.
-
-## Contributing
+## Developing
 
 We welcome community contributions in the form of pull requests. When contributing code, please ensure:
 
 - [PEP8](https://www.python.org/dev/peps/pep-0008/) style guidelines are followed.
 - Documentation is provided. New functions and classes should have numpy/scipy style [docstrings](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt).
 - Unit tests are written for new features that are not covered by [existing tests](https://github.com/MIT-LCP/wfdb-python/tree/master/tests).
+
+### Package Management
+
+This project uses [poetry](https://python-poetry.org/docs/) for package management and distribution.
+
+Development dependencies are specified as optional dependencies, and then added to the "dev" extra group in the [pyproject.toml](./pyproject.toml) file.
+
+```sh
+# Do NOT use: poetry add <somepackage> --dev
+poetry add --optional <somepackage>
+```
+
+The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitation](https://github.com/python-poetry/poetry/issues/3514) that prevents these dependencies from being pip installable. Therefore, dev dependencies are not installed when purely running `poetry install`, and the `--no-dev` flag has no meaning in this project.
+
+Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are kept in sync.
+
+To upload a new distribution to PyPI:
+
+```sh
+poetry publish
+```
 
 ## Citing
 
