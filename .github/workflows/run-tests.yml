@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ["3.7", "3.8", "3.9"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
     steps:
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -30,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip poetry
           pip install ".[dev]"
       - name: Run tests
-        run: nosetests
+        run: pytest
       - name: Validate poetry file
         run: poetry check
 
@@ -47,7 +47,7 @@ jobs:
                   python3-pandas \
                   python3-requests \
                   python3-scipy \
-                  python3-nose \
+                  python3-pytest \
                   git
 
       # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
@@ -58,4 +58,4 @@ jobs:
 
       - name: Run tests
         run: |
-          nosetests3
+          pytest-3

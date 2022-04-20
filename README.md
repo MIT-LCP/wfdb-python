@@ -71,6 +71,17 @@ To upload a new distribution to PyPI:
 poetry publish
 ```
 
+### Tests
+
+Run tests using pytest:
+
+```sh
+pytest
+# Distribute tests across multiple cores.
+# https://github.com/pytest-dev/pytest-xdist
+pytest -n auto
+```
+
 ## Citing
 
 When using this resource, please cite the software [publication](https://physionet.org/content/wfdb-python/) oh PhysioNet.
