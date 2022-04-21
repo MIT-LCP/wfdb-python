@@ -18,9 +18,13 @@ pylint = {version = "^2.13.7", optional = true}
 black = {version = "^22.3.0", optional = true}
 
 [tool.poetry.extras]
-dev = ["pytest", "pytest-xdist", "pylint", "black]
+dev = ["pytest", "pytest-xdist", "pylint", "black"]
 
 # Do NOT use [tool.poetry.dev-dependencies]. See: https://github.com/python-poetry/poetry/issues/3514
+
+[tool.black]
+line-length = 80
+target-version = ['py37']
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
