@@ -22,26 +22,32 @@ def compute_hr(sig_len, qrs_inds, fs):
         not be computed.
 
     """
-    heart_rate = np.full(sig_len, np.nan, dtype='float32')
+    heart_rate = np.full(sig_len, np.nan, dtype="float32")
 
     if len(qrs_inds) < 2:
         return heart_rate
 
-    for i in range(0, len(qrs_inds)-2):
+    for i in range(0, len(qrs_inds) - 2):
         a = qrs_inds[i]
-        b = qrs_inds[i+1]
-        c = qrs_inds[i+2]
-        rr = (b-a) * (1.0 / fs) * 1000
+        b = qrs_inds[i + 1]
+        c = qrs_inds[i + 2]
+        rr = (b - a) * (1.0 / fs) * 1000
         hr = 60000.0 / rr
-        heart_rate[b+1:c+1] = hr
+        heart_rate[b + 1 : c + 1] = hr
 
-    heart_rate[qrs_inds[-1]:] = heart_rate[qrs_inds[-1]]
+    heart_rate[qrs_inds[-1] :] = heart_rate[qrs_inds[-1]]
 
     return heart_rate
 
 
-def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
-            rr_units='samples'):
+def calc_rr(
+    qrs_locs,
+    fs=None,
+    min_rr=None,
+    max_rr=None,
+    qrs_units="samples",
+    rr_units="samples",
+):
     """
     Compute R-R intervals from QRS indices by extracting the time
     differences.
@@ -79,9 +85,9 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
         return rr
 
     # Convert to desired output rr units if needed
-    if qrs_units == 'samples' and rr_units == 'seconds':
+    if qrs_units == "samples" and rr_units == "seconds":
         rr = rr / fs
-    elif qrs_units == 'seconds' and rr_units == 'samples':
+    elif qrs_units == "seconds" and rr_units == "samples":
         rr = rr * fs
 
     # Apply R-R interval filters
@@ -94,7 +100,7 @@ def calc_rr(qrs_locs, fs=None, min_rr=None, max_rr=None, qrs_units='samples',
     return rr
 
 
-def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
+def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units="samples"):
     """
     Compute mean heart rate in beats per minute, from a set of R-R
     intervals. Returns 0 if rr is empty.
@@ -136,7 +142,7 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units='samples'):
     mean_hr = 60 / mean_rr
 
     # Convert to bpm
-    if rr_units == 'samples':
+    if rr_units == "samples":
         mean_hr = mean_hr * fs
 
     return mean_hr
