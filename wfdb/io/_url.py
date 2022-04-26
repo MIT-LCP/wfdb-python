@@ -21,8 +21,9 @@ DEFAULT_BUFFER_SIZE = 32768
 _LOGGER = logging.getLogger(__name__)
 
 # Pattern that matches the value of the Content-Range response header.
-_CONTENT_RANGE_PATTERN = re.compile(r'bytes (?:(\d+)-(\d+)|\*)/(?:(\d+)|\*)',
-                                    re.ASCII | re.IGNORECASE)
+_CONTENT_RANGE_PATTERN = re.compile(
+    r"bytes (?:(\d+)-(\d+)|\*)/(?:(\d+)|\*)", re.ASCII | re.IGNORECASE
+)
 
 # Global session object.
 _SESSION = None
@@ -46,24 +47,30 @@ def _get_session():
     """
     import requests
     import requests.adapters
+
     global _SESSION
     global _SESSION_PID
 
     with _SESSION_LOCK:
         if _SESSION is None:
             _SESSION = requests.Session()
-            _SESSION.headers['User-Agent'] = ' '.join([
-                '%s/%s' % ('wfdb-python', __version__),
-                '%s/%s' % ('python-requests', requests.__version__),
-                '%s/%s' % (platform.python_implementation(),
-                           platform.python_version()),
-            ])
-            for protocol in ('http', 'https'):
+            _SESSION.headers["User-Agent"] = " ".join(
+                [
+                    "%s/%s" % ("wfdb-python", __version__),
+                    "%s/%s" % ("python-requests", requests.__version__),
+                    "%s/%s"
+                    % (
+                        platform.python_implementation(),
+                        platform.python_version(),
+                    ),
+                ]
+            )
+            for protocol in ("http", "https"):
                 adapter = requests.adapters.HTTPAdapter(
                     pool_maxsize=2,
                     pool_block=True,
                 )
-                _SESSION.mount('%s://' % protocol, adapter)
+                _SESSION.mount("%s://" % protocol, adapter)
 
         # Ensure we don't reuse sockets after forking
         if _SESSION_PID != os.getpid():
@@ -75,6 +82,7 @@ def _get_session():
 
 class NetFileError(OSError):
     """An error occurred while reading a remote file."""
+
     def __init__(self, message, url=None, status_code=None):
         super().__init__(message)
         self.url = url
@@ -126,33 +134,35 @@ class RangeTransfer:
     which may be a subset or a superset of the requested range.
 
     """
+
     def __init__(self, url, start, end):
         self.request_url = url
 
         if start == 0 and end is None:
-            method = 'GET'
+            method = "GET"
             headers = {}
         elif end is None:
-            method = 'GET'
+            method = "GET"
             headers = {
-                'Range': 'bytes=%d-' % start,
-                'Accept-Encoding': None,
+                "Range": "bytes=%d-" % start,
+                "Accept-Encoding": None,
             }
         elif end > start:
-            method = 'GET'
+            method = "GET"
             headers = {
-                'Range': 'bytes=%d-%d' % (start, end - 1),
-                'Accept-Encoding': None,
+                "Range": "bytes=%d-%d" % (start, end - 1),
+                "Accept-Encoding": None,
             }
         else:
-            method = 'HEAD'
+            method = "HEAD"
             headers = {
-                'Accept-Encoding': None,
+                "Accept-Encoding": None,
             }
 
         session = _get_session()
-        self._response = session.request(method, url, headers=headers,
-                                         stream=True)
+        self._response = session.request(
+            method, url, headers=headers, stream=True
+        )
         self._content_iter = self._response.iter_content(4096)
         try:
             self._parse_headers(method, self._response)
@@ -192,52 +202,68 @@ class RangeTransfer:
 
         # Raise an exception if an error occurs.
         if response.status_code >= 400 and response.status_code != 416:
-            _LOGGER.info('%s %s: %s', method, response.url,
-                         response.status_code)
+            _LOGGER.info(
+                "%s %s: %s", method, response.url, response.status_code
+            )
             if response.status_code in (401, 403):
                 cls = NetFilePermissionError
             elif response.status_code == 404:
                 cls = NetFileNotFoundError
             else:
                 cls = NetFileError
-            raise cls('%s Error: %s for url: %s'
-                      % (response.status_code, response.reason, response.url),
-                      url=response.url, status_code=response.status_code)
+            raise cls(
+                "%s Error: %s for url: %s"
+                % (response.status_code, response.reason, response.url),
+                url=response.url,
+                status_code=response.status_code,
+            )
 
         # Parse the Content-Range if this is a partial response.
         elif response.status_code in (206, 416):
-            content_range = response.headers.get('Content-Range')
+            content_range = response.headers.get("Content-Range")
             if content_range:
                 match = _CONTENT_RANGE_PATTERN.fullmatch(content_range)
                 if not match:
-                    raise NetFileError('Invalid Content-Range: %s'
-                                       % content_range, url=response.url)
+                    raise NetFileError(
+                        "Invalid Content-Range: %s" % content_range,
+                        url=response.url,
+                    )
                 if match.group(1):
                     self._current_pos = int(match.group(1))
                     self._expected_end_pos = int(match.group(2)) + 1
                 if match.group(3):
                     self.file_size = int(match.group(3))
             elif response.status_code == 206:
-                raise NetFileError('Missing Content-Range in partial response',
-                                   url=response.url)
+                raise NetFileError(
+                    "Missing Content-Range in partial response",
+                    url=response.url,
+                )
 
         # Parse the Content-Length if this is a complete and
         # uncompressed response.
         elif 200 <= response.status_code < 300:
             self.is_complete = True
-            content_encoding = response.headers.get('Content-Encoding')
-            content_length = response.headers.get('Content-Length')
+            content_encoding = response.headers.get("Content-Encoding")
+            content_length = response.headers.get("Content-Length")
             if content_length and not content_encoding:
                 try:
                     self.file_size = int(content_length)
                     self._expected_end_pos = self.file_size
                 except ValueError:
-                    raise NetFileError('Invalid Content-Length: %s'
-                                       % content_length, url=response.url)
+                    raise NetFileError(
+                        "Invalid Content-Length: %s" % content_length,
+                        url=response.url,
+                    )
 
-        _LOGGER.info('%s %s: %s %s-%s/%s',
-                     method, response.url, response.status_code,
-                     self._current_pos, self._expected_end_pos, self.file_size)
+        _LOGGER.info(
+            "%s %s: %s %s-%s/%s",
+            method,
+            response.url,
+            response.status_code,
+            self._current_pos,
+            self._expected_end_pos,
+            self.file_size,
+        )
 
         # If the response is an error (or an unhandled redirection)
         # then discard the body.
@@ -280,7 +306,7 @@ class RangeTransfer:
     def __del__(self):
         # If the object is deleted without calling close(), forcibly
         # close the existing connection.
-        response = getattr(self, '_response', None)
+        response = getattr(self, "_response", None)
         if response:
             response.close()
 
@@ -329,7 +355,7 @@ class RangeTransfer:
         chunks = []
         for _, chunk_data in self.iter_chunks():
             chunks.append(chunk_data)
-        return start, b''.join(chunks)
+        return start, b"".join(chunks)
 
 
 class NetFile(io.BufferedIOBase):
@@ -349,13 +375,14 @@ class NetFile(io.BufferedIOBase):
         buffering = -1, the default buffer size is used.
 
     """
+
     def __init__(self, url, buffering=-1):
         self.url = url
         self.name = url
         self.buffering = buffering
         self._pos = 0
         self._file_size = None
-        self._buffer = b''
+        self._buffer = b""
         self._buffer_start = 0
         self._buffer_end = 0
         self._current_url = self.url
@@ -382,7 +409,7 @@ class NetFile(io.BufferedIOBase):
         if 0 <= bstart <= bend:
             return memoryview(self._buffer)[bstart:bend]
         else:
-            return memoryview(b'')
+            return memoryview(b"")
 
     def _read_range(self, start, end):
         """
@@ -549,9 +576,9 @@ class NetFile(io.BufferedIOBase):
         elif size >= 0:
             end = start + size
         else:
-            raise ValueError('invalid size: %r' % (size,))
+            raise ValueError("invalid size: %r" % (size,))
 
-        result = b''.join(self._read_range(start, end))
+        result = b"".join(self._read_range(start, end))
         self._pos += len(result)
         return result
 
@@ -591,12 +618,12 @@ class NetFile(io.BufferedIOBase):
             less than the requested size.
 
         """
-        b = memoryview(b).cast('B')
+        b = memoryview(b).cast("B")
         start = self._pos
         end = start + len(b)
         count = 0
         for chunk in self._read_range(start, end):
-            b[count:count+len(chunk)] = chunk
+            b[count : count + len(chunk)] = chunk
             count += len(chunk)
         self._pos += count
         return count
@@ -663,13 +690,14 @@ class NetFile(io.BufferedIOBase):
         elif whence == os.SEEK_END:
             size = self._get_size()
             if size is None:
-                raise NetFileError('size of remote file is unknown',
-                                   url=self._current_url)
+                raise NetFileError(
+                    "size of remote file is unknown", url=self._current_url
+                )
             pos = size + offset
         else:
-            raise ValueError('invalid whence: %r' % (whence,))
+            raise ValueError("invalid whence: %r" % (whence,))
         if pos < 0:
-            raise ValueError('pos < 0')
+            raise ValueError("pos < 0")
         self._pos = pos
         return pos
 
@@ -690,9 +718,16 @@ class NetFile(io.BufferedIOBase):
         return self._pos
 
 
-def openurl(url, mode='r', *, buffering=-1,
-            encoding=None, errors=None, newline=None,
-            check_access=False):
+def openurl(
+    url,
+    mode="r",
+    *,
+    buffering=-1,
+    encoding=None,
+    errors=None,
+    newline=None,
+    check_access=False,
+):
     """
     Open a URL as a random-access file object.
 
@@ -733,25 +768,32 @@ def openurl(url, mode='r', *, buffering=-1,
 
     """
     (scheme, netloc, path, _, _, _) = urllib.parse.urlparse(url)
-    if scheme == '':
-        raise NetFileError('no scheme specified for URL: %r' % (url,), url=url)
+    if scheme == "":
+        raise NetFileError("no scheme specified for URL: %r" % (url,), url=url)
 
-    if scheme == 'file':
-        if netloc.lower() not in ('', 'localhost'):
-            raise NetFileError('invalid file URL: %r' % (url,))
+    if scheme == "file":
+        if netloc.lower() not in ("", "localhost"):
+            raise NetFileError("invalid file URL: %r" % (url,))
         local_path = urllib.request.url2pathname(path)
-        return open(local_path, mode, buffering=buffering,
-                    encoding=encoding, errors=errors, newline=newline)
+        return open(
+            local_path,
+            mode,
+            buffering=buffering,
+            encoding=encoding,
+            errors=errors,
+            newline=newline,
+        )
 
     nf = NetFile(url, buffering=buffering)
 
     if check_access:
         nf._get_size()
 
-    if mode == 'rb':
+    if mode == "rb":
         return nf
-    elif mode == 'r' or mode == 'rt':
-        return io.TextIOWrapper(nf, encoding=encoding,
-                                errors=errors, newline=newline)
+    elif mode == "r" or mode == "rt":
+        return io.TextIOWrapper(
+            nf, encoding=encoding, errors=errors, newline=newline
+        )
     else:
-        return ValueError('invalid mode: %r' % (mode,))
+        return ValueError("invalid mode: %r" % (mode,))

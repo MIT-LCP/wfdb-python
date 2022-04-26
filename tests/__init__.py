@@ -8,7 +8,7 @@ def setup_module():
     # Raise exceptions for arithmetic errors, except underflow
     global _np_error_state
     _np_error_state = np.seterr()
-    np.seterr('raise', under='ignore')
+    np.seterr("raise", under="ignore")
 
 
 def teardown_module():

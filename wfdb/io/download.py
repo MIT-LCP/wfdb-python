@@ -10,8 +10,9 @@ from wfdb.io import record, _url
 
 
 # The PhysioNet index url
-PN_INDEX_URL = 'https://physionet.org/files/'
-PN_CONTENT_URL = 'https://physionet.org/content/'
+PN_INDEX_URL = "https://physionet.org/files/"
+PN_CONTENT_URL = "https://physionet.org/content/"
+
 
 class Config(object):
     """
@@ -22,7 +23,9 @@ class Config(object):
     N/A
 
     """
+
     pass
+
 
 # The configuration database index url. Uses PhysioNet index by default.
 config = Config()
@@ -74,7 +77,7 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     if file_name and pn_dir:
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
-    with _url.openurl(url, 'rb') as f:
+    with _url.openurl(url, "rb") as f:
         remote_file_size = f.seek(0, os.SEEK_END)
 
     return remote_file_size
@@ -105,11 +108,11 @@ def _stream_header(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content of the remote file
-    with _url.openurl(url, 'rb') as f:
+    with _url.openurl(url, "rb") as f:
         content = f.read()
 
     # Get each line as a string
-    filelines = content.decode('iso-8859-1').splitlines()
+    filelines = content.decode("iso-8859-1").splitlines()
 
     # Separate content into header and comment lines
     header_lines = []
@@ -118,12 +121,12 @@ def _stream_header(file_name, pn_dir):
     for line in filelines:
         line = str(line.strip())
         # Comment line
-        if line.startswith('#'):
+        if line.startswith("#"):
             comment_lines.append(line)
         # Non-empty non-comment line = header line.
         elif line:
             # Look for a comment in the line
-            ci = line.find('#')
+            ci = line.find("#")
             if ci > 0:
                 header_lines.append(line[:ci])
                 # comment on same line as header line
@@ -161,7 +164,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content
-    with _url.openurl(url, 'rb', buffering=0) as f:
+    with _url.openurl(url, "rb", buffering=0) as f:
         f.seek(start_byte)
         content = f.read(byte_count)
 
@@ -192,11 +195,11 @@ def _stream_annotation(file_name, pn_dir):
     url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content
-    with _url.openurl(url, 'rb') as f:
+    with _url.openurl(url, "rb") as f:
         content = f.read()
 
     # Convert to numpy array
-    ann_data = np.fromstring(content, dtype=np.dtype('<u1'))
+    ann_data = np.fromstring(content, dtype=np.dtype("<u1"))
 
     return ann_data
 
@@ -226,10 +229,10 @@ def get_dbs():
     ]
 
     """
-    with _url.openurl('https://physionet.org/rest/database-list/', 'rb') as f:
+    with _url.openurl("https://physionet.org/rest/database-list/", "rb") as f:
         content = f.read()
     dbs = json.loads(content)
-    dbs = [[d['slug'], d['title']] for d in dbs]
+    dbs = [[d["slug"], d["title"]] for d in dbs]
     dbs.sort()
 
     return dbs
@@ -238,7 +241,7 @@ def get_dbs():
 # ---- Helper functions for downloading PhysioNet files ------- #
 
 
-def get_record_list(db_dir, records='all'):
+def get_record_list(db_dir, records="all"):
     """
     Get a list of records belonging to a database.
 
@@ -262,21 +265,25 @@ def get_record_list(db_dir, records='all'):
 
     """
     # Full url PhysioNet database
-    if '/' not in db_dir:
-        db_url = posixpath.join(config.db_index_url, db_dir, record.get_version(db_dir))
+    if "/" not in db_dir:
+        db_url = posixpath.join(
+            config.db_index_url, db_dir, record.get_version(db_dir)
+        )
     else:
         db_url = posixpath.join(config.db_index_url, db_dir)
 
     # Check for a RECORDS file
-    if records == 'all':
+    if records == "all":
         try:
-            with _url.openurl(posixpath.join(db_url, 'RECORDS'), 'rb') as f:
+            with _url.openurl(posixpath.join(db_url, "RECORDS"), "rb") as f:
                 content = f.read()
         except FileNotFoundError:
-            raise ValueError('The database %s has no WFDB files to download' % db_url)
+            raise ValueError(
+                "The database %s has no WFDB files to download" % db_url
+            )
 
         # Get each line as a string
-        record_list = content.decode('ascii').splitlines()
+        record_list = content.decode("ascii").splitlines()
     # Otherwise the records are input manually
     else:
         record_list = records
@@ -294,7 +301,7 @@ def get_annotators(db_dir, annotators):
         The database directory, usually the same as the database slug.
         The location to look for a ANNOTATORS file.
     annotators : list, str
-        Determines from which records to get the annotators from. Leave as 
+        Determines from which records to get the annotators from. Leave as
         default 'all' to get all annotators.
 
     Returns
@@ -313,20 +320,23 @@ def get_annotators(db_dir, annotators):
     if annotators is not None:
         # Check for an ANNOTATORS file
         try:
-            with _url.openurl(posixpath.join(db_url, 'ANNOTATORS'), 'rb') as f:
+            with _url.openurl(posixpath.join(db_url, "ANNOTATORS"), "rb") as f:
                 content = f.read()
         except FileNotFoundError:
-            if annotators == 'all':
+            if annotators == "all":
                 return
             else:
-                raise ValueError('The database %s has no annotation files to download' % db_url)
+                raise ValueError(
+                    "The database %s has no annotation files to download"
+                    % db_url
+                )
 
         # Make sure the input annotators are present in the database
-        ann_list = content.decode('ascii').splitlines()
-        ann_list = [a.split('\t')[0] for a in ann_list]
+        ann_list = content.decode("ascii").splitlines()
+        ann_list = [a.split("\t")[0] for a in ann_list]
 
         # Get the annotation file types required
-        if annotators == 'all':
+        if annotators == "all":
             # all possible ones
             annotators = ann_list
         else:
@@ -336,7 +346,10 @@ def get_annotators(db_dir, annotators):
             # user input ones. Check validity.
             for a in annotators:
                 if a not in ann_list:
-                    raise ValueError('The database contains no annotators with extension: %s' % a)
+                    raise ValueError(
+                        "The database contains no annotators with extension: %s"
+                        % a
+                    )
 
     return annotators
 
@@ -364,7 +377,7 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
     # Make the local download dir if it doesn't exist
     if not os.path.isdir(dl_dir):
         os.makedirs(dl_dir)
-        print('Created local base download directory: %s' % dl_dir)
+        print("Created local base download directory: %s" % dl_dir)
     # Create all required local subdirectories
     # This must be out of dl_pn_file to
     # avoid clash in multiprocessing
@@ -378,14 +391,14 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
 
 def dl_pn_file(inputs):
     """
-    Download a file from Physionet. The input args are to be unpacked 
+    Download a file from Physionet. The input args are to be unpacked
     for the use of multiprocessing map, because python2 doesn't have starmap.
 
     Parameters
     ----------
     inputs : list
-        All of the required information needed to download a file 
-        from Physionet: 
+        All of the required information needed to download a file
+        from Physionet:
         [basefile, subdir, db, dl_dir, keep_subdirs, overwrite].
 
     Returns
@@ -414,15 +427,18 @@ def dl_pn_file(inputs):
         # Process accordingly.
         else:
             local_file_size = os.path.getsize(local_file)
-            with _url.openurl(url, 'rb') as f:
+            with _url.openurl(url, "rb") as f:
                 remote_file_size = f.seek(0, os.SEEK_END)
                 # Local file is smaller than it should be. Append it.
                 if local_file_size < remote_file_size:
-                    print('Detected partially downloaded file: %s Appending file...' % local_file)
+                    print(
+                        "Detected partially downloaded file: %s Appending file..."
+                        % local_file
+                    )
                     f.seek(local_file_size, os.SEEK_SET)
-                    with open(local_file, 'ba') as writefile:
+                    with open(local_file, "ba") as writefile:
                         writefile.write(f.read())
-                    print('Done appending.')
+                    print("Done appending.")
                 # Local file is larger than it should be. Redownload.
                 elif local_file_size > remote_file_size:
                     dl_full_file(url, local_file)
@@ -451,9 +467,9 @@ def dl_full_file(url, save_file_name):
     N/A
 
     """
-    with _url.openurl(url, 'rb') as readfile:
+    with _url.openurl(url, "rb") as readfile:
         content = readfile.read()
-    with open(save_file_name, 'wb') as writefile:
+    with open(save_file_name, "wb") as writefile:
         writefile.write(content)
 
     return
@@ -499,22 +515,32 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     """
     # Full url PhysioNet database
     db_dir = posixpath.join(db, record.get_version(db))
-    db_url = posixpath.join(PN_CONTENT_URL, db_dir) + '/'
+    db_url = posixpath.join(PN_CONTENT_URL, db_dir) + "/"
 
     # Check if the database is valid
     _url.openurl(db_url, check_access=True)
 
     # Construct the urls to download
-    dl_inputs = [(os.path.split(file)[1], os.path.split(file)[0], db_dir, dl_dir, keep_subdirs, overwrite) for file in files]
+    dl_inputs = [
+        (
+            os.path.split(file)[1],
+            os.path.split(file)[0],
+            db_dir,
+            dl_dir,
+            keep_subdirs,
+            overwrite,
+        )
+        for file in files
+    ]
 
     # Make any required local directories
     make_local_dirs(dl_dir, dl_inputs, keep_subdirs)
 
-    print('Downloading files...')
+    print("Downloading files...")
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
     pool = multiprocessing.Pool(processes=2)
     pool.map(dl_pn_file, dl_inputs)
-    print('Finished downloading files')
+    print("Finished downloading files")
 
     return

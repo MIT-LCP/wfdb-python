@@ -10,6 +10,7 @@ class TestNetFiles(unittest.TestCase):
     """
     Test accessing remote files.
     """
+
     def test_requests(self):
         """
         Test reading a remote file using various APIs.
@@ -39,7 +40,7 @@ class TestNetFiles(unittest.TestCase):
         BERNARDO: 'Tis now struck twelve; get thee to bed, Francisco.
         """
         binary_data = text_data.encode()
-        file_content = {'/foo.txt': binary_data}
+        file_content = {"/foo.txt": binary_data}
 
         # Test all possible combinations of:
         #  - whether or not the server supports compression
@@ -47,10 +48,12 @@ class TestNetFiles(unittest.TestCase):
         #  - chosen buffering policy
         for allow_gzip in (False, True):
             for allow_range in (False, True):
-                with DummyHTTPServer(file_content=file_content,
-                                     allow_gzip=allow_gzip,
-                                     allow_range=allow_range) as server:
-                    url = server.url('/foo.txt')
+                with DummyHTTPServer(
+                    file_content=file_content,
+                    allow_gzip=allow_gzip,
+                    allow_range=allow_range,
+                ) as server:
+                    url = server.url("/foo.txt")
                     for buffering in (-2, -1, 0, 20):
                         self._test_text(url, text_data, buffering)
                         self._test_binary(url, binary_data, buffering)
@@ -74,15 +77,15 @@ class TestNetFiles(unittest.TestCase):
 
         """
         # read(-1), readable(), seekable()
-        with wfdb.io._url.openurl(url, 'r', buffering=buffering) as tf:
+        with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
             self.assertTrue(tf.readable())
             self.assertTrue(tf.seekable())
             self.assertEqual(tf.read(), content)
-            self.assertEqual(tf.read(), '')
+            self.assertEqual(tf.read(), "")
 
         # read(10)
-        with wfdb.io._url.openurl(url, 'r', buffering=buffering) as tf:
-            result = ''
+        with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
+            result = ""
             while True:
                 chunk = tf.read(10)
                 result += chunk
@@ -91,8 +94,8 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(result, content)
 
         # readline(), seek(), tell()
-        with wfdb.io._url.openurl(url, 'r', buffering=buffering) as tf:
-            result = ''
+        with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
+            result = ""
             while True:
                 rpos = tf.tell()
                 tf.seek(0)
@@ -122,16 +125,16 @@ class TestNetFiles(unittest.TestCase):
 
         """
         # read(-1), readable(), seekable()
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
             self.assertTrue(bf.readable())
             self.assertTrue(bf.seekable())
             self.assertEqual(bf.read(), content)
-            self.assertEqual(bf.read(), b'')
+            self.assertEqual(bf.read(), b"")
             self.assertEqual(bf.tell(), len(content))
 
         # read(10)
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
-            result = b''
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
+            result = b""
             while True:
                 chunk = bf.read(10)
                 result += chunk
@@ -141,8 +144,8 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(bf.tell(), len(content))
 
         # readline()
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
-            result = b''
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
+            result = b""
             while True:
                 chunk = bf.readline()
                 result += chunk
@@ -152,11 +155,11 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(bf.tell(), len(content))
 
         # read1(10), seek(), tell()
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
             bf.seek(0, 2)
             self.assertEqual(bf.tell(), len(content))
             bf.seek(0)
-            result = b''
+            result = b""
             while True:
                 rpos = bf.tell()
                 bf.seek(0)
@@ -169,8 +172,8 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(bf.tell(), len(content))
 
         # readinto(bytearray(10))
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
-            result = b''
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
+            result = b""
             chunk = bytearray(10)
             while True:
                 count = bf.readinto(chunk)
@@ -181,8 +184,8 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(bf.tell(), len(content))
 
         # readinto1(bytearray(10))
-        with wfdb.io._url.openurl(url, 'rb', buffering=buffering) as bf:
-            result = b''
+        with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
+            result = b""
             chunk = bytearray(10)
             while True:
                 count = bf.readinto1(chunk)
@@ -222,14 +225,20 @@ class DummyHTTPServer(http.server.HTTPServer):
         "127.0.0.1" and the default port is 0.
 
     """
-    def __init__(self, file_content, allow_gzip=True, allow_range=True,
-                 server_address=('127.0.0.1', 0)):
+
+    def __init__(
+        self,
+        file_content,
+        allow_gzip=True,
+        allow_range=True,
+        server_address=("127.0.0.1", 0),
+    ):
         super().__init__(server_address, DummyHTTPRequestHandler)
         self.file_content = file_content
         self.allow_gzip = allow_gzip
         self.allow_range = allow_range
 
-    def url(self, path='/'):
+    def url(self, path="/"):
         """
         Generate a URL that points to a file on this server.
 
@@ -244,8 +253,10 @@ class DummyHTTPServer(http.server.HTTPServer):
             Absolute URL for the specified file.
 
         """
-        return 'http://127.0.0.1:%d/%s' % (self.server_address[1],
-                                           path.lstrip('/'))
+        return "http://127.0.0.1:%d/%s" % (
+            self.server_address[1],
+            path.lstrip("/"),
+        )
 
     def __enter__(self):
         super().__enter__()
@@ -264,6 +275,7 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
     """
     HTTPRequestHandler used to simulate a web server for testing.
     """
+
     def do_HEAD(self):
         self.send_head()
 
@@ -278,39 +290,42 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         content = self.server.file_content.get(self.path)
         if content is None:
             self.send_error(404)
-            return b''
+            return b""
 
-        headers = {'Content-Type': 'text/plain'}
+        headers = {"Content-Type": "text/plain"}
         status = 200
 
         if self.server.allow_gzip:
-            headers['Vary'] = 'Accept-Encoding'
-            if 'gzip' in self.headers.get('Accept-Encoding', ''):
+            headers["Vary"] = "Accept-Encoding"
+            if "gzip" in self.headers.get("Accept-Encoding", ""):
                 content = gzip.compress(content)
-                headers['Content-Encoding'] = 'gzip'
+                headers["Content-Encoding"] = "gzip"
 
         if self.server.allow_range:
-            headers['Accept-Ranges'] = 'bytes'
-            req_range = self.headers.get('Range', '')
-            if req_range.startswith('bytes='):
-                start, end = req_range.split('=')[1].split('-')
+            headers["Accept-Ranges"] = "bytes"
+            req_range = self.headers.get("Range", "")
+            if req_range.startswith("bytes="):
+                start, end = req_range.split("=")[1].split("-")
                 start = int(start)
-                if end == '':
+                if end == "":
                     end = len(content)
                 else:
                     end = min(len(content), int(end) + 1)
                 if start < end:
                     status = 206
-                    resp_range = 'bytes %d-%d/%d' % (
-                        start, end - 1, len(content))
+                    resp_range = "bytes %d-%d/%d" % (
+                        start,
+                        end - 1,
+                        len(content),
+                    )
                     content = content[start:end]
                 else:
                     status = 416
-                    resp_range = 'bytes */%d' % len(content)
-                    content = b''
-                headers['Content-Range'] = resp_range
+                    resp_range = "bytes */%d" % len(content)
+                    content = b""
+                headers["Content-Range"] = resp_range
 
-        headers['Content-Length'] = len(content)
+        headers["Content-Length"] = len(content)
         self.send_response(status)
         for h, v in sorted(headers.items()):
             self.send_header(h, v)
