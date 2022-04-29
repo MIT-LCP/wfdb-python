@@ -6,7 +6,7 @@ authors = ["The Laboratory for Computational Physiology <contact@physionet.org>"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.11"
+python = "^3.7"
 numpy = "^1.10.1"
 scipy = "^1.0.0"
 pandas = "^1.0.0"
