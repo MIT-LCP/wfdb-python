@@ -7,6 +7,13 @@
 [![PhysioNet Project](https://img.shields.io/badge/DOI-10.13026%2Fegpf--2788-blue)](https://doi.org/10.13026/egpf-2788)
 [![Supported Python Versions](https://img.shields.io/pypi/pyversions/wfdb.svg)](https://pypi.org/project/wfdb)
 
+## v4 Announcement
+
+[Major breaking changes](https://github.com/MIT-LCP/wfdb-python/issues/369) are planned for WFDB v4, in the core APIs, and the installation method. The planned release date is in August 2022.
+
+- Stable v3 documentation: <https://wfdb.readthedocs.io/en/stable/>
+- WIP v4 documentation: <https://wfdb.readthedocs.io/en/latest/>
+
 ## Introduction
 
 A Python-native package for reading, writing, processing, and plotting physiologic signal and annotation data. The core I/O functionality is based on the Waveform Database (WFDB) [specifications](https://github.com/wfdb/wfdb-spec/).
