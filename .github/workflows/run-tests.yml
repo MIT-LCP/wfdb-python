@@ -61,3 +61,16 @@ jobs:
       - name: Run tests
         run: |
           pytest-3
+
+  build-documentation:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+      - name: Build documentation
+        run: |
+          cd docs
+          make html
