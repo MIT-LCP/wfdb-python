@@ -257,63 +257,73 @@ def plot_items(
 
     # Create figure
     fig, axes = create_figure(n_subplots, sharex, sharey, figsize)
+    try:
+        if signal is not None:
+            plot_signal(
+                signal,
+                sig_len,
+                n_sig,
+                fs,
+                time_units,
+                sig_style,
+                axes,
+                sampling_freq=sampling_freq,
+            )
 
-    if signal is not None:
-        plot_signal(
-            signal,
-            sig_len,
-            n_sig,
-            fs,
-            time_units,
-            sig_style,
+        if ann_samp is not None:
+            plot_annotation(
+                ann_samp,
+                n_annot,
+                ann_sym,
+                signal,
+                n_sig,
+                fs,
+                time_units,
+                ann_style,
+                axes,
+                sampling_freq=sampling_freq,
+                ann_freq=ann_freq,
+            )
+
+        if ecg_grids:
+            plot_ecg_grids(
+                ecg_grids,
+                fs,
+                sig_units,
+                time_units,
+                axes,
+                sampling_freq=sampling_freq,
+            )
+
+        # Add title and axis labels.
+        # First, make sure that xlabel and ylabel inputs are valid
+        if xlabel:
+            if len(xlabel) != signal.shape[1]:
+                raise Exception(
+                    "The length of the xlabel must be the same as the "
+                    "signal: {} values".format(signal.shape[1])
+                )
+
+        if ylabel:
+            if len(ylabel) != n_subplots:
+                raise Exception(
+                    "The length of the ylabel must be the same as the "
+                    "signal: {} values".format(n_subplots)
+                )
+
+        label_figure(
             axes,
-            sampling_freq=sampling_freq,
-        )
-
-    if ann_samp is not None:
-        plot_annotation(
-            ann_samp,
-            n_annot,
-            ann_sym,
-            signal,
-            n_sig,
-            fs,
+            n_subplots,
             time_units,
-            ann_style,
-            axes,
-            sampling_freq=sampling_freq,
-            ann_freq=ann_freq,
-        )
-
-    if ecg_grids:
-        plot_ecg_grids(
-            ecg_grids,
-            fs,
+            sig_name,
             sig_units,
-            time_units,
-            axes,
-            sampling_freq=sampling_freq,
+            xlabel,
+            ylabel,
+            title,
         )
-
-    # Add title and axis labels.
-    # First, make sure that xlabel and ylabel inputs are valid
-    if xlabel:
-        if len(xlabel) != signal.shape[1]:
-            raise Exception(
-                "The length of the xlabel must be the same as the "
-                "signal: {} values".format(signal.shape[1])
-            )
-
-    if ylabel:
-        if len(ylabel) != n_subplots:
-            raise Exception(
-                "The length of the ylabel must be the same as the "
-                "signal: {} values".format(n_subplots)
-            )
-
-    label_figure(
-        axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
-    )
+    except BaseException:
+        plt.close(fig)
+        raise
 
     if return_fig:
         return fig
