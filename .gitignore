@@ -72,3 +72,6 @@ target/
 
 # pyenv
 .python-version
+
+# Poetry
+poetry.lock

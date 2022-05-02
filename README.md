@@ -38,6 +38,9 @@ poetry install
 # With dev dependencies
 pip install ".[dev]"
 poetry install -E dev
+
+# Install the dependencies only
+poetry install -E dev --no-root
 ```
 
 See the [note](#package-management) below about dev dependencies.
@@ -46,9 +49,15 @@ See the [note](#package-management) below about dev dependencies.
 
 We welcome community contributions in the form of pull requests. When contributing code, please ensure:
 
-- [PEP8](https://www.python.org/dev/peps/pep-0008/) style guidelines are followed.
 - Documentation is provided. New functions and classes should have numpy/scipy style [docstrings](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt).
 - Unit tests are written for new features that are not covered by [existing tests](https://github.com/MIT-LCP/wfdb-python/tree/master/tests).
+- The code style is consistent with the project's formating standards.
+
+Run the formatter with:
+
+```sh
+black .
+```
 
 ### Package Management
 
