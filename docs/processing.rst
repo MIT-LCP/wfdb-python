@@ -26,6 +26,11 @@ Peaks
 .. automodule:: wfdb.processing
     :members: find_peaks, find_local_peaks, correct_peaks
 
+Filters
+-------
+
+.. automodule:: wfdb.processing
+    :members: sigavg
 
 QRS Detectors
 -------------

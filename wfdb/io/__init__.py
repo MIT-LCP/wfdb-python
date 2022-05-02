@@ -6,17 +6,10 @@ from wfdb.io.record import (
     rdsamp,
     wrsamp,
     dl_database,
-    edf2mit,
-    mit2edf,
-    wav2mit,
-    mit2wav,
-    wfdb2mat,
-    csv2mit,
     sampfreq,
     signame,
     wfdbdesc,
     wfdbtime,
-    sigavg,
     SIGNAL_CLASSES,
 )
 from wfdb.io._signal import est_res, wr_dat_file
@@ -38,4 +31,8 @@ from wfdb.io.download import (
     dl_files,
     set_db_index_url,
 )
-from wfdb.io.tff import rdtff
+from wfdb.io.convert.csv import csv_to_wfdb
+from wfdb.io.convert.edf import read_edf, wfdb_to_edf
+from wfdb.io.convert.matlab import wfdb_to_mat
+from wfdb.io.convert.tff import rdtff
+from wfdb.io.convert.wav import wfdb_to_wav, read_wav

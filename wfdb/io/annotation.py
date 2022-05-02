@@ -4,14 +4,13 @@ import os
 import pandas as pd
 import re
 import posixpath
-import pdb
 import struct
 import sys
 
 from wfdb.io import download
 from wfdb.io import _header
 from wfdb.io import record
-
+from wfdb.io.convert.edf import read_edf
 
 class Annotation(object):
     """
@@ -3026,7 +3025,7 @@ def rdedfann(
     #   "The coding is EDF compatible in the sense that old EDF software would
     #    simply treat this 'EDF Annotations' signal as if it were a (strange-
     #    looking) ordinary signal"
-    rec = record.edf2mit(
+    rec = read_edf(
         record_name,
         pn_dir=pn_dir,
         delete_file=delete_file,

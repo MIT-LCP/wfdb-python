@@ -9,7 +9,7 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, wrsamp, edf2mit, mit2edf, wav2mit, mit2wav, csv2mit
+    :members: rdrecord, rdheader, rdsamp, wrsamp, read_edf, wfdb_to_edf, read_wav, wfdb_to_wav, csv_to_wfdb, wfdb_to_mat
 
 .. autoclass:: wfdb.io.Record
     :members: wrsamp, adc, dac

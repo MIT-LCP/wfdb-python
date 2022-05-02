@@ -6,17 +6,10 @@ from wfdb.io.record import (
     rdsamp,
     wrsamp,
     dl_database,
-    edf2mit,
-    mit2edf,
-    wav2mit,
-    mit2wav,
-    wfdb2mat,
-    csv2mit,
     sampfreq,
     signame,
     wfdbdesc,
     wfdbtime,
-    sigavg,
 )
 from wfdb.io.annotation import (
     Annotation,
