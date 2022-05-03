@@ -778,8 +778,10 @@ class TestMultiRecord(unittest.TestCase):
             smooth_frames=False,
         )
 
+        # Sample values should match the output of rdsamp -H
         np.testing.assert_array_equal(sig, sig_target)
-        assert record.__eq__(record_named)
+        # channel_names=[...] should give the same result as channels=[...]
+        self.assertEqual(record, record_named)
 
     def test_multi_variable_a(self):
         """
