@@ -1358,16 +1358,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                         # mismatch case
                         elif reference_fields[field][ch] != item_ch:
                             if field == "samps_per_frame":
+                                expected = reference_fields[field][ch]
                                 raise ValueError(
-                                    "Incorrect samples per frame (%s != %s) "
-                                    "for signal %s in segment %s of %s"
-                                    % (
-                                        item_ch,
-                                        reference_fields[field][ch],
-                                        signal_names[ch],
-                                        seg.record_name,
-                                        self.record_name,
-                                    )
+                                    f"Incorrect samples per frame "
+                                    f"({item_ch} != {expected}) "
+                                    f"for signal {signal_names[ch]} "
+                                    f"in segment {seg.record_name} "
+                                    f"of {self.record_name}"
                                 )
                             elif physical:
                                 mismatched_fields.append(field)
