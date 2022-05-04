@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import annotation
-from wfdb.io.record import get_version, rdrecord
+from wfdb.io import download
+from wfdb.io.record import rdrecord
 
 
 def sigavg(
@@ -94,7 +95,7 @@ def sigavg(
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     rec = rdrecord(record_name, pn_dir=pn_dir, physical=False)

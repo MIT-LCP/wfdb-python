@@ -7,7 +7,7 @@ import numpy as np
 from wfdb.io import Record
 from wfdb.io import download
 from wfdb.io import _url
-from wfdb.io.record import get_version, rdrecord
+from wfdb.io.record import rdrecord
 
 
 def wfdb_to_wav(
@@ -229,7 +229,7 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         if "." not in pn_dir:
             dir_list = pn_dir.split("/")
             pn_dir = posixpath.join(
-                dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
             )
 
         file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)

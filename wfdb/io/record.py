@@ -1444,34 +1444,6 @@ LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + (
 )
 
 
-def get_version(pn_dir):
-    """
-    Get the version number of the desired project.
-
-    Parameters
-    ----------
-    pn_dir : str
-        The PhysioNet database directory from which to find the
-        required version number. eg. For the project 'mitdb' in
-        'http://physionet.org/content/mitdb', pn_dir='mitdb'.
-
-    Returns
-    -------
-    version_number : str
-        The version number of the most recent database.
-
-    """
-    db_dir = pn_dir.split("/")[0]
-    url = posixpath.join(download.PN_CONTENT_URL, db_dir) + "/"
-    with _url.openurl(url, "rb") as f:
-        content = f.read()
-    contents = [line.decode("utf-8").strip() for line in content.splitlines()]
-    version_number = [v for v in contents if "Version:" in v]
-    version_number = version_number[0].split(":")[-1].strip().split("<")[0]
-
-    return version_number
-
-
 def _check_item_type(
     item, field_name, allowed_types, expect_list=False, required_channels="all"
 ):
@@ -1622,7 +1594,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     # Read the header file. Separate comment and non-comment lines
@@ -1804,7 +1776,7 @@ def rdrecord(
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
@@ -2089,7 +2061,7 @@ def rdsamp(
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdrecord(
@@ -2159,7 +2131,7 @@ def sampfreq(record_name, pn_dir=None):
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdheader(record_name, pn_dir=pn_dir)
@@ -2212,7 +2184,7 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdheader(record_name, pn_dir=pn_dir)
@@ -2292,7 +2264,7 @@ def wfdbdesc(record_name, pn_dir=None):
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdheader(record_name, pn_dir=pn_dir)
@@ -2423,7 +2395,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
     record = rdheader(record_name, pn_dir=pn_dir)
@@ -2832,10 +2804,10 @@ def dl_database(
     if "/" in db_dir:
         dir_list = db_dir.split("/")
         db_dir = posixpath.join(
-            dir_list[0], get_version(dir_list[0]), *dir_list[1:]
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
     else:
-        db_dir = posixpath.join(db_dir, get_version(db_dir))
+        db_dir = posixpath.join(db_dir, download.get_version(db_dir))
     db_url = posixpath.join(download.PN_CONTENT_URL, db_dir) + "/"
     # Check if the database is valid
     _url.openurl(db_url, check_access=True)

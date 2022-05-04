@@ -1,12 +1,11 @@
+import json
 import multiprocessing
-import numpy as np
-import re
 import os
 import posixpath
-import pdb
-import json
 
-from wfdb.io import record, _url
+import numpy as np
+
+from wfdb.io import _url
 
 
 # The PhysioNet index url
@@ -241,6 +240,34 @@ def get_dbs():
 # ---- Helper functions for downloading PhysioNet files ------- #
 
 
+def get_version(pn_dir):
+    """
+    Get the version number of the desired project.
+
+    Parameters
+    ----------
+    pn_dir : str
+        The PhysioNet database directory from which to find the
+        required version number. eg. For the project 'mitdb' in
+        'http://physionet.org/content/mitdb', pn_dir='mitdb'.
+
+    Returns
+    -------
+    version_number : str
+        The version number of the most recent database.
+
+    """
+    db_dir = pn_dir.split("/")[0]
+    url = posixpath.join(PN_CONTENT_URL, db_dir) + "/"
+    with _url.openurl(url, "rb") as f:
+        content = f.read()
+    contents = [line.decode("utf-8").strip() for line in content.splitlines()]
+    version_number = [v for v in contents if "Version:" in v]
+    version_number = version_number[0].split(":")[-1].strip().split("<")[0]
+
+    return version_number
+
+
 def get_record_list(db_dir, records="all"):
     """
     Get a list of records belonging to a database.
@@ -267,7 +294,7 @@ def get_record_list(db_dir, records="all"):
     # Full url PhysioNet database
     if "/" not in db_dir:
         db_url = posixpath.join(
-            config.db_index_url, db_dir, record.get_version(db_dir)
+            config.db_index_url, db_dir, get_version(db_dir)
         )
     else:
         db_url = posixpath.join(config.db_index_url, db_dir)
@@ -514,7 +541,7 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
 
     """
     # Full url PhysioNet database
-    db_dir = posixpath.join(db, record.get_version(db))
+    db_dir = posixpath.join(db, get_version(db))
     db_url = posixpath.join(PN_CONTENT_URL, db_dir) + "/"
 
     # Check if the database is valid

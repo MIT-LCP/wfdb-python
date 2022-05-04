@@ -5,7 +5,6 @@ import sys
 import numpy as np
 
 from wfdb.io import download
-import pdb
 
 
 MAX_I32 = 2147483647

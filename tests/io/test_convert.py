@@ -1,7 +1,7 @@
 import numpy as np
 
-import wfdb
-from wfdb.io import read_edf
+from wfdb.io.record import rdrecord
+from wfdb.io.convert.edf import read_edf
 
 
 class TestConvert:
@@ -11,7 +11,7 @@ class TestConvert:
 
         """
         # Uniform sample rates
-        record_MIT = wfdb.rdrecord("sample-data/n16").__dict__
+        record_MIT = rdrecord("sample-data/n16").__dict__
         record_EDF = read_edf("sample-data/n16.edf").__dict__
 
         fields = list(record_MIT.keys())
@@ -63,7 +63,7 @@ class TestConvert:
 
         """
         # Non-uniform sample rates
-        record_MIT = wfdb.rdrecord("sample-data/wave_4").__dict__
+        record_MIT = rdrecord("sample-data/wave_4").__dict__
         record_EDF = read_edf("sample-data/wave_4.edf").__dict__
 
         fields = list(record_MIT.keys())

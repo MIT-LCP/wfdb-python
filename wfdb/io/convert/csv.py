@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header
+from wfdb.io.annotation import format_ann_from_df, Annotation, wrann
 from wfdb.io.record import Record, wrsamp
 
 
@@ -478,3 +479,212 @@ def csv_to_wfdb(
         )
         if verbose:
             print("File generated successfully")
+
+
+def csv2ann(
+    file_name,
+    extension="atr",
+    fs=None,
+    record_only=False,
+    time_onset=True,
+    header=True,
+    delimiter=",",
+    verbose=False,
+):
+    """
+    Read a CSV/TSV/etc. file and return either an `Annotation` object with the
+    annotation descriptors as attributes or write an annotation file.
+
+    Parameters
+    ----------
+    file_name : str
+        The name of the CSV file to be read, including the '.csv' file
+        extension. If the argument contains any path delimiter characters, the
+        argument will be interpreted as PATH/BASE_RECORD. Both relative and
+        absolute paths are accepted. The BASE_RECORD file name will be used to
+        name the annotation file with the desired extension.
+    extension : str, optional
+        The string annotation file extension.
+    fs : float, optional
+        This will be used if annotation onsets are given in the format of time
+        (`time_onset` = True) instead of sample since onsets must be sample
+        numbers in order for `wrann` to work. This number can be expressed in
+        any format legal for a Python input of floating point numbers (thus
+        '360', '360.', '360.0', and '3.6e2' are all legal and equivalent). The
+        sampling frequency must be greater than 0; if it is missing, a value
+        of 250 is assumed.
+    record_only : bool, optional
+        Whether to only return the record information (True) or not (False).
+        If false, this function will generate the annotation file.
+    time_onset : bool, optional
+        Whether to assume the values provided in the 'onset' column are in
+        units of time (True) or samples (False). If True, convert the onset
+        times to samples by using the, now required, `fs` input.
+    header : bool, optional
+        Whether to assume the CSV has a first line header (True) or not
+        (False) which defines the signal names.
+    delimiter : str, optional
+        What to use as the delimiter for the file to separate data. The default
+        if a comma (','). Other common delimiters are tabs ('\t'), spaces (' '),
+        pipes ('|'), and colons (':').
+    verbose : bool, optional
+        Whether to print all the information read about the file (True) or
+        not (False).
+
+    Returns
+    -------
+    N/A : Annotation, optional
+        The WFDB Annotation object representing the contents of the CSV file
+        read.
+
+    Notes
+    -----
+    CSVs should be in one of the two possible following format:
+
+    1) All events are single time events (no duration).
+
+    onset,description
+    onset_1,description_1
+    onset_2,description_2
+    ...,...
+
+    Or this format if `header=False` is defined:
+
+    onset_1,description_1
+    onset_2,description_2
+    ...,...
+
+    2) A duration is specified for some events.
+
+    onset,duration,description
+    onset_1,duration_1,description_1
+    onset_2,duration_2,description_2
+    ...,...,...
+
+    Or this format if `header=False` is defined:
+
+    onset_1,duration_1,description_1
+    onset_2,duration_2,description_2
+    ...,...,...
+
+    By default, the 'onset' will be interpreted as a sample number if it is
+    strictly in integer format and as a time otherwise. By default, the
+    'duration' will be interpreted as time values and not elapsed samples. By
+    default, the 'description' will be interpreted as the `aux_note` for the
+    annotation and the `symbol` will automatically be set to " which defines a
+    comment. Future additions will allow the user to customize such
+    attributes.
+
+    Examples
+    --------
+    1) Write WFDB annotation file from CSV with time onsets:
+       ======= start example.csv =======
+       onset,description
+       0.2,p-wave
+       0.8,qrs
+       ======== end example.csv ========
+       >>> wfdb.csv2ann('example.csv', fs=360)
+       * Creates a WFDB annotation file called: 'example.atr'
+
+    2) Write WFDB annotation file from CSV with sample onsets:
+       ======= start example.csv =======
+       onset,description
+       5,p-wave
+       13,qrs
+       ======== end example.csv ========
+       >>> wfdb.csv2ann('example.csv', fs=10, time_onset=False)
+       * Creates a WFDB annotation file called: 'example.atr'
+       * 5,13 samples -> 0.5,1.3 seconds for onset
+
+    3) Write WFDB annotation file from CSV with time onsets, durations, and no
+       header:
+       ======= start example.csv =======
+       0.2,0.1,qrs
+       0.8,0.4,qrs
+       ======== end example.csv ========
+       >>> wfdb.csv2ann('example.csv', extension='qrs', fs=360, header=False)
+       * Creates a WFDB annotation file called: 'example.qrs'
+
+    """
+    # NOTE: No need to write input checks here since the Annotation class
+    # should handle them (except verifying the CSV input format which is for
+    # Pandas)
+    if header:
+        df_CSV = pd.read_csv(file_name, delimiter=delimiter)
+    else:
+        df_CSV = pd.read_csv(file_name, delimiter=delimiter, header=None)
+    if verbose:
+        print("Successfully read CSV")
+
+    if verbose:
+        print("Creating Pandas dataframe from CSV")
+    if df_CSV.shape[1] == 2:
+        if verbose:
+            print("onset,description format detected")
+        if not header:
+            df_CSV.columns = ["onset", "description"]
+        df_out = df_CSV
+    elif df_CSV.shape[1] == 3:
+        if verbose:
+            print("onset,duration,description format detected")
+            print("Converting durations to single time-point events")
+        if not header:
+            df_CSV.columns = ["onset", "duration", "description"]
+        df_out = format_ann_from_df(df_CSV)
+    else:
+        raise Exception(
+            """The number of columns in the CSV was not
+                        recognized."""
+        )
+
+    # Remove extension from input file name
+    file_name = file_name.split(".")[0]
+    if time_onset:
+        if not fs:
+            raise Exception(
+                """`fs` must be provided if `time_onset` is True
+                            since it is required to convert time onsets to
+                            samples"""
+            )
+        sample = (df_out["onset"].to_numpy() * fs).astype(np.int64)
+    else:
+        sample = df_out["onset"].to_numpy()
+    # Assume each annotation is a comment
+    symbol = ['"'] * len(df_out.index)
+    subtype = np.array([22] * len(df_out.index))
+    # Assume each annotation belongs with the 1st channel
+    chan = np.array([0] * len(df_out.index))
+    num = np.array([0] * len(df_out.index))
+    aux_note = df_out["description"].tolist()
+
+    if verbose:
+        print("Finished CSV parsing... writing to Annotation object")
+
+    if record_only:
+        if verbose:
+            print("Finished creating Annotation object")
+        return Annotation(
+            record_name=file_name,
+            extension=extension,
+            sample=sample,
+            symbol=symbol,
+            subtype=subtype,
+            chan=chan,
+            num=num,
+            aux_note=aux_note,
+            fs=fs,
+        )
+    else:
+        wrann(
+            file_name,
+            extension,
+            sample=sample,
+            symbol=symbol,
+            subtype=subtype,
+            chan=chan,
+            num=num,
+            aux_note=aux_note,
+            fs=fs,
+        )
+        if verbose:
+            print("Finished writing Annotation file")

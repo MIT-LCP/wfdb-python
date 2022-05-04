@@ -19,20 +19,12 @@ from wfdb.io.annotation import (
     wrann,
     show_ann_labels,
     show_ann_classes,
-    ann2rr,
-    rr2ann,
-    csv2ann,
-    rdedfann,
     mrgann,
 )
 from wfdb.io.download import (
+    dl_files,
     get_dbs,
     get_record_list,
-    dl_files,
     set_db_index_url,
 )
-from wfdb.io.convert.csv import csv_to_wfdb
-from wfdb.io.convert.edf import read_edf, wfdb_to_edf
-from wfdb.io.convert.matlab import wfdb_to_mat
-from wfdb.io.convert.tff import rdtff
-from wfdb.io.convert.wav import wfdb_to_wav, read_wav
+
