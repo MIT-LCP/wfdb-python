@@ -9,7 +9,7 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, wrsamp, read_edf, wfdb_to_edf, read_wav, wfdb_to_wav, csv_to_wfdb, wfdb_to_mat
+    :members: rdrecord, rdheader, rdsamp, wrsamp
 
 .. autoclass:: wfdb.io.Record
     :members: wrsamp, adc, dac
@@ -32,4 +32,4 @@ Downloading
 -----------
 
 .. automodule:: wfdb.io
-    :members: get_dbs, get_record_list, dl_database, dl_files, set_db_index_url
+    :members: dl_files, dl_database, get_dbs, get_record_list, set_db_index_url

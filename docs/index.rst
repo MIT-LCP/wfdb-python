@@ -53,6 +53,7 @@ Other Content
 
    installation
    wfdb-specifications
+   convert
 
 
 Indices and tables
