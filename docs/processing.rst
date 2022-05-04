@@ -17,7 +17,7 @@ Heart Rate
 ----------
 
 .. automodule:: wfdb.processing
-    :members: compute_hr
+    :members: compute_hr, calc_rr, calc_mean_hr, ann2rr, rr2ann
 
 
 Peaks
@@ -26,6 +26,11 @@ Peaks
 .. automodule:: wfdb.processing
     :members: find_peaks, find_local_peaks, correct_peaks
 
+Filters
+-------
+
+.. automodule:: wfdb.processing
+    :members: sigavg
 
 QRS Detectors
 -------------

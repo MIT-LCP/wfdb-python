@@ -9,7 +9,7 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb
-    :members: rdrecord, rdheader, rdsamp, wrsamp, edf2mit, mit2edf, wav2mit, mit2wav, csv2mit
+    :members: rdrecord, rdheader, rdsamp, wrsamp
 
 .. autoclass:: wfdb.Record
     :members: wrsamp, adc, dac
@@ -32,7 +32,7 @@ Downloading
 -----------
 
 .. automodule:: wfdb
-    :members: get_dbs, get_record_list, dl_database, dl_files, set_db_index_url
+    :members: dl_files, dl_database, get_dbs, get_record_list, set_db_index_url
 
 
 Plotting
