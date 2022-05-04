@@ -1252,8 +1252,8 @@ def _rd_dat_signals(
     pn_dir : str
         The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
-    fmt : list
-        The formats of the dat files.
+    fmt : str
+        The format of the dat file.
     n_sig : int
         The number of signals contained in the dat file.
     sig_len : int
@@ -1599,8 +1599,8 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
     pn_dir : str
         The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are remote.
-    fmt : list
-        The formats of the dat files.
+    fmt : str
+        The format of the dat file.
     start_byte : int
         The starting byte number to read from.
     n_samp : int
