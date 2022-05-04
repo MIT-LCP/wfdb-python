@@ -510,13 +510,6 @@ class BaseRecord(object):
                 "return_res must be one of the following when physical is True: 64, 32, 16"
             )
 
-        # Cannot expand multiple samples/frame for multi-segment records
-        if isinstance(self, MultiRecord):
-            if not smooth_frames:
-                raise ValueError(
-                    "This package version cannot expand all samples when reading multi-segment records. Must enable frame smoothing."
-                )
-
     def _adjust_datetime(self, sampfrom):
         """
         Adjust date and time fields to reflect user input if possible.
@@ -1269,7 +1262,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
 
-    def multi_to_single(self, physical, return_res=64):
+    def multi_to_single(self, physical, return_res=64, expanded=False):
         """
         Create a Record object from the MultiRecord object. All signal
         segments will be combined into the new object's `p_signal` or
@@ -1283,6 +1276,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return_res : int, optional
             The return resolution of the `p_signal` field. Options are:
             64, 32, and 16.
+        expanded : bool, optional
+            If false, combine the sample data from `p_signal` or `d_signal`
+            into a single two-dimensional array. If true, combine the
+            sample data from `e_p_signal` or `e_d_signal` into a list of
+            one-dimensional arrays.
 
         Returns
         -------
@@ -1300,7 +1298,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Figure out single segment fields to set for the new Record
         if self.layout == "fixed":
             # Get the fields from the first segment
-            for attr in ["fmt", "adc_gain", "baseline", "units", "sig_name"]:
+            for attr in [
+                "fmt",
+                "adc_gain",
+                "baseline",
+                "units",
+                "sig_name",
+                "samps_per_frame",
+            ]:
                 fields[attr] = getattr(self.segments[0], attr)
         else:
             # For variable layout records, inspect the segments for the
@@ -1311,9 +1316,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # must have the same fmt, gain, baseline, and units for all
             # segments.
 
+            # For either physical or digital conversion, all signals
+            # of the same name must have the same samps_per_frame,
+            # which must match the value in the layout header.
+
             # The layout header should be updated at this point to
-            # reflect channels. We can depend on it for sig_name, but
-            # not for fmt, adc_gain, units, and baseline.
+            # reflect channels. We can depend on it for sig_name and
+            # samps_per_frame, but not for fmt, adc_gain, units, and
+            # baseline.
 
             # These signal names will be the key
             signal_names = self.segments[0].sig_name
@@ -1325,6 +1335,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 "adc_gain": n_sig * [None],
                 "baseline": n_sig * [None],
                 "units": n_sig * [None],
+                "samps_per_frame": self.segments[0].samps_per_frame,
             }
 
             # For physical signals, mismatched fields will not be copied
@@ -1346,7 +1357,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                             reference_fields[field][ch] = item_ch
                         # mismatch case
                         elif reference_fields[field][ch] != item_ch:
-                            if physical:
+                            if field == "samps_per_frame":
+                                expected = reference_fields[field][ch]
+                                raise ValueError(
+                                    f"Incorrect samples per frame "
+                                    f"({item_ch} != {expected}) "
+                                    f"for signal {signal_names[ch]} "
+                                    f"in segment {seg.record_name} "
+                                    f"of {self.record_name}"
+                                )
+                            elif physical:
                                 mismatched_fields.append(field)
                             else:
                                 raise Exception(
@@ -1361,18 +1381,31 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Figure out signal attribute to set, and its dtype.
         if physical:
-            sig_attr = "p_signal"
+            if expanded:
+                sig_attr = "e_p_signal"
+            else:
+                sig_attr = "p_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=False)
             nan_vals = np.array([self.n_sig * [np.nan]], dtype=dtype)
         else:
-            sig_attr = "d_signal"
+            if expanded:
+                sig_attr = "e_d_signal"
+            else:
+                sig_attr = "d_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=True)
             nan_vals = np.array([_signal._digi_nan(fields["fmt"])], dtype=dtype)
 
+        samps_per_frame = fields["samps_per_frame"]
+
         # Initialize the full signal array
-        combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
+        if expanded:
+            combined_signal = []
+            for nan_val, spf in zip(nan_vals[0], samps_per_frame):
+                combined_signal.append(np.repeat(nan_val, spf * self.sig_len))
+        else:
+            combined_signal = np.repeat(nan_vals, self.sig_len, axis=0)
 
         # Start and end samples in the overall array to place the
         # segment samples into
@@ -1383,9 +1416,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # Copy over the signals directly. Recall there are no
             # empty segments in fixed layout records.
             for i in range(self.n_seg):
-                combined_signal[start_samps[i] : end_samps[i], :] = getattr(
-                    self.segments[i], sig_attr
-                )
+                signals = getattr(self.segments[i], sig_attr)
+                if expanded:
+                    for ch in range(self.n_sig):
+                        start = start_samps[i] * samps_per_frame[ch]
+                        end = end_samps[i] * samps_per_frame[ch]
+                        combined_signal[ch][start:end] = signals[ch]
+                else:
+                    start = start_samps[i]
+                    end = end_samps[i]
+                    combined_signal[start:end, :] = signals
         else:
             # Copy over the signals into the matching channels
             for i in range(1, self.n_seg):
@@ -1396,12 +1436,20 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     segment_channels = _get_wanted_channels(
                         fields["sig_name"], seg.sig_name, pad=True
                     )
+                    signals = getattr(seg, sig_attr)
                     for ch in range(self.n_sig):
                         # Copy over relevant signal
                         if segment_channels[ch] is not None:
-                            combined_signal[
-                                start_samps[i] : end_samps[i], ch
-                            ] = getattr(seg, sig_attr)[:, segment_channels[ch]]
+                            if expanded:
+                                signal = signals[segment_channels[ch]]
+                                start = start_samps[i] * samps_per_frame[ch]
+                                end = end_samps[i] * samps_per_frame[ch]
+                                combined_signal[ch][start:end] = signal
+                            else:
+                                signal = signals[:, segment_channels[ch]]
+                                start = start_samps[i]
+                                end = end_samps[i]
+                                combined_signal[start:end, ch] = signal
 
         # Create the single segment Record object and set attributes
         record = Record()
@@ -1411,9 +1459,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         # Use the signal to set record features
         if physical:
-            record.set_p_features()
+            record.set_p_features(expanded=expanded)
         else:
-            record.set_d_features()
+            record.set_d_features(expanded=expanded)
 
         return record
 
@@ -4168,6 +4216,7 @@ def rdrecord(
                     channels=seg_channels[i],
                     physical=physical,
                     pn_dir=pn_dir,
+                    smooth_frames=smooth_frames,
                     return_res=return_res,
                 )
 
@@ -4184,7 +4233,9 @@ def rdrecord(
         # Convert object into a single segment Record object
         if m2s:
             record = record.multi_to_single(
-                physical=physical, return_res=return_res
+                physical=physical,
+                expanded=(not smooth_frames),
+                return_res=return_res,
             )
 
     # Perform dtype conversion if necessary
