@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-from wfdb.io import download
+from wfdb.io import download, _coreio
 
 
 MAX_I32 = 2147483647
@@ -14,10 +14,12 @@ MIN_I32 = -2147483648
 ALIGNED_FMTS = ["8", "16", "32", "61", "80", "160"]
 # Formats in which not all samples align with integer boundaries
 UNALIGNED_FMTS = ["212", "310", "311", "24"]
+# Formats in which samples are encoded in a variable number of bits
+COMPRESSED_FMTS = ["508", "516", "524"]
 # Formats which are stored in offset binary form
 OFFSET_FMTS = ["80", "160"]
 # All WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
-DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS
+DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS + COMPRESSED_FMTS
 
 # Bytes required to hold each sample (including wasted space) for each
 # WFDB dat formats
@@ -32,6 +34,9 @@ BYTES_PER_SAMPLE = {
     "212": 1.5,
     "310": 4 / 3.0,
     "311": 4 / 3.0,
+    "508": 0,
+    "516": 0,
+    "524": 0,
 }
 
 # The bit resolution of each WFDB dat format
@@ -46,6 +51,9 @@ BIT_RES = {
     "212": 12,
     "310": 10,
     "311": 10,
+    "508": 8,
+    "516": 16,
+    "524": 24,
 }
 
 # Numpy dtypes used to load dat files of each format.
@@ -66,13 +74,16 @@ DATA_LOAD_TYPES = {
 # formats.
 SAMPLE_VALUE_RANGE = {
     "80": (-(2**7), 2**7 - 1),
+    "508": (-(2**7), 2**7 - 1),
     "310": (-(2**9), 2**9 - 1),
     "311": (-(2**9), 2**9 - 1),
     "212": (-(2**11), 2**11 - 1),
     "16": (-(2**15), 2**15 - 1),
     "61": (-(2**15), 2**15 - 1),
     "160": (-(2**15), 2**15 - 1),
+    "516": (-(2**15), 2**15 - 1),
     "24": (-(2**23), 2**23 - 1),
+    "524": (-(2**23), 2**23 - 1),
     "32": (-(2**31), 2**31 - 1),
     "8": (-(2**31), 2**31 - 1),
 }
@@ -81,13 +92,16 @@ SAMPLE_VALUE_RANGE = {
 # WFDB dat formats.
 INVALID_SAMPLE_VALUE = {
     "80": -(2**7),
+    "508": -(2**7),
     "310": -(2**9),
     "311": -(2**9),
     "212": -(2**11),
     "16": -(2**15),
     "61": -(2**15),
     "160": -(2**15),
+    "516": -(2**15),
     "24": -(2**23),
+    "524": -(2**23),
     "32": -(2**31),
     "8": None,
 }
@@ -1312,6 +1326,18 @@ def _rd_dat_signals(
     # Read values from dat file. Append bytes/samples if needed.
     if no_file:
         data_to_read = sig_data
+    elif fmt in COMPRESSED_FMTS:
+        data_to_read = _rd_compressed_file(
+            file_name=file_name,
+            dir_name=dir_name,
+            pn_dir=pn_dir,
+            fmt=fmt,
+            sample_offset=byte_offset,
+            n_sig=n_sig,
+            samps_per_frame=samps_per_frame,
+            start_frame=sampfrom,
+            end_frame=sampto,
+        )
     else:
         data_to_read = _rd_dat_file(
             file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples
@@ -1745,6 +1771,162 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
             raise NotImplementedError
 
     return sig
+
+
+def _rd_compressed_file(
+    file_name,
+    dir_name,
+    pn_dir,
+    fmt,
+    sample_offset,
+    n_sig,
+    samps_per_frame,
+    start_frame,
+    end_frame,
+):
+    """
+    Read data from a compressed file into a 1D numpy array.
+
+    Parameters
+    ----------
+    file_name : str
+        The name of the signal file.
+    dir_name : str
+        The full directory where the signal file is located, if local.
+        This argument is ignored if `pn_dir` is not None.
+    pn_dir : str or None
+        The PhysioNet database directory where the signal file is located.
+    fmt : str
+        The format code of the signal file.
+    sample_offset : int
+        The sample number in the signal file corresponding to sample 0 of
+        the WFDB record.
+    n_sig : int
+        The number of signals in the file.
+    samps_per_frame : list
+        The number of samples per frame for each signal in the file.
+    start_frame : int
+        The starting frame number to read.
+    end_frame : int
+        The ending frame number to read.
+
+    Returns
+    -------
+    signal : ndarray
+        The data read from the signal file.  This is a one-dimensional
+        array in the same order the samples would be stored in a binary
+        signal file; `signal[(i*n_sig+j)*samps_per_frame[0]+k]` is sample
+        number `i*samps_per_frame[0]+k` of signal `j`.
+
+    Notes
+    -----
+    Converting the output array into "dat file order" here is inefficient,
+    but necessary to match the behavior of _rd_dat_file.  It would be
+    better to reorganize _rd_dat_signals to make the reshaping unnecessary.
+
+    """
+    import soundfile
+
+    if any(spf != samps_per_frame[0] for spf in samps_per_frame):
+        raise ValueError(
+            "All channels in a FLAC signal file must have the same "
+            "sampling rate and samples per frame"
+        )
+
+    if pn_dir is None:
+        file_name = os.path.join(dir_name, file_name)
+
+    with _coreio._open_file(pn_dir, file_name, "rb") as fp:
+        signature = fp.read(4)
+        if signature != b"fLaC":
+            raise ValueError(f"{fp.name} is not a FLAC file")
+        fp.seek(0)
+
+        with soundfile.SoundFile(fp) as sf:
+            # Determine the actual resolution of the FLAC stream and the
+            # data type will use when reading it.  Note that soundfile
+            # doesn't support int8.
+            if sf.subtype == "PCM_S8":
+                format_bits = 8
+                read_dtype = "int16"
+            elif sf.subtype == "PCM_16":
+                format_bits = 16
+                read_dtype = "int16"
+            elif sf.subtype == "PCM_24":
+                format_bits = 24
+                read_dtype = "int32"
+            else:
+                raise ValueError(f"unknown subtype in {fp.name} ({sf.subtype})")
+
+            max_bits = int(fmt) - 500
+            if format_bits > max_bits:
+                raise ValueError(
+                    f"wrong resolution in {fp.name} "
+                    f"({format_bits}, expected <= {max_bits})"
+                )
+
+            if sf.channels != n_sig:
+                raise ValueError(
+                    f"wrong number of channels in {fp.name} "
+                    f"({sf.channels}, expected {n_sig})"
+                )
+
+            # Read the samples.
+            start_samp = start_frame * samps_per_frame[0]
+            end_samp = end_frame * samps_per_frame[0]
+            sf.seek(start_samp + sample_offset)
+            sig_data = sf.read(end_samp - start_samp, dtype=read_dtype)
+
+            # If we read an 8-bit stream as int16 or a 24-bit stream as
+            # int32, soundfile shifts each sample left by 8 bits.  We
+            # want to undo this shift (and, in the case of 8-bit data,
+            # convert to an int8 array.)
+            if format_bits == 8:
+                # np.right_shift(sig_data, 8, dtype='int8') doesn't work.
+                # This seems wrong, but the numpy documentation is unclear.
+                sig_data2 = np.empty(sig_data.shape, dtype="int8")
+                sig_data = np.right_shift(sig_data, 8, out=sig_data2)
+            elif format_bits == 24:
+                # Shift 32-bit array in-place.
+                np.right_shift(sig_data, 8, out=sig_data)
+
+    # Suppose we have 3 channels and 2 samples per frame.  The array
+    # returned by sf.read looks like this:
+    #
+    #          channel 0   channel 1    channel 2
+    # time 0   [0,0]       [0,1]        [0,2]
+    # time 1   [1,0]       [1,1]        [1,2]
+    # time 2   [2,0]       [2,1]        [2,2]
+    # time 3   [3,0]       [3,1]        [3,2]
+    #
+    # We reshape this first into the following:
+    #
+    #          channel 0   channel 1    channel 2
+    # time 0   [0,0,0]     [0,0,1]      [0,0,2]
+    # time 1   [0,1,0]     [0,1,1]      [0,1,2]
+    # time 2   [1,0,0]     [1,0,1]      [1,0,2]
+    # time 3   [1,1,0]     [1,1,1]      [1,1,2]
+    #
+    # Then we transpose axes 1 and 2:
+    #
+    #          channel 0   channel 1    channel 2
+    # time 0   [0,0,0]     [0,1,0]      [0,2,0]
+    # time 1   [0,0,1]     [0,1,1]      [0,2,1]
+    # time 2   [1,0,0]     [1,1,0]      [1,2,0]
+    # time 3   [1,0,1]     [1,1,1]      [1,2,1]
+    #
+    # Then when we reshape the array to 1D, the result is in dat file
+    # order:
+    #
+    #          channel 0   channel 1    channel 2
+    # time 0   [0]         [2]          [4]
+    # time 1   [1]         [3]          [5]
+    # time 2   [6]         [8]          [10]
+    # time 3   [7]         [9]          [11]
+
+    sig_data = sig_data.reshape(-1, samps_per_frame[0], n_sig)
+    sig_data = sig_data.transpose(0, 2, 1)
+    return sig_data.reshape(-1)
 
 
 def _skew_sig(
