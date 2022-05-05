@@ -218,6 +218,37 @@ class TestRecord(unittest.TestCase):
                             "Mismatch in %s" % name,
                         )
 
+    def test_read_flac(self):
+        """
+        All FLAC formats, multiple signal files in one record.
+
+        Target file created with:
+            rdsamp -r sample-data/flacformats | cut -f 2- |
+            gzip -9 -n > record-flac.gz
+        """
+        record = wfdb.rdrecord("sample-data/flacformats", physical=False)
+        sig_target = np.genfromtxt("tests/target-output/record-flac.gz")
+
+        for n, name in enumerate(record.sig_name):
+            np.testing.assert_array_equal(
+                record.d_signal[:, n], sig_target[:, n], f"Mismatch in {name}"
+            )
+
+        for sampfrom in range(0, 3):
+            for sampto in range(record.sig_len - 3, record.sig_len):
+                record_2 = wfdb.rdrecord(
+                    "sample-data/flacformats",
+                    physical=False,
+                    sampfrom=sampfrom,
+                    sampto=sampto,
+                )
+                for n, name in enumerate(record.sig_name):
+                    np.testing.assert_array_equal(
+                        record_2.d_signal[:, n],
+                        sig_target[sampfrom:sampto, n],
+                        f"Mismatch in {name}",
+                    )
+
     # ------------------ 2. Special format records ------------------ #
 
     def test_2a(self):
