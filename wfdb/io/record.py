@@ -639,7 +639,7 @@ class BaseRecord(object):
                 "return_res must be one of the following when physical is True: 64, 32, 16"
             )
 
-    def _adjust_datetime(self, sampfrom):
+    def _adjust_datetime(self, sampfrom: int):
         """
         Adjust date and time fields to reflect user input if possible.
 
@@ -1790,7 +1790,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     )
 
     # Get fields from record line
-    record_fields = _header._parse_record_line(header_lines[0])
+    record_fields = _header._parse_record_fields(header_lines[0])
 
     # Single segment header - Process signal specification lines
     if record_fields["n_seg"] is None:

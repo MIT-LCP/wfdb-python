@@ -82,9 +82,9 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
     return remote_file_size
 
 
-def _stream_header(file_name, pn_dir):
+def _stream_header(file_name: str, pn_dir: str) -> str:
     """
-    Stream the lines of a remote header file.
+    Stream the text of a remote header file.
 
     Parameters
     ----------
@@ -97,10 +97,8 @@ def _stream_header(file_name, pn_dir):
 
     Returns
     -------
-    header_lines : list
-        All of the traditional header lines.
-    comment_lines : list
-        All of the comment header lines.
+    N/A : str
+        The text contained in the header file
 
     """
     # Full url of header location
@@ -110,30 +108,7 @@ def _stream_header(file_name, pn_dir):
     with _url.openurl(url, "rb") as f:
         content = f.read()
 
-    # Get each line as a string
-    filelines = content.decode("iso-8859-1").splitlines()
-
-    # Separate content into header and comment lines
-    header_lines = []
-    comment_lines = []
-
-    for line in filelines:
-        line = str(line.strip())
-        # Comment line
-        if line.startswith("#"):
-            comment_lines.append(line)
-        # Non-empty non-comment line = header line.
-        elif line:
-            # Look for a comment in the line
-            ci = line.find("#")
-            if ci > 0:
-                header_lines.append(line[:ci])
-                # comment on same line as header line
-                comment_lines.append(line[ci:])
-            else:
-                header_lines.append(line)
-
-    return (header_lines, comment_lines)
+    return content.decode("iso-8859-1")
 
 
 def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):

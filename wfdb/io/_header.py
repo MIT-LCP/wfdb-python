@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+from typing import List, Sequence, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -872,7 +873,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         return sig_name
 
 
-def wfdb_strptime(time_string):
+def wfdb_strptime(time_string: str) -> datetime.time:
     """
     Given a time string in an acceptable WFDB format, return
     a datetime.time object.
@@ -905,7 +906,47 @@ def wfdb_strptime(time_string):
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
-def _read_header_lines(base_record_name, dir_name, pn_dir):
+def parse_header_content(
+    header_content: str,
+) -> Tuple[List[str], List[str]]:
+    """
+    Parse the text of a header file.
+
+    Parameters
+    ----------
+    header_content: str
+        The string content of the full header file
+
+    Returns
+    -------
+    header_lines : List[str]
+        A list of all the non-comment lines
+    comment_lines : List[str]
+        A list of all the comment lines
+    """
+    header_lines, comment_lines = [], []
+    for line in header_content.splitlines():
+        line = line.strip()
+        # Comment line
+        if line.startswith("#"):
+            comment_lines.append(line)
+        # Non-empty non-comment line = header line.
+        elif line:
+            # Look for a comment in the line
+            ci = line.find("#")
+            if ci > 0:
+                header_lines.append(line[:ci])
+                # comment on same line as header line
+                comment_lines.append(line[ci:])
+            else:
+                header_lines.append(line)
+
+    return header_lines, comment_lines
+
+
+def _read_header_lines(
+    base_record_name: str, dir_name: str, pn_dir: Optional[str] = None
+) -> Tuple[List[str], List[str]]:
     """
     Read the lines in a local or remote header file.
 
@@ -917,7 +958,7 @@ def _read_header_lines(base_record_name, dir_name, pn_dir):
     dir_name : str
         The local directory location of the header file. This parameter
         is ignored if `pn_dir` is set.
-    pn_dir : str
+    pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/content/mitdb'
@@ -936,42 +977,27 @@ def _read_header_lines(base_record_name, dir_name, pn_dir):
     # Read local file
     if pn_dir is None:
         with open(
-            os.path.join(dir_name, file_name), "r", errors="ignore"
-        ) as fp:
-            # Record line followed by signal/segment lines if any
-            header_lines = []
-            # Comment lines
-            comment_lines = []
-            for line in fp:
-                line = line.strip()
-                # Comment line
-                if line.startswith("#"):
-                    comment_lines.append(line)
-                # Non-empty non-comment line = header line.
-                elif line:
-                    # Look for a comment in the line
-                    ci = line.find("#")
-                    if ci > 0:
-                        header_lines.append(line[:ci])
-                        # comment on same line as header line
-                        comment_lines.append(line[ci:])
-                    else:
-                        header_lines.append(line)
+            os.path.join(dir_name, file_name),
+            "r",
+            encoding="ascii",
+            errors="ignore",
+        ) as f:
+            header_content = f.read()
     # Read online header file
     else:
-        header_lines, comment_lines = download._stream_header(file_name, pn_dir)
+        header_content = download._stream_header(file_name, pn_dir)
 
-    return header_lines, comment_lines
+    return parse_header_content(header_content)
 
 
-def _parse_record_line(record_line):
+def _parse_record_fields(record_line: str) -> dict:
     """
     Extract fields from a record line string into a dictionary.
 
     Parameters
     ----------
     record_line : str
-        The name of the record line that will be used to extact fields.
+        The record line contained in the header file
 
     Returns
     -------
