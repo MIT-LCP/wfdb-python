@@ -871,13 +871,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             t_idx = item
             c_idx = slice(None)
 
-        # Copy the record.
-
-        cp = copy(self.record)
-
         # Use these weird tricks to find out how numpy interprets t_idx and c_idx.
         t_idx_list = np.arange(self.record.sig_len)[t_idx]
         c_idx_list = np.arange(self.record.n_sig)[c_idx]
+
+        # Copy the record.
+
+        cp = copy(self.record)
 
         cp.sig_len = len(t_idx_list)
         cp.n_sig = len(c_idx_list)
