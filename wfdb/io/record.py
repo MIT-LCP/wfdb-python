@@ -886,6 +886,46 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # Adjust date and time if necessary
         self._adjust_datetime(sampfrom=sampfrom)
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Create a dataframe containing the data from this record.
+
+
+        Returns
+        -------
+        A dataframe, with sig_name in the columns. The index is a DatetimeIndex
+        if both base_date and base_time were set, otherwise a TimedeltaIndex.
+        """
+        if self.base_datetime is not None:
+            index = pd.date_range(
+                start=self.base_datetime,
+                periods=self.sig_len,
+                freq=pd.Timedelta(seconds=1 / self.fs),
+            )
+        else:
+            index = pd.timedelta_range(
+                start=pd.Timedelta(0),
+                periods=self.sig_len,
+                freq=pd.Timedelta(seconds=1 / self.fs),
+            )
+
+        if self.p_signal is not None:
+            data = self.p_signal
+        elif self.d_signal is not None:
+            data = self.d_signal
+        elif self.e_p_signal is not None:
+            data = np.array(self.e_p_signal).T
+        elif self.e_d_signal is not None:
+            data = np.array(self.e_d_signal).T
+        else:
+            raise ValueError("No signal in record.")
+
+        return pd.DataFrame(
+            data=data,
+            index=index,
+            columns=self.sig_name
+        )
+
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     """
