@@ -871,24 +871,20 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             t_idx = item
             c_idx = slice(None)
 
-        # Apply to signal.
+        # Copy the record.
 
-        cp = copy(self)
+        cp = copy(self.record)
 
         # Use these weird tricks to find out how numpy interprets t_idx and c_idx.
-        cp.sig_len = len(np.empty(cp.sig_len)[t_idx])
-        c_idx_list = np.arange(self.n_sig)[c_idx]
+        t_idx_list = np.arange(self.record.sig_len)[t_idx]
+        c_idx_list = np.arange(self.record.n_sig)[c_idx]
 
-        cp.sig_name = [self.sig_name[idx] for idx in c_idx_list]
+        cp.sig_len = len(t_idx_list)
         cp.n_sig = len(c_idx_list)
 
-        cp.p_signal = cp.p_signal[t_idx, c_idx].copy() if cp.p_signal is not None else None
-        cp.d_signal = cp.d_signal[t_idx, c_idx].copy() if cp.d_signal is not None else None
+        cp.sig_name = [self.record.sig_name[idx] for idx in c_idx_list]
 
-        cp.e_p_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_p_signal is not None else None
-        cp.e_d_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_d_signal is not None else None
-
-        # Apply to attributes.
+        cp._adjust_datetime(t_idx_list[0])
 
         # Go through all properties that might be per-channel.
         for attribute_name in [
@@ -898,10 +894,18 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             'file_name', 'checksum',
             'samps_per_frame',
         ]:
-            current_value = getattr(self, attribute_name)
+            current_value = getattr(self.record, attribute_name)
             # Might be None or a direct value that applies to all channels as a default.
-            if isinstance(current_value, typing.Sequence):
+            if isinstance(current_value, Sequence):
                 setattr(cp, attribute_name, [current_value[idx] for idx in c_idx_list])
+
+        # Subselect signal.
+
+        cp.p_signal = cp.p_signal[t_idx, c_idx].copy() if cp.p_signal is not None else None
+        cp.d_signal = cp.d_signal[t_idx, c_idx].copy() if cp.d_signal is not None else None
+
+        cp.e_p_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_p_signal is not None else None
+        cp.e_d_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_d_signal is not None else None
 
         return cp
 
