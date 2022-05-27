@@ -2,6 +2,8 @@ import datetime
 import multiprocessing
 import posixpath
 import re
+import typing
+from copy import copy
 
 import numpy as np
 import os
@@ -850,6 +852,58 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         # Adjust date and time if necessary
         self._adjust_datetime(sampfrom=sampfrom)
+
+    def __getitem__(self, item) -> wfdb.Record:
+        """
+        Return a copy, slicing along (time, channels). Fully supports numpy-like indexing.
+        """
+        # Interpret inputs.
+
+        if isinstance(item, tuple):
+            if len(item) == 2:
+                t_idx, c_idx = item
+            elif len(item) == 1:
+                t_idx, = item
+                c_idx = slice(None)
+            else:
+                raise IndexError(item)
+        else:
+            t_idx = item
+            c_idx = slice(None)
+
+        # Apply to signal.
+
+        cp = copy(self)
+
+        # Use these weird tricks to find out how numpy interprets t_idx and c_idx.
+        cp.sig_len = len(np.empty(cp.sig_len)[t_idx])
+        c_idx_list = np.arange(self.n_sig)[c_idx]
+
+        cp.sig_name = [self.sig_name[idx] for idx in c_idx_list]
+        cp.n_sig = len(c_idx_list)
+
+        cp.p_signal = cp.p_signal[t_idx, c_idx].copy() if cp.p_signal is not None else None
+        cp.d_signal = cp.d_signal[t_idx, c_idx].copy() if cp.d_signal is not None else None
+
+        cp.e_p_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_p_signal is not None else None
+        cp.e_d_signal = [cp.e_p_signal[idx][t_idx].copy() for idx in c_idx_list] if cp.e_d_signal is not None else None
+
+        # Apply to attributes.
+
+        # Go through all properties that might be per-channel.
+        for attribute_name in [
+            'fmt', 'units', 'block_size',
+            'adc_gain', 'adc_res', 'adc_zero',
+            'init_value', 'baseline',
+            'file_name', 'checksum',
+            'samps_per_frame',
+        ]:
+            current_value = getattr(self, attribute_name)
+            # Might be None or a direct value that applies to all channels as a default.
+            if isinstance(current_value, typing.Sequence):
+                setattr(cp, attribute_name, [current_value[idx] for idx in c_idx_list])
+
+        return cp
 
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
