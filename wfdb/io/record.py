@@ -187,6 +187,9 @@ class BaseRecord(object):
         The time of day at the beginning of the record.
     base_date : datetime.date, optional
         The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     comments : list, optional
         A list of string comments to be written to the header file.
     sig_name : str, optional
@@ -218,6 +221,26 @@ class BaseRecord(object):
         self.base_date = base_date
         self.comments = comments
         self.sig_name = sig_name
+
+    @property
+    def base_datetime(self):
+        if self.base_date is None or self.base_time is None:
+            return None
+        else:
+            return datetime.datetime.combine(
+                date=self.base_date, time=self.base_time
+            )
+
+    @base_datetime.setter
+    def base_datetime(self, value):
+        if value is None:
+            self.base_date = None
+            self.base_time = None
+        elif isinstance(value, datetime.datetime) and value.tzinfo is None:
+            self.base_date = value.date()
+            self.base_time = value.time()
+        else:
+            raise TypeError(f"invalid base_datetime value: {value!r}")
 
     def check_field(self, field, required_channels="all"):
         """
@@ -605,6 +628,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         The time of day at the beginning of the record.
     base_date : datetime.date, optional
         The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     file_name : str, optional
         The name of the file used for analysis.
     fmt : list, optional
@@ -905,6 +931,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         The time of day at the beginning of the record.
     base_date : datetime.date, optional
         The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     seg_name : str, optional
         The name of the segment.
     seg_len : int, optional
