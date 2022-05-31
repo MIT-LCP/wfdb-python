@@ -5049,6 +5049,7 @@ def wrsamp(
     comments=None,
     base_time=None,
     base_date=None,
+    base_datetime=None,
     write_dir="",
 ):
     """
@@ -5097,6 +5098,9 @@ def wrsamp(
         The time of day at the beginning of the record.
     base_date : datetime.date, optional
         The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        setting both `base_date` and `base_time`.
     write_dir : str, optional
         The directory in which to write the files.
 
@@ -5154,6 +5158,7 @@ def wrsamp(
             comments=comments,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
         )
         # Compute optimal fields to store the digital signal, carry out adc,
         # and set the fields.
@@ -5172,6 +5177,7 @@ def wrsamp(
             comments=comments,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
         )
         # Use d_signal to set the fields directly
         record.set_d_features()
