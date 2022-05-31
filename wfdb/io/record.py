@@ -183,10 +183,10 @@ class BaseRecord(object):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
     comments : list, optional
         A list of string comments to be written to the header file.
     sig_name : str, optional
@@ -601,10 +601,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
     file_name : str, optional
         The name of the file used for analysis.
     fmt : list, optional
@@ -901,10 +901,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
     seg_name : str, optional
         The name of the segment.
     seg_len : int, optional
@@ -5053,10 +5053,10 @@ def wrsamp(
         A list of integers specifying the digital baseline.
     comments : list, optional
         A list of string comments to be written to the header file.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
     write_dir : str, optional
         The directory in which to write the files.
 
