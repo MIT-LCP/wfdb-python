@@ -565,12 +565,7 @@ class BaseRecord(object):
         if sampfrom:
             dt_seconds = sampfrom / self.fs
             if self.base_date and self.base_time:
-                self.base_datetime = datetime.datetime.combine(
-                    self.base_date, self.base_time
-                )
                 self.base_datetime += datetime.timedelta(seconds=dt_seconds)
-                self.base_date = self.base_datetime.date()
-                self.base_time = self.base_datetime.time()
             # We can calculate the time even if there is no date
             elif self.base_time:
                 tmp_datetime = datetime.datetime.combine(
