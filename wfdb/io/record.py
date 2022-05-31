@@ -682,16 +682,16 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
         super(Record, self).__init__(
-            record_name,
-            n_sig,
-            fs,
-            counter_freq,
-            base_counter,
-            sig_len,
-            base_time,
-            base_date,
-            comments,
-            sig_name,
+            record_name=record_name,
+            n_sig=n_sig,
+            fs=fs,
+            counter_freq=counter_freq,
+            base_counter=base_counter,
+            sig_len=sig_len,
+            base_time=base_time,
+            base_date=base_date,
+            comments=comments,
+            sig_name=sig_name,
         )
 
         self.p_signal = p_signal
@@ -951,16 +951,16 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     ):
 
         super(MultiRecord, self).__init__(
-            record_name,
-            n_sig,
-            fs,
-            counter_freq,
-            base_counter,
-            sig_len,
-            base_time,
-            base_date,
-            comments,
-            sig_name,
+            record_name=record_name,
+            n_sig=n_sig,
+            fs=fs,
+            counter_freq=counter_freq,
+            base_counter=base_counter,
+            sig_len=sig_len,
+            base_time=base_time,
+            base_date=base_date,
+            comments=comments,
+            sig_name=sig_name,
         )
 
         self.layout = layout
