@@ -208,6 +208,7 @@ class BaseRecord(object):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         comments=None,
         sig_name=None,
     ):
@@ -217,8 +218,19 @@ class BaseRecord(object):
         self.counter_freq = counter_freq
         self.base_counter = base_counter
         self.sig_len = sig_len
-        self.base_time = base_time
-        self.base_date = base_date
+        if base_datetime is not None:
+            if base_time is not None:
+                raise TypeError(
+                    "cannot specify both base_time and base_datetime"
+                )
+            if base_date is not None:
+                raise TypeError(
+                    "cannot specify both base_date and base_datetime"
+                )
+            self.base_datetime = base_datetime
+        else:
+            self.base_time = base_time
+            self.base_date = base_date
         self.comments = comments
         self.sig_name = sig_name
 
@@ -687,6 +699,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         file_name=None,
         fmt=None,
         samps_per_frame=None,
@@ -716,6 +729,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             sig_len=sig_len,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
             comments=comments,
             sig_name=sig_name,
         )
@@ -972,6 +986,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         seg_name=None,
         seg_len=None,
         comments=None,
@@ -988,6 +1003,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             sig_len=sig_len,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
             comments=comments,
             sig_name=sig_name,
         )
