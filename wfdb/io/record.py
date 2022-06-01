@@ -178,10 +178,13 @@ class BaseRecord(object):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     comments : list, optional
         A list of string comments to be written to the header file.
     sig_name : str, optional
@@ -200,6 +203,7 @@ class BaseRecord(object):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         comments=None,
         sig_name=None,
     ):
@@ -209,10 +213,41 @@ class BaseRecord(object):
         self.counter_freq = counter_freq
         self.base_counter = base_counter
         self.sig_len = sig_len
-        self.base_time = base_time
-        self.base_date = base_date
+        if base_datetime is not None:
+            if base_time is not None:
+                raise TypeError(
+                    "cannot specify both base_time and base_datetime"
+                )
+            if base_date is not None:
+                raise TypeError(
+                    "cannot specify both base_date and base_datetime"
+                )
+            self.base_datetime = base_datetime
+        else:
+            self.base_time = base_time
+            self.base_date = base_date
         self.comments = comments
         self.sig_name = sig_name
+
+    @property
+    def base_datetime(self):
+        if self.base_date is None or self.base_time is None:
+            return None
+        else:
+            return datetime.datetime.combine(
+                date=self.base_date, time=self.base_time
+            )
+
+    @base_datetime.setter
+    def base_datetime(self, value):
+        if value is None:
+            self.base_date = None
+            self.base_time = None
+        elif isinstance(value, datetime.datetime) and value.tzinfo is None:
+            self.base_date = value.date()
+            self.base_time = value.time()
+        else:
+            raise TypeError(f"invalid base_datetime value: {value!r}")
 
     def check_field(self, field, required_channels="all"):
         """
@@ -525,12 +560,7 @@ class BaseRecord(object):
         if sampfrom:
             dt_seconds = sampfrom / self.fs
             if self.base_date and self.base_time:
-                self.base_datetime = datetime.datetime.combine(
-                    self.base_date, self.base_time
-                )
                 self.base_datetime += datetime.timedelta(seconds=dt_seconds)
-                self.base_date = self.base_datetime.date()
-                self.base_time = self.base_datetime.time()
             # We can calculate the time even if there is no date
             elif self.base_time:
                 tmp_datetime = datetime.datetime.combine(
@@ -596,10 +626,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     file_name : str, optional
         The name of the file used for analysis.
     fmt : list, optional
@@ -656,6 +689,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         file_name=None,
         fmt=None,
         samps_per_frame=None,
@@ -677,16 +711,17 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
         super(Record, self).__init__(
-            record_name,
-            n_sig,
-            fs,
-            counter_freq,
-            base_counter,
-            sig_len,
-            base_time,
-            base_date,
-            comments,
-            sig_name,
+            record_name=record_name,
+            n_sig=n_sig,
+            fs=fs,
+            counter_freq=counter_freq,
+            base_counter=base_counter,
+            sig_len=sig_len,
+            base_time=base_time,
+            base_date=base_date,
+            base_datetime=base_datetime,
+            comments=comments,
+            sig_name=sig_name,
         )
 
         self.p_signal = p_signal
@@ -896,10 +931,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         The counter used at the start of the file.
     sig_len : int, optional
         The total length of the signal.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        `datetime.combine(base_date, base_time)`.
     seg_name : str, optional
         The name of the segment.
     seg_len : int, optional
@@ -938,6 +976,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         sig_len=None,
         base_time=None,
         base_date=None,
+        base_datetime=None,
         seg_name=None,
         seg_len=None,
         comments=None,
@@ -946,16 +985,17 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     ):
 
         super(MultiRecord, self).__init__(
-            record_name,
-            n_sig,
-            fs,
-            counter_freq,
-            base_counter,
-            sig_len,
-            base_time,
-            base_date,
-            comments,
-            sig_name,
+            record_name=record_name,
+            n_sig=n_sig,
+            fs=fs,
+            counter_freq=counter_freq,
+            base_counter=base_counter,
+            sig_len=sig_len,
+            base_time=base_time,
+            base_date=base_date,
+            base_datetime=base_datetime,
+            comments=comments,
+            sig_name=sig_name,
         )
 
         self.layout = layout
@@ -2631,6 +2671,7 @@ def wrsamp(
     comments=None,
     base_time=None,
     base_date=None,
+    base_datetime=None,
     write_dir="",
 ):
     """
@@ -2674,10 +2715,13 @@ def wrsamp(
         A list of integers specifying the digital baseline.
     comments : list, optional
         A list of string comments to be written to the header file.
-    base_time : str, optional
-        A string of the record's start time in 24h 'HH:MM:SS(.ms)' format.
-    base_date : str, optional
-        A string of the record's start date in 'DD/MM/YYYY' format.
+    base_time : datetime.time, optional
+        The time of day at the beginning of the record.
+    base_date : datetime.date, optional
+        The date at the beginning of the record.
+    base_datetime : datetime.datetime, optional
+        The date and time at the beginning of the record, equivalent to
+        setting both `base_date` and `base_time`.
     write_dir : str, optional
         The directory in which to write the files.
 
@@ -2735,6 +2779,7 @@ def wrsamp(
             comments=comments,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
         )
         # Compute optimal fields to store the digital signal, carry out adc,
         # and set the fields.
@@ -2753,6 +2798,7 @@ def wrsamp(
             comments=comments,
             base_time=base_time,
             base_date=base_date,
+            base_datetime=base_datetime,
         )
         # Use d_signal to set the fields directly
         record.set_d_features()
