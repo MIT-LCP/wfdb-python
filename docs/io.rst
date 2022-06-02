@@ -12,10 +12,12 @@ WFDB Records
     :members: rdrecord, rdheader, rdsamp, wrsamp
 
 .. autoclass:: wfdb.io.Record
-    :members: wrsamp, adc, dac
+    :members: get_frame_number, get_elapsed_time, get_absolute_time,
+              wrsamp, adc, dac
 
 .. autoclass:: wfdb.io.MultiRecord
-    :members: multi_to_single
+    :members: get_frame_number, get_elapsed_time, get_absolute_time,
+              multi_to_single
 
 
 WFDB Anotations
