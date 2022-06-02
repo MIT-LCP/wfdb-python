@@ -1,3 +1,4 @@
+import datetime
 import os
 import shutil
 import unittest
@@ -815,6 +816,68 @@ class TestMultiRecord(unittest.TestCase):
         np.testing.assert_equal(sig, sig_target)
         assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
+
+
+class TestTimeConversion(unittest.TestCase):
+    """
+    Test cases for time conversion
+    """
+
+    def test_single(self):
+        """
+        Time conversion for a single-segment record
+
+        This checks the get_frame_number, get_elapsed_time, and
+        get_absolute_time methods for a Record object.  The example record
+        has no base date defined, so attempting to convert to/from absolute
+        time should raise an exception.
+
+        """
+        header = wfdb.rdheader("sample-data/test01_00s")
+
+        # these time values should be equivalent
+        n = 123 * header.fs
+        t = datetime.timedelta(seconds=123)
+        self.assertEqual(header.get_frame_number(n), n)
+        self.assertEqual(header.get_frame_number(t), n)
+        self.assertEqual(header.get_elapsed_time(n), t)
+        self.assertEqual(header.get_elapsed_time(t), t)
+
+        # record test01_00s has no base date, so absolute time conversions
+        # should fail
+        self.assertIsNone(header.base_date)
+        d = datetime.datetime(2001, 1, 1, 12, 0, 0)
+        self.assertRaises(ValueError, header.get_frame_number, d)
+        self.assertRaises(ValueError, header.get_absolute_time, n)
+        self.assertRaises(ValueError, header.get_absolute_time, t)
+
+    def test_multisegment_with_date(self):
+        """
+        Time conversion for a multi-segment record with base date
+
+        This checks the get_frame_number, get_elapsed_time, and
+        get_absolute_time methods for a MultiRecord object.  The example
+        record has a base date, so we can convert timestamps between all
+        three of the supported representations.
+
+        """
+        header = wfdb.rdheader(
+            "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+        )
+
+        # these time values should be equivalent
+        n = 123 * header.fs
+        t = datetime.timedelta(seconds=123)
+        d = t + header.base_datetime
+        self.assertEqual(header.get_frame_number(n), n)
+        self.assertEqual(header.get_frame_number(t), n)
+        self.assertEqual(header.get_frame_number(d), n)
+        self.assertEqual(header.get_elapsed_time(n), t)
+        self.assertEqual(header.get_elapsed_time(t), t)
+        self.assertEqual(header.get_elapsed_time(d), t)
+        self.assertEqual(header.get_absolute_time(n), d)
+        self.assertEqual(header.get_absolute_time(t), d)
+        self.assertEqual(header.get_absolute_time(d), d)
 
 
 class TestSignal(unittest.TestCase):
