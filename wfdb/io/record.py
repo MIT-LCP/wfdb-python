@@ -249,6 +249,105 @@ class BaseRecord(object):
         else:
             raise TypeError(f"invalid base_datetime value: {value!r}")
 
+    def get_frame_number(self, time_value):
+        """
+        Convert a time value to a frame number.
+
+        A time value may be specified as:
+        - An integer or floating-point number, representing the number of
+          WFDB frames elapsed from the start of the record.
+        - A `datetime.timedelta` object, representing elapsed time from the
+          start of the record.
+        - A `datetime.datetime` object, representing an absolute date and
+          time (if the record starting time is known.)
+
+        Note that this function may return a value that is less than zero
+        or greater than the actual length of the record.
+
+        Parameters
+        ----------
+        time_value : number or timedelta or datetime
+            A time value.
+
+        Returns
+        -------
+        frame_number : float
+            Frame number (possibly a fractional frame number).
+
+        """
+        if hasattr(time_value, "__float__"):
+            return float(time_value)
+
+        if isinstance(time_value, datetime.datetime):
+            if not self.base_datetime:
+                raise ValueError(
+                    "base_datetime is unknown; cannot convert absolute "
+                    "date/time to a frame number"
+                )
+            time_value -= self.base_datetime
+
+        if isinstance(time_value, datetime.timedelta):
+            return time_value.total_seconds() * self.fs
+
+        raise TypeError(f"invalid time value: {time_value!r}")
+
+    def get_elapsed_time(self, time_value):
+        """
+        Convert a time value to an elapsed time in seconds.
+
+        A time value may be specified as:
+        - An integer or floating-point number, representing the number of
+          WFDB frames elapsed from the start of the record.
+        - A `datetime.timedelta` object, representing elapsed time from the
+          start of the record.
+        - A `datetime.datetime` object, representing an absolute date and
+          time (if the record starting time is known.)
+
+        Parameters
+        ----------
+        time_value : number or timedelta or datetime
+            A time value.
+
+        Returns
+        -------
+        elapsed_time : timedelta
+            Elapsed time from the start of the record.
+
+        """
+        time_value = self.get_frame_number(time_value)
+        return datetime.timedelta(seconds=time_value / self.fs)
+
+    def get_absolute_time(self, time_value):
+        """
+        Convert a time value to an absolute date and time.
+
+        A time value may be specified as:
+        - An integer or floating-point number, representing the number of
+          WFDB frames elapsed from the start of the record.
+        - A `datetime.timedelta` object, representing elapsed time from the
+          start of the record.
+        - A `datetime.datetime` object, representing an absolute date and
+          time (if the record starting time is known.)
+
+        Parameters
+        ----------
+        time_value : number or timedelta or datetime
+            A time value.
+
+        Returns
+        -------
+        absolute_time : datetime
+            Absolute date and time.
+
+        """
+        time_value = self.get_elapsed_time(time_value)
+        if not self.base_datetime:
+            raise ValueError(
+                "base_datetime is unknown; cannot convert frame number "
+                "to an absolute date/time"
+            )
+        return time_value + self.base_datetime
+
     def check_field(self, field, required_channels="all"):
         """
         Check whether a single field is valid in its basic form. Does
