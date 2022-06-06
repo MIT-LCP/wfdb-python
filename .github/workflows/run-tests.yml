@@ -1,15 +1,14 @@
 # Link repository with GitHub Actions
 # https://docs.github.com/en/actions/learn-github-actions/introduction-to-github-actions
 
-# Master branch only
 name: run-tests
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 
 # Set the language, install dependencies, and run the tests
 jobs:
