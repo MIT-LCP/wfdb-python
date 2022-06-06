@@ -66,4 +66,4 @@ Indices and tables
 
 .. _PEP8: https://www.python.org/dev/peps/pep-0008/
 .. _docstrings: https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
-.. _existing tests: https://github.com/MIT-LCP/wfdb-python/tree/master/tests
+.. _existing tests: https://github.com/MIT-LCP/wfdb-python/tree/main/tests
