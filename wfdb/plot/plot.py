@@ -311,7 +311,7 @@ def plot_items(
                     "signal: {} values".format(n_subplots)
                 )
 
-        label_figure(
+        _label_figure(
             axes,
             n_subplots,
             time_units,
@@ -779,7 +779,7 @@ def _calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(
+def _label_figure(
     axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
 ):
     """
