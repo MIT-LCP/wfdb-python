@@ -24,7 +24,7 @@ class TestPlot(unittest.TestCase):
 
     def test_create_figure_single_subplots(self):
         n_subplots = 1
-        fig, axes = plot.create_figure(
+        fig, axes = plot._create_figure(
             n_subplots, sharex=True, sharey=True, figsize=None
         )
         assert fig is not None
@@ -33,7 +33,7 @@ class TestPlot(unittest.TestCase):
 
     def test_create_figure_multiple_subplots(self):
         n_subplots = 5
-        fig, axes = plot.create_figure(
+        fig, axes = plot._create_figure(
             n_subplots, sharex=True, sharey=True, figsize=None
         )
         assert fig is not None

@@ -256,7 +256,7 @@ def plot_items(
     ann_freq = _get_ann_freq(ann_freq, n_annot, fs)
 
     # Create figure
-    fig, axes = create_figure(n_subplots, sharex, sharey, figsize)
+    fig, axes = _create_figure(n_subplots, sharex, sharey, figsize)
     try:
         if signal is not None:
             plot_signal(
@@ -393,7 +393,7 @@ def _get_plot_dims(signal, ann_samp):
     return sig_len, n_sig, n_annot, max(n_sig, n_annot)
 
 
-def create_figure(n_subplots, sharex, sharey, figsize):
+def _create_figure(n_subplots, sharex, sharey, figsize):
     """
     Create the plot figure and subplot axes.
 
