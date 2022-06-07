@@ -13,7 +13,7 @@ class TestPlot(unittest.TestCase):
         ann = wfdb.rdann(
             "sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto
         )
-        sig_len, n_sig, n_annot, n_subplots = plot.get_plot_dims(
+        sig_len, n_sig, n_annot, n_subplots = plot._get_plot_dims(
             signal=record.p_signal, ann_samp=[ann.sample]
         )
 

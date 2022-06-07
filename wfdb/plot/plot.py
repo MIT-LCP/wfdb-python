@@ -249,7 +249,7 @@ def plot_items(
     signal = _expand_channels(signal)
 
     # Figure out number of subplots required
-    sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
+    sig_len, n_sig, n_annot, n_subplots = _get_plot_dims(signal, ann_samp)
 
     # Convert sampling_freq and ann_freq to lists if needed
     sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
@@ -334,7 +334,7 @@ def plot_items(
     plt.show()
 
 
-def get_plot_dims(signal, ann_samp):
+def _get_plot_dims(signal, ann_samp):
     """
     Figure out the number of plot channels.
 
