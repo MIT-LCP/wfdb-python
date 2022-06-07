@@ -271,7 +271,7 @@ def plot_items(
             )
 
         if ann_samp is not None:
-            plot_annotation(
+            _plot_annotation(
                 ann_samp,
                 n_annot,
                 ann_sym,
@@ -503,7 +503,7 @@ def _plot_signal(
         axes[ch].plot(t, signal[ch], sig_style[ch], zorder=3)
 
 
-def plot_annotation(
+def _plot_annotation(
     ann_samp,
     n_annot,
     ann_sym,
