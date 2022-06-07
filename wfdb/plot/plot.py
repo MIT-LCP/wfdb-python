@@ -259,7 +259,7 @@ def plot_items(
     fig, axes = _create_figure(n_subplots, sharex, sharey, figsize)
     try:
         if signal is not None:
-            plot_signal(
+            _plot_signal(
                 signal,
                 sig_len,
                 n_sig,
@@ -425,7 +425,7 @@ def _create_figure(n_subplots, sharex, sharey, figsize):
     return fig, axes
 
 
-def plot_signal(
+def _plot_signal(
     signal, sig_len, n_sig, fs, time_units, sig_style, axes, sampling_freq=None
 ):
     """
