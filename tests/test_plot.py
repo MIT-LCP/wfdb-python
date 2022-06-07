@@ -43,3 +43,7 @@ class TestPlotInternal(unittest.TestCase):
         assert fig is not None
         assert axes is not None
         assert len(axes) == n_subplots
+
+
+if __name__ == "__main__":
+    unittest.main()
