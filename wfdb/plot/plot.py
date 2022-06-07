@@ -286,7 +286,7 @@ def plot_items(
             )
 
         if ecg_grids:
-            plot_ecg_grids(
+            _plot_ecg_grids(
                 ecg_grids,
                 fs,
                 sig_units,
@@ -625,7 +625,7 @@ def _plot_annotation(
                     )
 
 
-def plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
+def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
     """
     Add ECG grids to the axes.
 
