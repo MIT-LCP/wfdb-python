@@ -668,7 +668,7 @@ def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
             minor_ticks_x,
             major_ticks_y,
             minor_ticks_y,
-        ) = calc_ecg_grids(
+        ) = _calc_ecg_grids(
             auto_ylims[0],
             auto_ylims[1],
             units[ch],
@@ -702,7 +702,7 @@ def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
         axes[ch].set_ylim(auto_ylims)
 
 
-def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
+def _calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
     Calculate tick intervals for ECG grids.
 
