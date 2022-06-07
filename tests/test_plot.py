@@ -3,7 +3,11 @@ from wfdb.plot import plot
 import unittest
 
 
-class TestPlot(unittest.TestCase):
+class TestPlotInternal(unittest.TestCase):
+    """
+    Unit tests for internal wfdb.plot.plot functions
+    """
+
     def test_get_plot_dims(self):
         sampfrom = 0
         sampto = 3000
