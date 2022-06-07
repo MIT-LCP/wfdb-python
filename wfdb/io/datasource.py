@@ -42,7 +42,7 @@ class DataSource:
 _PHYSIONET_DATA_SOURCE = DataSource(
     "physionet",
     DataSourceType.HTTP,
-    "https://physionet.org/content/",
+    "https://physionet.org/files/",
 )
 
 # Dict of configured data sources
