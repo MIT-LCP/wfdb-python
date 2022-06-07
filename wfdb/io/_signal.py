@@ -62,6 +62,21 @@ DATA_LOAD_TYPES = {
     "311": "<u1",
 }
 
+# Minimum and maximum digital sample values for each of the WFDB dat
+# formats.
+SAMPLE_VALUE_RANGE = {
+    "80": (-(2**7), 2**7 - 1),
+    "310": (-(2**9), 2**9 - 1),
+    "311": (-(2**9), 2**9 - 1),
+    "212": (-(2**11), 2**11 - 1),
+    "16": (-(2**15), 2**15 - 1),
+    "61": (-(2**15), 2**15 - 1),
+    "160": (-(2**15), 2**15 - 1),
+    "24": (-(2**23), 2**23 - 1),
+    "32": (-(2**31), 2**31 - 1),
+    "8": (-(2**31), 2**31 - 1),
+}
+
 
 class SignalMixin(object):
     """
@@ -1839,17 +1854,7 @@ def _digi_bounds(fmt):
     """
     if isinstance(fmt, list):
         return [_digi_bounds(f) for f in fmt]
-
-    if fmt == "80":
-        return (-128, 127)
-    elif fmt == "212":
-        return (-2048, 2047)
-    elif fmt == "16":
-        return (-32768, 32767)
-    elif fmt == "24":
-        return (-8388608, 8388607)
-    elif fmt == "32":
-        return (-2147483648, 2147483647)
+    return SAMPLE_VALUE_RANGE[fmt]
 
 
 def _digi_nan(fmt):
