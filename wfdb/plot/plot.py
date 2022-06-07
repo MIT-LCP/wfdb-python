@@ -942,7 +942,7 @@ def plot_wfdb(
         ylabel,
         record_name,
         sig_units,
-    ) = get_wfdb_plot_items(
+    ) = _get_wfdb_plot_items(
         record=record, annotation=annotation, plot_sym=plot_sym
     )
 
@@ -980,7 +980,7 @@ def plot_wfdb(
     )
 
 
-def get_wfdb_plot_items(record, annotation, plot_sym):
+def _get_wfdb_plot_items(record, annotation, plot_sym):
     """
     Get items to plot from WFDB objects.
 
