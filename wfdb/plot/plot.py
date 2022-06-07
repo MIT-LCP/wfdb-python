@@ -856,7 +856,7 @@ def plot_wfdb(
     record=None,
     annotation=None,
     plot_sym=False,
-    time_units="samples",
+    time_units="seconds",
     title=None,
     sig_style=[""],
     ann_style=["r*"],
