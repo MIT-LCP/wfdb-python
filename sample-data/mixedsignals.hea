@@ -1,0 +1,7 @@
+mixedsignals 6 62.4725/999.56 14400
+mixedsignals_e.dat 516x4 200/mV 14 8192 0 24460 0 II
+mixedsignals_e.dat 516x4 200/mV 14 8192 0 19772 0 III
+mixedsignals_e.dat 516x4 200/mV 14 8192 0 22261 0 V
+mixedsignals_p.dat 516x2 16(800)/mmHg 12 2048 0 49347 0 ABP
+mixedsignals_p.dat 516x2 4096(0)/NU 12 2048 0 36026 0 Pleth
+mixedsignals_r.dat 516 4093(2)/Ohm 12 2048 0 35395 0 Resp
