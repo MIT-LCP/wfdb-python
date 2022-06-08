@@ -249,17 +249,17 @@ def plot_items(
     signal = _expand_channels(signal)
 
     # Figure out number of subplots required
-    sig_len, n_sig, n_annot, n_subplots = get_plot_dims(signal, ann_samp)
+    sig_len, n_sig, n_annot, n_subplots = _get_plot_dims(signal, ann_samp)
 
     # Convert sampling_freq and ann_freq to lists if needed
     sampling_freq = _get_sampling_freq(sampling_freq, n_sig, fs)
     ann_freq = _get_ann_freq(ann_freq, n_annot, fs)
 
     # Create figure
-    fig, axes = create_figure(n_subplots, sharex, sharey, figsize)
+    fig, axes = _create_figure(n_subplots, sharex, sharey, figsize)
     try:
         if signal is not None:
-            plot_signal(
+            _plot_signal(
                 signal,
                 sig_len,
                 n_sig,
@@ -271,7 +271,7 @@ def plot_items(
             )
 
         if ann_samp is not None:
-            plot_annotation(
+            _plot_annotation(
                 ann_samp,
                 n_annot,
                 ann_sym,
@@ -286,7 +286,7 @@ def plot_items(
             )
 
         if ecg_grids:
-            plot_ecg_grids(
+            _plot_ecg_grids(
                 ecg_grids,
                 fs,
                 sig_units,
@@ -311,7 +311,7 @@ def plot_items(
                     "signal: {} values".format(n_subplots)
                 )
 
-        label_figure(
+        _label_figure(
             axes,
             n_subplots,
             time_units,
@@ -334,7 +334,7 @@ def plot_items(
     plt.show()
 
 
-def get_plot_dims(signal, ann_samp):
+def _get_plot_dims(signal, ann_samp):
     """
     Figure out the number of plot channels.
 
@@ -393,7 +393,7 @@ def get_plot_dims(signal, ann_samp):
     return sig_len, n_sig, n_annot, max(n_sig, n_annot)
 
 
-def create_figure(n_subplots, sharex, sharey, figsize):
+def _create_figure(n_subplots, sharex, sharey, figsize):
     """
     Create the plot figure and subplot axes.
 
@@ -425,7 +425,7 @@ def create_figure(n_subplots, sharex, sharey, figsize):
     return fig, axes
 
 
-def plot_signal(
+def _plot_signal(
     signal, sig_len, n_sig, fs, time_units, sig_style, axes, sampling_freq=None
 ):
     """
@@ -503,7 +503,7 @@ def plot_signal(
         axes[ch].plot(t, signal[ch], sig_style[ch], zorder=3)
 
 
-def plot_annotation(
+def _plot_annotation(
     ann_samp,
     n_annot,
     ann_sym,
@@ -625,7 +625,7 @@ def plot_annotation(
                     )
 
 
-def plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
+def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
     """
     Add ECG grids to the axes.
 
@@ -668,7 +668,7 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
             minor_ticks_x,
             major_ticks_y,
             minor_ticks_y,
-        ) = calc_ecg_grids(
+        ) = _calc_ecg_grids(
             auto_ylims[0],
             auto_ylims[1],
             units[ch],
@@ -702,7 +702,7 @@ def plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
         axes[ch].set_ylim(auto_ylims)
 
 
-def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
+def _calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     """
     Calculate tick intervals for ECG grids.
 
@@ -779,7 +779,7 @@ def calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
     return (major_ticks_x, minor_ticks_x, major_ticks_y, minor_ticks_y)
 
 
-def label_figure(
+def _label_figure(
     axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
 ):
     """
@@ -942,7 +942,7 @@ def plot_wfdb(
         ylabel,
         record_name,
         sig_units,
-    ) = get_wfdb_plot_items(
+    ) = _get_wfdb_plot_items(
         record=record, annotation=annotation, plot_sym=plot_sym
     )
 
@@ -980,7 +980,7 @@ def plot_wfdb(
     )
 
 
-def get_wfdb_plot_items(record, annotation, plot_sym):
+def _get_wfdb_plot_items(record, annotation, plot_sym):
     """
     Get items to plot from WFDB objects.
 

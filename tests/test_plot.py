@@ -180,7 +180,7 @@ class TestPlotInternal(unittest.TestCase):
         ann = wfdb.rdann(
             "sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto
         )
-        sig_len, n_sig, n_annot, n_subplots = plot.get_plot_dims(
+        sig_len, n_sig, n_annot, n_subplots = plot._get_plot_dims(
             signal=record.p_signal, ann_samp=[ann.sample]
         )
 
@@ -191,7 +191,7 @@ class TestPlotInternal(unittest.TestCase):
 
     def test_create_figure_single_subplots(self):
         n_subplots = 1
-        fig, axes = plot.create_figure(
+        fig, axes = plot._create_figure(
             n_subplots, sharex=True, sharey=True, figsize=None
         )
         assert fig is not None
@@ -200,7 +200,7 @@ class TestPlotInternal(unittest.TestCase):
 
     def test_create_figure_multiple_subplots(self):
         n_subplots = 5
-        fig, axes = plot.create_figure(
+        fig, axes = plot._create_figure(
             n_subplots, sharex=True, sharey=True, figsize=None
         )
         assert fig is not None
