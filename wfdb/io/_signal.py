@@ -77,6 +77,21 @@ SAMPLE_VALUE_RANGE = {
     "8": (-(2**31), 2**31 - 1),
 }
 
+# Digital value used to represent a missing/invalid sample, in each of the
+# WFDB dat formats.
+INVALID_SAMPLE_VALUE = {
+    "80": -(2**7),
+    "310": -(2**9),
+    "311": -(2**9),
+    "212": -(2**11),
+    "16": -(2**15),
+    "61": -(2**15),
+    "160": -(2**15),
+    "24": -(2**23),
+    "32": -(2**31),
+    "8": None,
+}
+
 
 class SignalMixin(object):
     """
@@ -1874,25 +1889,7 @@ def _digi_nan(fmt):
     """
     if isinstance(fmt, list):
         return [_digi_nan(f) for f in fmt]
-
-    if fmt == "80":
-        return -128
-    if fmt == "310":
-        return -512
-    if fmt == "311":
-        return -512
-    elif fmt == "212":
-        return -2048
-    elif fmt == "16":
-        return -32768
-    elif fmt == "61":
-        return -32768
-    elif fmt == "160":
-        return -32768
-    elif fmt == "24":
-        return -8388608
-    elif fmt == "32":
-        return -2147483648
+    return INVALID_SAMPLE_VALUE[fmt]
 
 
 def est_res(signals):
