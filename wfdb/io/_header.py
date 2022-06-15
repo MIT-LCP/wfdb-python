@@ -1,12 +1,11 @@
 import datetime
 import os
 import re
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import pandas as pd
 
-from wfdb.io import download
 from wfdb.io import _signal
 
 
