@@ -1,10 +1,10 @@
 import datetime
 import multiprocessing.dummy
 import posixpath
+import os
 import re
 
 import numpy as np
-import os
 import pandas as pd
 
 from wfdb.io import _header
@@ -1778,19 +1778,31 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     dir_name = os.path.abspath(dir_name)
 
+    # Construct the download path using the database version
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
             dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
-    # Read the header file. Separate comment and non-comment lines
-    header_lines, comment_lines = _header._read_header_lines(
-        base_record_name, dir_name, pn_dir
-    )
+    # Read the local or remote header file.
+    file_name = f"{base_record_name}.hea"
+    if pn_dir is None:
+        with open(
+            os.path.join(dir_name, file_name),
+            "r",
+            encoding="ascii",
+            errors="ignore",
+        ) as f:
+            header_content = f.read()
+    else:
+        header_content = download._stream_header(file_name, pn_dir)
+
+    # Separate comment and non-comment lines
+    header_lines, comment_lines = _header.parse_header_content(header_content)
 
     # Get fields from record line
-    record_fields = _header._parse_record_fields(header_lines[0])
+    record_fields = _header._parse_record_line(header_lines[0])
 
     # Single segment header - Process signal specification lines
     if record_fields["n_seg"] is None:

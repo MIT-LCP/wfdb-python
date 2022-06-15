@@ -1,7 +1,7 @@
 import datetime
 import os
 import re
-from typing import List, Sequence, Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -932,65 +932,12 @@ def parse_header_content(
             comment_lines.append(line)
         # Non-empty non-comment line = header line.
         elif line:
-            # Look for a comment in the line
-            ci = line.find("#")
-            if ci > 0:
-                header_lines.append(line[:ci])
-                # comment on same line as header line
-                comment_lines.append(line[ci:])
-            else:
-                header_lines.append(line)
+            header_lines.append(line)
 
     return header_lines, comment_lines
 
 
-def _read_header_lines(
-    base_record_name: str, dir_name: str, pn_dir: Optional[str] = None
-) -> Tuple[List[str], List[str]]:
-    """
-    Read the lines in a local or remote header file.
-
-    Parameters
-    ----------
-    base_record_name : str
-        The base name of the WFDB record to be read, without any file
-        extensions.
-    dir_name : str
-        The local directory location of the header file. This parameter
-        is ignored if `pn_dir` is set.
-    pn_dir : str, optional
-        Option used to stream data from Physionet. The Physionet
-        database directory from which to find the required record files.
-        eg. For record '100' in 'http://physionet.org/content/mitdb'
-        pn_dir='mitdb'.
-
-    Returns
-    -------
-    header_lines : list
-        List of strings corresponding to the header lines.
-    comment_lines : list
-        List of strings corresponding to the comment lines.
-
-    """
-    file_name = base_record_name + ".hea"
-
-    # Read local file
-    if pn_dir is None:
-        with open(
-            os.path.join(dir_name, file_name),
-            "r",
-            encoding="ascii",
-            errors="ignore",
-        ) as f:
-            header_content = f.read()
-    # Read online header file
-    else:
-        header_content = download._stream_header(file_name, pn_dir)
-
-    return parse_header_content(header_content)
-
-
-def _parse_record_fields(record_line: str) -> dict:
+def _parse_record_line(record_line: str) -> dict:
     """
     Extract fields from a record line string into a dictionary.
 
