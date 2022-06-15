@@ -2245,7 +2245,7 @@ def rdsamp(
     --------
     >>> signals, fields = wfdb.rdsamp('sample-data/test01_00s',
                                       sampfrom=800,
-                                      channel =[1,3])
+                                      channels=[1,3])
 
     """
     if (pn_dir is not None) and ("." not in pn_dir):
