@@ -35,6 +35,8 @@ pip install wfdb
 poetry add wfdb
 ```
 
+On Linux systems, accessing *compressed* WFDB signal files requires installing `libsndfile`, by running `sudo apt-get install libsndfile1` or `sudo yum install libsndfile`.  Support for Apple M1 systems is a work in progess (see <https://github.com/bastibe/python-soundfile/issues/310> and <https://github.com/bastibe/python-soundfile/issues/325>).
+
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh

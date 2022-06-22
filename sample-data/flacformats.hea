@@ -1,0 +1,4 @@
+flacformats 3 200 499
+flacformats.d0 508 200/mV 8 0 -127 -484 0 sig 0, fmt 508
+flacformats.d1 516 200/mV 16 0 -32766 -750 0 sig 1, fmt 516
+flacformats.d2 524 200/mV 24 0 -8388605 8721 0 sig 2, fmt 524

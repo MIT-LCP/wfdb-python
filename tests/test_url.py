@@ -196,6 +196,62 @@ class TestNetFiles(unittest.TestCase):
             self.assertEqual(bf.tell(), len(content))
 
 
+class TestRemoteFLACFiles(unittest.TestCase):
+    """
+    Test reading FLAC files over HTTP.
+    """
+
+    def test_whole_file(self):
+        """
+        Test reading a complete FLAC file using local and HTTP APIs.
+
+        This tests that we can read the file 'sample-data/flacformats.d2'
+        (a 24-bit FLAC stream) using the soundfile library, first by
+        reading the file from the local filesystem, and then using
+        wfdb.io._url.openurl() to access it through a simulated web server.
+
+        This is meant to verify that the soundfile library works using only
+        the standard Python file object API (as implemented by
+        wfdb.io._url.NetFile), and doesn't require the input file to be an
+        actual io.FileIO object.
+
+        Parameters
+        ----------
+        N/A
+
+        Returns
+        -------
+        N/A
+
+        """
+        import soundfile
+        import numpy as np
+
+        data_file_path = "sample-data/flacformats.d2"
+        expected_format = "FLAC"
+        expected_subtype = "PCM_24"
+
+        # Read the file using standard file I/O
+        sf1 = soundfile.SoundFile(data_file_path)
+        self.assertEqual(sf1.format, expected_format)
+        self.assertEqual(sf1.subtype, expected_subtype)
+        data1 = sf1.read()
+
+        # Read the file using HTTP
+        with open(data_file_path, "rb") as f:
+            file_content = {"/foo.dat": f.read()}
+        with DummyHTTPServer(file_content) as server:
+            url = server.url("/foo.dat")
+            file2 = wfdb.io._url.openurl(url, "rb")
+            sf2 = soundfile.SoundFile(file2)
+            self.assertEqual(sf2.format, expected_format)
+            self.assertEqual(sf2.subtype, expected_subtype)
+            data2 = sf2.read()
+
+        # Check that results are equal
+        np.testing.assert_array_equal(data1, data2)
+
+
 class DummyHTTPServer(http.server.HTTPServer):
     """
     HTTPServer used to simulate a web server for testing.
