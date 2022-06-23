@@ -1,3 +1,5 @@
+import posixpath
+
 from wfdb.io import _url
 
 
