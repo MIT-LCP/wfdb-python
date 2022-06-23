@@ -11,6 +11,7 @@ from wfdb.io import _header
 from wfdb.io import _signal
 from wfdb.io import _url
 from wfdb.io import download
+from wfdb.io import util
 
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
@@ -468,7 +469,7 @@ class BaseRecord(object):
                             "File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat"
                         )
                     # Check that dat files are grouped together
-                    if not is_monotonic(self.file_name):
+                    if not util.is_monotonic(self.file_name):
                         raise ValueError(
                             "Signals in a record that share a given file must be consecutive."
                         )
@@ -2918,37 +2919,6 @@ def wrsamp(
     record.set_defaults()
     # Write the record files - header and associated dat
     record.wrsamp(write_dir=write_dir)
-
-
-def is_monotonic(full_list):
-    """
-    Determine whether elements in a list are monotonic. ie. unique
-    elements are clustered together.
-
-    ie. [5,5,3,4] is, [5,3,5] is not.
-
-    Parameters
-    ----------
-    full_list : list
-        The input elements used for the analysis.
-
-    Returns
-    -------
-    bool
-        Whether the elements are monotonic (True) or not (False).
-
-    """
-    prev_elements = set({full_list[0]})
-    prev_item = full_list[0]
-
-    for item in full_list:
-        if item != prev_item:
-            if item in prev_elements:
-                return False
-            prev_item = item
-            prev_elements.add(item)
-
-    return True
 
 
 def dl_database(

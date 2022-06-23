@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-from wfdb.io import download, _coreio
+from wfdb.io import download, _coreio, util
 
 
 MAX_I32 = 2147483647
@@ -2490,42 +2490,3 @@ def _infer_sig_len(
 
     return sig_len
 
-
-def downround(x, base):
-    """
-    Round <x> down to nearest <base>.
-
-    Parameters
-    ---------
-    x : str, int, float
-        The number that will be rounded down.
-    base : int, float
-        The base to be rounded down to.
-
-    Returns
-    -------
-    float
-        The rounded down result of <x> down to nearest <base>.
-
-    """
-    return base * math.floor(float(x) / base)
-
-
-def upround(x, base):
-    """
-    Round <x> up to nearest <base>.
-
-    Parameters
-    ---------
-    x : str, int, float
-        The number that will be rounded up.
-    base : int, float
-        The base to be rounded up to.
-
-    Returns
-    -------
-    float
-        The rounded up result of <x> up to nearest <base>.
-
-    """
-    return base * math.ceil(float(x) / base)

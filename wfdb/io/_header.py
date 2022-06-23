@@ -1,5 +1,4 @@
 import datetime
-import os
 import re
 from typing import List, Tuple
 
@@ -7,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _signal
+from wfdb.io import util
 
 
 """
@@ -603,7 +603,7 @@ class HeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        lines_to_file(self.record_name + ".hea", write_dir, header_lines)
+        util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
 
 
 class MultiHeaderMixin(BaseHeaderMixin):
@@ -795,7 +795,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        lines_to_file(self.record_name + ".hea", header_lines, write_dir)
+        util.lines_to_file(self.record_name + ".hea", header_lines, write_dir)
 
     def get_sig_segments(self, sig_name=None):
         """
@@ -1122,25 +1122,3 @@ def _read_segment_lines(segment_lines):
 
 class HeaderSyntaxError(ValueError):
     """Invalid syntax found in a WFDB header file."""
-
-
-def lines_to_file(file_name, write_dir, lines):
-    """
-    Write each line in a list of strings to a text file.
-
-    Parameters
-    ----------
-    write_dir : str
-        The output directory in which the header is written.
-    lines : list
-        The lines to be written to the text file.
-
-    Returns
-    -------
-    N/A
-
-    """
-    f = open(os.path.join(write_dir, file_name), "w")
-    for l in lines:
-        f.write("%s\n" % l)
-    f.close()
