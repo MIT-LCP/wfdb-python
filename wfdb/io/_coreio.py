@@ -1,6 +1,7 @@
 import posixpath
 
 from wfdb.io import _url
+from wfdb.io.download import config
 
 
 def _open_file(
