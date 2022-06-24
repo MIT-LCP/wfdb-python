@@ -249,6 +249,28 @@ class TestRecord(unittest.TestCase):
                         f"Mismatch in {name}",
                     )
 
+    def test_read_flac_longduration(self):
+        """
+        Three signals multiplexed in a FLAC file, over 2**24 samples.
+
+        Input file created with:
+            yes 25 50 75 | head -5600000 |
+            wrsamp -O 508 -o flac_3_constant 0 1 2
+
+        Note that the total number of samples (across the three
+        channels) exceeds 2**24.  There is a bug in libsndfile that
+        causes it to break if we try to read more than 2**24 total
+        samples at a time, when the number of channels is not a power
+        of two.
+        """
+        record = wfdb.rdrecord("sample-data/flac_3_constant")
+        sig_target = np.repeat(
+            np.array([[0.125, 0.25, 0.375]], dtype="float64"),
+            5600000,
+            axis=0,
+        )
+        np.testing.assert_array_equal(record.p_signal, sig_target)
+
     # ------------------ 2. Special format records ------------------ #
 
     def test_2a(self):
