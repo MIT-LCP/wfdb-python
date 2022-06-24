@@ -1563,14 +1563,14 @@ def _required_byte_num(mode, fmt, n_samp):
 
         if n_extra == 2:
             if fmt == "310":
-                n_bytes = upround(n_samp * 4 / 3, 4)
+                n_bytes = util.upround(n_samp * 4 / 3, 4)
             # 311
             else:
                 if mode == "read":
                     n_bytes = math.ceil(n_samp * 4 / 3)
                 # Have to write more bytes for WFDB c to work
                 else:
-                    n_bytes = upround(n_samp * 4 / 3, 4)
+                    n_bytes = util.upround(n_samp * 4 / 3, 4)
         # 0 or 1
         else:
             n_bytes = math.ceil(n_samp * 4 / 3)

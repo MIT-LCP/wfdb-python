@@ -3,7 +3,6 @@ import os
 import numpy as np
 
 from wfdb.io.record import Record, rdrecord
-from wfdb.io._header import float_types
 from wfdb.io.util import downround, upround
 from wfdb.io.annotation import Annotation
 

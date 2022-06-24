@@ -1,7 +1,6 @@
 import numpy as np
-from scipy import signal
 import pandas as pd
-import pdb
+from scipy import signal
 
 from wfdb.io.annotation import Annotation
 
