@@ -863,6 +863,7 @@ def plot_wfdb(
     ecg_grids=[],
     figsize=None,
     return_fig=False,
+    sharex="auto",
 ):
     """
     Subplot individual channels of a WFDB record and/or annotation.
@@ -917,6 +918,12 @@ def plot_wfdb(
         'figsize' argument passed into matplotlib.pyplot's `figure` function.
     return_fig : bool, optional
         Whether the figure is to be returned as an output argument.
+    sharex : bool or 'auto', optional
+        Whether the X axis should be shared between all subplots.  If set
+        to True, then all signals will be aligned with each other.  If set
+        to False, then each subplot can be panned/zoomed independently.  If
+        set to 'auto' (default), then the X axis will be shared unless
+        record is multi-frequency and the time units are set to 'samples'.
 
     Returns
     -------
@@ -954,6 +961,21 @@ def plot_wfdb(
     else:
         sampling_freq = None
 
+    if sharex == "auto":
+        # If the sampling frequencies are equal, or if we are using
+        # hours/minutes/seconds as the time unit, then share the X axes so
+        # that the channels are synchronized.  If time units are 'samples'
+        # and sampling frequencies are not uniform, then sharing X axes
+        # doesn't work and may even be misleading.
+        if (
+            time_units == "samples"
+            and isinstance(sampling_freq, list)
+            and any(f != sampling_freq[0] for f in sampling_freq)
+        ):
+            sharex = False
+        else:
+            sharex = True
+
     if annotation and annotation.fs is not None:
         ann_freq = annotation.fs
     elif record:
@@ -977,6 +999,7 @@ def plot_wfdb(
         return_fig=return_fig,
         sampling_freq=sampling_freq,
         ann_freq=ann_freq,
+        sharex=sharex,
     )
 
 
