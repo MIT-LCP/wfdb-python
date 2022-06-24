@@ -1875,7 +1875,23 @@ def _rd_compressed_file(
             start_samp = start_frame * samps_per_frame[0]
             end_samp = end_frame * samps_per_frame[0]
             sf.seek(start_samp + sample_offset)
-            sig_data = sf.read(end_samp - start_samp, dtype=read_dtype)
+
+            # We could do this:
+            #  sig_data = sf.read(end_samp - start_samp, dtype=read_dtype)
+            # However, sf.read fails for huge blocks (over 2**24 total
+            # samples) due to a bug in libsndfile:
+            # https://github.com/libsndfile/libsndfile/issues/431
+            # So read the data in chunks instead.
+            n_samp = end_samp - start_samp
+            sig_data = np.empty((n_samp, n_sig), dtype=read_dtype)
+            CHUNK_SIZE = 1024 * 1024
+            for chunk_start in range(0, n_samp, CHUNK_SIZE):
+                chunk_end = chunk_start + CHUNK_SIZE
+                chunk_data = sf.read(out=sig_data[chunk_start:chunk_end])
+                samples_read = chunk_data.shape[0]
+                if samples_read != CHUNK_SIZE:
+                    sig_data = sig_data[: chunk_start + samples_read]
+                    break
 
             # If we read an 8-bit stream as int16 or a 24-bit stream as
             # int32, soundfile shifts each sample left by 8 bits.  We

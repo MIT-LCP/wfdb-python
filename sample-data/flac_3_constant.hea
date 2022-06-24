@@ -1,0 +1,4 @@
+flac_3_constant 3 250 5600000
+flac_3_constant.dat 508 200 8 0 25 15104 0 col 0
+flac_3_constant.dat 508 200 8 0 50 30208 0 col 1
+flac_3_constant.dat 508 200 8 0 75 -20224 0 col 2
