@@ -65,6 +65,8 @@ black .
 
 This project uses [poetry](https://python-poetry.org/docs/) for package management and distribution.
 
+#### Managing Dependencies
+
 Development dependencies are specified as optional dependencies, and then added to the "dev" extra group in the [pyproject.toml](./pyproject.toml) file.
 
 ```sh
@@ -74,11 +76,29 @@ poetry add --optional <somepackage>
 
 The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitation](https://github.com/python-poetry/poetry/issues/3514) that prevents these dependencies from being pip installable. Therefore, dev dependencies are not installed when purely running `poetry install`, and the `--no-dev` flag has no meaning in this project.
 
-Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are kept in sync.
+#### Creating Distributions
 
-To upload a new distribution to PyPI:
+Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are updated and kept in sync.
+
+It may be useful to publish to testpypi and preview the changes before publishing to PyPi. However, the project dependencies likely will not be available when trying to install from there.
+
+Setup: configure access to repositories:
 
 ```sh
+# Create an API token, then add it
+poetry config pypi-token.pypi <my-token>
+
+# For testpypi
+poetry config repositories.test-pypi https://test.pypi.org/legacy/
+poetry config pypi-token.test-pypi <my-testpypi-token>
+```
+
+To build and upload a new distribution:
+
+```sh
+poetry build
+
+poetry publish -r test-pypi
 poetry publish
 ```
 
