@@ -104,7 +104,7 @@ disable=
     too-few-public-methods,
     # handled by black
     format,
-
+    pointless-string-statement,
 
 [REPORTS]
 
