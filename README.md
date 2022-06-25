@@ -61,11 +61,9 @@ Run the formatter with:
 black .
 ```
 
-### Package Management
+### Package and Dependency Management
 
 This project uses [poetry](https://python-poetry.org/docs/) for package management and distribution.
-
-#### Managing Dependencies
 
 Development dependencies are specified as optional dependencies, and then added to the "dev" extra group in the [pyproject.toml](./pyproject.toml) file.
 
@@ -76,7 +74,7 @@ poetry add --optional <somepackage>
 
 The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitation](https://github.com/python-poetry/poetry/issues/3514) that prevents these dependencies from being pip installable. Therefore, dev dependencies are not installed when purely running `poetry install`, and the `--no-dev` flag has no meaning in this project.
 
-#### Creating Distributions
+### Creating Distributions
 
 Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are updated and kept in sync.
 
