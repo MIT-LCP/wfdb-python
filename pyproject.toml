@@ -1,8 +1,12 @@
 [tool.poetry]
 name = "wfdb"
-version = "4.0.0a0"
+version = "4.0.0"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = ["The Laboratory for Computational Physiology <contact@physionet.org>"]
+readme = "README.md"
+homepage = "https://github.com/MIT-LCP/wfdb-python/"
+repository = "https://github.com/MIT-LCP/wfdb-python/"
+documentation = "https://wfdb.readthedocs.io/"
 license = "MIT"
 
 [tool.poetry.dependencies]
