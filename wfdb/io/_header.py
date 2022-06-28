@@ -1,6 +1,7 @@
+from dataclasses import dataclass
 import datetime
 import re
-from typing import List, Tuple
+from typing import Collection, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -34,9 +35,6 @@ The read vs write default values are different for 2 reasons:
 
 If all of the fields were filled out in a WFDB header file, they would appear
 in this order with these seperators:
-
-RECORD_NAME/NUM_SEG NUM_SIG SAMP_FREQ/COUNT_FREQ(BASE_COUNT_VAL) SAMPS_PER_SIG BASE_TIME BASE_DATE
-FILE_NAME FORMATxSAMP_PER_FRAME:SKEW+BYTE_OFFSET ADC_GAIN(BASELINE)/UNITS ADC_RES ADC_ZERO CHECKSUM BLOCK_SIZE DESCRIPTION
 
 """
 int_types = (int, np.int64, np.int32, np.int16, np.int8)
@@ -135,8 +133,128 @@ SEGMENT_SPECS = pd.DataFrame(
 # Specifications of all WFDB header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
-# Regexp objects for reading headers
-# Record line
+
+@dataclass
+class SignalInfo:
+    """
+    Signal specification fields for one signal
+    """
+
+    file_name: Optional[str] = None
+    fmt: Optional[str] = None
+    samps_per_frame: Optional[int] = None
+    skew: Optional[int] = None
+    byte_offset: Optional[int] = None
+    adc_gain: Optional[float] = None
+    baseline: Optional[int] = None
+    units: Optional[str] = None
+    adc_res: Optional[int] = None
+    adc_zero: Optional[int] = None
+    init_value: Optional[int] = None
+    checksum: Optional[int] = None
+    block_size: Optional[int] = None
+    sig_name: Optional[str] = None
+
+
+class SignalSet:
+    """
+    Wrapper for a set of signal information. Provides useful access/modify methods.
+    """
+
+    def __init__(self, signals: List[SignalInfo]):
+        self._signal_info = signals
+        try:
+            self._generate_name_map()
+        except ValueError:
+            pass
+
+    def _generate_name_map(self):
+        """
+        Generate mapping of channel names to channel indices to allow
+        for access by both index and name.
+
+        Raises
+        ------
+        ValueError
+            Raises unless all channel names are present and unique.
+
+        """
+        self._channel_inds = None
+        channel_inds = {}
+
+        for ch, signal in enumerate(self._signal_info):
+            sig_name = signal.sig_name
+            if not sig_name or sig_name in channel_inds:
+                raise ValueError(
+                    "Cannot generate name map: channel names are not unique"
+                )
+            channel_inds[sig_name] = ch
+
+        self._channel_inds = channel_inds
+
+    def __getitem__(self, key: Union[int, str]):
+        if isinstance(key, str):
+            if not self._channel_inds:
+                raise KeyError("Channel name mapping not available")
+
+        return self._signal_info[key]
+
+
+@dataclass
+class _RecordFields:
+    """
+    Record specification fields for a record.
+
+    Used by helper functions and to be inherited by class RecordInfo.
+
+    """
+
+    name: Optional[str] = None
+    n_seg: Optional[int] = None
+    n_sig: Optional[int] = None
+    fs: Optional[float] = None
+    counter_freq: Optional[float] = None
+    base_counter: Optional[float] = None
+    sig_len: Optional[int] = None
+    base_time: Optional[datetime.time] = None
+    base_date: Optional[datetime.date] = None
+
+
+@dataclass
+class RecordInfo(_RecordFields):
+    """
+    The core object encapsulating WFDB metadata for a single-segment record.
+    Contains record specification fields and signal specification fields.
+    """
+
+    # All signal fields are encapsulated under this field
+    signals: Optional[SignalSet] = None
+
+    comments: List[str] = None
+
+
+@dataclass
+class SegmentFields:
+    """
+    Segment specification fields for a single segment.
+    """
+
+    seg_name: Optional[str] = None
+    seg_len: Optional[int] = None
+
+
+@dataclass
+class MultiRecord(_RecordFields):
+    """
+    The core object encapsulating WFDB metadata for a multi-segment record.
+    Contains record specification fields and segment specification fields.
+    """
+
+    segments: List[SegmentFields] = None
+
+
+# Record line pattern. Format:
+# RECORD_NAME/NUM_SEG NUM_SIG SAMP_FREQ/COUNT_FREQ(BASE_COUNT_VAL) SAMPS_PER_SIG BASE_TIME BASE_DATE
 _rx_record = re.compile(
     r"""
     [ \t]* (?P<record_name>[-\w]+)
@@ -152,7 +270,8 @@ _rx_record = re.compile(
     re.VERBOSE,
 )
 
-# Signal line
+# Signal line pattern. Format:
+# FILE_NAME FORMATxSAMP_PER_FRAME:SKEW+BYTE_OFFSET ADC_GAIN(BASELINE)/UNITS ADC_RES ADC_ZERO CHECKSUM BLOCK_SIZE DESCRIPTION
 _rx_signal = re.compile(
     r"""
     [ \t]* (?P<file_name>~?[-\w]*\.?[\w]*)
@@ -1104,8 +1223,8 @@ def _read_segment_lines(segment_lines):
         segment_fields[field] = [None] * len(segment_lines)
 
     # Read string fields from signal line
-    for i in range(len(segment_lines)):
-        match = _rx_segment.match(segment_lines[i])
+    for i, line in enumerate(segment_lines):
+        match = _rx_segment.match(line)
         if match is None:
             raise HeaderSyntaxError("invalid syntax in segment line")
         (
@@ -1114,8 +1233,7 @@ def _read_segment_lines(segment_lines):
         ) = match.groups()
 
         # Typecast strings for numerical field
-        if field == "seg_len":
-            segment_fields["seg_len"][i] = int(segment_fields["seg_len"][i])
+        segment_fields["seg_len"][i] = int(segment_fields["seg_len"][i])
 
     return segment_fields
 
