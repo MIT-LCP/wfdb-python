@@ -18,6 +18,8 @@ UNALIGNED_FMTS = ["212", "310", "311", "24"]
 COMPRESSED_FMTS = ["508", "516", "524"]
 # Formats which are stored in offset binary form
 OFFSET_FMTS = ["80", "160"]
+# Formats which are stored in difference format
+DIFFERENCE_FMTS = ["8"]
 # All WFDB dat formats - https://www.physionet.org/physiotools/wag/signal-5.htm
 DAT_FMTS = ALIGNED_FMTS + UNALIGNED_FMTS + COMPRESSED_FMTS
 

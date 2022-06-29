@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import datetime
 import re
-from typing import Collection, List, Optional, Tuple, Union
+from typing import Any, Collection, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -201,6 +201,95 @@ class SignalSet:
 
 
 @dataclass
+class WFDBField:
+    is_required: bool
+    data_type: type
+
+    # is_required + has_default?
+
+
+RECORD_FIELDS: Dict[str, WFDBField] = {
+    "record_name": WFDBField(is_required=True, data_type=str),
+    "n_seg": WFDBField(is_required=False, data_type=int),
+    "n_sig": WFDBField(is_required=True, data_type=int),
+    "fs": WFDBField(is_required=False, data_type=float),
+    "counter_freq": WFDBField(is_required=False, data_type=int),
+    "base_counter": WFDBField(is_required=False, data_type=float),
+    "sig_len": WFDBField(is_required=False, data_type=int),
+    "base_time": WFDBField(is_required=False, data_type=datetime.time),
+    "base_date": WFDBField(is_required=False, data_type=datetime.date),
+}
+
+WFDB_FIELDS : Dict[str, WFDBField]= dict(**RECORD_FIELDS)
+
+
+
+def get_field_default(fields: dict, field_name: str) -> Any:
+    """
+    Gets the default value for a WFDB field, if it has one.
+
+    Returns
+    ------
+    N/A : Any
+        The default value for the field. This may be None, which is different
+        from the field not having a default.
+
+    Raises
+    -----
+    ValueError
+        If the field has no default value
+    HeaderSyntaxError
+        If the field's default value is dependent on another field, which
+        is missing in the 'fields' parameter.
+    """
+    if WFDB_FIELDS[field_name].is_required:
+        raise ValueError(f"{field_name} is a required field with no default")
+
+    # Special rules
+    if field_name == "counter_freq":
+        if "fs" not in fields:
+            raise HeaderSyntaxError(
+                "counter_freq should default to fs, which is missing"
+            )
+        return fields["fs"]
+
+    if field_name == "baseline":
+        if "adc_zero" not in fields:
+            raise HeaderSyntaxError(
+                "baseline should default to adc_zero, which is missing"
+            )
+        return fields["adc_zero"]
+
+    if field_name == "init_value":
+        if "adc_zero" not in fields:
+            raise HeaderSyntaxError(
+                "init_value should default to adc_zero, which is missing"
+            )
+        return fields["adc_zero"]
+
+    if field_name == "adc_res":
+        # If this field is missing or zero, it is interpreted to be 12 bits
+        # for amplitude-format signals, or 10 bits for difference-format
+        # signals, unless a lower value is specified by the format field.
+        if "fmt" not in fields:
+            raise HeaderSyntaxError("adc_res depends on fmt, which is missing")
+        fmt = fields["fmt"]
+
+        res = 10 if fmt in _signal.DIFFERENCE_FMTS else 12
+        return min(res, _signal.BIT_RES[fmt])
+
+    if field_name == "n_seg":
+        return None
+    if field_name == "fs":
+        return 250
+    if field_name == "base_counter":
+        return 0
+
+
+
+
+
+@dataclass
 class _RecordFields:
     """
     Record specification fields for a record.
@@ -209,7 +298,7 @@ class _RecordFields:
 
     """
 
-    name: Optional[str] = None
+    record_name: Optional[str] = None
     n_seg: Optional[int] = None
     n_sig: Optional[int] = None
     fs: Optional[float] = None
@@ -1055,7 +1144,7 @@ def parse_header_content(
     return header_lines, comment_lines
 
 
-def _parse_record_line(record_line: str) -> dict:
+def _parse_record_line(record_line: str) -> _RecordFields:
     """
     Extract fields from a record line string into a dictionary.
 
@@ -1069,14 +1158,19 @@ def _parse_record_line(record_line: str) -> dict:
     record_fields : dict
         The fields for the given record line.
 
+    Raises
+    ------
+    HeaderSyntaxError
+        If the input is not in the form of a valid WFDB record line.
+
     """
-    # Dictionary for record fields
+
     record_fields = {}
 
     # Read string fields from record line
     match = _rx_record.match(record_line)
     if match is None:
-        raise HeaderSyntaxError("invalid syntax in record line")
+        raise HeaderSyntaxError("Invalid syntax in record line")
     (
         record_fields["record_name"],
         record_fields["n_seg"],
@@ -1089,11 +1183,10 @@ def _parse_record_line(record_line: str) -> dict:
         record_fields["base_date"],
     ) = match.groups()
 
-    for field in RECORD_SPECS.index:
-        # Replace empty strings with their read defaults (which are
-        # mostly None)
-        if record_fields[field] == "":
-            record_fields[field] = RECORD_SPECS.loc[field, "read_default"]
+    for field_name, field_value in record_fields.items():
+        # Replace empty strings with the field defaults
+        if field_value == "":
+            record_fields[field_name] = RECORD_SPECS.loc[field, "read_default"]
         # Typecast non-empty strings for non-string (numerical/datetime)
         # fields
         else:
@@ -1116,13 +1209,7 @@ def _parse_record_line(record_line: str) -> dict:
                     record_fields["base_date"], "%d/%m/%Y"
                 ).date()
 
-    # This is not a standard WFDB field, but is useful to set.
-    if record_fields["base_date"] and record_fields["base_time"]:
-        record_fields["base_datetime"] = datetime.datetime.combine(
-            record_fields["base_date"], record_fields["base_time"]
-        )
-
-    return record_fields
+    return _RecordFields(**record_fields)
 
 
 def _parse_signal_lines(signal_lines):
