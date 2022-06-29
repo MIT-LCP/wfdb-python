@@ -11,6 +11,7 @@ from wfdb.io import _header
 from wfdb.io import _signal
 from wfdb.io import _url
 from wfdb.io import download
+from wfdb.io import header
 from wfdb.io import util
 
 
@@ -1800,7 +1801,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         header_content = download._stream_header(file_name, pn_dir)
 
     # Separate comment and non-comment lines
-    header_lines, comment_lines = _header.parse_header_content(header_content)
+    header_lines, comment_lines = header.parse_header_content(header_content)
 
     # Get fields from record line
     record_fields = _header._parse_record_line(header_lines[0])

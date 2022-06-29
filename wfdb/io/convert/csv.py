@@ -1,10 +1,8 @@
-import datetime
 import os
 
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _header
 from wfdb.io.annotation import format_ann_from_df, Annotation, wrann
 from wfdb.io.record import Record, wrsamp
 
@@ -121,16 +119,13 @@ def csv_to_wfdb(
         The base counter value is a floating-point number that specifies the counter
         value corresponding to sample 0. If absent, the base counter value is
         taken to be 0.
-    base_time : str, optional
+    base_time : datetime.time, optional
         This field can be present only if the number of samples is also present.
         It gives the time of day that corresponds to the beginning of the
-        record, in 'HH:MM:SS' format (using a 24-hour clock; thus '13:05:00', or
-        '13:5:0', represent 1:05 pm). If this field is absent, the time-conversion
-        functions assume a value of '0:0:0', corresponding to midnight.
-    base_date : str, optional
+        record.
+    base_date : datetime.date, optional
         This field can be present only if the base time is also present. It contains
-        the date that corresponds to the beginning of the record, in 'DD/MM/YYYY'
-        format (e.g., '25/4/1989' is '25 April 1989').
+        the date that corresponds to the beginning of the record.
     comments : list, optional
         A list of string comments to be written to the header file. Each string
         entry represents a new line to be appended to the bottom of the header
@@ -415,12 +410,6 @@ def csv_to_wfdb(
     block_size = [block_size] * n_sig if type(block_size) is int else block_size
     if verbose:
         print("Signal block size: {}".format(block_size))
-
-    # Change the dates and times into `datetime` objects
-    if base_time:
-        base_time = _header.wfdb_strptime(base_time)
-    if base_date:
-        base_date = datetime.datetime.strptime(base_date, "%d/%m/%Y").date()
 
     # Convert array to floating point
     p_signal = p_signal.astype("float64")
