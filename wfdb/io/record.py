@@ -1144,32 +1144,27 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
-        for i in range(n_seg):
-            s = self.segments[i]
+        for seg_num, segment in enumerate(self.segments):
 
             # If segment 0 is a layout specification record, check that its file names are all == '~''
-            if i == 0 and self.seg_len[0] == 0:
-                for file_name in s.file_name:
+            if seg_num == 0 and self.seg_len[0] == 0:
+                for file_name in segment.file_name:
                     if file_name != "~":
                         raise ValueError(
                             "Layout specification records must have all file_names named '~'"
                         )
 
             # Sampling frequencies must all match the one in the master header
-            if s.fs != self.fs:
+            if segment.fs != self.fs:
                 raise ValueError(
                     "The 'fs' in each segment must match the overall record's 'fs'"
                 )
 
             # Check the signal length of the segment against the corresponding seg_len field
-            if s.sig_len != self.seg_len[i]:
+            if segment.sig_len != self.seg_len[seg_num]:
                 raise ValueError(
-                    "The signal length of segment "
-                    + str(i)
-                    + " does not match the corresponding segment length"
+                    f"The signal length of segment {seg_num} does not match the corresponding segment length"
                 )
-
-            totalsig_len = totalsig_len + getattr(s, "sig_len")
 
         # No need to check the sum of sig_lens from each segment object against sig_len
         # Already effectively done it when checking sum(seg_len) against sig_len
