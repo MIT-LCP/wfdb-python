@@ -1,6 +1,6 @@
 import datetime
 import re
-from typing import List, Tuple
+from typing import Collection, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -877,8 +877,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
         relative to the start of the full record. Does not account for NaNs/missing
         values.
 
-        Only works if the headers from the individual segment records have already
-        been read in.
+        This function is mainly useful for variable layout records, but can also be
+        used for fixed-layout records. Only works if the headers from the individual
+        segment records have already been read in.
 
         Parameters
         ----------
@@ -935,6 +936,48 @@ class MultiHeaderMixin(BaseHeaderMixin):
             ranges.append((range_start, seg_start))
 
         return ranges
+
+    def contained_combined_ranges(
+        self,
+        sig_names: Collection[str],
+    ) -> List[Tuple[int, int]]:
+        """
+        Given a collection of signal name, return the sample ranges that
+        contain all of the specified signals, relative to the start of the
+        full record. Does not account for NaNs/missing values.
+
+        This function is mainly useful for variable layout records, but can also be
+        used for fixed-layout records. Only works if the headers from the individual
+        segment records have already been read in.
+
+        Parameters
+        ----------
+        sig_names : List[str]
+            The names of the signals to query.
+
+        Returns
+        -------
+        ranges : List[Tuple[int, int]]
+            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            The second value of each tuple pair will be one beyond the signal index.
+            eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
+            selection using signal[0:1000].
+
+        """
+        # TODO: Add shortcut for fixed-layout records
+
+        if len(sig_names) == 0:
+            return []
+
+        combined_ranges = self.contained_ranges(sig_names[0])
+
+        if len(sig_names) > 1:
+            for name in sig_names[1:]:
+                combined_ranges = util.overlapping_ranges(
+                    combined_ranges, self.contained_ranges(name)
+                )
+
+        return combined_ranges
 
 
 def wfdb_strptime(time_string: str) -> datetime.time:

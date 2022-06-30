@@ -4,7 +4,7 @@ A module for general utility functions
 import math
 import os
 
-from typing import Sequence
+from typing import Sequence, Tuple
 
 
 def lines_to_file(file_name: str, write_dir: str, lines: Sequence[str]):
@@ -99,3 +99,23 @@ def upround(x, base):
 
     """
     return base * math.ceil(float(x) / base)
+
+
+def overlapping_ranges(
+    ranges_1: Tuple[int, int], ranges_2: Tuple[int, int]
+) -> Tuple[int, int]:
+    """
+    Given two collections of integer ranges, return a list of ranges
+    in which both input inputs overlap.
+
+    From: https://stackoverflow.com/q/40367461
+
+    Slightly modified so that if the end of one range exactly equals
+    the start of the other range, no overlap would be returned.
+    """
+    return [
+        (max(first[0], second[0]), min(first[1], second[1]))
+        for first in ranges_1
+        for second in ranges_2
+        if max(first[0], second[0]) < min(first[1], second[1])
+    ]
