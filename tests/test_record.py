@@ -4,6 +4,7 @@ import shutil
 import unittest
 
 import numpy as np
+import pandas as pd
 
 import wfdb
 
@@ -580,6 +581,16 @@ class TestRecord(unittest.TestCase):
         sig_target = np.genfromtxt("tests/target-output/record-4d")
 
         assert np.array_equal(sig_round, sig_target)
+
+    def test_to_dataframe(self):
+        record = wfdb.rdrecord("sample-data/test01_00s")
+        df = record.to_dataframe()
+
+        self.assertEqual(record.sig_name, list(df.columns))
+        self.assertEqual(len(df), record.sig_len)
+        self.assertEqual(df.index[0], pd.Timedelta(0))
+        self.assertEqual(df.index[-1], pd.Timedelta(seconds=1 / record.fs * (record.sig_len - 1)))
+        assert np.array_equal(record.p_signal, df.values)
 
     def test_header_with_non_utf8(self):
         """
