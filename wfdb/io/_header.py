@@ -871,8 +871,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         return sig_name
 
-    @property
-    def signal_ranges(self, sig_name: str) -> List[Tuple[int, int]]:
+    def contained_ranges(self, sig_name: str) -> List[Tuple[int, int]]:
         """
         Given a signal name, return the sample ranges that contain signal values,
         relative to the start of the full record. Does not account for NaNs/missing
@@ -904,18 +903,32 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         range_start = None
 
-        for segment in self.segments:
-            if segment.sig_len == 0:
+        # TODO: Add shortcut for fixed-layout records
+
+        # Cannot process segments only because missing segments are None
+        # and do not contain length information.
+        for seg_num in range(self.n_seg):
+            seg_len = self.seg_len[seg_num]
+            segment = self.segments[seg_num]
+
+            if seg_len == 0:
                 continue
 
             # Open signal range
-            if range_start is None and sig_name in segment.sig_name:
+            if (
+                range_start is None
+                and segment is not None
+                and sig_name in segment.sig_name
+            ):
                 range_start = seg_start
             # Close signal range
-            elif range_start is not None and sig_name not in segment.sig_name:
+            elif range_start is not None and (
+                segment is None or sig_name not in segment.sig_name
+            ):
                 ranges.append((range_start, seg_start))
+                range_start = None
 
-            seg_start += segment.sig_len
+            seg_start += seg_len
 
         # Account for final segment
         if range_start is not None:

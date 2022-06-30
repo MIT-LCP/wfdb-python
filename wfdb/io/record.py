@@ -1040,8 +1040,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         `datetime.combine(base_date, base_time)`.
     seg_name : str, optional
         The name of the segment.
-    seg_len : int, optional
-        The length of the segment.
+    seg_len : List[int], optional
+        The length of each segment.
     comments : list, optional
         A list of string comments to be written to the header file.
     sig_name : str, optional
@@ -1103,6 +1103,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.seg_name = seg_name
         self.seg_len = seg_len
         self.sig_segments = sig_segments
+
+        if segments:
+            self.n_seg = len(segments)
+            if not seg_len:
+                self.seg_len = [segment.sig_len for segment in segments]
 
     def wrsamp(self, write_dir=""):
         """
