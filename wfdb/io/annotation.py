@@ -1622,9 +1622,7 @@ def field2bytes(field, value):
     # samp and sym bytes come together
     if field == "samptype":
         # Numerical value encoding annotation symbol
-        typecode = ann_label_table.loc[
-            ann_label_table["symbol"] == value[1], "label_store"
-        ].values[0]
+        typecode = typecodes[value[1]]
 
         # sample difference
         sd = value[0]
@@ -3203,3 +3201,5 @@ ann_label_table = pd.DataFrame(
 )
 ann_label_table.set_index(ann_label_table["label_store"].values, inplace=True)
 ann_label_table = ann_label_table[["label_store", "symbol", "description"]]
+typecodes = {ann_label_table.iloc[i]["symbol"]:ann_label_table.iloc[i]["label_store"] \
+             for i in range(len(ann_label_table))}
