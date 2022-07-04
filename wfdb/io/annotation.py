@@ -3201,5 +3201,7 @@ ann_label_table = pd.DataFrame(
 )
 ann_label_table.set_index(ann_label_table["label_store"].values, inplace=True)
 ann_label_table = ann_label_table[["label_store", "symbol", "description"]]
-typecodes = {ann_label_table.iloc[i]["symbol"]:ann_label_table.iloc[i]["label_store"] \
-             for i in range(len(ann_label_table))}
+typecodes = {
+    ann_label_table.iloc[i]["symbol"]: ann_label_table.iloc[i]["label_store"]
+    for i in range(len(ann_label_table))
+}

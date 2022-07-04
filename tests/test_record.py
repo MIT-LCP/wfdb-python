@@ -589,7 +589,10 @@ class TestRecord(unittest.TestCase):
         self.assertEqual(record.sig_name, list(df.columns))
         self.assertEqual(len(df), record.sig_len)
         self.assertEqual(df.index[0], pd.Timedelta(0))
-        self.assertEqual(df.index[-1], pd.Timedelta(seconds=1 / record.fs * (record.sig_len - 1)))
+        self.assertEqual(
+            df.index[-1],
+            pd.Timedelta(seconds=1 / record.fs * (record.sig_len - 1)),
+        )
         assert np.array_equal(record.p_signal, df.values)
 
     def test_header_with_non_utf8(self):

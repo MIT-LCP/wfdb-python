@@ -1020,11 +1020,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         else:
             raise ValueError("No signal in record.")
 
-        return pd.DataFrame(
-            data=data,
-            index=index,
-            columns=self.sig_name
-        )
+        return pd.DataFrame(data=data, index=index, columns=self.sig_name)
 
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
