@@ -987,6 +987,46 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # Adjust date and time if necessary
         self._adjust_datetime(sampfrom=sampfrom)
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Create a dataframe containing the data from this record.
+
+
+        Returns
+        -------
+        A dataframe, with sig_name in the columns. The index is a DatetimeIndex
+        if both base_date and base_time were set, otherwise a TimedeltaIndex.
+        """
+        if self.base_datetime is not None:
+            index = pd.date_range(
+                start=self.base_datetime,
+                periods=self.sig_len,
+                freq=pd.Timedelta(seconds=1 / self.fs),
+            )
+        else:
+            index = pd.timedelta_range(
+                start=pd.Timedelta(0),
+                periods=self.sig_len,
+                freq=pd.Timedelta(seconds=1 / self.fs),
+            )
+
+        if self.p_signal is not None:
+            data = self.p_signal
+        elif self.d_signal is not None:
+            data = self.d_signal
+        elif self.e_p_signal is not None:
+            data = np.array(self.e_p_signal).T
+        elif self.e_d_signal is not None:
+            data = np.array(self.e_d_signal).T
+        else:
+            raise ValueError("No signal in record.")
+
+        return pd.DataFrame(
+            data=data,
+            index=index,
+            columns=self.sig_name
+        )
+
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     """
@@ -1041,8 +1081,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         `datetime.combine(base_date, base_time)`.
     seg_name : str, optional
         The name of the segment.
-    seg_len : int, optional
-        The length of the segment.
+    seg_len : List[int], optional
+        The length of each segment.
     comments : list, optional
         A list of string comments to be written to the header file.
     sig_name : str, optional
@@ -1105,6 +1145,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self.seg_len = seg_len
         self.sig_segments = sig_segments
 
+        if segments:
+            self.n_seg = len(segments)
+            if not seg_len:
+                self.seg_len = [segment.sig_len for segment in segments]
+
     def wrsamp(self, write_dir=""):
         """
         Write a multi-segment header, along with headers and dat files
@@ -1145,32 +1190,27 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
-        for i in range(n_seg):
-            s = self.segments[i]
+        for seg_num, segment in enumerate(self.segments):
 
             # If segment 0 is a layout specification record, check that its file names are all == '~''
-            if i == 0 and self.seg_len[0] == 0:
-                for file_name in s.file_name:
+            if seg_num == 0 and self.seg_len[0] == 0:
+                for file_name in segment.file_name:
                     if file_name != "~":
                         raise ValueError(
                             "Layout specification records must have all file_names named '~'"
                         )
 
             # Sampling frequencies must all match the one in the master header
-            if s.fs != self.fs:
+            if segment.fs != self.fs:
                 raise ValueError(
                     "The 'fs' in each segment must match the overall record's 'fs'"
                 )
 
             # Check the signal length of the segment against the corresponding seg_len field
-            if s.sig_len != self.seg_len[i]:
+            if segment.sig_len != self.seg_len[seg_num]:
                 raise ValueError(
-                    "The signal length of segment "
-                    + str(i)
-                    + " does not match the corresponding segment length"
+                    f"The signal length of segment {seg_num} does not match the corresponding segment length"
                 )
-
-            totalsig_len = totalsig_len + getattr(s, "sig_len")
 
         # No need to check the sum of sig_lens from each segment object against sig_len
         # Already effectively done it when checking sum(seg_len) against sig_len

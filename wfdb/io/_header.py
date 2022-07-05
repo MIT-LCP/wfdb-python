@@ -1,4 +1,5 @@
 import datetime
+from typing import Collection, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -803,7 +804,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         """
         if self.segments is None:
             raise Exception(
-                "The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rsegment_fieldsments=True"
+                "The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True"
             )
 
         if self.layout == "fixed":
@@ -815,6 +816,114 @@ class MultiHeaderMixin(BaseHeaderMixin):
             sig_name = self.segments[0].sig_name
 
         return sig_name
+
+    def contained_ranges(self, sig_name: str) -> List[Tuple[int, int]]:
+        """
+        Given a signal name, return the sample ranges that contain signal values,
+        relative to the start of the full record. Does not account for NaNs/missing
+        values.
+
+        This function is mainly useful for variable layout records, but can also be
+        used for fixed-layout records. Only works if the headers from the individual
+        segment records have already been read in.
+
+        Parameters
+        ----------
+        sig_name : str
+            The name of the signal to query.
+
+        Returns
+        -------
+        ranges : List[Tuple[int, int]]
+            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            The second value of each tuple pair will be one beyond the signal index.
+            eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
+            selection using signal[0:1000].
+
+        """
+        if self.segments is None:
+            raise Exception(
+                "The MultiRecord's segments must be read in before this method is called. ie. Call rdheader() with rd_segments=True"
+            )
+        ranges = []
+        seg_start = 0
+
+        range_start = None
+
+        # TODO: Add shortcut for fixed-layout records
+
+        # Cannot process segments only because missing segments are None
+        # and do not contain length information.
+        for seg_num in range(self.n_seg):
+            seg_len = self.seg_len[seg_num]
+            segment = self.segments[seg_num]
+
+            if seg_len == 0:
+                continue
+
+            # Open signal range
+            if (
+                range_start is None
+                and segment is not None
+                and sig_name in segment.sig_name
+            ):
+                range_start = seg_start
+            # Close signal range
+            elif range_start is not None and (
+                segment is None or sig_name not in segment.sig_name
+            ):
+                ranges.append((range_start, seg_start))
+                range_start = None
+
+            seg_start += seg_len
+
+        # Account for final segment
+        if range_start is not None:
+            ranges.append((range_start, seg_start))
+
+        return ranges
+
+    def contained_combined_ranges(
+        self,
+        sig_names: Collection[str],
+    ) -> List[Tuple[int, int]]:
+        """
+        Given a collection of signal name, return the sample ranges that
+        contain all of the specified signals, relative to the start of the
+        full record. Does not account for NaNs/missing values.
+
+        This function is mainly useful for variable layout records, but can also be
+        used for fixed-layout records. Only works if the headers from the individual
+        segment records have already been read in.
+
+        Parameters
+        ----------
+        sig_names : List[str]
+            The names of the signals to query.
+
+        Returns
+        -------
+        ranges : List[Tuple[int, int]]
+            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            The second value of each tuple pair will be one beyond the signal index.
+            eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
+            selection using signal[0:1000].
+
+        """
+        # TODO: Add shortcut for fixed-layout records
+
+        if len(sig_names) == 0:
+            return []
+
+        combined_ranges = self.contained_ranges(sig_names[0])
+
+        if len(sig_names) > 1:
+            for name in sig_names[1:]:
+                combined_ranges = util.overlapping_ranges(
+                    combined_ranges, self.contained_ranges(name)
+                )
+
+        return combined_ranges
 
 
 def wfdb_strptime(time_string: str) -> datetime.time:
