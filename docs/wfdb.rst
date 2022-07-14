@@ -20,7 +20,7 @@ WFDB Records
               multi_to_single
 
 
-WFDB Anotations
+WFDB Annotations
 ---------------
 
 .. automodule:: wfdb

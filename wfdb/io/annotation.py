@@ -1170,14 +1170,14 @@ class Annotation(object):
 
             # Process the samp (difference) and sym items
             data_bytes.append(
-                field2bytes("samptype", [sampdiff[i], self.symbol[i]])
+                field2bytes("samptype", [sampdiff[i], self.symbol[i]], self.custom_labels)
             )
 
             # Process the extra optional fields
             for field in extra_write_fields:
                 value = getattr(compact_annotation, field)[i]
                 if value is not None:
-                    data_bytes.append(field2bytes(field, value))
+                    data_bytes.append(field2bytes(field, value, self.custom_labels))
 
         # Flatten and convert to correct format
         data_bytes = np.array(
@@ -1600,7 +1600,7 @@ def compact_carry_field(full_field):
     return compact_field
 
 
-def field2bytes(field, value):
+def field2bytes(field, value, custom_labels=None):
     """
     Convert an annotation field into bytes to write.
 
@@ -1619,11 +1619,15 @@ def field2bytes(field, value):
     """
     data_bytes = []
 
+    # allow use of custom labels
+    label_table = ann_label_table
+    if custom_labels is not None:
+        label_table = pd.concat([label_table, custom_labels], ignore_index=True)
+
     # samp and sym bytes come together
     if field == "samptype":
         # Numerical value encoding annotation symbol
         typecode = typecodes[value[1]]
-
         # sample difference
         sd = value[0]
 
