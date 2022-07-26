@@ -260,15 +260,23 @@ class TestAnnotation(unittest.TestCase):
         ann_idx = np.array([1, 1000, 2000, 3000])
         ann_chan = np.array([3, 1, 2, 3])
         # write custom labels
-        ann_label_store = np.array([ 4, 2, 1, 3])
-        ann_custom_labels = {'label_store': [1, 2, 3, 4],
-                             'symbol': ['v','l','r','z'],
-                             'description':['pvc','lbbb','rbbb','pac']}
+        ann_label_store = np.array([4, 2, 1, 3])
+        ann_custom_labels = {
+            "label_store": [1, 2, 3, 4],
+            "symbol": ["v", "l", "r", "z"],
+            "description": ["pvc", "lbbb", "rbbb", "pac"],
+        }
         ann_custom_labels = pd.DataFrame(data=ann_custom_labels)
-        wfdb.wrann('CustomLabel', 'atr', ann_idx, chan=ann_chan,
-                   custom_labels=ann_custom_labels, label_store=ann_label_store)
-        ann = wfdb.rdann('CustomLabel', 'atr')
-        self.assertEqual(ann.symbol, ['z', 'l', 'v', 'r'])
+        wfdb.wrann(
+            "CustomLabel",
+            "atr",
+            ann_idx,
+            chan=ann_chan,
+            custom_labels=ann_custom_labels,
+            label_store=ann_label_store,
+        )
+        ann = wfdb.rdann("CustomLabel", "atr")
+        self.assertEqual(ann.symbol, ["z", "l", "v", "r"])
 
     @classmethod
     def tearDownClass(cls):
@@ -277,7 +285,7 @@ class TestAnnotation(unittest.TestCase):
             "1003.atr",
             "12726.anI",
             "huge.qrs",
-            "CustomLabel.atr"
+            "CustomLabel.atr",
         ]
         for file in writefiles:
             if os.path.isfile(file):
