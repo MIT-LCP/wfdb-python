@@ -421,7 +421,7 @@ class BaseRecord(object):
         # Record specification fields
         elif field == "record_name":
             # Allow letters, digits, hyphens, and underscores.
-            accepted_string = re.match("[-\w]+", self.record_name)
+            accepted_string = re.match(r"[-\w]+", self.record_name)
             if (
                 not accepted_string
                 or accepted_string.string != self.record_name
@@ -461,7 +461,7 @@ class BaseRecord(object):
 
                 if field == "file_name":
                     # Check for file_name characters
-                    accepted_string = re.match("[-\w]+\.?[\w]+", item[ch])
+                    accepted_string = re.match(r"[-\w]+\.?[\w]+", item[ch])
                     if (
                         not accepted_string
                         or accepted_string.string != item[ch]
@@ -505,7 +505,7 @@ class BaseRecord(object):
                             "baseline values must be between -2147483648 (-2^31) and 2147483647 (2^31 -1)"
                         )
                 elif field == "units":
-                    if re.search("\s", item[ch]):
+                    if re.search(r"\s", item[ch]):
                         raise ValueError(
                             "units strings may not contain whitespaces."
                         )
@@ -520,7 +520,7 @@ class BaseRecord(object):
                             "block_size values must be non-negative integers"
                         )
                 elif field == "sig_name":
-                    if re.search("\s", item[ch]):
+                    if re.search(r"\s", item[ch]):
                         raise ValueError(
                             "sig_name strings may not contain whitespaces."
                         )
@@ -534,7 +534,7 @@ class BaseRecord(object):
                     # Segment names must be alphanumerics or just a single '~'
                     if item[ch] == "~":
                         continue
-                    accepted_string = re.match("[-\w]+", item[ch])
+                    accepted_string = re.match(r"[-\w]+", item[ch])
                     if (
                         not accepted_string
                         or accepted_string.string != item[ch]
