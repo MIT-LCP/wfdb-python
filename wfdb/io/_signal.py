@@ -2505,4 +2505,3 @@ def _infer_sig_len(
     sig_len = int(data_size / (BYTES_PER_SAMPLE[fmt] * tsamps_per_frame))
 
     return sig_len
-

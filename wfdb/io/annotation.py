@@ -1165,19 +1165,34 @@ class Annotation(object):
 
         data_bytes = []
 
+        # Allow use of custom labels
+        label_table = ann_label_table
+        if self.custom_labels is not None:
+            label_table = pd.concat(
+                [label_table, self.custom_labels], ignore_index=True
+            )
+
+        # Generate typecodes from annotation label table
+        typecodes = {
+            label_table.iloc[i]["symbol"]: label_table.iloc[i]["label_store"]
+            for i in range(len(label_table))
+        }
+
         # Iterate across all fields one index at a time
         for i in range(len(sampdiff)):
 
             # Process the samp (difference) and sym items
             data_bytes.append(
-                field2bytes("samptype", [sampdiff[i], self.symbol[i]], self.custom_labels)
+                field2bytes(
+                    "samptype", [sampdiff[i], self.symbol[i]], typecodes
+                )
             )
 
             # Process the extra optional fields
             for field in extra_write_fields:
                 value = getattr(compact_annotation, field)[i]
                 if value is not None:
-                    data_bytes.append(field2bytes(field, value, self.custom_labels))
+                    data_bytes.append(field2bytes(field, value, typecodes))
 
         # Flatten and convert to correct format
         data_bytes = np.array(
@@ -1600,7 +1615,7 @@ def compact_carry_field(full_field):
     return compact_field
 
 
-def field2bytes(field, value, custom_labels=None):
+def field2bytes(field, value, typecodes):
     """
     Convert an annotation field into bytes to write.
 
@@ -1610,6 +1625,8 @@ def field2bytes(field, value, custom_labels=None):
         The annotation field of the value to be converted to bytes.
     value : list
         The value to be converted to bytes.
+    typecodes : dict
+        The mapping between each annotation label an its corresponding typecode.
 
     Returns
     -------
@@ -1619,18 +1636,10 @@ def field2bytes(field, value, custom_labels=None):
     """
     data_bytes = []
 
-    # allow use of custom labels
-    label_table = ann_label_table
-    if custom_labels is not None:
-        label_table = pd.concat([label_table, custom_labels], ignore_index=True)
-
     # samp and sym bytes come together
     if field == "samptype":
         # Numerical value encoding annotation symbol
-        typecode = label_table.loc[
-            label_table["symbol"] == value[1], "label_store"
-        ].values[0]
-
+        typecode = typecodes[value[1]]
         # sample difference
         sd = value[0]
 
