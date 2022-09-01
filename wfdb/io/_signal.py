@@ -544,7 +544,9 @@ class SignalMixin(object):
                         self.e_p_signal[ch],
                     )
                     np.add(
-                        e_p_signal[ch], self.baseline[ch], self.e_p_signal[ch]
+                        self.e_p_signal[ch],
+                        self.baseline[ch],
+                        self.e_p_signal[ch],
                     )
                     self.e_p_signal[ch] = self.e_p_signal[ch].astype(
                         intdtype, copy=False
