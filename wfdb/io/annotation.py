@@ -385,7 +385,7 @@ class Annotation(object):
 
         # Field specific checks
         if field == "record_name":
-            if bool(re.search("[^-\w]", self.record_name)):
+            if bool(re.search(r"[^-\w]", self.record_name)):
                 raise ValueError(
                     "record_name must only comprise of letters, digits, hyphens, and underscores."
                 )
@@ -2394,9 +2394,9 @@ def update_extra_fields(subtype, chan, num, aux_note, update):
     return subtype, chan, num, aux_note
 
 
-rx_fs = re.compile("## time resolution: (?P<fs>\d+\.?\d*)")
+rx_fs = re.compile(r"## time resolution: (?P<fs>\d+\.?\d*)")
 rx_custom_label = re.compile(
-    "(?P<label_store>\d+) (?P<symbol>\S+) (?P<description>.+)"
+    r"(?P<label_store>\d+) (?P<symbol>\S+) (?P<description>.+)"
 )
 
 

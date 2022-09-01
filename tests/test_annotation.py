@@ -44,7 +44,7 @@ class TestAnnotation(unittest.TestCase):
         target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            "[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
+            r"[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
         )
 
         for i in range(0, nannot):
@@ -117,7 +117,7 @@ class TestAnnotation(unittest.TestCase):
         target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            "[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
+            r"[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
         )
 
         for i in range(0, nannot):
@@ -188,7 +188,7 @@ class TestAnnotation(unittest.TestCase):
         target_aux_note = [None] * nannot
 
         RXannot = re.compile(
-            "[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
+            r"[ \t]*(?P<time>[\[\]\w\.:]+) +(?P<sample>\d+) +(?P<symbol>.) +(?P<subtype>\d+) +(?P<chan>\d+) +(?P<num>\d+)\t?(?P<aux_note>.*)"
         )
 
         for i in range(0, nannot):
