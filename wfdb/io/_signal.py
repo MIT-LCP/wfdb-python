@@ -2266,16 +2266,15 @@ def wr_dat_file(
     fmt : str
         WFDB fmt of the dat file.
     d_signal : ndarray
-        The digital conversion of the signal. Either a 2d numpy
-        array or a list of 1d numpy arrays.
+        The digital conversion of the signal, as a 2d numpy array.
     byte_offset : int
         The byte offset of the dat file.
     expanded : bool, optional
         Whether to transform the `e_d_signal` attribute (True) or
         the `d_signal` attribute (False).
-    d_signal : ndarray, optional
-        The expanded digital conversion of the signal. Either a 2d numpy
-        array or a list of 1d numpy arrays.
+    e_d_signal : ndarray, optional
+        The expanded digital conversion of the signal, as a list of 1d
+        numpy arrays.
     samps_per_frame : list, optional
         The samples/frame for each signal of the dat file.
     write_dir : str, optional
