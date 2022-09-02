@@ -219,7 +219,7 @@ class TestRecord(unittest.TestCase):
                             "Mismatch in %s" % name,
                         )
 
-    def test_read_flac(self):
+    def test_read_write_flac(self):
         """
         All FLAC formats, multiple signal files in one record.
 
@@ -249,6 +249,11 @@ class TestRecord(unittest.TestCase):
                         sig_target[sampfrom:sampto, n],
                         f"Mismatch in {name}",
                     )
+
+        # Test file writing
+        record.wrsamp()
+        record_write = wfdb.rdrecord("flacformats", physical=False)
+        assert record == record_write
 
     def test_read_flac_longduration(self):
         """
@@ -628,6 +633,10 @@ class TestRecord(unittest.TestCase):
             "100_3chan.hea",
             "a103l.hea",
             "a103l.mat",
+            "flacformats.d0",
+            "flacformats.d1",
+            "flacformats.d2",
+            "flacformats.hea",
             "s0010_re.dat",
             "s0010_re.hea",
             "s0010_re.xyz",
