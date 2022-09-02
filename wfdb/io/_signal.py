@@ -2285,6 +2285,8 @@ def wr_dat_file(
     N/A
 
     """
+    file_path = os.path.join(write_dir, file_name)
+
     # Combine list of arrays into single array
     if expanded:
         n_sig = len(e_d_signal)
@@ -2416,9 +2418,54 @@ def wr_dat_file(
         b_write = b_write.reshape((1, -1))[0]
         # Convert to un_signed 8 bit dtype to write
         b_write = b_write.astype("uint8")
+
+    elif fmt in ("508", "516", "524"):
+        import soundfile
+
+        if any(spf != samps_per_frame[0] for spf in samps_per_frame):
+            raise ValueError(
+                "All channels in a FLAC signal file must have the same "
+                "sampling rate and samples per frame"
+            )
+        if n_sig > 8:
+            raise ValueError(
+                "A single FLAC signal file cannot contain more than 8 channels"
+            )
+
+        d_signal = d_signal.reshape(-1, n_sig, samps_per_frame[0])
+        d_signal = d_signal.transpose(0, 2, 1)
+        d_signal = d_signal.reshape(-1, n_sig)
+
+        if fmt == "508":
+            d_signal = d_signal.astype("int16")
+            np.left_shift(d_signal, 8, out=d_signal)
+            subtype = "PCM_S8"
+        elif fmt == "516":
+            d_signal = d_signal.astype("int16")
+            subtype = "PCM_16"
+        elif fmt == "524":
+            d_signal = d_signal.astype("int32")
+            np.left_shift(d_signal, 8, out=d_signal)
+            subtype = "PCM_24"
+        else:
+            raise ValueError(f"unknown format ({fmt})")
+
+        sf = soundfile.SoundFile(
+            file_path,
+            mode="w",
+            samplerate=96000,
+            channels=n_sig,
+            subtype=subtype,
+            format="FLAC",
+        )
+        with sf:
+            sf.write(d_signal)
+            return
+
     else:
         raise ValueError(
-            "This library currently only supports writing the following formats: 80, 16, 24, 32"
+            "This library currently only supports writing the "
+            "following formats: 80, 16, 24, 32, 508, 516, 524"
         )
 
     # Byte offset in the file
@@ -2433,7 +2480,7 @@ def wr_dat_file(
         b_write = np.append(np.zeros(byte_offset, dtype="uint8"), b_write)
 
     # Write the bytes to the file
-    with open(os.path.join(write_dir, file_name), "wb") as f:
+    with open(file_path, "wb") as f:
         b_write.tofile(f)
 
 
