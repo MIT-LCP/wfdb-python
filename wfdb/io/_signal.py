@@ -954,8 +954,7 @@ class SignalMixin(object):
                     write_dir=write_dir,
                 )
         else:
-            # Create a copy to prevent overwrite
-            dsig = self.d_signal.copy()
+            dsig = self.d_signal
             for fn in file_names:
                 wr_dat_file(
                     fn,
@@ -2301,6 +2300,9 @@ def wr_dat_file(
             for framenum in range(spf):
                 d_signal[:, expand_ch] = e_d_signal[ch][framenum::spf]
                 expand_ch = expand_ch + 1
+    else:
+        # Create a copy to prevent overwrite
+        d_signal = d_signal.copy()
 
     # This n_sig is used for making list items.
     # Does not necessarily represent number of signals (ie. for expanded=True)
