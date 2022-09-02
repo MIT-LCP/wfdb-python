@@ -520,9 +520,15 @@ class BaseRecord(object):
                             "block_size values must be non-negative integers"
                         )
                 elif field == "sig_name":
-                    if re.search(r"\s", item[ch]):
+                    if item[ch][:1].isspace() or item[ch][-1:].isspace():
                         raise ValueError(
-                            "sig_name strings may not contain whitespaces."
+                            "sig_name strings may not begin or end with "
+                            "whitespace."
+                        )
+                    if re.search(r"[\x00-\x1f\x7f-\x9f]", item[ch]):
+                        raise ValueError(
+                            "sig_name strings may not contain "
+                            "control characters."
                         )
                     if len(set(item)) != len(item):
                         raise ValueError("sig_name strings must be unique.")
