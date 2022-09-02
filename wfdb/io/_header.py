@@ -361,6 +361,35 @@ class HeaderMixin(BaseHeaderMixin):
 
         return rec_write_fields, sig_write_fields
 
+    def _auto_signal_file_names(self):
+        fmt = self.fmt or [None] * self.n_sig
+        spf = self.samps_per_frame or [None] * self.n_sig
+        num_groups = 0
+        group_number = []
+        prev_fmt = prev_spf = None
+        channels_in_group = 0
+
+        for ch_fmt, ch_spf in zip(fmt, spf):
+            if ch_fmt != prev_fmt:
+                num_groups += 1
+                channels_in_group = 0
+            elif ch_fmt in ("508", "516", "524"):
+                if channels_in_group >= 8 or ch_spf != prev_spf:
+                    num_groups += 1
+                    channels_in_group = 0
+            group_number.append(num_groups)
+            prev_fmt = ch_fmt
+            prev_spf = ch_spf
+
+        if num_groups < 2:
+            return [self.record_name + ".dat"] * self.n_sig
+        else:
+            digits = len(str(group_number[-1]))
+            return [
+                self.record_name + "_" + str(g).rjust(digits, "0") + ".dat"
+                for g in group_number
+            ]
+
     def set_default(self, field):
         """
         Set the object's attribute to its default value if it is missing
@@ -394,7 +423,7 @@ class HeaderMixin(BaseHeaderMixin):
 
             # Specific dynamic case
             if field == "file_name" and self.file_name is None:
-                self.file_name = self.n_sig * [self.record_name + ".dat"]
+                self.file_name = self._auto_signal_file_names()
                 return
 
             item = getattr(self, field)
