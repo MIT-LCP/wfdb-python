@@ -255,6 +255,23 @@ class TestRecord(unittest.TestCase):
         record_write = wfdb.rdrecord("flacformats", physical=False)
         assert record == record_write
 
+    def test_read_write_flac_multifrequency(self):
+        """
+        Format 516 with multiple signal files and variable samples per frame.
+        """
+        # Check that we can read a record and write it out again
+        record = wfdb.rdrecord(
+            "sample-data/mixedsignals",
+            physical=False,
+            smooth_frames=False,
+        )
+        record.wrsamp(expanded=True)
+
+        # Check that result matches the original
+        record = wfdb.rdrecord("sample-data/mixedsignals", smooth_frames=False)
+        record_write = wfdb.rdrecord("mixedsignals", smooth_frames=False)
+        assert record == record_write
+
     def test_read_flac_longduration(self):
         """
         Three signals multiplexed in a FLAC file, over 2**24 samples.
@@ -637,6 +654,10 @@ class TestRecord(unittest.TestCase):
             "flacformats.d1",
             "flacformats.d2",
             "flacformats.hea",
+            "mixedsignals.hea",
+            "mixedsignals_e.dat",
+            "mixedsignals_p.dat",
+            "mixedsignals_r.dat",
             "s0010_re.dat",
             "s0010_re.hea",
             "s0010_re.xyz",
