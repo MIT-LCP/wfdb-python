@@ -2303,9 +2303,13 @@ def wr_dat_file(
         # Create a copy to prevent overwrite
         d_signal = d_signal.copy()
 
-    # This n_sig is used for making list items.
-    # Does not necessarily represent number of signals (ie. for expanded=True)
-    n_sig = d_signal.shape[1]
+        # Non-expanded format always has 1 sample per frame
+        n_sig = d_signal.shape[1]
+        samps_per_frame = [1] * n_sig
+
+    # Total number of samples per frame (equal to number of signals if
+    # expanded=False, but may be greater for expanded=True)
+    tsamps_per_frame = d_signal.shape[1]
 
     if fmt == "80":
         # convert to 8 bit offset binary form
@@ -2363,8 +2367,8 @@ def wr_dat_file(
         # convert to 16 bit two's complement
         d_signal[d_signal < 0] = d_signal[d_signal < 0] + 65536
         # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * n_sig
-        b2 = (d_signal & [65280] * n_sig) >> 8
+        b1 = d_signal & [255] * tsamps_per_frame
+        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
         # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -2376,9 +2380,9 @@ def wr_dat_file(
         # convert to 24 bit two's complement
         d_signal[d_signal < 0] = d_signal[d_signal < 0] + 16777216
         # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * n_sig
-        b2 = (d_signal & [65280] * n_sig) >> 8
-        b3 = (d_signal & [16711680] * n_sig) >> 16
+        b1 = d_signal & [255] * tsamps_per_frame
+        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
+        b3 = (d_signal & [16711680] * tsamps_per_frame) >> 16
         # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
@@ -2392,10 +2396,10 @@ def wr_dat_file(
         # convert to 32 bit two's complement
         d_signal[d_signal < 0] = d_signal[d_signal < 0] + 4294967296
         # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * n_sig
-        b2 = (d_signal & [65280] * n_sig) >> 8
-        b3 = (d_signal & [16711680] * n_sig) >> 16
-        b4 = (d_signal & [4278190080] * n_sig) >> 24
+        b1 = d_signal & [255] * tsamps_per_frame
+        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
+        b3 = (d_signal & [16711680] * tsamps_per_frame) >> 16
+        b4 = (d_signal & [4278190080] * tsamps_per_frame) >> 24
         # Interweave the bytes so that the same samples' bytes are consecutive
         b1 = b1.reshape((-1, 1))
         b2 = b2.reshape((-1, 1))
