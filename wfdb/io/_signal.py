@@ -950,7 +950,7 @@ class SignalMixin(object):
                     dat_offsets[fn],
                     True,
                     [self.e_d_signal[ch] for ch in dat_channels[fn]],
-                    self.samps_per_frame,
+                    [self.samps_per_frame[ch] for ch in dat_channels[fn]],
                     write_dir=write_dir,
                 )
         else:
