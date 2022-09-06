@@ -2288,7 +2288,14 @@ def wr_dat_file(
     # Combine list of arrays into single array
     if expanded:
         n_sig = len(e_d_signal)
-        sig_len = int(len(e_d_signal[0]) / samps_per_frame[0])
+        if len(samps_per_frame) != n_sig:
+            raise ValueError("mismatch between samps_per_frame and e_d_signal")
+
+        sig_len = len(e_d_signal[0]) // samps_per_frame[0]
+        for sig, spf in zip(e_d_signal, samps_per_frame):
+            if len(sig) != sig_len * spf:
+                raise ValueError("mismatch in lengths of expanded signals")
+
         # Effectively create MxN signal, with extra frame samples acting
         # like extra channels
         d_signal = np.zeros((sig_len, sum(samps_per_frame)), dtype="int64")
