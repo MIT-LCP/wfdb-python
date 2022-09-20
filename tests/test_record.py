@@ -1,6 +1,7 @@
 import datetime
 import os
 import shutil
+import tempfile
 import unittest
 
 import numpy as np
@@ -44,9 +45,11 @@ class TestRecord(unittest.TestCase):
             "sample-data/test01_00s", physical=False, return_res=16
         )
         record_2.sig_name = ["ECG_1", "ECG_2", "ECG_3", "ECG_4"]
-        record_2.wrsamp()
+        record_2.wrsamp(write_dir=self.temp_path)
         record_write = wfdb.rdrecord(
-            "test01_00s", physical=False, return_res=16
+            os.path.join(self.temp_path, "test01_00s"),
+            physical=False,
+            return_res=16,
         )
 
         assert np.array_equal(sig, sig_target)
@@ -121,9 +124,11 @@ class TestRecord(unittest.TestCase):
         )
 
         # Test file writing
-        record.wrsamp(expanded=True)
+        record.wrsamp(write_dir=self.temp_path, expanded=True)
         record_write = wfdb.rdrecord(
-            "a103l", physical=False, smooth_frames=False
+            os.path.join(self.temp_path, "a103l"),
+            physical=False,
+            smooth_frames=False,
         )
 
         assert np.array_equal(sig, sig_target)
@@ -180,8 +185,11 @@ class TestRecord(unittest.TestCase):
         record_2 = wfdb.rdrecord(
             "sample-data/n8_evoked_raw_95_F1_R9", physical=False
         )
-        record_2.wrsamp()
-        record_write = wfdb.rdrecord("n8_evoked_raw_95_F1_R9", physical=False)
+        record_2.wrsamp(write_dir=self.temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "n8_evoked_raw_95_F1_R9"),
+            physical=False,
+        )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
@@ -251,8 +259,11 @@ class TestRecord(unittest.TestCase):
                     )
 
         # Test file writing
-        record.wrsamp()
-        record_write = wfdb.rdrecord("flacformats", physical=False)
+        record.wrsamp(write_dir=self.temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "flacformats"),
+            physical=False,
+        )
         assert record == record_write
 
     def test_read_write_flac_multifrequency(self):
@@ -265,11 +276,14 @@ class TestRecord(unittest.TestCase):
             physical=False,
             smooth_frames=False,
         )
-        record.wrsamp(expanded=True)
+        record.wrsamp(write_dir=self.temp_path, expanded=True)
 
         # Check that result matches the original
         record = wfdb.rdrecord("sample-data/mixedsignals", smooth_frames=False)
-        record_write = wfdb.rdrecord("mixedsignals", smooth_frames=False)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "mixedsignals"),
+            smooth_frames=False,
+        )
         assert record == record_write
 
     def test_read_flac_longduration(self):
@@ -358,8 +372,11 @@ class TestRecord(unittest.TestCase):
         del record_named.comments[0]
 
         # Test file writing
-        record.wrsamp()
-        record_write = wfdb.rdrecord("100", physical=False)
+        record.wrsamp(write_dir=self.temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "100"),
+            physical=False,
+        )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
@@ -379,8 +396,8 @@ class TestRecord(unittest.TestCase):
 
         # Test file writing
         record.d_signal = record.adc()
-        record.wrsamp()
-        record_write = wfdb.rdrecord("100_3chan")
+        record.wrsamp(write_dir=self.temp_path)
+        record_write = wfdb.rdrecord(os.path.join(self.temp_path, "100_3chan"))
         record.d_signal = None
 
         assert np.array_equal(sig_round, sig_target)
@@ -434,8 +451,11 @@ class TestRecord(unittest.TestCase):
         )
 
         # Test file writing
-        record.wrsamp()
-        record_write = wfdb.rdrecord("s0010_re", physical=False)
+        record.wrsamp(write_dir=self.temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "s0010_re"),
+            physical=False,
+        )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
@@ -497,9 +517,12 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(expanded=True)
+        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
         # Read the written record
-        record_write = wfdb.rdrecord("test01_00s_skewframe", physical=False)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "test01_00s_skewframe"),
+            physical=False,
+        )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_write)
@@ -533,9 +556,12 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(expanded=True)
+        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
         # Read the written record
-        record_write = wfdb.rdrecord("03700181", physical=False)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "03700181"),
+            physical=False,
+        )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_pn)
@@ -572,10 +598,13 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(expanded=True)
+        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
         # Read the written record
         writesig, writefields = wfdb.rdsamp(
-            "03700181", channels=[0, 2], sampfrom=1000, sampto=16000
+            os.path.join(self.temp_path, "03700181"),
+            channels=[0, 2],
+            sampfrom=1000,
+            sampto=16000,
         )
 
         assert np.array_equal(sig_round, sig_target)
@@ -639,38 +668,13 @@ class TestRecord(unittest.TestCase):
         assert record.units.__eq__(sig_units_target)
 
     @classmethod
-    def tearDownClass(cls):
-        "Clean up written files"
-        writefiles = [
-            "03700181.dat",
-            "03700181.hea",
-            "100.dat",
-            "100.hea",
-            "100_3chan.dat",
-            "100_3chan.hea",
-            "a103l.hea",
-            "a103l.mat",
-            "flacformats.d0",
-            "flacformats.d1",
-            "flacformats.d2",
-            "flacformats.hea",
-            "mixedsignals.hea",
-            "mixedsignals_e.dat",
-            "mixedsignals_p.dat",
-            "mixedsignals_r.dat",
-            "s0010_re.dat",
-            "s0010_re.hea",
-            "s0010_re.xyz",
-            "test01_00s.dat",
-            "test01_00s.hea",
-            "test01_00s_skewframe.hea",
-            "n8_evoked_raw_95_F1_R9.dat",
-            "n8_evoked_raw_95_F1_R9.hea",
-        ]
+    def setUpClass(cls):
+        cls.temp_directory = tempfile.TemporaryDirectory()
+        cls.temp_path = cls.temp_directory.name
 
-        for file in writefiles:
-            if os.path.isfile(file):
-                os.remove(file)
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_directory.cleanup()
 
 
 class TestMultiRecord(unittest.TestCase):
@@ -1062,11 +1066,18 @@ class TestSignal(unittest.TestCase):
                 adc_gain=adc_gain,
                 baseline=baseline,
                 fmt=["16", "16", "16"],
+                write_dir=self.temp_path,
             )
-            record = wfdb.rdrecord("test_physical_conversion", physical=False)
+            record = wfdb.rdrecord(
+                os.path.join(self.temp_path, "test_physical_conversion"),
+                physical=False,
+            )
             np.testing.assert_array_equal(record.d_signal, d_signal)
 
-            record = wfdb.rdrecord("test_physical_conversion", physical=True)
+            record = wfdb.rdrecord(
+                os.path.join(self.temp_path, "test_physical_conversion"),
+                physical=True,
+            )
             for ch, gain in enumerate(adc_gain):
                 np.testing.assert_allclose(
                     record.p_signal[:, ch],
@@ -1076,31 +1087,33 @@ class TestSignal(unittest.TestCase):
                 )
 
     @classmethod
+    def setUpClass(cls):
+        cls.temp_directory = tempfile.TemporaryDirectory()
+        cls.temp_path = cls.temp_directory.name
+
+    @classmethod
     def tearDownClass(cls):
-        writefiles = [
-            "test_physical_conversion.dat",
-            "test_physical_conversion.hea",
-        ]
-        for file in writefiles:
-            if os.path.isfile(file):
-                os.remove(file)
+        cls.temp_directory.cleanup()
 
 
 class TestDownload(unittest.TestCase):
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
     def test_dl_database_no_dat_file(self):
-        wfdb.dl_database("afdb", "./download-tests/", ["00735"])
+        wfdb.dl_database("afdb", self.temp_path, ["00735"])
 
     # Test that we can download records that *do* have a "dat" file.
     def test_dl_database_with_dat_file(self):
-        wfdb.dl_database("afdb", "./download-tests/", ["04015"])
+        wfdb.dl_database("afdb", self.temp_path, ["04015"])
 
-    # Cleanup written files
     @classmethod
-    def tearDownClass(self):
-        if os.path.isdir("./download-tests/"):
-            shutil.rmtree("./download-tests/")
+    def setUpClass(cls):
+        cls.temp_directory = tempfile.TemporaryDirectory()
+        cls.temp_path = cls.temp_directory.name
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp_directory.cleanup()
 
 
 if __name__ == "__main__":

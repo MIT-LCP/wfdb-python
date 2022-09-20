@@ -1,5 +1,6 @@
 import os
 import re
+import tempfile
 import unittest
 
 import numpy as np
@@ -85,9 +86,11 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True)
+        annotation.wrann(write_fs=True, write_dir=self.temp_path)
         write_annotation = wfdb.rdann(
-            "100", "atr", return_label_elements=["label_store", "symbol"]
+            os.path.join(self.temp_path, "100"),
+            "atr",
+            return_label_elements=["label_store", "symbol"],
         )
         write_annotation.create_label_map()
 
@@ -156,9 +159,11 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True)
+        annotation.wrann(write_fs=True, write_dir=self.temp_path)
         write_annotation = wfdb.rdann(
-            "12726", "anI", return_label_elements=["label_store", "symbol"]
+            os.path.join(self.temp_path, "12726"),
+            "anI",
+            return_label_elements=["label_store", "symbol"],
         )
         write_annotation.create_label_map()
 
@@ -228,9 +233,11 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True)
+        annotation.wrann(write_fs=True, write_dir=self.temp_path)
         write_annotation = wfdb.rdann(
-            "1003", "atr", return_label_elements=["label_store", "symbol"]
+            os.path.join(self.temp_path, "1003"),
+            "atr",
+            return_label_elements=["label_store", "symbol"],
         )
         write_annotation.create_label_map()
 
@@ -247,10 +254,10 @@ class TestAnnotation(unittest.TestCase):
         """
         annotation = wfdb.rdann("sample-data/huge", "qrs")
         self.assertEqual(annotation.sample[0], 10000000000)
-        annotation.wrann()
+        annotation.wrann(write_dir=self.temp_path)
 
         annotation1 = wfdb.rdann("sample-data/huge", "qrs")
-        annotation2 = wfdb.rdann("huge", "qrs")
+        annotation2 = wfdb.rdann(os.path.join(self.temp_path, "huge"), "qrs")
         self.assertEqual(annotation1, annotation2)
 
     def test_5(self):
@@ -274,22 +281,19 @@ class TestAnnotation(unittest.TestCase):
             chan=ann_chan,
             custom_labels=ann_custom_labels,
             label_store=ann_label_store,
+            write_dir=self.temp_path,
         )
-        ann = wfdb.rdann("CustomLabel", "atr")
+        ann = wfdb.rdann(os.path.join(self.temp_path, "CustomLabel"), "atr")
         self.assertEqual(ann.symbol, ["z", "l", "v", "r"])
 
     @classmethod
+    def setUpClass(cls):
+        cls.temp_directory = tempfile.TemporaryDirectory()
+        cls.temp_path = cls.temp_directory.name
+
+    @classmethod
     def tearDownClass(cls):
-        writefiles = [
-            "100.atr",
-            "1003.atr",
-            "12726.anI",
-            "huge.qrs",
-            "CustomLabel.atr",
-        ]
-        for file in writefiles:
-            if os.path.isfile(file):
-                os.remove(file)
+        cls.temp_directory.cleanup()
 
 
 if __name__ == "__main__":
