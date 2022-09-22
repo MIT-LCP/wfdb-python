@@ -278,7 +278,7 @@ class HeaderMixin(BaseHeaderMixin):
         for f in sfields:
             self.set_default(f)
 
-    def wrheader(self, write_dir=""):
+    def wrheader(self, write_dir="", expanded=True):
         """
         Write a WFDB header file. The signals are not used. Before
         writing:
@@ -290,6 +290,10 @@ class HeaderMixin(BaseHeaderMixin):
         ----------
         write_dir : str, optional
             The output directory in which the header is written.
+        expanded : bool, optional
+            Whether the header file should include `samps_per_frame` (this
+            should only be true if the signal files are written using
+            `expanded=True`).
 
         Returns
         -------
@@ -305,6 +309,8 @@ class HeaderMixin(BaseHeaderMixin):
         # sig_write_fields is a dictionary of
         # {field_name:required_channels}
         rec_write_fields, sig_write_fields = self.get_write_fields()
+        if not expanded:
+            sig_write_fields.pop("samps_per_frame", None)
 
         # Check the validity of individual fields used to write the header
         # Record specification fields (and comments)

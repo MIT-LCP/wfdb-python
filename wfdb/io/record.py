@@ -924,7 +924,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         """
         # Perform field validity and cohesion checks, and write the
         # header file.
-        self.wrheader(write_dir=write_dir)
+        self.wrheader(write_dir=write_dir, expanded=expanded)
         if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
