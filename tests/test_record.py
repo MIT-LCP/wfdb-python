@@ -633,6 +633,22 @@ class TestRecord(unittest.TestCase):
 
         assert np.array_equal(sig_round, sig_target)
 
+    def test_write_smoothed(self):
+        """
+        Test writing a record after reading with smooth_frames
+        """
+        record = wfdb.rdrecord(
+            "sample-data/drive02",
+            physical=False,
+            smooth_frames=True,
+        )
+        record.wrsamp(write_dir=self.temp_path)
+        record2 = wfdb.rdrecord(
+            os.path.join(self.temp_path, "drive02"),
+            physical=False,
+        )
+        np.testing.assert_array_equal(record.d_signal, record2.d_signal)
+
     def test_to_dataframe(self):
         record = wfdb.rdrecord("sample-data/test01_00s")
         df = record.to_dataframe()
