@@ -142,7 +142,7 @@ class SignalMixin(object):
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
-        write_fields = self.get_write_fields()
+        _, _ = self.get_write_fields()
 
         if expanded:
             # Using list of arrays e_d_signal
@@ -152,8 +152,10 @@ class SignalMixin(object):
             self.check_field("d_signal")
 
         # Check the cohesion of the d_signal field against the other
-        # fields used to write the header
-        self.check_sig_cohesion(write_fields, expanded)
+        # fields used to write the header.  (Note that for historical
+        # reasons, this doesn't actually check any of the optional
+        # header fields.)
+        self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
         self.wr_dat_files(expanded=expanded, write_dir=write_dir)
