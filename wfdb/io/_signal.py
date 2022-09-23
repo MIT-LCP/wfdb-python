@@ -194,10 +194,8 @@ class SignalMixin(object):
             for ch in range(self.n_sig):
                 if len(self.e_d_signal[ch]) != spf[ch] * self.sig_len:
                     raise ValueError(
-                        "Length of channel "
-                        + str(ch)
-                        + "does not match samps_per_frame["
-                        + str(ch + "]*sig_len")
+                        f"Length of channel {ch} does not match "
+                        f"samps_per_frame[{ch}]*sig_len"
                     )
 
             # For each channel (if any), make sure the digital format has no values out of bounds
