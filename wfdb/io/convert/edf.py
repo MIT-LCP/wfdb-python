@@ -20,6 +20,7 @@ def read_edf(
     header_only=False,
     verbose=False,
     rdedfann_flag=False,
+    encoding="iso8859-1",
 ):
     """
     Read a EDF format file into a WFDB Record.
@@ -61,6 +62,9 @@ def read_edf(
         is being called by the user and the file has annotations, then warn
         them that the EDF file has annotations and that they should use
         `rdedfann` instead.
+    encoding : str, optional
+        The encoding to use for strings in the header. Although the edf
+        specification requires ascii strings, some files do not adhere to it.
 
     Returns
     -------
@@ -139,7 +143,7 @@ def read_edf(
     edf_file = open(record_name, mode="rb")
 
     # Version of this data format (8 bytes)
-    version = struct.unpack("<8s", edf_file.read(8))[0].decode()
+    version = struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
 
     # Check to see that the input is an EDF file. (This check will detect
     # most but not all other types of files.)
@@ -152,7 +156,7 @@ def read_edf(
             print("EDF version number: {}".format(version.strip()))
 
     # Local patient identification (80 bytes)
-    patient_id = struct.unpack("<80s", edf_file.read(80))[0].decode()
+    patient_id = struct.unpack("<80s", edf_file.read(80))[0].decode(encoding)
     if verbose:
         print("Patient ID: {}".format(patient_id))
 
@@ -161,12 +165,12 @@ def read_edf(
     # including an abbreviated month name in English and a full (4-digit)
     # year, as is done here if this information is available in the input
     # record. EDF+ requires this.
-    record_id = struct.unpack("<80s", edf_file.read(80))[0].decode()
+    record_id = struct.unpack("<80s", edf_file.read(80))[0].decode(encoding)
     if verbose:
         print("Recording ID: {}".format(record_id))
 
     # Start date of recording (dd.mm.yy) (8 bytes)
-    start_date = struct.unpack("<8s", edf_file.read(8))[0].decode()
+    start_date = struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
     if verbose:
         print("Recording Date: {}".format(start_date))
     start_day, start_month, start_year = [int(i) for i in start_date.split(".")]
@@ -177,7 +181,7 @@ def read_edf(
         start_year += 100
 
     # Start time of recording (hh.mm.ss) (8 bytes)
-    start_time = struct.unpack("<8s", edf_file.read(8))[0].decode()
+    start_time = struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
     if verbose:
         print("Recording Time: {}".format(start_time))
     start_hour, start_minute, start_second = [
@@ -185,13 +189,13 @@ def read_edf(
     ]
 
     # Number of bytes in header (8 bytes)
-    header_bytes = int(struct.unpack("<8s", edf_file.read(8))[0].decode())
+    header_bytes = int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
         print("Number of bytes in header record: {}".format(header_bytes))
 
     # Reserved (44 bytes)
     reserved_notes = (
-        struct.unpack("<44s", edf_file.read(44))[0].decode().strip()
+        struct.unpack("<44s", edf_file.read(44))[0].decode(encoding).strip()
     )
     if reserved_notes[:5] == "EDF+C":
         # The file is EDF compatible and will work without issue
@@ -209,7 +213,7 @@ def read_edf(
             print("Free Space: {}".format(reserved_notes))
 
     # Number of blocks (-1 if unknown) (8 bytes)
-    num_blocks = int(struct.unpack("<8s", edf_file.read(8))[0].decode())
+    num_blocks = int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
         print("Number of data records: {}".format(num_blocks))
     if num_blocks == -1:
@@ -218,7 +222,7 @@ def read_edf(
         )
 
     # Duration of a block, in seconds (8 bytes)
-    block_duration = float(struct.unpack("<8s", edf_file.read(8))[0].decode())
+    block_duration = float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
         print(
             "Duration of each data record in seconds: {}".format(block_duration)
@@ -227,7 +231,7 @@ def read_edf(
         block_duration = 1.0
 
     # Number of signals (4 bytes)
-    n_sig = int(struct.unpack("<4s", edf_file.read(4))[0].decode())
+    n_sig = int(struct.unpack("<4s", edf_file.read(4))[0].decode(encoding))
     if verbose:
         print("Number of signals: {}".format(n_sig))
     if n_sig < 1:
@@ -236,7 +240,7 @@ def read_edf(
     # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
     sig_name = []
     for _ in range(n_sig):
-        temp_sig = struct.unpack("<16s", edf_file.read(16))[0].decode().strip()
+        temp_sig = struct.unpack("<16s", edf_file.read(16))[0].decode(encoding).strip()
         if temp_sig == "EDF Annotations" and not rdedfann_flag:
             print(
                 "*** This may be an EDF+ Annotation file instead, please see "
@@ -250,7 +254,7 @@ def read_edf(
     transducer_types = []
     for _ in range(n_sig):
         transducer_types.append(
-            struct.unpack("<80s", edf_file.read(80))[0].decode().strip()
+            struct.unpack("<80s", edf_file.read(80))[0].decode(encoding).strip()
         )
     if verbose:
         print("Transducer Types: {}".format(transducer_types))
@@ -259,7 +263,7 @@ def read_edf(
     physical_dims = []
     for _ in range(n_sig):
         physical_dims.append(
-            struct.unpack("<8s", edf_file.read(8))[0].decode().strip()
+            struct.unpack("<8s", edf_file.read(8))[0].decode(encoding).strip()
         )
     if verbose:
         print("Physical Dimensions: {}".format(physical_dims))
@@ -269,7 +273,7 @@ def read_edf(
     for _ in range(n_sig):
         physical_min = np.append(
             physical_min,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode()),
+            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
         print("Physical Minimums: {}".format(physical_min))
@@ -279,7 +283,7 @@ def read_edf(
     for _ in range(n_sig):
         physical_max = np.append(
             physical_max,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode()),
+            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
         print("Physical Maximums: {}".format(physical_max))
@@ -289,7 +293,7 @@ def read_edf(
     for _ in range(n_sig):
         digital_min = np.append(
             digital_min,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode()),
+            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
         print("Digital Minimums: {}".format(digital_min))
@@ -299,7 +303,7 @@ def read_edf(
     for _ in range(n_sig):
         digital_max = np.append(
             digital_max,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode()),
+            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
         print("Digital Maximums: {}".format(digital_max))
@@ -308,7 +312,7 @@ def read_edf(
     prefilter_info = []
     for _ in range(n_sig):
         prefilter_info.append(
-            struct.unpack("<80s", edf_file.read(80))[0].decode().strip()
+            struct.unpack("<80s", edf_file.read(80))[0].decode(encoding).strip()
         )
     if verbose:
         print("Prefiltering Information: {}".format(prefilter_info))
@@ -317,14 +321,14 @@ def read_edf(
     samps_per_block = []
     for _ in range(n_sig):
         samps_per_block.append(
-            int(struct.unpack("<8s", edf_file.read(8))[0].decode())
+            int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
         )
     if verbose:
         print("Number of Samples per Record: {}".format(samps_per_block))
 
     # The last 32*nsig bytes in the header are unused
     for _ in range(n_sig):
-        struct.unpack("<32s", edf_file.read(32))[0].decode()
+        struct.unpack("<32s", edf_file.read(32))[0].decode(encoding)
 
     # Pre-process the acquired data before creating the record
     record_name_out = (
@@ -997,6 +1001,7 @@ def rdedfann(
     info_only=True,
     record_only=False,
     verbose=False,
+    encoding="iso8859-1",
 ):
     """
     This program returns the annotation information from an EDF+ file
@@ -1038,6 +1043,9 @@ def rdedfann(
     verbose : bool, optional
         Whether to print all the information read about the file (True) or
         not (False).
+    encoding : str, optional
+        The encoding to use for strings in the header. Although the edf
+        specification requires ascii strings, some files do not adhere to it.
 
     Returns
     -------
@@ -1110,7 +1118,7 @@ def rdedfann(
             adjusted_hex = hex(
                 struct.unpack("<H", struct.pack(">H", chunk + 1))[0]
             )
-            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode("ascii")
+            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(encoding)
             # Remove all of the whitespace
             for rep in ["\x00", "\x14", "\x15"]:
                 annotation_string = annotation_string.replace(rep, " ")
