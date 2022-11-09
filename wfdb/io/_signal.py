@@ -142,7 +142,7 @@ class SignalMixin(object):
         # Get all the fields used to write the header
         # Assuming this method was called through wrsamp,
         # these will have already been checked in wrheader()
-        write_fields = self.get_write_fields()
+        _, _ = self.get_write_fields()
 
         if expanded:
             # Using list of arrays e_d_signal
@@ -152,8 +152,10 @@ class SignalMixin(object):
             self.check_field("d_signal")
 
         # Check the cohesion of the d_signal field against the other
-        # fields used to write the header
-        self.check_sig_cohesion(write_fields, expanded)
+        # fields used to write the header.  (Note that for historical
+        # reasons, this doesn't actually check any of the optional
+        # header fields.)
+        self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
         self.wr_dat_files(expanded=expanded, write_dir=write_dir)
@@ -192,10 +194,8 @@ class SignalMixin(object):
             for ch in range(self.n_sig):
                 if len(self.e_d_signal[ch]) != spf[ch] * self.sig_len:
                     raise ValueError(
-                        "Length of channel "
-                        + str(ch)
-                        + "does not match samps_per_frame["
-                        + str(ch + "]*sig_len")
+                        f"Length of channel {ch} does not match "
+                        f"samps_per_frame[{ch}]*sig_len"
                     )
 
             # For each channel (if any), make sure the digital format has no values out of bounds

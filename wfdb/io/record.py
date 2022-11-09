@@ -922,9 +922,19 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         N/A
 
         """
+        # Update the checksum field (except for channels that did not have
+        # a checksum to begin with, or where the checksum was already
+        # valid.)
+        if self.checksum is not None:
+            checksums = self.calc_checksum(expanded=expanded)
+            for ch, old_val in enumerate(self.checksum):
+                if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
+                    checksums[ch] = old_val
+            self.checksum = checksums
+
         # Perform field validity and cohesion checks, and write the
         # header file.
-        self.wrheader(write_dir=write_dir)
+        self.wrheader(write_dir=write_dir, expanded=expanded)
         if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
