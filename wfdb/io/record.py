@@ -1825,8 +1825,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     Examples
     --------
-    >>> ecg_record = wfdb.rdheader('sample-data/test01_00s', sampfrom=800,
-                                   channels = [1,3])
+    >>> ecg_record = wfdb.rdheader('100', pn_dir='mitdb')
 
     """
     dir_name, base_record_name = os.path.split(record_name)
