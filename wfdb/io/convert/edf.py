@@ -290,21 +290,34 @@ def read_edf(
 
     # Digital minimum (e.g., -2048) (8 bytes each)
     digital_min = np.array([])
-    for _ in range(n_sig):
+    for ii in range(n_sig):
+        # In the CHB-MIT Scalp EEG Database there is some problem in the recording of some channels where the ADC range is not indicated:
+        # Eg: patient 11, signal '-', 1 tick per sample; 200 adu/uV; 0-bit ADC, zero at 0; baseline is 0; translates to b'0       '
+        # This can be seen in many others. There are also others that have '-' signals that do not present the problem.
+        # Eg: patient 22, signal '-', 1 tick per sample; 1 adu/uV; 12-bit ADC, zero at 0; baseline is 0; translates to  b'-2048   '
+        nextmin = float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
+        if (sig_name[ii] in ['-','.']) & (nextmin==0.0):
+            nextmin = lastmin
         digital_min = np.append(
             digital_min,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
+            nextmin,
         )
+        lastmin = nextmin
     if verbose:
         print("Digital Minimums: {}".format(digital_min))
 
     # Digital maximum (e.g., 2047) (8 bytes each)
     digital_max = np.array([])
-    for _ in range(n_sig):
+    for ii in range(n_sig):
+        # same problem with the digital_max
+        nextmax = float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
+        if (sig_name[ii] in ['-','.']) & (nextmax==0.0):
+            nextmax = lastmax
         digital_max = np.append(
             digital_max,
-            float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
+            nextmax,
         )
+        lastmax = nextmax
     if verbose:
         print("Digital Maximums: {}".format(digital_max))
 
@@ -395,6 +408,17 @@ def read_edf(
 
     sig_data = np.empty((sig_len, n_sig))
     temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
+    
+    # Another problem with the CHB-MIT Scalp EEG Database is incomplet recordings.
+    # This cause a problem with temp_sig_data reshape
+    # In this case we'll choose to prune the las values
+    div_check = len(temp_sig_data)%sum(samps_per_block)
+    if div_check == 0:
+        temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
+    else:
+        if verbose:
+            print(f'Prune last {div_check} samples.')
+        temp_sig_data = temp_sig_data[:-div_check]
     temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
     temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
     for i in range(n_sig):
