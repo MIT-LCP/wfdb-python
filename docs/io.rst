@@ -13,11 +13,11 @@ WFDB Records
 
 .. autoclass:: wfdb.io.Record
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
-              wrsamp, adc, dac
+              wrsamp, adc, dac, to_dataframe
 
 .. autoclass:: wfdb.io.MultiRecord
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
-              multi_to_single
+              multi_to_single, contained_ranges, contained_combined_ranges
 
 
 WFDB Annotations
