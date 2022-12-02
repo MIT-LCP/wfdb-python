@@ -40,6 +40,7 @@ Other Content
    :maxdepth: 2
 
    installation
+   changes
    wfdb-specifications
    convert
 
