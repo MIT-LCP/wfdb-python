@@ -189,7 +189,9 @@ def read_edf(
     ]
 
     # Number of bytes in header (8 bytes)
-    header_bytes = int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
+    header_bytes = int(
+        struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
+    )
     if verbose:
         print("Number of bytes in header record: {}".format(header_bytes))
 
@@ -222,7 +224,9 @@ def read_edf(
         )
 
     # Duration of a block, in seconds (8 bytes)
-    block_duration = float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
+    block_duration = float(
+        struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
+    )
     if verbose:
         print(
             "Duration of each data record in seconds: {}".format(block_duration)
@@ -240,7 +244,9 @@ def read_edf(
     # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
     sig_name = []
     for _ in range(n_sig):
-        temp_sig = struct.unpack("<16s", edf_file.read(16))[0].decode(encoding).strip()
+        temp_sig = (
+            struct.unpack("<16s", edf_file.read(16))[0].decode(encoding).strip()
+        )
         if temp_sig == "EDF Annotations" and not rdedfann_flag:
             print(
                 "*** This may be an EDF+ Annotation file instead, please see "
@@ -1118,7 +1124,9 @@ def rdedfann(
             adjusted_hex = hex(
                 struct.unpack("<H", struct.pack(">H", chunk + 1))[0]
             )
-            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(encoding)
+            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(
+                encoding
+            )
             # Remove all of the whitespace
             for rep in ["\x00", "\x14", "\x15"]:
                 annotation_string = annotation_string.replace(rep, " ")
