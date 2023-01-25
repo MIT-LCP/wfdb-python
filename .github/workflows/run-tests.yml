@@ -36,8 +36,8 @@ jobs:
         run: pytest
       - name: Validate poetry file
         run: poetry check
-      - name: Format files
-        run: black .
+      - name: Check source code format
+        run: black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
