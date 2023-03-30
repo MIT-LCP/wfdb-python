@@ -1,5 +1,5 @@
 import datetime
-from typing import Collection, List, Tuple
+from typing import List, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -920,7 +920,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     def contained_combined_ranges(
         self,
-        sig_names: Collection[str],
+        sig_names: Sequence[str],
     ) -> List[Tuple[int, int]]:
         """
         Given a collection of signal name, return the sample ranges that
