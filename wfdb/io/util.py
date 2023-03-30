@@ -4,7 +4,7 @@ A module for general utility functions
 import math
 import os
 
-from typing import Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 
 def lines_to_file(file_name: str, write_dir: str, lines: Sequence[str]):
@@ -102,8 +102,9 @@ def upround(x, base):
 
 
 def overlapping_ranges(
-    ranges_1: Tuple[int, int], ranges_2: Tuple[int, int]
-) -> Tuple[int, int]:
+    ranges_1: Sequence[Tuple[int, int]],
+    ranges_2: Sequence[Tuple[int, int]],
+) -> List[Tuple[int, int]]:
     """
     Given two collections of integer ranges, return a list of ranges
     in which both input inputs overlap.
