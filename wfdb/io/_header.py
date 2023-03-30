@@ -1,5 +1,5 @@
 import datetime
-from typing import Collection, List, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -598,6 +598,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     """
 
+    n_seg: int
+    seg_len: Sequence[int]
+    segments: Optional[Sequence]
+
     def set_defaults(self):
         """
         Set defaults for fields needed to write the header if they have
@@ -920,7 +924,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     def contained_combined_ranges(
         self,
-        sig_names: Collection[str],
+        sig_names: Sequence[str],
     ) -> List[Tuple[int, int]]:
         """
         Given a collection of signal name, return the sample ranges that
@@ -1010,7 +1014,7 @@ def _parse_record_line(record_line: str) -> dict:
 
     """
     # Dictionary for record fields
-    record_fields = {}
+    record_fields: Dict[str, Any] = {}
 
     # Read string fields from record line
     match = rx_record.match(record_line)

@@ -23,7 +23,7 @@ class Config(object):
 
     """
 
-    pass
+    db_index_url: str
 
 
 # The configuration database index url. Uses PhysioNet index by default.
