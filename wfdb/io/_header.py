@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -1014,7 +1014,7 @@ def _parse_record_line(record_line: str) -> dict:
 
     """
     # Dictionary for record fields
-    record_fields = {}
+    record_fields: Dict[str, Any] = {}
 
     # Read string fields from record line
     match = rx_record.match(record_line)
