@@ -1661,7 +1661,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 # this library
 ALLOWED_TYPES = dict(
     [
-        [index, _header.FIELD_SPECS.loc[index, "allowed_types"]]
+        (index, _header.FIELD_SPECS.loc[index, "allowed_types"])
         for index in _header.FIELD_SPECS.index
     ]
 )
