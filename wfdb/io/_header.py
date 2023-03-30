@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
@@ -597,6 +597,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
     N/A
 
     """
+
+    n_seg: int
+    seg_len: Sequence[int]
+    segments: Optional[Sequence]
 
     def set_defaults(self):
         """
