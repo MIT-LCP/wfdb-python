@@ -1985,7 +1985,6 @@ def _skew_sig(
 
     """
     if max(skew) > 0:
-
         # Expanded frame samples. List of arrays.
         if isinstance(sig, list):
             # Shift the channel samples

@@ -323,7 +323,6 @@ class XQRS(object):
 
         # Found enough calibration beats to initialize parameters
         if len(qrs_inds) == n_calib_beats:
-
             if self.verbose:
                 print(
                     "Found %d beats during learning." % n_calib_beats

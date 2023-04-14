@@ -225,7 +225,6 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         raise Exception("Name of the input file must end in .wav")
 
     if pn_dir is not None:
-
         if "." not in pn_dir:
             dir_list = pn_dir.split("/")
             pn_dir = posixpath.join(

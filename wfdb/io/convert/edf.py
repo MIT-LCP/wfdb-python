@@ -126,7 +126,6 @@ def read_edf(
 
     """
     if pn_dir is not None:
-
         if "." not in pn_dir:
             dir_list = pn_dir.split("/")
             pn_dir = posixpath.join(
@@ -762,7 +761,6 @@ def wfdb_to_edf(
         output_filename = record_name_out + ".edf"
 
     with open(output_filename, "wb") as f:
-
         print(
             "Converting record {} to {} ({} mode)".format(
                 record_name, output_filename, "EDF+" if edf_plus else "EDF"

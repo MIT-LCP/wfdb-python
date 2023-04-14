@@ -162,7 +162,6 @@ def ann2rr(
     format=None,
     as_array=True,
 ):
-
     """
     Obtain RR interval series from ECG annotation files.
 

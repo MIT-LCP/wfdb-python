@@ -156,7 +156,6 @@ class Annotation(object):
         custom_labels=None,
         contained_labels=None,
     ):
-
         self.record_name = record_name
         self.extension = extension
 
@@ -1180,7 +1179,6 @@ class Annotation(object):
 
         # Iterate across all fields one index at a time
         for i in range(len(sampdiff)):
-
             # Process the samp (difference) and sym items
             data_bytes.append(
                 field2bytes(
@@ -2152,7 +2150,6 @@ def proc_ann_bytes(filebytes, sampto):
     # - other pairs (if any)
     # The last byte pair of the file is 0 indicating eof.
     while bpi < filebytes.shape[0] - 1:
-
         # Get the sample and label_store fields of the current annotation
         sample_diff, current_label_store, bpi = proc_core_fields(filebytes, bpi)
         sample_total = sample_total + sample_diff
@@ -3018,7 +3015,6 @@ class AnnotationClass(object):
     """
 
     def __init__(self, extension, description, human_reviewed):
-
         self.extension = extension
         self.description = description
         self.human_reviewed = human_reviewed
@@ -3053,6 +3049,7 @@ ann_class_table.set_index(ann_class_table["extension"].values, inplace=True)
 ann_class_table = ann_class_table[
     ["extension", "description", "human_reviewed"]
 ]
+
 
 # Individual annotation labels
 class AnnotationLabel(object):
