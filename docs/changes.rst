@@ -5,6 +5,16 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Version 4.1.1 (April 2023)
+-----------------------------
+
+**Remove upper bound on dependencies**
+  Previously, the package provided restrictive caps on version number of dependencies. These caps have been removed.
+
+**Miscellaneous style and typing fixes**
+  Various fixes were made to code style and handling of data types.
+
+
 Version 4.1.0 (December 2022)
 -----------------------------
 
