@@ -426,7 +426,6 @@ class HeaderMixin(BaseHeaderMixin):
         # Signal specification fields
         # Setting entire list default, not filling in blanks in lists.
         elif field in SIGNAL_SPECS.index:
-
             # Specific dynamic case
             if field == "file_name" and self.file_name is None:
                 self.file_name = self._auto_signal_file_names()
@@ -472,7 +471,6 @@ class HeaderMixin(BaseHeaderMixin):
         """
         # If there are no signal specification fields, there is nothing to check.
         if self.n_sig > 0:
-
             # The length of all signal specification fields must match n_sig
             # even if some of its elements are None.
             for f in sig_write_fields:

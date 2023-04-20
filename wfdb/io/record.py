@@ -813,7 +813,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         sig_name=None,
         comments=None,
     ):
-
         # Note the lack of the 'n_seg' field. Single segment records cannot
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
@@ -877,7 +876,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             return False
 
         for k in att1.keys():
-
             v1 = att1[k]
             v2 = att2[k]
 
@@ -894,7 +892,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                 and len(v1) == len(v2)
                 and all(isinstance(e, np.ndarray) for e in v1)
             ):
-                for (e1, e2) in zip(v1, v2):
+                for e1, e2 in zip(v1, v2):
                     np.testing.assert_array_equal(e1, e2)
             else:
                 if v1 != v2:
@@ -988,7 +986,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
             if self.sig_len != self.d_signal.shape[0]:
-
                 if self.checksum is not None:
                     self.checksum = self.calc_checksum()
                 if self.init_value is not None:
@@ -1136,7 +1133,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         sig_name=None,
         sig_segments=None,
     ):
-
         super(MultiRecord, self).__init__(
             record_name=record_name,
             n_sig=n_sig,
@@ -1203,7 +1199,6 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
         for seg_num, segment in enumerate(self.segments):
-
             # If segment 0 is a layout specification record, check that its file names are all == '~''
             if seg_num == 0 and self.seg_len[0] == 0:
                 for file_name in segment.file_name:

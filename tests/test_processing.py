@@ -63,7 +63,6 @@ class test_processing:
         assert sp.shape == (0,)
 
     def test_gqrs(self):
-
         record = wfdb.rdrecord(
             "sample-data/100",
             channels=[0],
