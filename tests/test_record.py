@@ -286,6 +286,33 @@ class TestRecord(unittest.TestCase):
         )
         assert record == record_write
 
+    def test_read_write_flac_many_channels(self):
+        """
+        Check we can read and write to format 516 with more than 8 channels.
+        """
+        # Read in a signal with 12 channels in format 16
+        record = wfdb.rdrecord("sample-data/s0010_re", physical=False)
+
+        # Test that we can write out the signal in format 516
+        wfdb.wrsamp(
+            record_name="s0010_re_fmt516",
+            fs=record.fs,
+            units=record.units,
+            sig_name=record.sig_name,
+            fmt=["516"] * record.n_sig,
+            d_signal=record.d_signal,
+            adc_gain=record.adc_gain,
+            baseline=record.baseline,
+            write_dir=self.temp_path,
+        )
+
+        # Check that signal matches the original
+        record_fmt516 = wfdb.rdrecord(
+            os.path.join(self.temp_path, "s0010_re_fmt516"),
+            physical=False,
+        )
+        assert (record.d_signal == record_fmt516.d_signal).all()
+
     def test_read_flac_longduration(self):
         """
         Three signals multiplexed in a FLAC file, over 2**24 samples.
