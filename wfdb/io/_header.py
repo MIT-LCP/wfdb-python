@@ -384,6 +384,7 @@ class HeaderMixin(BaseHeaderMixin):
                     num_groups += 1
                     channels_in_group = 0
             group_number.append(num_groups)
+            channels_in_group += 1
             prev_fmt = ch_fmt
             prev_spf = ch_spf
 
