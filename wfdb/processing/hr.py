@@ -227,7 +227,7 @@ def ann2rr(
     elif format == "h":
         out_interval = time_interval / (60 * 60)
     else:
-        out_interval = np.around(time_interval * ann.fs).astype(np.int)
+        out_interval = np.around(time_interval * ann.fs).astype(np.int64)
 
     if as_array:
         return out_interval
