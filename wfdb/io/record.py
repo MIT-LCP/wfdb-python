@@ -1014,13 +1014,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             index = pd.date_range(
                 start=self.base_datetime,
                 periods=self.sig_len,
-                end= self.get_absolute_time(self.sig_len - 1),
+                end=self.get_absolute_time(self.sig_len - 1),
             )
         else:
             index = pd.timedelta_range(
                 start=pd.Timedelta(0),
                 periods=self.sig_len,
-                end= self.get_elapsed_time(self.sig_len - 1),
+                end=self.get_elapsed_time(self.sig_len - 1),
             )
 
         if self.p_signal is not None:
