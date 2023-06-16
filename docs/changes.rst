@@ -5,6 +5,15 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Version 4.1.2 (June 2023)
+-----------------------------
+
+**Handle more than 8 compressed signals in wrsamp**
+  Previously, the package did not support writing of compressed records with more than 8 channels.
+
+**Use int64 instead of int for ann2rr**
+  Fixes 'np has no attribute np.int' error raised when running ann2rr.
+
 Version 4.1.1 (April 2023)
 -----------------------------
 
