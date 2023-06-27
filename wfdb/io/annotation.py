@@ -1352,7 +1352,7 @@ class Annotation(object):
         else:
             raise Exception("No annotation labels contained in object")
 
-        contained_labels = label_map.loc[index_vals, :]
+        contained_labels = label_map.loc[list(index_vals), :]
 
         # Add the counts
         for i in range(len(counts[0])):
