@@ -940,10 +940,10 @@ class Annotation(object):
         core_bytes = self.calc_core_bytes()
 
         # Mark the end of the special annotation types if needed
-        if fs_bytes == [] and cl_bytes == []:
-            end_special_bytes = []
-        else:
+        if len(fs_bytes) or len(cl_bytes):
             end_special_bytes = [0, 236, 255, 255, 255, 255, 1, 0]
+        else:
+            end_special_bytes = []
 
         # Write the file
         with open(
