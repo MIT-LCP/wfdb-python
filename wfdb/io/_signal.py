@@ -909,8 +909,25 @@ class SignalMixin(object):
         if expanded:
             cs = [int(np.sum(s) % 65536) for s in self.e_d_signal]
         else:
-            cs = np.sum(self.d_signal, 0) % 65536
-            cs = [int(c) for c in cs]
+            cs = np.sum(self.d_signal, 0)
+            
+            checksum = []
+            for c in cs:
+                M = c/32768
+                if M < 0:
+                    c = c % -32768
+                    if(~c and abs(M) < 1):
+                        c = -32768
+                    elif(math.ceil(M)%2):
+                        c = 32768 + c
+                
+                else:
+                    c = c % 32768
+                    if(math.floor(M)%2):
+                        c = -32768 + c
+                checksum.append(c)
+            
+            cs = [int(c) for c in checksum]
         return cs
 
     def wr_dat_files(self, expanded=False, write_dir=""):
