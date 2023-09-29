@@ -3049,7 +3049,7 @@ def dl_database(
     for rec in record_list:
         print("Generating record list for: " + rec)
         # May be pointing to directory
-        if rec.endswith(os.sep):
+        if rec.endswith("/"):
             nested_records += [
                 posixpath.join(rec, sr)
                 for sr in download.get_record_list(posixpath.join(db_dir, rec))
