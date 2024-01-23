@@ -1835,14 +1835,22 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     # Read the local or remote header file.
     file_name = f"{base_record_name}.hea"
+    file_name_mit_bih = f"{base_record_name}.dat.hea"
     if pn_dir is None:
-        with open(
-            os.path.join(dir_name, file_name),
-            "r",
-            encoding="ascii",
-            errors="ignore",
-        ) as f:
-            header_content = f.read()
+        file_from_mit_bih = os.path.join(dir_name, file_name_mit_bih)
+        ordinary_dat_file = os.path.join(dir_name, file_name)
+
+        if os.path.exists(ordinary_dat_file):
+            with open(file_path_with_dat,
+                      "r",
+                      encoding="ascii",
+                      errors="ignore") as f:
+                header_content = f.read()
+        elif os.path.exists(ordinary_dat_file):
+            with open(file_from_mit_bih,
+                      "r", encoding="ascii",
+                      errors="ignore") as f:
+                header_content = f.read()
     else:
         header_content = download._stream_header(file_name, pn_dir)
 
