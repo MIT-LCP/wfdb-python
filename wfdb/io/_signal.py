@@ -551,23 +551,14 @@ class SignalMixin(object):
         if inplace:
             if expanded:
                 for ch in range(self.n_sig):
-                    # NAN locations for the channel
-                    ch_nanlocs = np.isnan(self.e_p_signal[ch])
-                    np.multiply(
-                        self.e_p_signal[ch],
-                        self.adc_gain[ch],
-                        self.e_p_signal[ch],
-                    )
-                    np.add(
-                        self.e_p_signal[ch],
-                        self.baseline[ch],
-                        self.e_p_signal[ch],
-                    )
-                    np.round(self.e_p_signal[ch], 0, self.e_p_signal[ch])
-                    self.e_p_signal[ch] = self.e_p_signal[ch].astype(
-                        intdtype, copy=False
-                    )
-                    self.e_p_signal[ch][ch_nanlocs] = d_nans[ch]
+                    ch_p_signal = self.e_p_signal[ch]
+                    ch_nanlocs = np.isnan(ch_p_signal)
+                    np.multiply(ch_p_signal, self.adc_gain[ch], ch_p_signal)
+                    np.add(ch_p_signal, self.baseline[ch], ch_p_signal)
+                    np.round(ch_p_signal, 0, ch_p_signal)
+                    ch_d_signal = ch_p_signal.astype(intdtype, copy=False)
+                    ch_d_signal[ch_nanlocs] = d_nans[ch]
+                    self.e_p_signal[ch] = ch_d_signal
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
