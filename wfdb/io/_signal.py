@@ -577,7 +577,7 @@ class SignalMixin(object):
         # Return the variable
         else:
             if expanded:
-                d_signal = []
+                e_d_signal = []
                 for ch, ch_p_signal in enumerate(self.e_p_signal):
                     ch_d_signal = adc_inplace_1d(
                         ch_p_signal.copy(),
@@ -585,12 +585,11 @@ class SignalMixin(object):
                         self.baseline[ch],
                         d_nans[ch],
                     )
-                    d_signal.append(ch_d_signal)
+                    e_d_signal.append(ch_d_signal)
+                return e_d_signal
 
             else:
-                d_signal = adc_inplace_2d(self.p_signal.copy())
-
-            return d_signal
+                return adc_inplace_2d(self.p_signal.copy())
 
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
