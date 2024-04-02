@@ -562,6 +562,12 @@ class SignalMixin(object):
                 np.add(p_signal, self.baseline, p_signal)
                 np.round(p_signal, 0, p_signal)
                 d_signal = p_signal.astype(intdtype, copy=False)
+
+                if nanlocs.any():
+                    for ch in range(d_signal.shape[1]):
+                        if nanlocs[:, ch].any():
+                            d_signal[nanlocs[:, ch], ch] = d_nans[ch]
+
                 self.d_signal = d_signal
                 self.p_signal = None
 
