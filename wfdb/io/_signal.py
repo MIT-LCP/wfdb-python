@@ -539,8 +539,8 @@ class SignalMixin(object):
             np.multiply(ch_p_signal, adc_gain, ch_p_signal)
             np.add(ch_p_signal, baseline, ch_p_signal)
             np.round(ch_p_signal, 0, ch_p_signal)
+            ch_p_signal[ch_nanlocs] = d_nan
             ch_d_signal = ch_p_signal.astype(intdtype, copy=False)
-            ch_d_signal[ch_nanlocs] = d_nan
             return ch_d_signal
 
         # Convert a 2D physical signal array to digital.  Note that the
@@ -550,12 +550,11 @@ class SignalMixin(object):
             np.multiply(p_signal, self.adc_gain, p_signal)
             np.add(p_signal, self.baseline, p_signal)
             np.round(p_signal, 0, p_signal)
-            d_signal = p_signal.astype(intdtype, copy=False)
-
             if nanlocs.any():
-                for ch in range(d_signal.shape[1]):
+                for ch in range(p_signal.shape[1]):
                     if nanlocs[:, ch].any():
-                        d_signal[nanlocs[:, ch], ch] = d_nans[ch]
+                        p_signal[nanlocs[:, ch], ch] = d_nans[ch]
+            d_signal = p_signal.astype(intdtype, copy=False)
             return d_signal
 
         # Do inplace conversion and set relevant variables.
