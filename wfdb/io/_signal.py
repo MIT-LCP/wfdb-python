@@ -561,9 +561,9 @@ class SignalMixin(object):
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(self.n_sig):
+                for ch, ch_p_signal in enumerate(self.e_p_signal):
                     ch_d_signal = adc_inplace_1d(
-                        self.e_p_signal[ch],
+                        ch_p_signal,
                         self.adc_gain[ch],
                         self.baseline[ch],
                         d_nans[ch],
@@ -579,9 +579,9 @@ class SignalMixin(object):
         else:
             if expanded:
                 d_signal = []
-                for ch in range(self.n_sig):
+                for ch, ch_p_signal in enumerate(self.e_p_signal):
                     ch_d_signal = adc_inplace_1d(
-                        self.e_p_signal[ch].copy(),
+                        ch_p_signal.copy(),
                         self.adc_gain[ch],
                         self.baseline[ch],
                         d_nans[ch],
