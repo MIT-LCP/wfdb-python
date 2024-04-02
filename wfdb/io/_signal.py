@@ -556,12 +556,13 @@ class SignalMixin(object):
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
-                nanlocs = np.isnan(self.p_signal)
-                np.multiply(self.p_signal, self.adc_gain, self.p_signal)
-                np.add(self.p_signal, self.baseline, self.p_signal)
-                np.round(self.p_signal, 0, self.p_signal)
-                self.p_signal = self.p_signal.astype(intdtype, copy=False)
-                self.d_signal = self.p_signal
+                p_signal = self.p_signal
+                nanlocs = np.isnan(p_signal)
+                np.multiply(p_signal, self.adc_gain, p_signal)
+                np.add(p_signal, self.baseline, p_signal)
+                np.round(p_signal, 0, p_signal)
+                d_signal = p_signal.astype(intdtype, copy=False)
+                self.d_signal = d_signal
                 self.p_signal = None
 
         # Return the variable
