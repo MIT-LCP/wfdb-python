@@ -532,6 +532,21 @@ class SignalMixin(object):
         # To do: choose the minimum return res needed
         intdtype = "int64"
 
+        # Convert a 2D physical signal array to digital.  Note that the
+        # input array is modified!
+        def adc_inplace_2d(p_signal):
+            nanlocs = np.isnan(p_signal)
+            np.multiply(p_signal, self.adc_gain, p_signal)
+            np.add(p_signal, self.baseline, p_signal)
+            np.round(p_signal, 0, p_signal)
+            d_signal = p_signal.astype(intdtype, copy=False)
+
+            if nanlocs.any():
+                for ch in range(d_signal.shape[1]):
+                    if nanlocs[:, ch].any():
+                        d_signal[nanlocs[:, ch], ch] = d_nans[ch]
+            return d_signal
+
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
@@ -556,19 +571,7 @@ class SignalMixin(object):
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
-                p_signal = self.p_signal
-                nanlocs = np.isnan(p_signal)
-                np.multiply(p_signal, self.adc_gain, p_signal)
-                np.add(p_signal, self.baseline, p_signal)
-                np.round(p_signal, 0, p_signal)
-                d_signal = p_signal.astype(intdtype, copy=False)
-
-                if nanlocs.any():
-                    for ch in range(d_signal.shape[1]):
-                        if nanlocs[:, ch].any():
-                            d_signal[nanlocs[:, ch], ch] = d_nans[ch]
-
-                self.d_signal = d_signal
+                self.d_signal = adc_inplace_2d(self.p_signal)
                 self.p_signal = None
 
         # Return the variable
@@ -587,17 +590,7 @@ class SignalMixin(object):
                     d_signal.append(ch_d_signal)
 
             else:
-                p_signal = self.p_signal.copy()
-                nanlocs = np.isnan(p_signal)
-                np.multiply(p_signal, self.adc_gain, p_signal)
-                np.add(p_signal, self.baseline, p_signal)
-                np.round(p_signal, 0, p_signal)
-                d_signal = p_signal.astype(intdtype, copy=False)
-
-                if nanlocs.any():
-                    for ch in range(d_signal.shape[1]):
-                        if nanlocs[:, ch].any():
-                            d_signal[nanlocs[:, ch], ch] = d_nans[ch]
+                d_signal = adc_inplace_2d(self.p_signal.copy())
 
             return d_signal
 
