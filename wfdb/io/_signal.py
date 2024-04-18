@@ -532,25 +532,14 @@ class SignalMixin(object):
         # To do: choose the minimum return res needed
         intdtype = "int64"
 
-        # Convert a single physical channel to digital.  Note that the
-        # input array is modified!
-        def adc_inplace_1d(ch_p_signal, adc_gain, baseline, d_nan):
-            ch_nanlocs = np.isnan(ch_p_signal)
-            np.multiply(ch_p_signal, adc_gain, ch_p_signal)
-            np.add(ch_p_signal, baseline, ch_p_signal)
-            np.round(ch_p_signal, 0, ch_p_signal)
-            np.copyto(ch_p_signal, d_nan, where=ch_nanlocs)
-            ch_d_signal = ch_p_signal.astype(intdtype, copy=False)
-            return ch_d_signal
-
-        # Convert a 2D physical signal array to digital.  Note that the
-        # input array is modified!
-        def adc_inplace_2d(p_signal):
+        # Convert a physical (1D or 2D) signal array to digital.  Note that
+        # the input array is modified!
+        def adc_inplace(p_signal, adc_gain, baseline, d_nan):
             nanlocs = np.isnan(p_signal)
-            np.multiply(p_signal, self.adc_gain, p_signal)
-            np.add(p_signal, self.baseline, p_signal)
+            np.multiply(p_signal, adc_gain, p_signal)
+            np.add(p_signal, baseline, p_signal)
             np.round(p_signal, 0, p_signal)
-            np.copyto(p_signal, d_nans, where=nanlocs)
+            np.copyto(p_signal, d_nan, where=nanlocs)
             d_signal = p_signal.astype(intdtype, copy=False)
             return d_signal
 
@@ -558,7 +547,7 @@ class SignalMixin(object):
         if inplace:
             if expanded:
                 for ch, ch_p_signal in enumerate(self.e_p_signal):
-                    ch_d_signal = adc_inplace_1d(
+                    ch_d_signal = adc_inplace(
                         ch_p_signal,
                         self.adc_gain[ch],
                         self.baseline[ch],
@@ -568,7 +557,12 @@ class SignalMixin(object):
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
-                self.d_signal = adc_inplace_2d(self.p_signal)
+                self.d_signal = adc_inplace(
+                    self.p_signal,
+                    self.adc_gain,
+                    self.baseline,
+                    d_nans,
+                )
                 self.p_signal = None
 
         # Return the variable
@@ -576,7 +570,7 @@ class SignalMixin(object):
             if expanded:
                 e_d_signal = []
                 for ch, ch_p_signal in enumerate(self.e_p_signal):
-                    ch_d_signal = adc_inplace_1d(
+                    ch_d_signal = adc_inplace(
                         ch_p_signal.copy(),
                         self.adc_gain[ch],
                         self.baseline[ch],
@@ -586,7 +580,12 @@ class SignalMixin(object):
                 return e_d_signal
 
             else:
-                return adc_inplace_2d(self.p_signal.copy())
+                return adc_inplace(
+                    self.p_signal.copy(),
+                    self.adc_gain,
+                    self.baseline,
+                    d_nans,
+                )
 
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
