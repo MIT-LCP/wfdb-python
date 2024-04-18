@@ -539,7 +539,7 @@ class SignalMixin(object):
             np.multiply(ch_p_signal, adc_gain, ch_p_signal)
             np.add(ch_p_signal, baseline, ch_p_signal)
             np.round(ch_p_signal, 0, ch_p_signal)
-            ch_p_signal[ch_nanlocs] = d_nan
+            np.copyto(ch_p_signal, d_nan, where=ch_nanlocs)
             ch_d_signal = ch_p_signal.astype(intdtype, copy=False)
             return ch_d_signal
 
@@ -550,10 +550,7 @@ class SignalMixin(object):
             np.multiply(p_signal, self.adc_gain, p_signal)
             np.add(p_signal, self.baseline, p_signal)
             np.round(p_signal, 0, p_signal)
-            if nanlocs.any():
-                for ch in range(p_signal.shape[1]):
-                    if nanlocs[:, ch].any():
-                        p_signal[nanlocs[:, ch], ch] = d_nans[ch]
+            np.copyto(p_signal, d_nans, where=nanlocs)
             d_signal = p_signal.astype(intdtype, copy=False)
             return d_signal
 
