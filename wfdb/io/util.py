@@ -1,6 +1,7 @@
 """
 A module for general utility functions
 """
+
 import math
 import os
 

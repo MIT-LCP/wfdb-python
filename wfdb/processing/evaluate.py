@@ -204,9 +204,9 @@ class Comparitor(object):
                     )
                     # Assign the reference-test pair if close enough
                     if smallest_samp_diff < self.window_width:
-                        self.matching_sample_nums[
-                            ref_samp_num
-                        ] = closest_samp_num
+                        self.matching_sample_nums[ref_samp_num] = (
+                            closest_samp_num
+                        )
                     # Set the starting test sample number to inspect
                     # for the next reference sample.
                     test_samp_num = closest_samp_num + 1
