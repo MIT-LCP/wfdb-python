@@ -1053,19 +1053,20 @@ class TestSignal(unittest.TestCase):
         adc_gain = [1.0, 1234.567, 765.4321]
         baseline = [10, 20, -30]
         d_signal = np.repeat(np.arange(-100, 100), 3).reshape(-1, 3)
+        d_signal[5:10, :] = [-32768, -2048, -128]
         e_d_signal = list(d_signal.transpose())
-        fmt = ["16", "16", "16"]
+        fmt = ["16", "212", "80"]
 
         # Test adding or subtracting a small offset (0.01 ADU) to check
         # that we correctly round to the nearest integer
         for offset in (0, -0.01, 0.01):
             p_signal = (d_signal + offset - baseline) / adc_gain
+            p_signal[5:10, :] = np.nan
             e_p_signal = list(p_signal.transpose())
 
             # Test converting p_signal to d_signal
 
             record = wfdb.Record(
-                n_sig=n_sig,
                 p_signal=p_signal.copy(),
                 adc_gain=adc_gain,
                 baseline=baseline,
@@ -1081,7 +1082,6 @@ class TestSignal(unittest.TestCase):
             # Test converting e_p_signal to e_d_signal
 
             record = wfdb.Record(
-                n_sig=n_sig,
                 e_p_signal=[s.copy() for s in e_p_signal],
                 adc_gain=adc_gain,
                 baseline=baseline,
@@ -1108,7 +1108,7 @@ class TestSignal(unittest.TestCase):
                 p_signal=p_signal,
                 adc_gain=adc_gain,
                 baseline=baseline,
-                fmt=["16", "16", "16"],
+                fmt=fmt,
                 write_dir=self.temp_path,
             )
             record = wfdb.rdrecord(

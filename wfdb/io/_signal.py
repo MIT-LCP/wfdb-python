@@ -532,68 +532,60 @@ class SignalMixin(object):
         # To do: choose the minimum return res needed
         intdtype = "int64"
 
+        # Convert a physical (1D or 2D) signal array to digital.  Note that
+        # the input array is modified!
+        def adc_inplace(p_signal, adc_gain, baseline, d_nan):
+            nanlocs = np.isnan(p_signal)
+            np.multiply(p_signal, adc_gain, p_signal)
+            np.add(p_signal, baseline, p_signal)
+            np.round(p_signal, 0, p_signal)
+            np.copyto(p_signal, d_nan, where=nanlocs)
+            d_signal = p_signal.astype(intdtype, copy=False)
+            return d_signal
+
         # Do inplace conversion and set relevant variables.
         if inplace:
             if expanded:
-                for ch in range(self.n_sig):
-                    # NAN locations for the channel
-                    ch_nanlocs = np.isnan(self.e_p_signal[ch])
-                    np.multiply(
-                        self.e_p_signal[ch],
+                for ch, ch_p_signal in enumerate(self.e_p_signal):
+                    ch_d_signal = adc_inplace(
+                        ch_p_signal,
                         self.adc_gain[ch],
-                        self.e_p_signal[ch],
-                    )
-                    np.add(
-                        self.e_p_signal[ch],
                         self.baseline[ch],
-                        self.e_p_signal[ch],
+                        d_nans[ch],
                     )
-                    np.round(self.e_p_signal[ch], 0, self.e_p_signal[ch])
-                    self.e_p_signal[ch] = self.e_p_signal[ch].astype(
-                        intdtype, copy=False
-                    )
-                    self.e_p_signal[ch][ch_nanlocs] = d_nans[ch]
+                    self.e_p_signal[ch] = ch_d_signal
                 self.e_d_signal = self.e_p_signal
                 self.e_p_signal = None
             else:
-                nanlocs = np.isnan(self.p_signal)
-                np.multiply(self.p_signal, self.adc_gain, self.p_signal)
-                np.add(self.p_signal, self.baseline, self.p_signal)
-                np.round(self.p_signal, 0, self.p_signal)
-                self.p_signal = self.p_signal.astype(intdtype, copy=False)
-                self.d_signal = self.p_signal
+                self.d_signal = adc_inplace(
+                    self.p_signal,
+                    self.adc_gain,
+                    self.baseline,
+                    d_nans,
+                )
                 self.p_signal = None
 
         # Return the variable
         else:
             if expanded:
-                d_signal = []
-                for ch in range(self.n_sig):
-                    # NAN locations for the channel
-                    ch_nanlocs = np.isnan(self.e_p_signal[ch])
-                    ch_d_signal = self.e_p_signal[ch].copy()
-                    np.multiply(ch_d_signal, self.adc_gain[ch], ch_d_signal)
-                    np.add(ch_d_signal, self.baseline[ch], ch_d_signal)
-                    np.round(ch_d_signal, 0, ch_d_signal)
-                    ch_d_signal = ch_d_signal.astype(intdtype, copy=False)
-                    ch_d_signal[ch_nanlocs] = d_nans[ch]
-                    d_signal.append(ch_d_signal)
+                e_d_signal = []
+                for ch, ch_p_signal in enumerate(self.e_p_signal):
+                    ch_d_signal = adc_inplace(
+                        ch_p_signal.copy(),
+                        self.adc_gain[ch],
+                        self.baseline[ch],
+                        d_nans[ch],
+                    )
+                    e_d_signal.append(ch_d_signal)
+                return e_d_signal
 
             else:
-                nanlocs = np.isnan(self.p_signal)
-                # Cannot cast dtype to int now because gain is float.
-                d_signal = self.p_signal.copy()
-                np.multiply(d_signal, self.adc_gain, d_signal)
-                np.add(d_signal, self.baseline, d_signal)
-                np.round(d_signal, 0, d_signal)
-                d_signal = d_signal.astype(intdtype, copy=False)
-
-                if nanlocs.any():
-                    for ch in range(d_signal.shape[1]):
-                        if nanlocs[:, ch].any():
-                            d_signal[nanlocs[:, ch], ch] = d_nans[ch]
-
-            return d_signal
+                return adc_inplace(
+                    self.p_signal.copy(),
+                    self.adc_gain,
+                    self.baseline,
+                    d_nans,
+                )
 
     def dac(self, expanded=False, return_res=64, inplace=False):
         """
