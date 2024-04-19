@@ -1540,10 +1540,12 @@ class GQRS(object):
                                 tann = GQRS.Annotation(
                                     tmp_time,
                                     "TWAVE",
-                                    1
-                                    if tmp_time
-                                    > self.annot.time + self.c.rtmean
-                                    else 0,
+                                    (
+                                        1
+                                        if tmp_time
+                                        > self.annot.time + self.c.rtmean
+                                        else 0
+                                    ),
                                     rtdmin,
                                 )
                                 # if self.state == "RUNNING":

@@ -4,6 +4,7 @@ Module for reading ME6000 .tff format files.
 http://www.biomation.com/kin/me6000.htm
 
 """
+
 import datetime
 import os
 import struct
