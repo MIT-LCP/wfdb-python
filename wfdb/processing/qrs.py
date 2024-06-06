@@ -1230,20 +1230,20 @@ class GQRS(object):
                     smtpj = self.at(smt + j)
                     smtlj = self.at(smt - j)
                     v += int(smtpj + smtlj)
-                self.smv_put(
-                    smt,
-                    (v << 1)
-                    + self.at(smt + j + 1)
-                    + self.at(smt - j - 1)
-                    - self.adc_zero * (smdt << 2),
-                )
+                    self.smv_put(
+                        smt,
+                        (v << 1)
+                        + self.at(smt + j + 1)
+                        + self.at(smt - j - 1)
+                        - self.adc_zero * (smdt << 2),
+                    )
 
-                self.SIG_SMOOTH.append(
-                    (v << 1)
-                    + self.at(smt + j + 1)
-                    + self.at(smt - j - 1)
-                    - self.adc_zero * (smdt << 2)
-                )
+                    self.SIG_SMOOTH.append(
+                        (v << 1)
+                        + self.at(smt + j + 1)
+                        + self.at(smt - j - 1)
+                        - self.adc_zero * (smdt << 2)
+                    )
         self.c.smt = smt
 
         return self.smv_at(at_t)
