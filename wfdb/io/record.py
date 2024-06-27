@@ -1788,7 +1788,7 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 # ------------------------- Reading Records --------------------------- #
 
 
-def rdheader(record_name, pn_dir=None, rd_segments=False):
+def rdheader(record_name, pn_dir=None, rd_segments=False, hea_stream=None):
     """
     Read a WFDB header file and return a `Record` or `MultiRecord`
     object with the record descriptors as attributes.
@@ -1826,25 +1826,28 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     dir_name = os.path.abspath(dir_name)
 
-    # Construct the download path using the database version
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
-
-    # Read the local or remote header file.
-    file_name = f"{base_record_name}.hea"
-    if pn_dir is None:
-        with open(
-            os.path.join(dir_name, file_name),
-            "r",
-            encoding="ascii",
-            errors="ignore",
-        ) as f:
-            header_content = f.read()
+    if hea_stream is not None:
+        header_content = hea_stream.read().decode('ascii')
     else:
-        header_content = download._stream_header(file_name, pn_dir)
+        # Construct the download path using the database version
+        if (pn_dir is not None) and ("." not in pn_dir):
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
+
+        # Read the local or remote header file.
+        file_name = f"{base_record_name}.hea"
+        if pn_dir is None:
+            with open(
+                os.path.join(dir_name, file_name),
+                "r",
+                encoding="ascii",
+                errors="ignore",
+            ) as f:
+                header_content = f.read()
+        else:
+            header_content = download._stream_header(file_name, pn_dir)
 
     # Separate comment and non-comment lines
     header_lines, comment_lines = header.parse_header_content(header_content)
@@ -1925,6 +1928,8 @@ def rdrecord(
     force_channels=True,
     channel_names=None,
     warn_empty=False,
+    hea_stream=None,
+    sig_stream=None,
 ):
     """
     Read a WFDB record and return the signal and record descriptors as
@@ -2026,7 +2031,7 @@ def rdrecord(
             dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False, hea_stream=hea_stream)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2127,6 +2132,7 @@ def rdrecord(
             ignore_skew=ignore_skew,
             no_file=no_file,
             sig_data=sig_data,
+            sig_stream=sig_stream,
             return_res=return_res,
         )
 

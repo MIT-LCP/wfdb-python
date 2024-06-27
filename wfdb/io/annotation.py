@@ -1883,6 +1883,7 @@ def rdann(
     pn_dir=None,
     return_label_elements=["symbol"],
     summarize_labels=False,
+    ann_stream=None,
 ):
     """
     Read a WFDB annotation file record_name.extension and return an
@@ -1947,7 +1948,10 @@ def rdann(
     )
 
     # Read the file in byte pairs
-    filebytes = load_byte_pairs(record_name, extension, pn_dir)
+    if ann_stream is not None:
+        filebytes = np.frombuffer(ann_stream.read(), "<u1").reshape([-1, 2]).astype(np.int32)
+    else:
+        filebytes = load_byte_pairs(record_name, extension, pn_dir).astype(np.int32)
 
     # Get WFDB annotation fields from the file bytes
     (sample, label_store, subtype, chan, num, aux_note) = proc_ann_bytes(
