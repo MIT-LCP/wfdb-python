@@ -29,7 +29,13 @@ The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitat
 
 ## Creating Distributions
 
-Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are updated and kept in sync.
+1. Bump the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml). These files must be kept updated and in sync. Open a pull request to merge these changes to the main branch.
+
+2. Add a summary of the changes to [the changelog](https://github.com/MIT-LCP/wfdb-python/blob/main/docs/changes.rst). You may also need to update [the documentation](https://github.com/MIT-LCP/wfdb-python/tree/main/docs). For example, if function arguments have been updated, this change will need to be captured. Open a pull request to merge these changes to the main branch.
+
+3. After the pull requests above have been merged, go to https://github.com/MIT-LCP/wfdb-python/releases and click "Draft new release" to create a new tag/release of the package. Set the tag to the new version number and draft the release notes (or click "Generate release notes"!).
+
+4. Publish the project to PyPI, the [Python Package Index](https://pypi.org/project/wfdb/). 
 
 It may be useful to publish to testpypi and preview the changes before publishing to PyPi. However, the project dependencies likely will not be available when trying to install from there.
 
