@@ -8,6 +8,7 @@ import sys
 
 from wfdb.io import download
 from wfdb.io import _header
+from wfdb.io import _coreio
 from wfdb.io import record
 
 
@@ -1883,7 +1884,6 @@ def rdann(
     pn_dir=None,
     return_label_elements=["symbol"],
     summarize_labels=False,
-    ann_stream=None,
 ):
     """
     Read a WFDB annotation file record_name.extension and return an
@@ -1947,11 +1947,75 @@ def rdann(
         sampfrom, sampto, return_label_elements
     )
 
+    with _coreio._open_file(
+        record_name + "." + extension,
+        "rb",
+        pn_dir=pn_dir,
+    ) as fp:
+        annotation = _rdann(
+            fp,
+            sampfrom,
+            sampto,
+            shift_samps,
+            return_label_elements,
+            summarize_labels,
+        )
+
+    # Try to get fs from the header file if it is not contained in the
+    # annotation file
+    if annotation.fs is None:
+        try:
+            rec = record.rdheader(record_name, pn_dir)
+            annotation.fs = rec.fs
+        except:
+            pass
+
+    annotation.record_name = os.path.split(record_name)[1]
+    annotation.extension = extension
+
+    return annotation
+
+
+def _rdann(
+    io,
+    sampfrom=0,
+    sampto=None,
+    shift_samps=False,
+    return_label_elements=["symbol"],
+    summarize_labels=False,
+):
+    """
+    Read a WFDB annotation file and return an Annotation object.
+
+    Parameters
+    ----------
+    io : io
+        The io to read the annotation file from.
+    sampfrom : int, optional
+        The minimum sample number for annotations to be returned.
+    sampto : int, optional
+        The maximum sample number for annotations to be returned.
+    shift_samps : bool, optional
+        Specifies whether to return the sample indices relative to `sampfrom`
+        (True), or sample 0 (False).
+    return_label_elements : list, optional
+        The label elements that are to be returned from reading the annotation
+        file. A list with at least one of the following options: 'symbol',
+        'label_store', 'description'.
+    summarize_labels : bool, optional
+        If True, assign a summary table of the set of annotation labels
+        contained in the file to the 'contained_labels' attribute of the
+        returned object. This table will contain the columns:
+        ['label_store', 'symbol', 'description', 'n_occurrences'].
+
+    Returns
+    -------
+    annotation : Annotation
+        The Annotation object. Call help(wfdb.Annotation) for the attribute
+        descriptions.
+    """
     # Read the file in byte pairs
-    if ann_stream is not None:
-        filebytes = np.frombuffer(ann_stream.read(), "<u1").reshape([-1, 2])
-    else:
-        filebytes = load_byte_pairs(record_name, extension, pn_dir)
+    filebytes = np.frombuffer(io.read(), "<u1").reshape([-1, 2])
 
     # Get WFDB annotation fields from the file bytes
     (sample, label_store, subtype, chan, num, aux_note) = proc_ann_bytes(
@@ -1982,19 +2046,10 @@ def rdann(
     # Convert sample numbers to a numpy array of 'int64'
     sample = np.array(sample, dtype="int64")
 
-    # Try to get fs from the header file if it is not contained in the
-    # annotation file
-    if fs is None:
-        try:
-            rec = record.rdheader(record_name, pn_dir)
-            fs = rec.fs
-        except:
-            pass
-
     # Create the annotation object
     annotation = Annotation(
-        record_name=os.path.split(record_name)[1],
-        extension=extension,
+        record_name=None,
+        extension=None,
         sample=sample,
         label_store=label_store,
         subtype=subtype,
@@ -2065,42 +2120,6 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
         )
 
     return return_label_elements
-
-
-def load_byte_pairs(record_name, extension, pn_dir):
-    """
-    Load the annotation file 1 byte at a time and arrange in pairs.
-
-    Parameters
-    ----------
-    record_name : str
-        The record name of the WFDB annotation file. ie. for file '100.atr',
-        record_name='100'.
-    extension : str
-        The annotatator extension of the annotation file. ie. for  file
-        '100.atr', extension='atr'.
-    pn_dir : str
-        Option used to stream data from Physionet. The PhysioNet database
-        directory from which to find the required annotation file. eg. For
-        record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
-
-    Returns
-    -------
-    filebytes : ndarray
-        The input filestream converted to an Nx2 array of unsigned bytes.
-
-    """
-    # local file
-    if pn_dir is None:
-        with open(record_name + "." + extension, "rb") as f:
-            filebytes = np.fromfile(f, "<u1").reshape([-1, 2])
-    # PhysioNet file
-    else:
-        filebytes = download._stream_annotation(
-            record_name + "." + extension, pn_dir
-        ).reshape([-1, 2])
-
-    return filebytes
 
 
 def proc_ann_bytes(filebytes, sampto):

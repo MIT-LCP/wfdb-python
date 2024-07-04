@@ -4,7 +4,9 @@ import sys
 
 import numpy as np
 
-from wfdb.io import download, _coreio, util
+from wfdb.io import download
+from wfdb.io import util
+from wfdb.io import _coreio
 
 
 MAX_I32 = 2147483647
@@ -1066,7 +1068,6 @@ def _rd_segment(
     ignore_skew,
     no_file=False,
     sig_data=None,
-    sig_stream=None,
     return_res=64,
 ):
     """
@@ -1196,24 +1197,24 @@ def _rd_segment(
     signals = [None] * len(channels)
 
     for fn in w_file_name:
-        # Get the list of all signals contained in the dat file
-        datsignals = _rd_dat_signals(
-            file_name=fn,
-            dir_name=dir_name,
-            pn_dir=pn_dir,
-            fmt=w_fmt[fn],
-            n_sig=len(datchannel[fn]),
-            sig_len=sig_len,
-            byte_offset=w_byte_offset[fn],
-            samps_per_frame=w_samps_per_frame[fn],
-            skew=w_skew[fn],
-            init_value=w_init_value[fn],
-            sampfrom=sampfrom,
-            sampto=sampto,
-            no_file=no_file,
-            sig_data=sig_data,
-            sig_stream=sig_stream,
-        )
+        with _coreio._open_file(
+            fn, "rb", pn_dir=pn_dir, dir_name=dir_name
+        ) as io:
+            # Get the list of all signals contained in the dat file
+            datsignals = _rd_dat_signals(
+                io,
+                fmt=w_fmt[fn],
+                n_sig=len(datchannel[fn]),
+                sig_len=sig_len,
+                byte_offset=w_byte_offset[fn],
+                samps_per_frame=w_samps_per_frame[fn],
+                skew=w_skew[fn],
+                init_value=w_init_value[fn],
+                sampfrom=sampfrom,
+                sampto=sampto,
+                no_file=no_file,
+                sig_data=sig_data,
+            )
 
         # Copy over the wanted signals
         for cn in range(len(out_dat_channel[fn])):
@@ -1223,9 +1224,7 @@ def _rd_segment(
 
 
 def _rd_dat_signals(
-    file_name,
-    dir_name,
-    pn_dir,
+    io,
     fmt,
     n_sig,
     sig_len,
@@ -1237,21 +1236,14 @@ def _rd_dat_signals(
     sampto,
     no_file=False,
     sig_data=None,
-    sig_stream=None,
 ):
     """
     Read all signals from a WFDB dat file.
 
     Parameters
     ----------
-    file_name : str
-        The name of the dat file.
-    dir_name : str
-        The full directory where the dat file(s) are located, if the dat
-        file(s) are local.
-    pn_dir : str
-        The PhysioNet directory where the dat file(s) are located, if
-        the dat file(s) are remote.
+    io : io
+        The io to read the dat file from.
     fmt : str
         The format of the dat file.
     n_sig : int
@@ -1327,32 +1319,17 @@ def _rd_dat_signals(
     if no_file:
         data_to_read = sig_data
     elif fmt in COMPRESSED_FMTS:
-        if sig_stream is not None:
-            data_to_read = _rd_compressed_stream(
-                fp=sig_stream,
-                fmt=fmt,
-                sample_offset=byte_offset,
-                n_sig=n_sig,
-                samps_per_frame=samps_per_frame,
-                start_frame=sampfrom,
-                end_frame=sampto,
-            )
-        else:
-            data_to_read = _rd_compressed_file(
-                file_name=file_name,
-                dir_name=dir_name,
-                pn_dir=pn_dir,
-                fmt=fmt,
-                sample_offset=byte_offset,
-                n_sig=n_sig,
-                samps_per_frame=samps_per_frame,
-                start_frame=sampfrom,
-                end_frame=sampto,
-            )
-    else:
-        data_to_read = _rd_dat_file(
-            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples, sig_stream
+        data_to_read = _rd_compressed_stream(
+            io,
+            fmt=fmt,
+            sample_offset=byte_offset,
+            n_sig=n_sig,
+            samps_per_frame=samps_per_frame,
+            start_frame=sampfrom,
+            end_frame=sampto,
         )
+    else:
+        data_to_read = _rd_dat_stream(io, fmt, start_byte, n_read_samples)
 
     if extra_flat_samples:
         if fmt in UNALIGNED_FMTS:
@@ -1591,7 +1568,7 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp, sig_stream):
+def _rd_dat_stream(io, fmt, start_byte, n_samp):
     """
     Read data from a dat file, either local or remote, into a 1d numpy
     array.
@@ -1602,14 +1579,8 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp, sig_strea
 
     Parameters
     ----------
-    file_name : str
-        The name of the dat file.
-    dir_name : str
-        The full directory where the dat file(s) are located, if the dat
-        file(s) are local.
-    pn_dir : str
-        The PhysioNet directory where the dat file(s) are located, if
-        the dat file(s) are remote.
+    io : io
+        The io to read the dat file from.
     fmt : str
         The format of the dat file.
     start_byte : int
@@ -1649,27 +1620,13 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp, sig_strea
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
-    # Memory Stream
-    if sig_stream is not None:
-        sig_stream.seek(start_byte)
-        sig_data = np.frombuffer(
-            sig_stream.read(), dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
-        )
-    # Local dat file
-    elif pn_dir is None:
-        with open(os.path.join(dir_name, file_name), "rb") as fp:
-            fp.seek(start_byte)
-            sig_data = np.fromfile(
-                fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
-            )
-    # Stream dat file from Physionet
-    else:
-        dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
-        sig_data = download._stream_dat(
-            file_name, pn_dir, byte_count, start_byte, dtype_in
-        )
+    io.seek(start_byte)
+    return np.frombuffer(
+        io.read(byte_count),
+        dtype=np.dtype(DATA_LOAD_TYPES[fmt]),
+        count=element_count,
+    )
 
-    return sig_data
 
 def _blocks_to_samples(sig_data, n_samp, fmt):
     """
@@ -1790,7 +1747,7 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
 
 def _rd_compressed_stream(
-    fp,
+    io,
     fmt,
     sample_offset,
     n_sig,
@@ -1798,12 +1755,52 @@ def _rd_compressed_stream(
     start_frame,
     end_frame,
 ):
-    signature = fp.read(4)
-    if signature != b"fLaC":
-        raise ValueError(f"{fp.name} is not a FLAC file")
-    fp.seek(0)
+    """
+    Read data from a compressed file into a 1D numpy array.
+    Parameters
+    ----------
+    io : io
+        The io to read the dat file from.
+    fmt : str
+        The format code of the signal file.
+    sample_offset : int
+        The sample number in the signal file corresponding to sample 0 of
+        the WFDB record.
+    n_sig : int
+        The number of signals in the file.
+    samps_per_frame : list
+        The number of samples per frame for each signal in the file.
+    start_frame : int
+        The starting frame number to read.
+    end_frame : int
+        The ending frame number to read.
+    Returns
+    -------
+    signal : ndarray
+        The data read from the signal file.  This is a one-dimensional
+        array in the same order the samples would be stored in a binary
+        signal file; `signal[(i*n_sig+j)*samps_per_frame[0]+k]` is sample
+        number `i*samps_per_frame[0]+k` of signal `j`.
+    Notes
+    -----
+    Converting the output array into "dat file order" here is inefficient,
+    but necessary to match the behavior of _rd_dat_file.  It would be
+    better to reorganize _rd_dat_signals to make the reshaping unnecessary.
+    """
+    import soundfile
 
-    with soundfile.SoundFile(fp) as sf:
+    if any(spf != samps_per_frame[0] for spf in samps_per_frame):
+        raise ValueError(
+            "All channels in a FLAC signal file must have the same "
+            "sampling rate and samples per frame"
+        )
+
+    signature = io.read(4)
+    if signature != b"fLaC":
+        raise ValueError(f"{io.name} is not a FLAC file")
+    io.seek(0)
+
+    with soundfile.SoundFile(io) as sf:
         # Determine the actual resolution of the FLAC stream and the
         # data type will use when reading it.  Note that soundfile
         # doesn't support int8.
@@ -1817,18 +1814,18 @@ def _rd_compressed_stream(
             format_bits = 24
             read_dtype = "int32"
         else:
-            raise ValueError(f"unknown subtype in {fp.name} ({sf.subtype})")
+            raise ValueError(f"unknown subtype in {io.name} ({sf.subtype})")
 
         max_bits = int(fmt) - 500
         if format_bits > max_bits:
             raise ValueError(
-                f"wrong resolution in {fp.name} "
+                f"wrong resolution in {io.name} "
                 f"({format_bits}, expected <= {max_bits})"
             )
 
         if sf.channels != n_sig:
             raise ValueError(
-                f"wrong number of channels in {fp.name} "
+                f"wrong number of channels in {io.name} "
                 f"({sf.channels}, expected {n_sig})"
             )
 
@@ -1904,73 +1901,6 @@ def _rd_compressed_stream(
     sig_data = sig_data.reshape(-1, samps_per_frame[0], n_sig)
     sig_data = sig_data.transpose(0, 2, 1)
     return sig_data.reshape(-1)
-
-
-def _rd_compressed_file(
-    file_name,
-    dir_name,
-    pn_dir,
-    fmt,
-    sample_offset,
-    n_sig,
-    samps_per_frame,
-    start_frame,
-    end_frame,
-):
-    """
-    Read data from a compressed file into a 1D numpy array.
-
-    Parameters
-    ----------
-    file_name : str
-        The name of the signal file.
-    dir_name : str
-        The full directory where the signal file is located, if local.
-        This argument is ignored if `pn_dir` is not None.
-    pn_dir : str or None
-        The PhysioNet database directory where the signal file is located.
-    fmt : str
-        The format code of the signal file.
-    sample_offset : int
-        The sample number in the signal file corresponding to sample 0 of
-        the WFDB record.
-    n_sig : int
-        The number of signals in the file.
-    samps_per_frame : list
-        The number of samples per frame for each signal in the file.
-    start_frame : int
-        The starting frame number to read.
-    end_frame : int
-        The ending frame number to read.
-
-    Returns
-    -------
-    signal : ndarray
-        The data read from the signal file.  This is a one-dimensional
-        array in the same order the samples would be stored in a binary
-        signal file; `signal[(i*n_sig+j)*samps_per_frame[0]+k]` is sample
-        number `i*samps_per_frame[0]+k` of signal `j`.
-
-    Notes
-    -----
-    Converting the output array into "dat file order" here is inefficient,
-    but necessary to match the behavior of _rd_dat_file.  It would be
-    better to reorganize _rd_dat_signals to make the reshaping unnecessary.
-
-    """
-    import soundfile
-
-    if any(spf != samps_per_frame[0] for spf in samps_per_frame):
-        raise ValueError(
-            "All channels in a FLAC signal file must have the same "
-            "sampling rate and samples per frame"
-        )
-
-    if pn_dir is None:
-        file_name = os.path.join(dir_name, file_name)
-
-    with _coreio._open_file(pn_dir, file_name, "rb") as fp:
-        return _rd_compressed_stream(fp, fmt, sample_offset, n_sig, samps_per_frame, start_frame, end_frame)
 
 
 def _skew_sig(
