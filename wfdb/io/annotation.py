@@ -1949,9 +1949,9 @@ def rdann(
 
     # Read the file in byte pairs
     if ann_stream is not None:
-        filebytes = np.frombuffer(ann_stream.read(), "<u1").reshape([-1, 2]).astype(np.int32)
+        filebytes = np.frombuffer(ann_stream.read(), "<u1").reshape([-1, 2])
     else:
-        filebytes = load_byte_pairs(record_name, extension, pn_dir).astype(np.int32)
+        filebytes = load_byte_pairs(record_name, extension, pn_dir)
 
     # Get WFDB annotation fields from the file bytes
     (sample, label_store, subtype, chan, num, aux_note) = proc_ann_bytes(
