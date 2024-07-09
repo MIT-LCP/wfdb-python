@@ -310,7 +310,12 @@ def csv_to_wfdb(
     # Check if signal names are valid and set defaults
     if not sig_name:
         if header:
-            sig_name = df_CSV.columns.to_list()
+            try:
+                sig_name = df_CSV.columns.to_list()
+            except AttributeError:
+                # to_list() was introduced in Pandas v0.24.0
+                # https://pandas.pydata.org/pandas-docs/stable/whatsnew/v0.24.0.html#other-api-changes
+                sig_name = df_CSV.columns.tolist()
             if any(map(str.isdigit, sig_name)):
                 print(
                     "WARNING: One or more of your signal names are numbers, this "
