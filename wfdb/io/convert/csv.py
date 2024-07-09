@@ -33,6 +33,7 @@ def csv_to_wfdb(
     header=True,
     delimiter=",",
     verbose=False,
+    write_dir="",
 ):
     """
     Read a WFDB header file and return either a `Record` object with the
@@ -235,6 +236,10 @@ def csv_to_wfdb(
     verbose : bool, optional
         Whether to print all the information read about the file (True) or
         not (False).
+    write_dir : str, optional
+        The directory where the output files will be saved. If write_dir is not
+        provided, the output files will be saved in the same directory as the
+        input file.
 
     Returns
     -------
@@ -291,6 +296,7 @@ def csv_to_wfdb(
         df_CSV = pd.read_csv(file_name, delimiter=delimiter, header=None)
     if verbose:
         print("Successfully read CSV")
+
     # Extract the entire signal from the dataframe
     p_signal = df_CSV.values
     # The dataframe should be in (`sig_len`, `n_sig`) dimensions
@@ -300,6 +306,7 @@ def csv_to_wfdb(
     n_sig = p_signal.shape[1]
     if verbose:
         print("Number of signals: {}".format(n_sig))
+
     # Check if signal names are valid and set defaults
     if not sig_name:
         if header:
@@ -318,15 +325,12 @@ def csv_to_wfdb(
             if verbose:
                 print("Signal names: {}".format(sig_name))
 
-    # Set the output header file name to be the same, remove path
-    if os.sep in file_name:
-        file_name = file_name.split(os.sep)[-1]
-    record_name = file_name.replace(".csv", "")
+    record_name = os.path.splitext(os.path.basename(file_name))[0]
     if verbose:
-        print("Output header: {}.hea".format(record_name))
+        print("Record name: {}.hea".format(record_name))
 
     # Replace the CSV file tag with DAT
-    dat_file_name = file_name.replace(".csv", ".dat")
+    dat_file_name = record_name + ".dat"
     dat_file_name = [dat_file_name] * n_sig
     if verbose:
         print("Output record: {}".format(dat_file_name[0]))
@@ -450,7 +454,6 @@ def csv_to_wfdb(
         if verbose:
             print("Record generated successfully")
         return record
-
     else:
         # Write the information to a record and header file
         wrsamp(
@@ -465,6 +468,7 @@ def csv_to_wfdb(
             comments=comments,
             base_time=base_time,
             base_date=base_date,
+            write_dir=write_dir,
         )
         if verbose:
             print("File generated successfully")
