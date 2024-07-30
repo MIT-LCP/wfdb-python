@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header
+from wfdb.io import _coreio
 from wfdb.io import _signal
 from wfdb.io import _url
 from wfdb.io import download
@@ -1824,7 +1825,6 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
 
     # Construct the download path using the database version
     if (pn_dir is not None) and ("." not in pn_dir):
@@ -1834,17 +1834,14 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         )
 
     # Read the local or remote header file.
-    file_name = f"{base_record_name}.hea"
-    if pn_dir is None:
-        with open(
-            os.path.join(dir_name, file_name),
-            "r",
-            encoding="ascii",
-            errors="ignore",
-        ) as f:
-            header_content = f.read()
-    else:
-        header_content = download._stream_header(file_name, pn_dir)
+    with _coreio._open_file(
+        f"{base_record_name}.hea",
+        "r",
+        pn_dir=pn_dir,
+        dir_name=dir_name,
+        encoding="iso-8859-1",
+    ) as io:
+        header_content = io.read()
 
     # Separate comment and non-comment lines
     header_lines, comment_lines = header.parse_header_content(header_content)
@@ -1898,7 +1895,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
                     record.segments.append(None)
                 else:
                     record.segments.append(
-                        rdheader(os.path.join(dir_name, s), pn_dir)
+                        rdheader(os.path.join(dir_name, s), pn_dir=pn_dir)
                     )
             # Fill in the sig_name attribute
             record.sig_name = record.get_sig_name()
@@ -2111,7 +2108,7 @@ def rdrecord(
         sig_data = None
 
         record.e_d_signal = _signal._rd_segment(
-            file_name=record.file_name,
+            record.file_name,
             dir_name=dir_name,
             pn_dir=pn_dir,
             fmt=record.fmt,

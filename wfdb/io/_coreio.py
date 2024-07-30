@@ -1,14 +1,16 @@
 import posixpath
+import os
 
 from wfdb.io import _url
 from wfdb.io.download import config
 
 
 def _open_file(
-    pn_dir,
     file_name,
     mode="r",
     *,
+    dir_name="",
+    pn_dir=None,
     buffering=-1,
     encoding=None,
     errors=None,
@@ -24,15 +26,18 @@ def _open_file(
 
     Parameters
     ----------
-    pn_dir : str or None
-        The PhysioNet database directory where the file is stored, or None
-        if file_name is a local path.
     file_name : str
         The name of the file, either as a local filesystem path (if
         `pn_dir` is None) or a URL path (if `pn_dir` is a string.)
     mode : str, optional
         The standard I/O mode for the file ("r" by default).  If `pn_dir`
         is not None, this must be "r", "rt", or "rb".
+    dir_name : str or None
+        If passed, and pn_dir is None, the directory will be prepended
+        to the file_name.
+    pn_dir : str or None
+        The PhysioNet database directory where the file is stored, or None
+        if file_name is a local path.
     buffering : int, optional
         Buffering policy.
     encoding : str, optional
@@ -48,7 +53,7 @@ def _open_file(
     """
     if pn_dir is None:
         return open(
-            file_name,
+            os.path.join(dir_name, file_name),
             mode,
             buffering=buffering,
             encoding=encoding,
