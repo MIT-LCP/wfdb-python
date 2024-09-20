@@ -51,6 +51,10 @@ poetry install -E dev --no-root
 
 Please see the [DEVELOPING.md](https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md) document for contribution/development instructions.
 
+### Creating a new release
+
+For guidance on creating a new release, see: https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md#creating-distributions
+
 ## Citing
 
 When using this resource, please cite the software [publication](https://physionet.org/content/wfdb-python/) on PhysioNet.
