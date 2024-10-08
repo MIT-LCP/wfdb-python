@@ -343,7 +343,7 @@ def get_annotators(db_dir, annotators):
             annotators = ann_list
         else:
             # In case they didn't input a list
-            if type(annotators) == str:
+            if type(annotators) is str:
                 annotators = [annotators]
             # user input ones. Check validity.
             for a in annotators:
