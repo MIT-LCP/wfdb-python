@@ -143,7 +143,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
         content = f.read(byte_count)
 
     # Convert to numpy array
-    sig_data = np.fromstring(content, dtype=dtype)
+    sig_data = np.frombuffer(content, dtype=dtype)
 
     return sig_data
 
@@ -173,7 +173,7 @@ def _stream_annotation(file_name, pn_dir):
         content = f.read()
 
     # Convert to numpy array
-    ann_data = np.fromstring(content, dtype=np.dtype("<u1"))
+    ann_data = np.frombuffer(content, dtype=np.dtype("<u1"))
 
     return ann_data
 
