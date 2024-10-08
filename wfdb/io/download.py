@@ -143,7 +143,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
         content = f.read(byte_count)
 
     # Convert to numpy array
-    sig_data = np.fromstring(content, dtype=dtype)
+    sig_data = np.frombuffer(content, dtype=dtype)
 
     return sig_data
 
@@ -173,7 +173,7 @@ def _stream_annotation(file_name, pn_dir):
         content = f.read()
 
     # Convert to numpy array
-    ann_data = np.fromstring(content, dtype=np.dtype("<u1"))
+    ann_data = np.frombuffer(content, dtype=np.dtype("<u1"))
 
     return ann_data
 
@@ -343,7 +343,7 @@ def get_annotators(db_dir, annotators):
             annotators = ann_list
         else:
             # In case they didn't input a list
-            if type(annotators) == str:
+            if type(annotators) is str:
                 annotators = [annotators]
             # user input ones. Check validity.
             for a in annotators:
@@ -541,8 +541,6 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
     print("Downloading files...")
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.dummy.Pool(processes=2)
-    pool.map(dl_pn_file, dl_inputs)
+    with multiprocessing.dummy.Pool(processes=2) as pool:
+        pool.map(dl_pn_file, dl_inputs)
     print("Finished downloading files")
-
-    return

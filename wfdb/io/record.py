@@ -3117,8 +3117,6 @@ def dl_database(
     print("Downloading files...")
     # Create multiple processes to download files.
     # Limit to 2 connections to avoid overloading the server
-    pool = multiprocessing.dummy.Pool(processes=2)
-    pool.map(download.dl_pn_file, dl_inputs)
+    with multiprocessing.dummy.Pool(processes=2) as pool:
+        pool.map(download.dl_pn_file, dl_inputs)
     print("Finished downloading files")
-
-    return
