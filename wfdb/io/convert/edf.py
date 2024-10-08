@@ -438,6 +438,8 @@ def read_edf(
         int(np.sum(v) % 65536) for v in np.transpose(sig_data)
     ]  # not all values correct?
 
+    edf_file.close()
+
     record = Record(
         record_name=record_name_out,
         n_sig=n_sig,
