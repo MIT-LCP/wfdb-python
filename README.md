@@ -21,31 +21,25 @@ See the [demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/main/demo.ipynb
 
 ## Installation
 
-The distribution is hosted on PyPI at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from PyPI using either pip or poetry:
+The distribution is hosted on PyPI at: <https://pypi.python.org/pypi/wfdb/>. The package can be directly installed from PyPI using pip:
 
 ```sh
 pip install wfdb
-poetry add wfdb
 ```
 
-On Linux systems, accessing _compressed_ WFDB signal files requires installing `libsndfile`, by running `sudo apt-get install libsndfile1` or `sudo yum install libsndfile`. Support for Apple M1 systems is a work in progess (see <https://github.com/bastibe/python-soundfile/issues/310> and <https://github.com/bastibe/python-soundfile/issues/325>).
+On some less-common systems, you may need to install `libsndfile` separately.  See the [soundfile installation notes](https://pypi.org/project/soundfile/) for more information.
 
 The development version is hosted at: <https://github.com/MIT-LCP/wfdb-python>. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
 
 ```sh
-# Without dev dependencies
 pip install .
-poetry install
-
-# With dev dependencies
-pip install ".[dev]"
-poetry install -E dev
-
-# Install the dependencies only
-poetry install -E dev --no-root
 ```
 
-**See the [note](https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md#package-and-dependency-management) about dev dependencies.**
+If you intend to make changes to the repository, you can install additional packages that are useful for development by running:
+
+```sh
+pip install ".[dev]"
+```
 
 ## Developing
 
