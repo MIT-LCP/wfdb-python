@@ -2312,6 +2312,8 @@ def wr_dat_file(
         # Non-expanded format always has 1 sample per frame
         n_sig = d_signal.shape[1]
         samps_per_frame = [1] * n_sig
+    
+    d_signal = d_signal.astype("int64")
 
     # Total number of samples per frame (equal to number of signals if
     # expanded=False, but may be greater for expanded=True)
