@@ -2371,7 +2371,8 @@ def wr_dat_file(
 
     elif fmt == "16":
         # convert to 16 bit two's complement
-        d_signal[d_signal < 0] = d_signal[d_signal < 0] + 65536
+        d_signal = d_signal.astype(np.uint16)
+
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255] * tsamps_per_frame
         b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
@@ -2400,7 +2401,8 @@ def wr_dat_file(
 
     elif fmt == "32":
         # convert to 32 bit two's complement
-        d_signal[d_signal < 0] = d_signal[d_signal < 0] + 4294967296
+        d_signal = d_signal.astype(np.uint32)
+
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255] * tsamps_per_frame
         b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
