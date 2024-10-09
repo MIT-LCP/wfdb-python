@@ -2319,11 +2319,10 @@ def wr_dat_file(
 
     if fmt == "80":
         # convert to 8 bit offset binary form
-        d_signal = d_signal + 128
-        # Concatenate into 1D
-        d_signal = d_signal.reshape(-1)
-        # Convert to un_signed 8 bit dtype to write
-        b_write = d_signal.astype("uint8")
+        d_signal += 128
+
+        # Convert to unsigned 8 bit dtype to write (and flatten if necessary)
+        b_write = d_signal.astype("uint8").reshape(-1)
 
     elif fmt == "212":
         # Each sample is represented by a 12 bit two's complement
@@ -2336,7 +2335,7 @@ def wr_dat_file(
         # repeated for each successive pair of samples.
 
         # convert to 12 bit two's complement
-        d_signal[d_signal < 0] = d_signal[d_signal < 0] + 4096
+        d_signal[d_signal < 0] += 4096
 
         # Concatenate into 1D
         d_signal = d_signal.reshape(-1)
@@ -2384,8 +2383,8 @@ def wr_dat_file(
         # Convert to un_signed 8 bit dtype to write
         b_write = b_write.astype("uint8")
     elif fmt == "24":
-        # convert to 24 bit two's complement
-        d_signal[d_signal < 0] = d_signal[d_signal < 0] + 16777216
+        # convert to 32 bit two's complement (as int24 not an option)
+        d_signal = d_signal.astype(np.uint32)
         # Split samples into separate bytes using binary masks
         b1 = d_signal & [255] * tsamps_per_frame
         b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
