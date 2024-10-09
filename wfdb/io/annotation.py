@@ -2219,7 +2219,7 @@ def proc_core_fields(filebytes, bpi):
 
     # The current byte pair will contain either the actual d_sample + annotation store value,
     # or 0 + SKIP.
-    while filebytes[bpi, 1] >> 2 == 59:
+    while int(filebytes[bpi, 1]) >> 2 == 59:
         # 4 bytes storing dt
         skip_diff = (
             (int(filebytes[bpi + 1, 0]) << 16)
@@ -2237,7 +2237,9 @@ def proc_core_fields(filebytes, bpi):
 
     # Not a skip - it is the actual sample number + annotation type store value
     label_store = filebytes[bpi, 1] >> 2
-    sample_diff += int(filebytes[bpi, 0] + 256 * (filebytes[bpi, 1] & 3))
+    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * np.int64(
+        filebytes[bpi, 1] & 3
+    )
     bpi = bpi + 1
 
     return sample_diff, label_store, bpi
