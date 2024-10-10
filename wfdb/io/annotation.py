@@ -2237,8 +2237,8 @@ def proc_core_fields(filebytes, bpi):
 
     # Not a skip - it is the actual sample number + annotation type store value
     label_store = int(filebytes[bpi, 1]) >> 2
-    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * np.int64(
-        filebytes[bpi, 1] & 3
+    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * (np.int64(
+        filebytes[bpi, 1]) & 3
     )
     bpi = bpi + 1
 
