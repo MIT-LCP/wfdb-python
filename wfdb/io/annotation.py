@@ -2325,7 +2325,7 @@ def proc_extra_field(
             bpi + 1 : bpi + 1 + int(np.ceil(aux_notelen / 2.0)), :
         ].flatten()
         if aux_notelen & 1:
-            aux_notebytes = aux_notebytes[:-1]
+            aux_notebytes = aux_notebytes[:-1].astype(np.int64)
         # The aux_note string
         aux_note.append("".join([chr(char) for char in aux_notebytes]))
         update["aux_note"] = False
