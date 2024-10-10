@@ -2162,7 +2162,7 @@ def proc_ann_bytes(filebytes, sampto):
         update = {"subtype": True, "chan": True, "num": True, "aux_note": True}
         # Get the next label store value - it may indicate additional
         # fields for this annotation, or the values of the next annotation.
-        current_label_store = filebytes[bpi, 1] >> 2
+        current_label_store = int(filebytes[bpi, 1]) >> 2
 
         while current_label_store > 59:
             subtype, chan, num, aux_note, update, bpi = proc_extra_field(
@@ -2176,7 +2176,7 @@ def proc_ann_bytes(filebytes, sampto):
                 update,
             )
 
-            current_label_store = filebytes[bpi, 1] >> 2
+            current_label_store = int(filebytes[bpi, 1]) >> 2
 
         # Set defaults or carry over previous values if necessary
         subtype, chan, num, aux_note = update_extra_fields(
@@ -2236,7 +2236,7 @@ def proc_core_fields(filebytes, bpi):
         bpi = bpi + 3
 
     # Not a skip - it is the actual sample number + annotation type store value
-    label_store = filebytes[bpi, 1] >> 2
+    label_store = int(filebytes[bpi, 1]) >> 2
     sample_diff += np.int64(filebytes[bpi, 0]) + 256 * np.int64(
         filebytes[bpi, 1] & 3
     )
