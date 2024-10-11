@@ -2237,8 +2237,8 @@ def proc_core_fields(filebytes, bpi):
 
     # Not a skip - it is the actual sample number + annotation type store value
     label_store = int(filebytes[bpi, 1]) >> 2
-    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * np.int64(
-        filebytes[bpi, 1] & 3
+    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * (
+        np.int64(filebytes[bpi, 1]) & 3
     )
     bpi = bpi + 1
 
@@ -2324,7 +2324,7 @@ def proc_extra_field(
         aux_notebytes = filebytes[
             bpi + 1 : bpi + 1 + int(np.ceil(aux_notelen / 2.0)), :
         ].flatten()
-        if aux_notelen & 1:
+        if int(aux_notelen) & 1:
             aux_notebytes = aux_notebytes[:-1]
         # The aux_note string
         aux_note.append("".join([chr(char) for char in aux_notebytes]))
