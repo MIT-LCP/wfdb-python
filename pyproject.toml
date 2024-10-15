@@ -4,7 +4,6 @@ build-backend = "hatchling.build"
 
 [project]
 name = "wfdb"
-version = "4.1.2"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = [{name = "The Laboratory for Computational Physiology", email = "contact@physionet.org"}]
 license = {text = "MIT License"}
@@ -18,6 +17,7 @@ dependencies = [
     "matplotlib >= 3.2.2",
     "requests >= 2.8.1",
 ]
+dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
@@ -44,3 +44,6 @@ exclude = [
     "/demo-img.png",
     "/demo.ipynb",
 ]
+
+[tool.hatch.version]
+path = "wfdb/version.py"

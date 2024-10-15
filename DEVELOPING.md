@@ -26,7 +26,7 @@ uv add <somepackage> --optional <somegroup>
 
 ## Creating Distributions
 
-Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are updated and kept in sync.
+Make sure to update the version in [version.py](./wfdb/version.py) accordingly.
 
 It may be useful to publish to testpypi and preview the changes before publishing to PyPi. However, the project dependencies likely will not be available when trying to install from there.
 
