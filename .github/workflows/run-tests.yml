@@ -19,25 +19,19 @@ jobs:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip poetry
-          pip install ".[dev]"
+      - uses: actions/checkout@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: pytest
-      - name: Validate poetry file
-        run: poetry check
+        run: uv run --extra dev pytest
       - name: Check source code format
-        run: black --check --diff .
+        run: uv run --extra dev black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest

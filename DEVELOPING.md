@@ -16,20 +16,17 @@ black .
 
 ## Package and Dependency Management
 
-This project uses [poetry](https://python-poetry.org/docs/) for package management and distribution.
+This project uses [uv](https://docs.astral.sh/uv/) for package management and distribution.
 
-Development dependencies are specified as optional dependencies, and then added to the "dev" extra group in the [pyproject.toml](./pyproject.toml) file.
+Development dependencies are specified as optional dependencies, at least for now and until [development dependencies](https://docs.astral.sh/uv/concepts/dependencies/#development-dependencies) become more widely used.
 
 ```sh
-# Do NOT use: poetry add <somepackage> --dev
-poetry add --optional <somepackage>
+uv add <somepackage> --optional <somegroup>
 ```
-
-The `[tool.poetry.dev-dependencies]` attribute is NOT used because of a [limitation](https://github.com/python-poetry/poetry/issues/3514) that prevents these dependencies from being pip installable. Therefore, dev dependencies are not installed when purely running `poetry install`, and the `--no-dev` flag has no meaning in this project.
 
 ## Creating Distributions
 
-Make sure the versions in [version.py](./wfdb/version.py) and [pyproject.toml](./pyproject.toml) are updated and kept in sync.
+Make sure to update the version in [version.py](./wfdb/version.py) accordingly.
 
 It may be useful to publish to testpypi and preview the changes before publishing to PyPi. However, the project dependencies likely will not be available when trying to install from there.
 
@@ -47,10 +44,10 @@ poetry config pypi-token.test-pypi <my-testpypi-token>
 To build and upload a new distribution:
 
 ```sh
-poetry build
+uv build
 
-poetry publish -r test-pypi
-poetry publish
+uv publish --publish-url https://test.pypi.org/legacy/
+uv publish
 ```
 
 ## Creating Documentation
