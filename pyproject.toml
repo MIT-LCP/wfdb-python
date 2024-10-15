@@ -41,4 +41,6 @@ target-version = ['py37']
 exclude = [
     "/tests",
     "/sample-data",
+    "/demo-img.png",
+    "/demo.ipynb",
 ]
