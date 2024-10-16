@@ -20,6 +20,11 @@ class TestRecord(unittest.TestCase):
 
     """
 
+
+    wrsamp_params = ['record_name', 'fs', 'units', 'sig_name', 'p_signal', 'd_signal', 'e_p_signal', 'e_d_signal',
+                    'samps_per_frame', 'fmt', 'adc_gain', 'baseline', 'comments', 'base_time', 'base_date',
+                    'base_datetime']
+
     # ----------------------- 1. Basic Tests -----------------------#
 
     def test_1a(self):
@@ -285,6 +290,112 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
         )
         assert record == record_write
+
+    def test_unique_samps_per_frame_e_p_signal(self):
+        """
+        Test writing an e_p_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
+        parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
+        """
+        # Read in a record with different samples per frame
+        record = wfdb.rdrecord(
+            "sample-data/mixedsignals",
+            smooth_frames=False,
+        )
+
+        # Write the signals
+        wfdb.io.wrsamp('mixedsignals', fs=record.fs, units=record.units, sig_name=record.sig_name,
+                       base_date=record.base_date, base_time=record.base_time, comments=record.comments,
+                       p_signal=record.p_signal, d_signal=record.d_signal, e_p_signal=record.e_p_signal,
+                       e_d_signal=record.e_d_signal, samps_per_frame=record.samps_per_frame, baseline=record.baseline,
+                       adc_gain=record.adc_gain, fmt=record.fmt, write_dir=self.temp_path)
+
+        # Check that the written record matches the original
+        # Read in the original and written records
+        record = wfdb.rdrecord("sample-data/mixedsignals", smooth_frames=False)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "mixedsignals"),
+            smooth_frames=False,
+        )
+
+        # Check that the signals match
+        for n, name in enumerate(record.sig_name):
+            np.testing.assert_array_equal(
+                record.e_p_signal[n], record_write.e_p_signal[n], f"Mismatch in {name}"
+            )
+
+        # Filter out the signal
+        record_filtered = {
+            k: getattr(record, k)
+            for k in self.wrsamp_params
+            if not (isinstance(getattr(record, k), np.ndarray) or
+                    (isinstance(getattr(record, k), list) and all(
+                        isinstance(item, np.ndarray) for item in getattr(record, k))))
+        }
+
+        record_write_filtered = {
+            k: getattr(record_write, k)
+            for k in self.wrsamp_params
+            if not (isinstance(getattr(record_write, k), np.ndarray) or
+                    (isinstance(getattr(record_write, k), list) and all(
+                        isinstance(item, np.ndarray) for item in getattr(record_write, k))))
+        }
+
+        # Check that the arguments beyond the signals also match
+        assert record_filtered == record_write_filtered
+
+    def test_unique_samps_per_frame_e_d_signal(self):
+        """
+        Test writing an e_d_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
+        parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
+        """
+        # Read in a record with different samples per frame
+        record = wfdb.rdrecord(
+            "sample-data/mixedsignals",
+            physical=False,
+            smooth_frames=False,
+        )
+
+        # Write the signals
+        wfdb.io.wrsamp('mixedsignals', fs=record.fs, units=record.units, sig_name=record.sig_name,
+                       base_date=record.base_date, base_time=record.base_time, comments=record.comments,
+                       p_signal=record.p_signal, d_signal=record.d_signal, e_p_signal=record.e_p_signal,
+                       e_d_signal=record.e_d_signal, samps_per_frame=record.samps_per_frame, baseline=record.baseline,
+                       adc_gain=record.adc_gain, fmt=record.fmt, write_dir=self.temp_path)
+
+        # Check that the written record matches the original
+        # Read in the original and written records
+        record = wfdb.rdrecord("sample-data/mixedsignals", physical=False, smooth_frames=False)
+        record_write = wfdb.rdrecord(
+            os.path.join(self.temp_path, "mixedsignals"),
+            physical=False,
+            smooth_frames=False,
+        )
+
+        # Check that the signals match
+        for n, name in enumerate(record.sig_name):
+            np.testing.assert_array_equal(
+                record.e_d_signal[n], record_write.e_d_signal[n], f"Mismatch in {name}"
+            )
+
+        # Filter out the signal
+        record_filtered = {
+            k: getattr(record, k)
+            for k in self.wrsamp_params
+            if not (isinstance(getattr(record, k), np.ndarray) or
+                    (isinstance(getattr(record, k), list) and all(
+                        isinstance(item, np.ndarray) for item in getattr(record, k))))
+        }
+
+        record_write_filtered = {
+            k: getattr(record_write, k)
+            for k in self.wrsamp_params
+            if not (isinstance(getattr(record_write, k), np.ndarray) or
+                    (isinstance(getattr(record_write, k), list) and all(
+                        isinstance(item, np.ndarray) for item in getattr(record_write, k))))
+        }
+
+        # Check that the arguments beyond the signals also match
+        assert record_filtered == record_write_filtered
 
     def test_read_write_flac_many_channels(self):
         """
