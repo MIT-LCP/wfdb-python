@@ -2934,15 +2934,15 @@ def wrsamp(
             )
 
     # If samps_per_frame is a list, check that it aligns as expected with the channels in the signal
-    if len(samps_per_frame) > 1:
+    if isinstance(samps_per_frame, list):
         # Get properties of the signal being passed
-        non_none_signal = next(signal for signal in signal_list if signal is not None)
-        if isinstance(non_none_signal, np.ndarray):
-            num_sig_channels = non_none_signal.shape[1]
-            channel_samples = [non_none_signal.shape[0]] * non_none_signal.shape[1]
-        elif isinstance(non_none_signal, list):
-            num_sig_channels = len(non_none_signal)
-            channel_samples = [len(channel) for channel in non_none_signal]
+        first_valid_signal = next(signal for signal in signal_list if signal is not None)
+        if isinstance(first_valid_signal, np.ndarray):
+            num_sig_channels = first_valid_signal.shape[1]
+            channel_samples = [first_valid_signal.shape[0]] * first_valid_signal.shape[1]
+        elif isinstance(first_valid_signal, list):
+            num_sig_channels = len(first_valid_signal)
+            channel_samples = [len(channel) for channel in first_valid_signal]
         else:
             raise TypeError("Unsupported signal format. Must be ndarray or list of lists.")
 
