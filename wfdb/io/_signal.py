@@ -433,7 +433,7 @@ class SignalMixin(object):
                 self.check_field("baseline", "all")
 
                 # All required fields are present and valid. Perform ADC
-                self.d_signal = self.adc(expanded)
+                self.e_d_signal = self.adc(expanded)
 
             # Use e_d_signal to set fields
             self.check_field("e_d_signal", "all")
