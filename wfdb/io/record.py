@@ -2937,15 +2937,21 @@ def wrsamp(
     # If samps_per_frame is a list, check that it aligns as expected with the channels in the signal
     if isinstance(samps_per_frame, list):
         # Get properties of the signal being passed
-        first_valid_signal = next(signal for signal in signal_list if signal is not None)
+        first_valid_signal = next(
+            signal for signal in signal_list if signal is not None
+        )
         if isinstance(first_valid_signal, np.ndarray):
             num_sig_channels = first_valid_signal.shape[1]
-            channel_samples = [first_valid_signal.shape[0]] * first_valid_signal.shape[1]
+            channel_samples = [
+                first_valid_signal.shape[0]
+            ] * first_valid_signal.shape[1]
         elif isinstance(first_valid_signal, list):
             num_sig_channels = len(first_valid_signal)
             channel_samples = [len(channel) for channel in first_valid_signal]
         else:
-            raise TypeError("Unsupported signal format. Must be ndarray or list of lists.")
+            raise TypeError(
+                "Unsupported signal format. Must be ndarray or list of lists."
+            )
 
         # Check that the number of channels matches the number of samps_per_frame entries
         if num_sig_channels != len(samps_per_frame):
