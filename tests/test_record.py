@@ -227,6 +227,27 @@ class TestRecord(unittest.TestCase):
                             "Mismatch in %s" % name,
                         )
 
+        # Test writing all supported formats.  (Currently not all signal
+        # formats are supported for output; keep this list in sync with
+        # 'wr_dat_file' in wfdb/io/_signal.py.)
+        OUTPUT_FMTS = ["80", "212", "16", "24", "32"]
+        channels = []
+        for i, fmt in enumerate(record.fmt):
+            if fmt in OUTPUT_FMTS:
+                channels.append(i)
+
+        partial_record = wfdb.rdrecord(
+            "sample-data/binformats",
+            physical=False,
+            channels=channels,
+        )
+        partial_record.wrsamp(write_dir=self.temp_path)
+        converted_record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "binformats"),
+            physical=False,
+        )
+        assert partial_record == converted_record
+
     def test_read_write_flac(self):
         """
         All FLAC formats, multiple signal files in one record.
