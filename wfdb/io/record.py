@@ -2933,15 +2933,19 @@ def wrsamp(
             raise Exception(
                 "When using d_signal or e_d_signal, must also specify 'fmt', 'gain', and 'baseline' fields"
             )
-    if (e_p_signal is not None or e_d_signal is not None) and samps_per_frame is None:
-            raise Exception(
-                "When passing e_p_signal or e_d_signal, you also need to specify samples per frame for each channel"
-            )
+    if (
+        e_p_signal is not None or e_d_signal is not None
+    ) and samps_per_frame is None:
+        raise Exception(
+            "When passing e_p_signal or e_d_signal, you also need to specify samples per frame for each channel"
+        )
 
     # If samps_per_frame is provided, check that it aligns as expected with the channels in the signal
     if samps_per_frame:
         # Get the number of elements being passed in samps_per_frame
-        samps_per_frame_length = len(samps_per_frame) if isinstance(samps_per_frame, list) else 1
+        samps_per_frame_length = (
+            len(samps_per_frame) if isinstance(samps_per_frame, list) else 1
+        )
         # Get properties of the signal being passed
         first_valid_signal = next(
             signal for signal in signal_list if signal is not None
