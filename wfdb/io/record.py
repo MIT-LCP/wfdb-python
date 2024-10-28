@@ -2933,9 +2933,15 @@ def wrsamp(
             raise Exception(
                 "When using d_signal or e_d_signal, must also specify 'fmt', 'gain', and 'baseline' fields"
             )
+    if (e_p_signal is not None or e_d_signal is not None) and samps_per_frame is None:
+            raise Exception(
+                "When passing e_p_signal or e_d_signal, you also need to specify samples per frame for each channel"
+            )
 
-    # If samps_per_frame is a list, check that it aligns as expected with the channels in the signal
-    if isinstance(samps_per_frame, list):
+    # If samps_per_frame is provided, check that it aligns as expected with the channels in the signal
+    if samps_per_frame:
+        # Get the number of elements being passed in samps_per_frame
+        samps_per_frame_length = len(samps_per_frame) if isinstance(samps_per_frame, list) else 1
         # Get properties of the signal being passed
         first_valid_signal = next(
             signal for signal in signal_list if signal is not None
@@ -2952,13 +2958,11 @@ def wrsamp(
             raise TypeError(
                 "Unsupported signal format. Must be ndarray or list of lists."
             )
-
         # Check that the number of channels matches the number of samps_per_frame entries
-        if num_sig_channels != len(samps_per_frame):
+        if num_sig_channels != samps_per_frame_length:
             raise Exception(
-                "When passing samps_per_frame as a list, it must have the same number of entries as the signal has channels"
+                "When passing samps_per_frame, it must have the same number of entries as the signal has channels"
             )
-
         # Check that the number of frames is the same across all channels
         frames = [a / b for a, b in zip(channel_samples, samps_per_frame)]
         if len(set(frames)) > 1:
