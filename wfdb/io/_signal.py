@@ -830,7 +830,9 @@ class SignalMixin(object):
             maxvals = np.nanmax(self.p_signal, axis=0)
 
             for ch in range(np.shape(self.p_signal)[1]):
-                adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
+                adc_gain, baseline = self.calc_adc_gain_baseline(
+                    ch, minvals, maxvals
+                )
                 adc_gains.append(adc_gain)
                 baselines.append(baseline)
 
@@ -841,16 +843,22 @@ class SignalMixin(object):
                 minvals.append(min(x for x in ch if not math.isnan(x)))
                 maxvals.append(max(x for x in ch if not math.isnan(x)))
 
-            if any(x == math.inf for x in minvals) or any(x == math.inf for x in maxvals):
+            if any(x == math.inf for x in minvals) or any(
+                x == math.inf for x in maxvals
+            ):
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             for ch, _ in enumerate(self.e_p_signal):
-                adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
+                adc_gain, baseline = self.calc_adc_gain_baseline(
+                    ch, minvals, maxvals
+                )
                 adc_gains.append(adc_gain)
                 baselines.append(baseline)
 
         else:
-            raise Exception('Must supply p_signal or e_p_signal to calc_adc_params')
+            raise Exception(
+                "Must supply p_signal or e_p_signal to calc_adc_params"
+            )
 
         return (adc_gains, baselines)
 
