@@ -120,8 +120,8 @@ SEGMENT_SPECS = pd.DataFrame(
     columns=_SPECIFICATION_COLUMNS,
     dtype="object",
     data=[
-        [(str), "", None, True, None, None],  # seg_name
-        [int_types, " ", "seg_name", True, None, None],  # seg_len
+        [(str, list), "", None, True, None, None],  # seg_name
+        [(int_types, list), " ", "seg_name", True, None, None],  # seg_len
     ],
 )
 
@@ -779,7 +779,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        util.lines_to_file(self.record_name + ".hea", header_lines, write_dir)
+       util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
 
     def get_sig_segments(self, sig_name=None):
         """
