@@ -840,8 +840,8 @@ class SignalMixin(object):
             minvals = []
             maxvals = []
             for ch in self.e_p_signal:
-                minvals.append(min(x for x in ch if not math.isnan(x)))
-                maxvals.append(max(x for x in ch if not math.isnan(x)))
+                minvals.append(np.nanmin(ch))
+                maxvals.append(np.nanmax(ch))
 
             if any(x == math.inf for x in minvals) or any(
                 x == math.inf for x in maxvals
