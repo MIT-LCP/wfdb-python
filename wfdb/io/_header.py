@@ -779,7 +779,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-       util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
+        util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
 
     def get_sig_segments(self, sig_name=None):
         """
