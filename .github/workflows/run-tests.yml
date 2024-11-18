@@ -27,15 +27,14 @@ jobs:
           uv python install ${{ matrix.python-version }}
           uv venv
           uv pip install -e ".[dev]"
-          source .venv/bin/activate
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: python -m pytest
+        run: uv run pytest
       - name: Check source code format
-        run: python -m black --check --diff .
+        run: uv run black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
