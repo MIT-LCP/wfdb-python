@@ -23,15 +23,19 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v3
       - name: Install Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+        run: |
+          uv python install ${{ matrix.python-version }}
+          uv venv
+          uv pip install -e ".[dev]"
+          source .venv/bin/activate
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: uv run --extra dev pytest
+        run: pytest
       - name: Check source code format
-        run: uv run --extra dev black --check --diff .
+        run: black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
