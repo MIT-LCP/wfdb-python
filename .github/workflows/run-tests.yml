@@ -10,7 +10,9 @@ on:
     branches:
       - main
 
-# Set the language, install dependencies, and run the tests
+env:
+  UV_SYSTEM_PYTHON: 1
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -25,16 +27,15 @@ jobs:
       - name: Install Python ${{ matrix.python-version }}
         run: |
           uv python install ${{ matrix.python-version }}
-          uv venv
           uv pip install -e ".[dev]"
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: uv run pytest
+        run: pytest
       - name: Check source code format
-        run: uv run black --check --diff .
+        run: black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
