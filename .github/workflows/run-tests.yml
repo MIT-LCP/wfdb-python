@@ -10,9 +10,6 @@ on:
     branches:
       - main
 
-env:
-  UV_SYSTEM_PYTHON: 1
-
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -25,17 +22,15 @@ jobs:
       - name: Setup uv
         uses: astral-sh/setup-uv@v3
       - name: Install Python ${{ matrix.python-version }}
-        run: |
-          uv python install ${{ matrix.python-version }}
-          uv pip install -e ".[dev]"
+        run: uv python install ${{ matrix.python-version }}
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: pytest
+        run: uv run pytest
       - name: Check source code format
-        run: black --check --diff .
+        run: uv run black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
