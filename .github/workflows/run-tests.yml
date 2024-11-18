@@ -33,9 +33,9 @@ jobs:
         run: |
           sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: pytest
+        run: python -m pytest
       - name: Check source code format
-        run: black --check --diff .
+        run: python -m black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
