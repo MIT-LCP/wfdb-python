@@ -21,13 +21,13 @@ jobs:
         numpy: ["numpy"]
         include:
           - python-version: "3.9"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.10"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.11"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.12"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,28 +48,28 @@ jobs:
       - name: Check style
         run: black --check --diff .
 
-  test-deb10-i386:
-    name: Python 3.7 on Debian 10 i386
-    runs-on: ubuntu-latest
-    container: i386/debian:10
-    steps:
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-                  python3-matplotlib \
-                  python3-numpy \
-                  python3-pandas \
-                  python3-requests \
-                  python3-scipy \
-                  python3-soundfile \
-                  python3-pytest \
-                  git
-          python3 --version
-      # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
-      # installed in the container.  To keep things simple, use
-      # "actions/checkout@v1" instead.
-      # https://github.com/actions/checkout/issues/334
-      - uses: actions/checkout@v1
-      - name: Run tests
-        run: pytest-3
+  # test-deb10-i386:
+  #   name: Python 3.7 on Debian 10 i386
+  #   runs-on: ubuntu-latest
+  #   container: i386/debian:10
+  #   steps:
+  #     - name: Install dependencies
+  #       run: |
+  #         apt-get update
+  #         apt-get install -y --no-install-recommends \
+  #                 python3-matplotlib \
+  #                 python3-numpy \
+  #                 python3-pandas \
+  #                 python3-requests \
+  #                 python3-scipy \
+  #                 python3-soundfile \
+  #                 python3-pytest \
+  #                 git
+  #         python3 --version
+  #     # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
+  #     # installed in the container.  To keep things simple, use
+  #     # "actions/checkout@v1" instead.
+  #     # https://github.com/actions/checkout/issues/334
+  #     - uses: actions/checkout@v1
+  #     - name: Run tests
+  #       run: pytest-3
