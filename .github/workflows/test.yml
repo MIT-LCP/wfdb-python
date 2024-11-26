@@ -12,6 +12,8 @@ env:
   UV_SYSTEM_PYTHON: 1
   NPY_PROMOTION_STATE: weak_and_warn
 
+jobs.test.strategy.fail-fast: false
+
 jobs:
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
