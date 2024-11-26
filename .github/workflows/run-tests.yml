@@ -10,6 +10,9 @@ on:
     branches:
       - main
 
+env:
+  UV_SYSTEM_PYTHON: 1
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -29,11 +32,9 @@ jobs:
           sudo apt-get install -y libsndfile1
       - name: Install dependencies
         run: |
-          uv venv
           uv pip install ".[dev]"
       - name: Run tests
         run: |
-          source .venv/bin/activate
           pytest
       - name: Check source code format
         run: black --check --diff .
