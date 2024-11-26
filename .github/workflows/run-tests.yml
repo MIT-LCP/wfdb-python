@@ -1,6 +1,3 @@
-# Link repository with GitHub Actions
-# https://docs.github.com/en/actions/learn-github-actions/introduction-to-github-actions
-
 name: run-tests
 on:
   push:
