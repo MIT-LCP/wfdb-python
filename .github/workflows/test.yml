@@ -1,4 +1,5 @@
-name: run-tests
+name: Test
+
 on:
   push:
     branches:
@@ -12,11 +13,11 @@ env:
 
 jobs:
   test:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
@@ -57,16 +58,3 @@ jobs:
       - uses: actions/checkout@v1
       - name: Run tests
         run: pytest-3
-
-  build-documentation:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r docs/requirements.txt
-      - name: Build documentation
-        run: |
-          cd docs
-          make html
