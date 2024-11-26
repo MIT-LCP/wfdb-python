@@ -11,18 +11,16 @@ env:
   UV_SYSTEM_PYTHON: 1
 
 jobs:
-  build:
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-      - name: Install Python
-        uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install libsndfile
@@ -30,12 +28,10 @@ jobs:
         run: |
           sudo apt-get install -y libsndfile1
       - name: Install dependencies
-        run: |
-          uv pip install ".[dev]"
+        run: uv pip install ".[dev]"
       - name: Run tests
-        run: |
-          pytest
-      - name: Check source code format
+        run: pytest
+      - name: Check style
         run: black --check --diff .
 
   test-deb10-i386:
@@ -54,16 +50,13 @@ jobs:
                   python3-soundfile \
                   python3-pytest \
                   git
-
       # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
       # installed in the container.  To keep things simple, use
       # "actions/checkout@v1" instead.
       # https://github.com/actions/checkout/issues/334
       - uses: actions/checkout@v1
-
       - name: Run tests
-        run: |
-          pytest-3
+        run: pytest-3
 
   build-documentation:
     runs-on: ubuntu-20.04
