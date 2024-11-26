@@ -18,11 +18,9 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        numpy:
-          - "numpy"
-          - "numpy==1.26.4"
-        exclude:
-          - python-version: "3.13"
+        numpy: ["numpy"]
+        include:
+          - python-version: "3.9"
             numpy: "numpy==1.26.4"
     runs-on: ${{ matrix.os }}
     steps:
