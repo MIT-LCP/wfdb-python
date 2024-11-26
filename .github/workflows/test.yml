@@ -21,13 +21,13 @@ jobs:
         numpy: ["numpy"]
         include:
           - python-version: "3.9"
-            numpy: "numpy==1.26.4"
+            numpy: numpy==1.26.4
           - python-version: "3.10"
-            numpy: "numpy==1.26.4"
+            numpy: numpy==1.26.4
           - python-version: "3.11"
-            numpy: "numpy==1.26.4"
+            numpy: numpy==1.26.4
           - python-version: "3.12"
-            numpy: "numpy==1.26.4"
+            numpy: numpy==1.26.4
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
