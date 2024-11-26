@@ -13,6 +13,7 @@ env:
 
 jobs:
   test:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }} with {{ matrix.numpy }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
@@ -36,6 +37,7 @@ jobs:
         run: black --check --diff .
 
   test-deb10-i386:
+    name: Python 3.9 on Debian 10 i386
     runs-on: ubuntu-latest
     container: i386/debian:10
     steps:
@@ -51,6 +53,7 @@ jobs:
                   python3-soundfile \
                   python3-pytest \
                   git
+          python3 --version
       # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
       # installed in the container.  To keep things simple, use
       # "actions/checkout@v1" instead.

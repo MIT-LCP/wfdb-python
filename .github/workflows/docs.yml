@@ -1,4 +1,4 @@
-name: Build docs
+name: Build
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  build-documentation:
+  docs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
