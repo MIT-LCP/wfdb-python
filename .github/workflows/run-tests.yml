@@ -28,11 +28,14 @@ jobs:
         run: |
           sudo apt-get install -y libsndfile1
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: |
+          uv venv
+          source .venv/bin/activate
+          uv pip install ".[dev]"
       - name: Run tests
-        run: uv run pytest
+        run: pytest
       - name: Check source code format
-        run: uv run black --check --diff .
+        run: black --check --diff .
 
   test-deb10-i386:
     runs-on: ubuntu-latest
