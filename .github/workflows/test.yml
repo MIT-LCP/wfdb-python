@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} with {{ matrix.numpy }}
+    name: Python ${{ matrix.python-version }} with ${{ matrix.numpy }}
     strategy:
       matrix:
         #os: [windows-latest, ubuntu-latest, macos-latest]
@@ -21,13 +21,13 @@ jobs:
         numpy: ["numpy"]
         include:
           - python-version: "3.9"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.10"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.11"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
           - python-version: "3.12"
-            numpy: numpy==1.26.4
+            numpy: "numpy==1.26.4"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
