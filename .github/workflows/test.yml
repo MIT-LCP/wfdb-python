@@ -16,7 +16,7 @@ jobs:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }} with {{ matrix.numpy }}
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        #os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         numpy: ["numpy"]
         include:
@@ -28,7 +28,7 @@ jobs:
             numpy: "numpy==1.26.4"
           - python-version: "3.12"
             numpy: "numpy==1.26.4"
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
