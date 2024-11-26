@@ -12,12 +12,11 @@ env:
   UV_SYSTEM_PYTHON: 1
   NPY_PROMOTION_STATE: weak_and_warn
 
-jobs.test.strategy.fail-fast: false
-
 jobs:
   test:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
