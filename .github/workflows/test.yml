@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}${{ matrix.numpy != 'numpy' && ' with ' + matrix.numpy || '' }}
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }} with ${{ matrix.numpy }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
