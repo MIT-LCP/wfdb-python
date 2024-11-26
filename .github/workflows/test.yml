@@ -13,14 +13,14 @@ env:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }} with ${{ matrix.numpy }}
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        numpy: ["numpy"]
         include:
-          - python-version: "3.9"
+          - os: ubuntu-latest
+            python-version: "3.9"
             numpy: "numpy==1.26.4"
     runs-on: ${{ matrix.os }}
     steps:
@@ -35,7 +35,9 @@ jobs:
           sudo apt-get install -y libsndfile1
       - name: Install dependencies
         run: |
-          uv pip install ".[dev]" ${{ matrix.numpy }}
+          uv pip install ".[dev]" 
+      - if: ${{ matrix.numpy }}
+        run: uv pip install ${{ matrix.numpy }}
       - name: Run tests
         run: pytest
       - name: Check style
