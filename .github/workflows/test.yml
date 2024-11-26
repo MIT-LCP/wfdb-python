@@ -41,8 +41,7 @@ jobs:
           sudo apt-get install -y libsndfile1
       - name: Install dependencies
         run: |
-          uv pip install ".[dev]"
-          uv pip install ${{ matrix.numpy }}
+          uv pip install ".[dev]" ${{ matrix.numpy }}
       - name: Run tests
         run: pytest
       - name: Check style
