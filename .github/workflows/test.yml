@@ -10,6 +10,7 @@ on:
 
 env:
   UV_SYSTEM_PYTHON: 1
+  NPY_PROMOTION_STATE: weak_and_warn
 
 jobs:
   test:
