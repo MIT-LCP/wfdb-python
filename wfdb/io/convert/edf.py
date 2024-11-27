@@ -581,6 +581,7 @@ def wfdb_to_edf(
         sampfrom=sampfrom,
         sampto=sampto,
         smooth_frames=False,
+        channels=channels,
     )
     record_name_out = record_name.split(os.sep)[-1].replace("-", "_")
 
