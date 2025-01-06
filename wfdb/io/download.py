@@ -110,7 +110,8 @@ def _stream_header(file_name: str, pn_dir: str) -> str:
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content of the remote file
-    with fsspec.open(url, "rb") as f:
+    # with fsspec.open(url, "rb") as f:
+    with open(url, "rb") as f:
         content = f.read()
 
     return content.decode("iso-8859-1")

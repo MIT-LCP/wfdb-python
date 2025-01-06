@@ -1840,7 +1840,8 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     # Read the local or remote header file.
     file_name = f"{base_record_name}.hea"
     if pn_dir is None:
-        with fsspec.open(
+        # with fsspec.open(
+        with open(
             os.path.join(dir_name, file_name),
             "r",
             encoding="ascii",
