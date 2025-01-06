@@ -1828,7 +1828,9 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name = os.path.abspath(dir_name)
 
     # If this is a cloud path we leave it as is
-    if (pn_dir is not None) and any(pn_dir.startswith(proto) for proto in download.CLOUD_PROTOCOLS):
+    if (pn_dir is not None) and any(
+        pn_dir.startswith(proto) for proto in download.CLOUD_PROTOCOLS
+    ):
         pass
     # If it isn't a cloud path, construct the download path using the database version
     elif (pn_dir is not None) and ("." not in pn_dir):
