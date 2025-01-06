@@ -3,6 +3,7 @@ import multiprocessing.dummy
 import os
 import posixpath
 
+import fsspec
 import numpy as np
 
 from wfdb.io import _url
@@ -102,10 +103,14 @@ def _stream_header(file_name: str, pn_dir: str) -> str:
 
     """
     # Full url of header location
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
+    cloud_protocols = ["azureml:", "s3://", "gs://"]
+    if any(pn_dir.startswith(proto) for proto in cloud_protocols):
+        url = posixpath.join(pn_dir, file_name)
+    else:
+        url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content of the remote file
-    with _url.openurl(url, "rb") as f:
+    with fsspec.open(url, "rb") as f:
         content = f.read()
 
     return content.decode("iso-8859-1")
