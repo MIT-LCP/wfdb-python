@@ -1828,20 +1828,16 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
     file_name = f"{base_record_name}.hea"
 
     # If this is a cloud path, use posixpath to construct the path
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        with fsspec.open(
-            posixpath.join(dir_name, file_name),
-            mode="rb"
-        ) as f:
+        with fsspec.open(posixpath.join(dir_name, file_name), mode="rb") as f:
             header_content = f.read()
 
     # If it isn't a cloud path, construct the download path using the database version
-    elif (pn_dir is not None):
-        if ("." not in pn_dir):
+    elif pn_dir is not None:
+        if "." not in pn_dir:
             dir_list = pn_dir.split("/")
             pn_dir = posixpath.join(
                 dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
@@ -1851,6 +1847,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     # If it isn't a cloud path or a PhysioNet path, we treat as a local file
     else:
+        dir_name = os.path.abspath(dir_name)
         with fsspec.open(
             os.path.join(dir_name, file_name),
             "r",
