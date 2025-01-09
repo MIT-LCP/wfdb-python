@@ -159,6 +159,7 @@ SIG_UNITS = {
 # Cloud protocols
 CLOUD_PROTOCOLS = ["az:", "azureml:", "s3:", "gs:"]
 
+
 class BaseRecord(object):
     """
     The base WFDB class extended by the Record and MultiRecord classes.
