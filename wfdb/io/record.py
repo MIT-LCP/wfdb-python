@@ -156,6 +156,8 @@ SIG_UNITS = {
     "vtip": "mV",
 }
 
+# Cloud protocols
+CLOUD_PROTOCOLS = ["az:", "azureml:", "s3:", "gs:"]
 
 class BaseRecord(object):
     """
@@ -1829,7 +1831,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     # If this is a cloud path we leave it as is
     if (pn_dir is not None) and any(
-        pn_dir.startswith(proto) for proto in download.CLOUD_PROTOCOLS
+        pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS
     ):
         pass
     # If it isn't a cloud path, construct the download path using the database version

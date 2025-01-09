@@ -3,7 +3,6 @@ import multiprocessing.dummy
 import os
 import posixpath
 
-import fsspec
 import numpy as np
 
 from wfdb.io import _url
@@ -12,9 +11,6 @@ from wfdb.io import _url
 # The PhysioNet index url
 PN_INDEX_URL = "https://physionet.org/files/"
 PN_CONTENT_URL = "https://physionet.org/content/"
-
-# Cloud protocols
-CLOUD_PROTOCOLS = ["az:", "azureml:", "s3:", "gs:"]
 
 
 class Config(object):
