@@ -105,15 +105,11 @@ def _stream_header(file_name: str, pn_dir: str) -> str:
         The text contained in the header file
 
     """
-    # Full cloud url
-    if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        url = posixpath.join(pn_dir, file_name)
-    # Full physionet database url
-    else:
-        url = posixpath.join(config.db_index_url, pn_dir, file_name)
+    # Full url of header location
+    url = posixpath.join(config.db_index_url, pn_dir, file_name)
 
     # Get the content of the remote file
-    with fsspec.open(url, "rb") as f:
+    with _url.openurl(url, "rb") as f:
         content = f.read()
 
     return content.decode("iso-8859-1")
