@@ -13,7 +13,7 @@ env:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.numpy }}
     strategy:
       fail-fast: false
       matrix:
