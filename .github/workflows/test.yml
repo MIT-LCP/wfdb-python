@@ -9,7 +9,6 @@ on:
       - main
 
 env:
-  UV_SYSTEM_PYTHON: 1
   NPY_PROMOTION_STATE: weak_and_warn
 
 jobs:
@@ -20,6 +19,7 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        numpy: ["numpy"]
         include:
           - os: ubuntu-latest
             python-version: "3.9"
@@ -28,22 +28,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get install -y libsndfile1
-      - name: Install dependencies
-        run: |
-          uv pip install ".[dev]" 
-      - if: ${{ matrix.numpy }}
-        run: uv pip install ${{ matrix.numpy }}
+        run: sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: pytest
+        run: uv run --with ${{ matrix.numpy }} --extra dev pytest
       - name: Check style
-        run: black --check --diff .
+        run: uv run --extra dev black --check --diff .
 
   test-deb10-i386:
     name: Python 3.7 on Debian 10 i386
