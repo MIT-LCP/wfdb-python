@@ -215,7 +215,7 @@ class XQRS(object):
         N/A
 
         """
-        wavelet_filter = signal.ricker(self.qrs_width, 4)
+        wavelet_filter = ricker(self.qrs_width, 4)
 
         self.sig_i = (
             signal.filtfilt(wavelet_filter, [1], self.sig_f, axis=0) ** 2
@@ -277,7 +277,7 @@ class XQRS(object):
         qrs_amps = []
         noise_amps = []
 
-        ricker_wavelet = signal.ricker(self.qrs_radius * 2, 4).reshape(-1, 1)
+        ricker_wavelet = ricker(self.qrs_radius * 2, 4).reshape(-1, 1)
 
         # Find the local peaks of the signal.
         peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
@@ -1776,3 +1776,52 @@ def gqrs_detect(
     annotations = gqrs.detect(x=d_sig, conf=conf, adc_zero=adc_zero)
 
     return np.array([a.time for a in annotations])
+
+
+def ricker(points, a):
+    """
+    Return a Ricker wavelet, also known as the "Mexican hat wavelet".
+
+    It models the function:
+
+        ``A * (1 - (x/a)**2) * exp(-0.5*(x/a)**2)``,
+
+    where ``A = 2/(sqrt(3*a)*(pi**0.25))``.
+
+    This function is copied from the `scipy` library which
+    removed it from version 1.15.0.
+
+    Parameters
+    ----------
+    points : int
+        Number of points in `vector`.
+        Will be centered around 0.
+    a : scalar
+        Width parameter of the wavelet.
+
+    Returns
+    -------
+    vector : (N,) ndarray
+        Array of length `points` in shape of ricker curve.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+
+    >>> points = 100
+    >>> a = 4.0
+    >>> vec2 = ricker(points, a)
+    >>> print(len(vec2))
+    100
+    >>> plt.plot(vec2)
+    >>> plt.show()
+
+    """
+    A = 2 / (np.sqrt(3 * a) * (np.pi**0.25))
+    wsq = a**2
+    vec = np.arange(0, points) - (points - 1.0) / 2
+    xsq = vec**2
+    mod = (1 - xsq / wsq)
+    gauss = np.exp(-xsq / (2 * wsq))
+    total = A * mod * gauss
+    return total
