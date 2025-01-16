@@ -413,14 +413,16 @@ def read_edf(
             temp_sig_data = temp_all_sigs[i].flatten()
 
             if samps_per_frame[i] == 1:
-                sig_data[:, i] = (temp_sig_data.astype(np.int64) - baseline[i]) / adc_gain_all[i]
+                sig_data[:, i] = (
+                    temp_sig_data.astype(np.int64) - baseline[i]
+                ) / adc_gain_all[i]
             else:
                 for j in range(sig_len):
                     start_ind = j * samps_per_frame[i]
                     stop_ind = start_ind + samps_per_frame[i]
                     sig_data[j, i] = np.mean(
-                            temp_sig_data[start_ind:stop_ind].astype(np.int64) - baseline[i]
-                        / adc_gain_all[i]
+                        temp_sig_data[start_ind:stop_ind].astype(np.int64)
+                        - baseline[i] / adc_gain_all[i]
                     )
 
     # This is the closest I can get to the original implementation
