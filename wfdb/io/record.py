@@ -157,7 +157,7 @@ SIG_UNITS = {
 }
 
 # Cloud protocols
-CLOUD_PROTOCOLS = ["az:", "azureml:", "s3:", "gs:"]
+CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://"]
 
 
 class BaseRecord(object):
