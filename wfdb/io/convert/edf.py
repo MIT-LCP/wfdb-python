@@ -402,23 +402,27 @@ def read_edf(
     temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
     temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
     temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
+
     for i in range(n_sig):
         # Check if `samps_per_frame` has all equal values
         if samps_per_frame.count(samps_per_frame[0]) == len(samps_per_frame):
             sig_data[:, i] = (
-                temp_all_sigs[i].flatten() - baseline[i]
+                temp_all_sigs[i].flatten().astype(np.int64) - baseline[i]
             ) / adc_gain_all[i]
         else:
             temp_sig_data = temp_all_sigs[i].flatten()
+
             if samps_per_frame[i] == 1:
-                sig_data[:, i] = (temp_sig_data - baseline[i]) / adc_gain_all[i]
+                sig_data[:, i] = (
+                    temp_sig_data.astype(np.int64) - baseline[i]
+                ) / adc_gain_all[i]
             else:
                 for j in range(sig_len):
                     start_ind = j * samps_per_frame[i]
                     stop_ind = start_ind + samps_per_frame[i]
                     sig_data[j, i] = np.mean(
-                        (temp_sig_data[start_ind:stop_ind] - baseline[i])
-                        / adc_gain_all[i]
+                        temp_sig_data[start_ind:stop_ind].astype(np.int64)
+                        - baseline[i] / adc_gain_all[i]
                     )
 
     # This is the closest I can get to the original implementation
