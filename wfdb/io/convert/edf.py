@@ -399,7 +399,7 @@ def read_edf(
         }
 
     sig_data = np.empty((sig_len, n_sig))
-    temp_sig_data = np.fromfile(edf_file, dtype=np.int16).astype("int64")
+    temp_sig_data = np.fromfile(edf_file, dtype=np.int16)
     temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
     temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
 
