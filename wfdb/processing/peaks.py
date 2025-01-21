@@ -4,7 +4,7 @@ from wfdb.processing.basic import smooth
 
 
 def find_peaks(sig):
-    """
+    r"""
     Find hard peaks and soft peaks in a signal, defined as follows:
 
     - Hard peak: a peak that is either /\ or \/.

@@ -1,7 +1,5 @@
-# Link repository with GitHub Actions
-# https://docs.github.com/en/actions/learn-github-actions/introduction-to-github-actions
+name: Test
 
-name: run-tests
 on:
   push:
     branches:
@@ -10,30 +8,38 @@ on:
     branches:
       - main
 
-# Set the language, install dependencies, and run the tests
+env:
+  NPY_PROMOTION_STATE: weak_and_warn
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  test:
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.numpy }}
     strategy:
+      fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        numpy: ["numpy"]
+        include:
+          - os: ubuntu-latest
+            python-version: "3.9"
+            numpy: "numpy==1.26.4"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v3
+      - uses: astral-sh/setup-uv@v3
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install libsndfile
         if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          sudo apt-get install -y libsndfile1
+        run: sudo apt-get install -y libsndfile1
       - name: Run tests
-        run: uv run --extra dev pytest
-      - name: Check source code format
+        run: uv run --with ${{ matrix.numpy }} --extra dev pytest
+      - name: Check style
         run: uv run --extra dev black --check --diff .
 
   test-deb10-i386:
+    name: Python 3.7 on Debian 10 i386
     runs-on: ubuntu-latest
     container: i386/debian:10
     steps:
@@ -49,26 +55,11 @@ jobs:
                   python3-soundfile \
                   python3-pytest \
                   git
-
+          python3 --version
       # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
       # installed in the container.  To keep things simple, use
       # "actions/checkout@v1" instead.
       # https://github.com/actions/checkout/issues/334
       - uses: actions/checkout@v1
-
       - name: Run tests
-        run: |
-          pytest-3
-
-  build-documentation:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r docs/requirements.txt
-      - name: Build documentation
-        run: |
-          cd docs
-          make html
+        run: pytest-3
