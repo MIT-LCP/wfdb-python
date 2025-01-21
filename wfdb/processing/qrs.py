@@ -215,7 +215,7 @@ class XQRS(object):
         N/A
 
         """
-        wavelet_filter = signal.ricker(self.qrs_width, 4)
+        wavelet_filter = ricker(self.qrs_width, 4)
 
         self.sig_i = (
             signal.filtfilt(wavelet_filter, [1], self.sig_f, axis=0) ** 2
@@ -277,7 +277,7 @@ class XQRS(object):
         qrs_amps = []
         noise_amps = []
 
-        ricker_wavelet = signal.ricker(self.qrs_radius * 2, 4).reshape(-1, 1)
+        ricker_wavelet = ricker(self.qrs_radius * 2, 4).reshape(-1, 1)
 
         # Find the local peaks of the signal.
         peak_inds_f = find_local_peaks(self.sig_f, self.qrs_radius)
@@ -1776,3 +1776,89 @@ def gqrs_detect(
     annotations = gqrs.detect(x=d_sig, conf=conf, adc_zero=adc_zero)
 
     return np.array([a.time for a in annotations])
+
+
+# This function includes code from SciPy, which is licensed under the
+# BSD 3-Clause "New" or "Revised" License.
+# The original code can be found at:
+# https://github.com/scipy/scipy/blob/v1.14.0/scipy/signal/_wavelets.py#L316-L359
+
+# Copyright (c) 2001-2002 Enthought, Inc. 2003, SciPy Developers.
+# All rights reserved.
+
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+
+# 2. Redistributions in binary form must reproduce the above
+#    copyright notice, this list of conditions and the following
+#    disclaimer in the documentation and/or other materials provided
+#    with the distribution.
+
+# 3. Neither the name of the copyright holder nor the names of its
+#    contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+def ricker(points, a):
+    """
+    Return a Ricker wavelet, also known as the "Mexican hat wavelet".
+
+    It models the function:
+
+        ``A * (1 - (x/a)**2) * exp(-0.5*(x/a)**2)``,
+
+    where ``A = 2/(sqrt(3*a)*(pi**0.25))``.
+
+    This function is copied from the `scipy` library which
+    removed it from version 1.15.0.
+
+    Parameters
+    ----------
+    points : int
+        Number of points in `vector`.
+        Will be centered around 0.
+    a : scalar
+        Width parameter of the wavelet.
+
+    Returns
+    -------
+    vector : (N,) ndarray
+        Array of length `points` in shape of ricker curve.
+
+    Examples
+    --------
+    >>> import matplotlib.pyplot as plt
+
+    >>> points = 100
+    >>> a = 4.0
+    >>> vec2 = ricker(points, a)
+    >>> print(len(vec2))
+    100
+    >>> plt.plot(vec2)
+    >>> plt.show()
+
+    """
+    A = 2 / (np.sqrt(3 * a) * (np.pi**0.25))
+    wsq = a**2
+    vec = np.arange(0, points) - (points - 1.0) / 2
+    xsq = vec**2
+    mod = 1 - xsq / wsq
+    gauss = np.exp(-xsq / (2 * wsq))
+    total = A * mod * gauss
+    return total
