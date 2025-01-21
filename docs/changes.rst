@@ -5,6 +5,40 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Version 4.2.0 (Jan 2025)
+-----------------------------
+
+**Add support for Numpy 2.0**
+  Fixes were added to address [changes to type promotion](https://numpy.org/devdocs/numpy_2_0_migration_guide.html#changes-to-numpy-data-type-promotion) that led to overflow errors (e.g. https://github.com/MIT-LCP/wfdb-python/issues/493). 
+
+**Fix UnboundLocalError in GQRS algorithm**
+  Fixes the GQRS algorithm to address an `UnboundLocalError`.
+
+**Support write directory in `csv_to_wfdb`**
+  `write_dir` can now be specified when calling `csv_to_wfdb`.
+
+**Use uv for for package management**
+  Moves package management from poetry to uv.
+
+**Fix misordered arguments in `util.lines_to_file`**
+  Fixes misordered arguments in `util.lines_to_file`.
+
+**Allow signals to be written with unique samples per frame**
+  Adds capability to write signal with unique samps_per_frame to `wfdb.io.wrsamp`.
+
+**Allow expanded physical signal in `calc_adc_params`**
+  Updates `calc_adc_params` to allow an expanded physical signal to be passed. Previously only a non-expanded signal was allowed.
+
+**Allow selection of channels when converting to EDF**
+  Fixes the `wfdb-to_edf()` function to support an optional channels argument.
+
+**Migrates Ricker wavelet from SciPy to WFDB after deprecation**
+  The Ricker wavelet (`scipy.signal.ricker`) was removed in SciPy v1.15, so the original implementation was migrated to the WFDB package.
+
+**Miscellaneous style and typing fixes**
+  Various fixes were made to code style and handling of data types.
+
+
 Version 4.1.2 (June 2023)
 -----------------------------
 
