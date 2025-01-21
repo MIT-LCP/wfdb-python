@@ -32,6 +32,9 @@ Version 4.2.0 (Jan 2025)
 **Allow selection of channels when converting to EDF**
   Fixes the `wfdb-to_edf()` function to support an optional channels argument.
 
+**Migrates Ricker wavelet from SciPy to WFDB after deprecation**
+  The Ricker wavelet (`scipy.signal.ricker`) was removed in SciPy v1.15, so the original implementation was migrated to the WFDB package.
+
 **Miscellaneous style and typing fixes**
   Various fixes were made to code style and handling of data types.
 
