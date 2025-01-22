@@ -2027,7 +2027,9 @@ def rdrecord(
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
+    # Update the dir_name using abspath unless it is a cloud path
+    if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
     if (pn_dir is not None) and ("." not in pn_dir):
