@@ -25,7 +25,7 @@ dev = [
     "pytest-xdist >= 2.5.0",
     "pylint >= 2.13.7",
     "black >= 22.3.0",
-    "sphinx >= 4.5.0",
+    "sphinx >= 7.0.0",
 ]
 
 [project.urls]
