@@ -1,5 +1,7 @@
 import posixpath
 
+import fsspec
+
 from wfdb.io import _url
 from wfdb.io.download import config
 
@@ -28,8 +30,9 @@ def _open_file(
         The PhysioNet database directory where the file is stored, or None
         if file_name is a local path.
     file_name : str
-        The name of the file, either as a local filesystem path (if
-        `pn_dir` is None) or a URL path (if `pn_dir` is a string.)
+        The name of the file, either as a local filesystem path or cloud
+        URL (if `pn_dir` is None) or a PhysioNet URL path
+        (if `pn_dir` is a string.)
     mode : str, optional
         The standard I/O mode for the file ("r" by default).  If `pn_dir`
         is not None, this must be "r", "rt", or "rb".
@@ -47,7 +50,7 @@ def _open_file(
 
     """
     if pn_dir is None:
-        return open(
+        return fsspec.open(
             file_name,
             mode,
             buffering=buffering,

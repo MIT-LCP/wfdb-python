@@ -1830,12 +1830,12 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     file_name = f"{base_record_name}.hea"
 
-    # If this is a cloud path, use posixpath to construct the path
+    # If this is a cloud path, use posixpath to construct the path and fsspec to open file
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
             header_content = f.read()
 
-    # If it isn't a cloud path, construct the download path using the database version
+    # If the PhysioNet database path is provided, construct the download path using the database version
     elif pn_dir is not None:
         if "." not in pn_dir:
             dir_list = pn_dir.split("/")

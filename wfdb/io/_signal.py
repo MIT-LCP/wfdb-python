@@ -1,7 +1,9 @@
 import math
 import os
+import posixpath
 import sys
 
+import fsspec
 import numpy as np
 
 from wfdb.io import download, _coreio, util
@@ -1643,10 +1645,10 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         The name of the dat file.
     dir_name : str
         The full directory where the dat file(s) are located, if the dat
-        file(s) are local.
+        file(s) are local or in the cloud.
     pn_dir : str
         The PhysioNet directory where the dat file(s) are located, if
-        the dat file(s) are remote.
+        the dat file(s) are on a PhysioNet server.
     fmt : str
         The format of the dat file.
     start_byte : int
@@ -1688,7 +1690,7 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
 
     # Local dat file
     if pn_dir is None:
-        with open(os.path.join(dir_name, file_name), "rb") as fp:
+        with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = np.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
@@ -1840,8 +1842,9 @@ def _rd_compressed_file(
     file_name : str
         The name of the signal file.
     dir_name : str
-        The full directory where the signal file is located, if local.
-        This argument is ignored if `pn_dir` is not None.
+        The full directory where the signal file is located, if this
+        is a local or cloud path. This argument is ignored if `pn_dir`
+        is not None.
     pn_dir : str or None
         The PhysioNet database directory where the signal file is located.
     fmt : str
@@ -2585,10 +2588,10 @@ def _infer_sig_len(
         The byte offset of the dat file.  None is equivalent to zero.
     dir_name : str
         The full directory where the dat file(s) are located, if the dat
-        file(s) are local.
+        file(s) are local or on the cloud.
     pn_dir : str, optional
         The PhysioNet directory where the dat file(s) are located, if
-        the dat file(s) are remote.
+        the dat file(s) are on a PhysioNet server.
 
     Returns
     -------
@@ -2600,12 +2603,22 @@ def _infer_sig_len(
     sig_len * tsamps_per_frame * bytes_per_sample == file_size
 
     """
-    if pn_dir is None:
-        file_size = os.path.getsize(os.path.join(dir_name, file_name))
-    else:
+    from wfdb.io.record import CLOUD_PROTOCOLS
+
+    # If this is a cloud path, use posixpath to construct the path and fsspec to open file
+    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        with fsspec.open(posixpath.join(dir_name, file_name), mode="rb") as f:
+            file_size = f.seek(0, os.SEEK_END)
+
+    # If the PhysioNet database path is provided, construct the download path using the database version
+    elif pn_dir is not None:
         file_size = download._remote_file_size(
             file_name=file_name, pn_dir=pn_dir
         )
+
+    # If it isn't a cloud path or a PhysioNet path, we treat as a local file
+    else:
+        file_size = os.path.getsize(os.path.join(dir_name, file_name))
 
     if byte_offset is None:
         byte_offset = 0
