@@ -1688,14 +1688,15 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
-    # Local dat file
+    # Local or cloud dat file
     if pn_dir is None:
         with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
-            sig_data = np.fromfile(
+            sig_data = util.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
             )
-    # Stream dat file from Physionet
+
+    # Stream dat file from PhysioNet
     else:
         dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
         sig_data = download._stream_dat(

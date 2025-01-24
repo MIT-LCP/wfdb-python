@@ -2,8 +2,11 @@
 A module for general utility functions
 """
 
+import io
 import math
 import os
+
+import numpy as np
 
 from typing import List, Sequence, Tuple
 
@@ -121,3 +124,27 @@ def overlapping_ranges(
         for second in ranges_2
         if max(first[0], second[0]) < min(first[1], second[1])
     ]
+
+
+def fromfile(fileobj, dtype, count=-1):
+    """
+    Detect if the object will work with numpy.fromfile - if so, use it. If not, read the object into a numpy array and
+    calculate the number of elements (if not provided) - this is needed for fsspec objects.
+    """
+    if isinstance(fileobj, io.FileIO) or (
+        isinstance(fileobj, (io.BufferedReader, io.BufferedRandom))
+        and isinstance(fileobj.raw, io.FileIO)
+    ):
+        return np.fromfile(fileobj, dtype=dtype, count=count)
+    else:
+        dtype = np.dtype(dtype)
+        if count < 0:
+            start = fileobj.tell()
+            fileobj.seek(0, os.SEEK_END)
+            end = fileobj.tell()
+            fileobj.seek(start, os.SEEK_SET)
+            count = (end - start) // dtype.itemsize
+        array = np.empty(count, dtype)
+        size = fileobj.readinto(array)
+        array.resize(size // dtype.itemsize)
+        return array
