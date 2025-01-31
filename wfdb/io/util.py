@@ -145,6 +145,6 @@ def fromfile(fileobj, dtype, count=-1):
             fileobj.seek(start, os.SEEK_SET)
             count = (end - start) // dtype.itemsize
         array = np.empty(count, dtype)
-        size = fileobj.readinto(array)
+        size = fileobj.readinto(array.view(np.uint8))
         array.resize(size // dtype.itemsize)
         return array
