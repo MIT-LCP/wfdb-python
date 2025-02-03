@@ -5,7 +5,6 @@ import fsspec
 from wfdb.io import _url
 from wfdb.io.download import config
 
-
 def _open_file(
     pn_dir,
     file_name,
@@ -59,6 +58,12 @@ def _open_file(
             newline=newline,
         )
     else:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+
         url = posixpath.join(config.db_index_url, pn_dir, file_name)
         return _url.openurl(
             url,

@@ -11,6 +11,7 @@ from wfdb.io.record import (
     wfdbdesc,
     wfdbtime,
     SIGNAL_CLASSES,
+    CLOUD_PROTOCOLS,
 )
 from wfdb.io._signal import est_res, wr_dat_file
 from wfdb.io.annotation import (

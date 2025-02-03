@@ -1837,6 +1837,12 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     # If the PhysioNet database path is provided, construct the download path using the database version
     elif pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+
         if "." not in pn_dir:
             dir_list = pn_dir.split("/")
             pn_dir = posixpath.join(
@@ -2032,11 +2038,17 @@ def rdrecord(
         dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
+    if pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
 
     record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
@@ -2320,11 +2332,17 @@ def rdsamp(
                                       channels=[1,3])
 
     """
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
+    if pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
 
     record = rdrecord(
         record_name=record_name,

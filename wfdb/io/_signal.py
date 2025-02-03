@@ -8,7 +8,6 @@ import numpy as np
 
 from wfdb.io import download, _coreio, util
 
-
 MAX_I32 = 2147483647
 MIN_I32 = -2147483648
 
@@ -1698,6 +1697,12 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
 
     # Stream dat file from PhysioNet
     else:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+
         dtype_in = np.dtype(DATA_LOAD_TYPES[fmt])
         sig_data = download._stream_dat(
             file_name, pn_dir, byte_count, start_byte, dtype_in
@@ -2613,6 +2618,12 @@ def _infer_sig_len(
 
     # If the PhysioNet database path is provided, construct the download path using the database version
     elif pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+
         file_size = download._remote_file_size(
             file_name=file_name, pn_dir=pn_dir
         )

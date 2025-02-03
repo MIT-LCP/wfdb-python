@@ -11,8 +11,6 @@ from wfdb.io import download
 from wfdb.io import _header
 from wfdb.io import record
 from wfdb.io import util
-from wfdb.io.record import CLOUD_PROTOCOLS
-
 
 class Annotation(object):
     """
