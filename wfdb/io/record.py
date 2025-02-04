@@ -14,6 +14,7 @@ from wfdb.io import _url
 from wfdb.io import download
 from wfdb.io import header
 from wfdb.io import util
+from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
@@ -155,10 +156,6 @@ SIG_UNITS = {
     "uc": "nd",
     "vtip": "mV",
 }
-
-# Cloud protocols
-CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://"]
-
 
 class BaseRecord(object):
     """

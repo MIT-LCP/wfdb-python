@@ -5,6 +5,10 @@ import fsspec
 from wfdb.io import _url
 from wfdb.io.download import config
 
+
+# Cloud protocols
+CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://"]
+
 def _open_file(
     pn_dir,
     file_name,

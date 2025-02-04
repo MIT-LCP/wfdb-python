@@ -7,6 +7,7 @@ import fsspec
 import numpy as np
 
 from wfdb.io import download, _coreio, util
+from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 MAX_I32 = 2147483647
 MIN_I32 = -2147483648
