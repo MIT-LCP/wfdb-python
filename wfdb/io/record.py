@@ -4,6 +4,7 @@ import posixpath
 import os
 import re
 
+import fsspec
 import numpy as np
 import pandas as pd
 
@@ -13,6 +14,7 @@ from wfdb.io import _url
 from wfdb.io import download
 from wfdb.io import header
 from wfdb.io import util
+from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
@@ -1824,27 +1826,39 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
-
-    # Construct the download path using the database version
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
-
-    # Read the local or remote header file.
     file_name = f"{base_record_name}.hea"
-    if pn_dir is None:
-        with open(
+
+    # If this is a cloud path, use posixpath to construct the path and fsspec to open file
+    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
+            header_content = f.read()
+
+    # If the PhysioNet database path is provided, construct the download path using the database version
+    elif pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
+
+        header_content = download._stream_header(file_name, pn_dir)
+
+    # If it isn't a cloud path or a PhysioNet path, we treat as a local file
+    else:
+        dir_name = os.path.abspath(dir_name)
+        with fsspec.open(
             os.path.join(dir_name, file_name),
             "r",
             encoding="ascii",
             errors="ignore",
         ) as f:
             header_content = f.read()
-    else:
-        header_content = download._stream_header(file_name, pn_dir)
 
     # Separate comment and non-comment lines
     header_lines, comment_lines = header.parse_header_content(header_content)
@@ -2017,14 +2031,22 @@ def rdrecord(
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    dir_name = os.path.abspath(dir_name)
+    # Update the dir_name using abspath unless it is a cloud path
+    if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        dir_name = os.path.abspath(dir_name)
 
     # Read the header fields
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
+    if pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
 
     record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
@@ -2308,11 +2330,17 @@ def rdsamp(
                                       channels=[1,3])
 
     """
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
+    if pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
 
     record = rdrecord(
         record_name=record_name,

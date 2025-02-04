@@ -38,18 +38,20 @@ jobs:
       - name: Check style
         run: uv run --extra dev black --check --diff .
 
-  test-deb10-i386:
-    name: Python 3.7 on Debian 10 i386
+  test-deb11-i386:
+    name: Python 3.7 on Debian 11 i386
     runs-on: ubuntu-latest
-    container: i386/debian:10
+    container: i386/debian:11
     steps:
       - name: Install dependencies
         run: |
           apt-get update
           apt-get install -y --no-install-recommends \
+                  python3-fsspec \
                   python3-matplotlib \
                   python3-numpy \
                   python3-pandas \
+                  python3-pip \
                   python3-requests \
                   python3-scipy \
                   python3-soundfile \
