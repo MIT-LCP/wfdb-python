@@ -56,12 +56,8 @@ jobs:
                   python3-scipy \
                   python3-soundfile \
                   python3-pytest \
-<<<<<<< HEAD:.github/workflows/test.yml
                   git
           python3 --version
-=======
-                  
->>>>>>> 3794f92 (update tests to run on debian 11):.github/workflows/run-tests.yml
       # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
       # installed in the container.  To keep things simple, use
       # "actions/checkout@v1" instead.
