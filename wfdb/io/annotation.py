@@ -13,6 +13,7 @@ from wfdb.io import record
 from wfdb.io import util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
+
 class Annotation(object):
     """
     The class representing WFDB annotations.
