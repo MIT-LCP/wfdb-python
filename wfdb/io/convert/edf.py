@@ -959,12 +959,12 @@ def wfdb_to_edf(
                 [
                     num_blocks,
                     num_blocks * int(frames_per_block),
-                    num_blocks * bytes_per_block,
+                    num_blocks * int(bytes_per_block),
                 ]
             ),
             num_blocks,
             num_blocks * int(frames_per_block),
-            num_blocks * bytes_per_block,
+            num_blocks * int(bytes_per_block),
         )
     )
     print(
