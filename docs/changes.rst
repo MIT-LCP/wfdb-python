@@ -5,6 +5,16 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Version 4.3.0 (Apr 2025)
+-----------------------------
+
+**Bump Sphinx to 7.0.0**
+  Bump Sphinx to 7.0.0
+
+**Integrate `fsspec` for reading WFDB files from the cloud**
+  Enables reading WFDB files from cloud URLs
+
+
 Version 4.2.0 (Jan 2025)
 -----------------------------
 
