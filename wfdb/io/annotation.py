@@ -1,4 +1,5 @@
 import copy
+import fsspec
 import numpy as np
 import os
 import pandas as pd
@@ -9,6 +10,8 @@ import sys
 from wfdb.io import download
 from wfdb.io import _header
 from wfdb.io import record
+from wfdb.io import util
+from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 
 class Annotation(object):
@@ -1892,7 +1895,7 @@ def rdann(
     ----------
     record_name : str
         The record name of the WFDB annotation file. ie. for file '100.atr',
-        record_name='100'.
+        record_name='100'. The path to the file can be a cloud URL.
     extension : str
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
@@ -1936,11 +1939,17 @@ def rdann(
     >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=300000)
 
     """
-    if (pn_dir is not None) and ("." not in pn_dir):
-        dir_list = pn_dir.split("/")
-        pn_dir = posixpath.join(
-            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-        )
+    if pn_dir is not None:
+        # check to make sure a cloud path isn't being passed under pn_dir
+        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            raise ValueError(
+                "Cloud paths should be passed under record_name, not under pn_dir"
+            )
+        if "." not in pn_dir:
+            dir_list = pn_dir.split("/")
+            pn_dir = posixpath.join(
+                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+            )
 
     return_label_elements = check_read_inputs(
         sampfrom, sampto, return_label_elements
@@ -2071,7 +2080,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
     ----------
     record_name : str
         The record name of the WFDB annotation file. ie. for file '100.atr',
-        record_name='100'.
+        record_name='100'. The path to the file can be a cloud URL.
     extension : str
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
@@ -2086,10 +2095,11 @@ def load_byte_pairs(record_name, extension, pn_dir):
         The input filestream converted to an Nx2 array of unsigned bytes.
 
     """
-    # local file
+    # local or cloud file
     if pn_dir is None:
-        with open(record_name + "." + extension, "rb") as f:
-            filebytes = np.fromfile(f, "<u1").reshape([-1, 2])
+        with fsspec.open(record_name + "." + extension, "rb") as f:
+            filebytes = util.fromfile(f, "<u1").reshape([-1, 2])
+
     # PhysioNet file
     else:
         filebytes = download._stream_annotation(
