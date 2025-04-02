@@ -128,8 +128,20 @@ def overlapping_ranges(
 
 def fromfile(fileobj, dtype, count=-1):
     """
-    Detect if the object will work with numpy.fromfile - if so, use it. If not, read the object into a numpy array and
-    calculate the number of elements (if not provided) - this is needed for fsspec objects.
+    Read binary data from a file-like object into a NumPy array, using `np.fromfile` when possible.
+    Falls back to manual reading for file-like objects that are not compatible with np.fromfile.
+
+    Parameters
+    ----------
+    fileobj : file-like object
+        A binary file-like object
+    dtype :
+        The NumPy data type to read
+    count : int, optional
+        Number of elements or bytes to read depending on the format:
+        - For most formats, this is the number of elements (e.g., samples) to read.
+        - For formats "212", "310", "311", and "24", this is the number of bytes.
+        If set to -1 (default), reads until the end of the file and infers size from the stream
     """
     if isinstance(fileobj, io.FileIO) or (
         isinstance(fileobj, (io.BufferedReader, io.BufferedRandom))

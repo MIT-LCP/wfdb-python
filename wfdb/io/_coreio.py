@@ -32,7 +32,7 @@ def _open_file(
     ----------
     pn_dir : str or None
         The PhysioNet database directory where the file is stored, or None
-        if file_name is a local path.
+        if file_name is a local or cloud path.
     file_name : str
         The name of the file, either as a local filesystem path or cloud
         URL (if `pn_dir` is None) or a PhysioNet URL path
