@@ -1120,6 +1120,7 @@ def _rd_segment(
     no_file=False,
     sig_data=None,
     return_res=64,
+    wfdb_archive=None,
 ):
     """
     Read the digital samples from a single segment record's associated
@@ -1264,6 +1265,7 @@ def _rd_segment(
             sampto=sampto,
             no_file=no_file,
             sig_data=sig_data,
+            wfdb_archive=wfdb_archive,
         )
 
         # Copy over the wanted signals
@@ -1288,6 +1290,7 @@ def _rd_dat_signals(
     sampto,
     no_file=False,
     sig_data=None,
+    wfdb_archive=None,
 ):
     """
     Read all signals from a WFDB dat file.
@@ -1390,7 +1393,8 @@ def _rd_dat_signals(
         )
     else:
         data_to_read = _rd_dat_file(
-            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples
+            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples,
+            wfdb_archive=wfdb_archive
         )
 
     if extra_flat_samples:
@@ -1630,7 +1634,8 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
+def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp,
+                 wfdb_archive=None):
     """
     Read data from a dat file, either local or remote, into a 1d numpy
     array.
@@ -1688,14 +1693,19 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
-    # Local or cloud dat file
-    if pn_dir is None:
+    # Local file or .wfdb archive
+    if wfdb_archive is not None:
+        with wfdb_archive.open(file_name, "rb") as fp:
+            fp.seek(start_byte)
+            sig_data = util.fromfile(
+                fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
+            )
+    elif pn_dir is None:
         with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
             )
-
     # Stream dat file from PhysioNet
     else:
         # check to make sure a cloud path isn't being passed under pn_dir

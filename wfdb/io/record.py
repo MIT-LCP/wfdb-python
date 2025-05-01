@@ -11,6 +11,7 @@ import pandas as pd
 from wfdb.io import _header
 from wfdb.io import _signal
 from wfdb.io import _url
+from wfdb.io.archive import get_archive
 from wfdb.io import download
 from wfdb.io import header
 from wfdb.io import util
@@ -2030,25 +2031,41 @@ def rdrecord(
                                channels=[1, 3])
 
     """
-    dir_name, base_record_name = os.path.split(record_name)
-    # Update the dir_name using abspath unless it is a cloud path
-    if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        dir_name = os.path.abspath(dir_name)
+    is_wfdb_archive = record_name.endswith(".wfdb")
 
-    # Read the header fields
-    if pn_dir is not None:
-        # check to make sure a cloud path isn't being passed under pn_dir
-        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-            raise ValueError(
-                "Cloud paths should be passed under record_name, not under pn_dir"
-            )
-        if "." not in pn_dir:
-            dir_list = pn_dir.split("/")
-            pn_dir = posixpath.join(
-                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-            )
+    if is_wfdb_archive:
+        record_base = record_name[:-5]  # remove ".wfdb"
+        archive = get_archive(record_base)
+        hea_file = os.path.basename(record_base) + ".hea"
 
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+        with archive.open(hea_file, "r") as f:
+            record = Record()
+            record.wfdb_archive = archive
+            record._read_header(f.read())
+
+        # Set dir_name to the archive base (needed for _rd_segment)
+        dir_name = os.path.dirname(record_base)
+
+    else:
+        dir_name, base_record_name = os.path.split(record_name)
+        # Update the dir_name using abspath unless it is a cloud path
+        if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            dir_name = os.path.abspath(dir_name)
+
+        # Read the header fields
+        if pn_dir is not None:
+            # check to make sure a cloud path isn't being passed under pn_dir
+            if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+                raise ValueError(
+                    "Cloud paths should be passed under record_name, not under pn_dir"
+                )
+            if "." not in pn_dir:
+                dir_list = pn_dir.split("/")
+                pn_dir = posixpath.join(
+                    dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+                )
+
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
