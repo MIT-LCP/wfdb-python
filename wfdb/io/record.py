@@ -905,7 +905,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         return True
 
-    def wrsamp(self, expanded=False, write_dir=""):
+    def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """
         Write a WFDB header file and any associated dat files from this
         object.
@@ -939,7 +939,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
-            self.wr_dats(expanded=expanded, write_dir=write_dir)
+            self.wr_dats(expanded=expanded, write_dir=write_dir, 
+                         wfdb_archive=wfdb_archive)
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """
@@ -2878,6 +2879,7 @@ def wrsamp(
     base_date=None,
     base_datetime=None,
     write_dir="",
+    archive=False,
 ):
     """
     Write a single segment WFDB record, creating a WFDB header file and any
@@ -2966,6 +2968,7 @@ def wrsamp(
     # Check for valid record name
     if "." in record_name:
         raise Exception("Record name must not contain '.'")
+
     # Check input field combinations
     signal_list = [p_signal, d_signal, e_p_signal, e_d_signal]
     signals_set = sum(1 for var in signal_list if var is not None)
@@ -3064,8 +3067,12 @@ def wrsamp(
     else:
         expanded = False
 
+    wfdb_archive = None
+    if archive:
+        wfdb_archive = get_archive(os.path.join(write_dir, record_name))
+
     # Write the record files - header and associated dat
-    record.wrsamp(write_dir=write_dir, expanded=expanded)
+    record.wrsamp(write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive)
 
 
 def dl_database(
