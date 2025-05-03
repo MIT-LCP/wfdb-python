@@ -1,4 +1,5 @@
 import os
+import shutil
 import zipfile
 from contextlib import contextmanager
 
@@ -59,6 +60,23 @@ class WFDBArchive:
         """
         if self.zipfile:
             self.zipfile.close()
+
+    def write(self, filename, data):
+        """
+        Write binary data to the archive (replaces if already exists).
+        """
+        # Write to a new temporary archive
+        tmp_path = self.archive_path + ".tmp"
+        with zipfile.ZipFile(self.archive_path, mode="r") as zin:
+            with zipfile.ZipFile(tmp_path, mode="w") as zout:
+                for item in zin.infolist():
+                    if item.filename != filename:
+                        zout.writestr(item, zin.read(item.filename))
+                zout.writestr(filename, data)
+
+        # Replace the original archive
+        shutil.move(tmp_path, self.archive_path)
+        self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
     def create_archive(self, file_list, output_path=None):
         """

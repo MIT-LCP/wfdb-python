@@ -1,4 +1,5 @@
 import math
+import io
 import os
 import posixpath
 import sys
@@ -120,7 +121,7 @@ class SignalMixin(object):
 
     """
 
-    def wr_dats(self, expanded, write_dir):
+    def wr_dats(self, expanded, write_dir, wfdb_archive=None):
         """
         Write all dat files associated with a record
         expanded=True to use e_d_signal instead of d_signal.
@@ -132,6 +133,8 @@ class SignalMixin(object):
             the `d_signal` attribute (False).
         write_dir : str
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            If set, writes to a .wfdb archive instead of the filesystem.
 
         Returns
         -------
@@ -160,7 +163,8 @@ class SignalMixin(object):
         self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
-        self.wr_dat_files(expanded=expanded, write_dir=write_dir)
+        self.wr_dat_files(expanded=expanded, write_dir=write_dir,
+                          wfdb_archive=wfdb_archive)
 
     def check_sig_cohesion(self, write_fields, expanded):
         """
@@ -958,7 +962,7 @@ class SignalMixin(object):
             cs = [int(c) for c in cs]
         return cs
 
-    def wr_dat_files(self, expanded=False, write_dir=""):
+    def wr_dat_files(self, expanded=False, write_dir="", wfdb_archive=None):
         """
         Write each of the specified dat files.
 
@@ -969,6 +973,8 @@ class SignalMixin(object):
             the `d_signal` attribute (False).
         write_dir : str, optional
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            If set, writes to a .wfdb archive instead of the local filesystem.
 
         Returns
         -------
@@ -1003,6 +1009,7 @@ class SignalMixin(object):
                     [self.e_d_signal[ch] for ch in dat_channels[fn]],
                     [self.samps_per_frame[ch] for ch in dat_channels[fn]],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
         else:
             dsig = self.d_signal
@@ -1013,6 +1020,7 @@ class SignalMixin(object):
                     dsig[:, dat_channels[fn][0] : dat_channels[fn][-1] + 1],
                     dat_offsets[fn],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
 
     def smooth_frames(self, sigtype="physical"):
@@ -2322,6 +2330,7 @@ def wr_dat_file(
     e_d_signal=None,
     samps_per_frame=None,
     write_dir="",
+    wfdb_archive=None,
 ):
     """
     Write a dat file. All bytes are written one at a time to avoid
@@ -2519,16 +2528,30 @@ def wr_dat_file(
         else:
             raise ValueError(f"unknown format ({fmt})")
 
-        sf = soundfile.SoundFile(
-            file_path,
-            mode="w",
-            samplerate=96000,
-            channels=n_sig,
-            subtype=subtype,
-            format="FLAC",
-        )
-        with sf:
-            sf.write(d_signal)
+        if wfdb_archive:
+            with io.BytesIO() as f:
+                with soundfile.SoundFile(
+                    f,
+                    mode="w",
+                    samplerate=96000,
+                    channels=n_sig,
+                    subtype=subtype,
+                    format="FLAC",  # required for file-like
+                ) as sf:
+                    sf.write(d_signal)
+                wfdb_archive.write(os.path.basename(file_name), f.getvalue())
+            return
+        else:
+            sf = soundfile.SoundFile(
+                file_path,
+                mode="w",
+                samplerate=96000,
+                channels=n_sig,
+                subtype=subtype,
+                format="FLAC",
+            )
+            with sf:
+                sf.write(d_signal)
             return
 
     else:
@@ -2549,8 +2572,13 @@ def wr_dat_file(
         b_write = np.append(np.zeros(byte_offset, dtype="uint8"), b_write)
 
     # Write the bytes to the file
-    with open(file_path, "wb") as f:
-        b_write.tofile(f)
+    if wfdb_archive:
+        with io.BytesIO() as f:
+            b_write.tofile(f)
+            wfdb_archive.write(os.path.basename(file_name), f.getvalue())
+    else:
+        with open(file_path, "wb") as f:
+            b_write.tofile(f)
 
 
 def describe_list_indices(full_list):
