@@ -10,25 +10,42 @@ class WFDBArchive:
     """
     Helper class for working with WFDB .wfdb ZIP archives.
 
+    If used for reading, the archive must already exist.
+    If used for writing, use mode='w' and call `write(...)` or `create_archive(...)`.
+
     Used only if:
       - .wfdb is included in the record_name explicitly, or
       - .wfdb is passed directly to the file loading function.
     """
-    def __init__(self, record_name):
+    def __init__(self, record_name, mode="r"):
         """
         Initialize a WFDBArchive for a given record name (without extension).
 
+        Parameters
+        ----------
         record_name : str
-          The base name of the archive, without the .wfdb extension.
+            The base name of the archive, without the .wfdb extension.
+        mode : str
+            'r' for read (default), 'w' for write.
         """
         self.record_name = record_name
         self.archive_path = f"{record_name}.wfdb"
+        self.zipfile = None
+        self.mode = mode
 
-        if not os.path.exists(self.archive_path):
-            raise FileNotFoundError(f"Archive not found: {self.archive_path}")
-        if not zipfile.is_zipfile(self.archive_path):
-            raise ValueError(f"Invalid WFDB archive: {self.archive_path}")
-        self.zipfile = zipfile.ZipFile(self.archive_path, mode="r")
+        if mode == "r":
+            if not os.path.exists(self.archive_path):
+                raise FileNotFoundError(f"Archive not found: {self.archive_path}")
+            if not zipfile.is_zipfile(self.archive_path):
+                raise ValueError(f"Invalid WFDB archive: {self.archive_path}")
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="r")
+
+        elif mode == "w":
+            # Initialize an empty archive on disk
+            if not os.path.exists(self.archive_path):
+                with zipfile.ZipFile(self.archive_path, mode="w"):
+                    pass  # Just create the file
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
     def exists(self, filename):
         """
@@ -65,7 +82,12 @@ class WFDBArchive:
         """
         Write binary data to the archive (replaces if already exists).
         """
-        # Write to a new temporary archive
+        if self.zipfile is None:
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="w")
+            self.zipfile.writestr(filename, data)
+            return
+
+        # If already opened in read or append mode, use the replace-then-move trick
         tmp_path = self.archive_path + ".tmp"
         with zipfile.ZipFile(self.archive_path, mode="r") as zin:
             with zipfile.ZipFile(tmp_path, mode="w") as zout:
@@ -73,8 +95,6 @@ class WFDBArchive:
                     if item.filename != filename:
                         zout.writestr(item, zin.read(item.filename))
                 zout.writestr(filename, data)
-
-        # Replace the original archive
         shutil.move(tmp_path, self.archive_path)
         self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
@@ -94,10 +114,11 @@ class WFDBArchive:
                 zf.write(file, arcname=os.path.basename(file), compress_type=compress)
 
 
-def get_archive(record_base_name):
+def get_archive(record_base_name, mode="r"):
     """
     Get or create a WFDBArchive for the given record base name.
     """
     if record_base_name not in _archive_cache:
-        _archive_cache[record_base_name] = WFDBArchive(record_base_name)
+        _archive_cache[record_base_name] = WFDBArchive(record_base_name,
+                                                       mode=mode)
     return _archive_cache[record_base_name]

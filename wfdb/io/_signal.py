@@ -2574,7 +2574,7 @@ def wr_dat_file(
     # Write the bytes to the file
     if wfdb_archive:
         with io.BytesIO() as f:
-            b_write.tofile(f)
+            f.write(b_write.tobytes())
             wfdb_archive.write(os.path.basename(file_name), f.getvalue())
     else:
         with open(file_path, "wb") as f:
