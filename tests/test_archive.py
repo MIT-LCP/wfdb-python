@@ -1,12 +1,12 @@
 import os
-import numpy as np
-import pytest
 import tempfile
 import zipfile
 
+import numpy as np
+import pytest
+
 from wfdb import rdrecord, wrsamp
 from wfdb.io.archive import WFDBArchive
-
 
 np.random.seed(1234)
 
@@ -132,8 +132,9 @@ def test_wfdb_archive_round_trip(temp_record):
     assert record.p_signal.shape == original_signal.shape
 
     # Add tolerance to account for loss of precision during archive round-trip
-    np.testing.assert_allclose(record.p_signal, original_signal, rtol=1e-2,
-                               atol=3e-3)
+    np.testing.assert_allclose(
+        record.p_signal, original_signal, rtol=1e-2, atol=3e-3
+    )
 
 
 def test_archive_read_subset_channels(temp_record):
@@ -149,8 +150,9 @@ def test_archive_read_subset_channels(temp_record):
     assert record.p_signal.shape[0] == original_signal.shape[0]
 
     # Add tolerance to account for loss of precision during archive round-trip
-    np.testing.assert_allclose(record.p_signal[:, 0], original_signal[:, 1],
-                               rtol=1e-2, atol=3e-3)
+    np.testing.assert_allclose(
+        record.p_signal[:, 0], original_signal[:, 1], rtol=1e-2, atol=3e-3
+    )
 
 
 def test_archive_read_partial_samples(temp_record):
@@ -164,7 +166,9 @@ def test_archive_read_partial_samples(temp_record):
     record = rdrecord(archive_path, sampfrom=start, sampto=stop)
 
     assert record.p_signal.shape == (stop - start, original_signal.shape[1])
-    np.testing.assert_allclose(record.p_signal, original_signal[start:stop], rtol=1e-2, atol=1e-3)
+    np.testing.assert_allclose(
+        record.p_signal, original_signal[start:stop], rtol=1e-2, atol=1e-3
+    )
 
 
 def test_archive_missing_file_error(temp_record):
@@ -178,8 +182,9 @@ def test_archive_missing_file_error(temp_record):
         zf_name = [name for name in zf.namelist() if name.endswith(".dat")][0]
         zf.fp = None  # Prevent auto-close bug in some zipfile implementations
     os.rename(archive_path, archive_path + ".bak")
-    with zipfile.ZipFile(archive_path + ".bak", "r") as zin, \
-         zipfile.ZipFile(archive_path, "w") as zout:
+    with zipfile.ZipFile(archive_path + ".bak", "r") as zin, zipfile.ZipFile(
+        archive_path, "w"
+    ) as zout:
         for item in zin.infolist():
             if not item.filename.endswith(".dat"):
                 zout.writestr(item, zin.read(item.filename))

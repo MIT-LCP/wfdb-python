@@ -1,5 +1,5 @@
-import math
 import io
+import math
 import os
 import posixpath
 import sys
@@ -7,7 +7,7 @@ import sys
 import fsspec
 import numpy as np
 
-from wfdb.io import download, _coreio, util
+from wfdb.io import _coreio, download, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 MAX_I32 = 2147483647
@@ -163,8 +163,9 @@ class SignalMixin(object):
         self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
-        self.wr_dat_files(expanded=expanded, write_dir=write_dir,
-                          wfdb_archive=wfdb_archive)
+        self.wr_dat_files(
+            expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+        )
 
     def check_sig_cohesion(self, write_fields, expanded):
         """
@@ -1401,8 +1402,13 @@ def _rd_dat_signals(
         )
     else:
         data_to_read = _rd_dat_file(
-            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples,
-            wfdb_archive=wfdb_archive
+            file_name,
+            dir_name,
+            pn_dir,
+            fmt,
+            start_byte,
+            n_read_samples,
+            wfdb_archive=wfdb_archive,
         )
 
     if extra_flat_samples:
@@ -1642,8 +1648,9 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp,
-                 wfdb_archive=None):
+def _rd_dat_file(
+    file_name, dir_name, pn_dir, fmt, start_byte, n_samp, wfdb_archive=None
+):
     """
     Read data from a dat file, either local or remote, into a 1d numpy
     array.

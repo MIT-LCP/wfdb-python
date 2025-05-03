@@ -1,22 +1,16 @@
 import datetime
 import multiprocessing.dummy
-import posixpath
 import os
+import posixpath
 import re
 
 import fsspec
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _header
-from wfdb.io import _signal
-from wfdb.io import _url
-from wfdb.io.archive import get_archive
-from wfdb.io import download
-from wfdb.io import header
-from wfdb.io import util
+from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
-
+from wfdb.io.archive import get_archive
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -935,13 +929,17 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         # Perform field validity and cohesion checks, and write the
         # header file.
-        self.wrheader(write_dir=write_dir, expanded=expanded,
-                      wfdb_archive=wfdb_archive)
+        self.wrheader(
+            write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive
+        )
         if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
-            self.wr_dats(expanded=expanded, write_dir=write_dir,
-                         wfdb_archive=wfdb_archive)
+            self.wr_dats(
+                expanded=expanded,
+                write_dir=write_dir,
+                wfdb_archive=wfdb_archive,
+            )
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """
@@ -2046,10 +2044,13 @@ def rdrecord(
         hea_file = os.path.basename(record_base) + ".hea"
 
         import tempfile
+
         with wfdb_archive.open(hea_file, "r") as f:
             header_str = f.read()
 
-        with tempfile.NamedTemporaryFile("w+", suffix=".hea", delete=False) as tmpf:
+        with tempfile.NamedTemporaryFile(
+            "w+", suffix=".hea", delete=False
+        ) as tmpf:
             tmpf.write(header_str)
             tmpf.flush()
             record = rdheader(tmpf.name)
@@ -2074,7 +2075,9 @@ def rdrecord(
             if "." not in pn_dir:
                 dir_list = pn_dir.split("/")
                 pn_dir = posixpath.join(
-                    dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+                    dir_list[0],
+                    download.get_version(dir_list[0]),
+                    *dir_list[1:],
                 )
 
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
@@ -2783,7 +2786,9 @@ def wfdbtime(record_name, input_times, pn_dir=None):
         )
         if not times.startswith("s"):
             sample_num = int(
-                sum(x * 60**i for i, x in enumerate([seconds, minutes, hours]))
+                sum(
+                    x * 60**i for i, x in enumerate([seconds, minutes, hours])
+                )
                 * record.fs
             )
         sample_num = "s" + str(sample_num)
@@ -3080,11 +3085,14 @@ def wrsamp(
         expanded = False
 
     if wfdb_archive:
-        wfdb_archive = get_archive(os.path.join(write_dir, record_name),
-                                   mode="w")
+        wfdb_archive = get_archive(
+            os.path.join(write_dir, record_name), mode="w"
+        )
 
     # Write the record files - header and associated dat
-    record.wrsamp(write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive)
+    record.wrsamp(
+        write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive
+    )
 
 
 def dl_database(

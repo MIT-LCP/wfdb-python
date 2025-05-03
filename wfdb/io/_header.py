@@ -5,8 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _signal
-from wfdb.io import util
+from wfdb.io import _signal, util
 from wfdb.io.header import HeaderSyntaxError, rx_record, rx_segment, rx_signal
 
 """
@@ -326,8 +325,12 @@ class HeaderMixin(BaseHeaderMixin):
         self.check_field_cohesion(rec_write_fields, list(sig_write_fields))
 
         # Write the header file using the specified fields
-        self.wr_header_file(rec_write_fields, sig_write_fields, write_dir,
-                            wfdb_archive=wfdb_archive)
+        self.wr_header_file(
+            rec_write_fields,
+            sig_write_fields,
+            write_dir,
+            wfdb_archive=wfdb_archive,
+        )
 
     def get_write_fields(self):
         """
@@ -510,8 +513,9 @@ class HeaderMixin(BaseHeaderMixin):
                                 "Each file_name (dat file) specified must have the same byte offset"
                             )
 
-    def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir,
-                       wfdb_archive=None):
+    def wr_header_file(
+        self, rec_write_fields, sig_write_fields, write_dir, wfdb_archive=None
+    ):
         """
         Write a header file using the specified fields. Converts Record
         attributes into appropriate WFDB format strings.
