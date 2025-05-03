@@ -238,6 +238,7 @@ def plot_items(
 
     >>> wfdb.plot_items(signal=record.p_signal,
                         ann_samp=[ann.sample, ann.sample],
+                        fs=record.fs, sig_units=record.units,
                         title='MIT-BIH Record 100', time_units='seconds',
                         figsize=(10,4), ecg_grids='all')
 
