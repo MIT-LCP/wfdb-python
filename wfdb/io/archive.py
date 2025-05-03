@@ -17,6 +17,7 @@ class WFDBArchive:
       - .wfdb is included in the record_name explicitly, or
       - .wfdb is passed directly to the file loading function.
     """
+
     def __init__(self, record_name, mode="r"):
         """
         Initialize a WFDBArchive for a given record name (without extension).
@@ -35,7 +36,9 @@ class WFDBArchive:
 
         if mode == "r":
             if not os.path.exists(self.archive_path):
-                raise FileNotFoundError(f"Archive not found: {self.archive_path}")
+                raise FileNotFoundError(
+                    f"Archive not found: {self.archive_path}"
+                )
             if not zipfile.is_zipfile(self.archive_path):
                 raise ValueError(f"Invalid WFDB archive: {self.archive_path}")
             self.zipfile = zipfile.ZipFile(self.archive_path, mode="r")
@@ -60,16 +63,17 @@ class WFDBArchive:
         Mode 'r' (text) or 'rb' (binary) supported.
         """
         if self.zipfile and filename in self.zipfile.namelist():
-            with self.zipfile.open(filename, 'r') as f:
+            with self.zipfile.open(filename, "r") as f:
                 if "b" in mode:
                     yield f
                 else:
                     import io
+
                     yield io.TextIOWrapper(f)
         else:
             raise FileNotFoundError(
                 f"Could not find '{filename}' as loose file or inside '{self.archive_path}'."
-                )
+            )
 
     def close(self):
         """
@@ -111,7 +115,9 @@ class WFDBArchive:
                     if file.endswith((".hea", ".hea.json", ".hea.yml"))
                     else zipfile.ZIP_DEFLATED
                 )
-                zf.write(file, arcname=os.path.basename(file), compress_type=compress)
+                zf.write(
+                    file, arcname=os.path.basename(file), compress_type=compress
+                )
 
 
 def get_archive(record_base_name, mode="r"):
@@ -119,6 +125,7 @@ def get_archive(record_base_name, mode="r"):
     Get or create a WFDBArchive for the given record base name.
     """
     if record_base_name not in _archive_cache:
-        _archive_cache[record_base_name] = WFDBArchive(record_base_name,
-                                                       mode=mode)
+        _archive_cache[record_base_name] = WFDBArchive(
+            record_base_name, mode=mode
+        )
     return _archive_cache[record_base_name]
