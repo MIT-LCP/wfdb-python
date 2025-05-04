@@ -50,6 +50,12 @@ class WFDBArchive:
                     pass  # Just create the file
             self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def exists(self, filename):
         """
         Check if a file exists in the archive.
