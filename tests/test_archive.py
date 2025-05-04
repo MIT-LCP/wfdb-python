@@ -190,5 +190,5 @@ def test_archive_missing_file_error(temp_record):
                 zout.writestr(item, zin.read(item.filename))
     os.remove(archive_path + ".bak")
 
-    with pytest.raises(FileNotFoundError, match=".*\.dat.*"):
+    with pytest.raises(FileNotFoundError, match=r".*\.dat.*"):
         rdrecord(archive_path)
