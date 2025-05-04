@@ -1,3 +1,4 @@
+import io
 import os
 import shutil
 import zipfile
@@ -44,10 +45,9 @@ class WFDBArchive:
             self.zipfile = zipfile.ZipFile(self.archive_path, mode="r")
 
         elif mode == "w":
-            # Initialize an empty archive on disk
+            # Create archive file if needed
             if not os.path.exists(self.archive_path):
-                with zipfile.ZipFile(self.archive_path, mode="w"):
-                    pass  # Just create the file
+                WFDBArchive.make_archive_file([], self.archive_path)
             self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
     def __enter__(self):
@@ -62,6 +62,15 @@ class WFDBArchive:
         """
         return self.zipfile and filename in self.zipfile.namelist()
 
+    @staticmethod
+    def make_archive_file(file_list, output_path):
+        with zipfile.ZipFile(output_path, mode="w") as zf:
+            for file in file_list:
+                compress = zipfile.ZIP_DEFLATED
+                zf.write(
+                    file, arcname=os.path.basename(file), compress_type=compress
+                )
+
     @contextmanager
     def open(self, filename, mode="r"):
         """
@@ -73,8 +82,6 @@ class WFDBArchive:
                 if "b" in mode:
                     yield f
                 else:
-                    import io
-
                     yield io.TextIOWrapper(f)
         else:
             raise FileNotFoundError(
@@ -97,7 +104,7 @@ class WFDBArchive:
             self.zipfile.writestr(filename, data)
             return
 
-        # If already opened in read or append mode, use the replace-then-move trick
+        # If already opened in read or append mode, use replace-then-move
         tmp_path = self.archive_path + ".tmp"
         with zipfile.ZipFile(self.archive_path, mode="r") as zin:
             with zipfile.ZipFile(tmp_path, mode="w") as zout:
@@ -114,16 +121,13 @@ class WFDBArchive:
         If output_path is not specified, uses self.archive_path.
         """
         output_path = output_path or self.archive_path
-        with zipfile.ZipFile(output_path, mode="w") as zf:
-            for file in file_list:
-                compress = (
-                    zipfile.ZIP_STORED
-                    if file.endswith((".hea", ".hea.json", ".hea.yml"))
-                    else zipfile.ZIP_DEFLATED
-                )
-                zf.write(
-                    file, arcname=os.path.basename(file), compress_type=compress
-                )
+        WFDBArchive.make_archive_file(file_list, output_path)
+
+        # If this archive object points to the archive, reload the zipfile in append mode
+        if output_path == self.archive_path:
+            if self.zipfile:
+                self.zipfile.close()
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
 
 def get_archive(record_base_name, mode="r"):

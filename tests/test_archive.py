@@ -54,11 +54,11 @@ def temp_record():
         dat_path = os.path.join(tmpdir, record_basename + ".dat")
         archive_path = os.path.join(tmpdir, record_basename + ".wfdb")
 
-        WFDBArchive.create_archive(
-            None,
-            file_list=[hea_path, dat_path],
-            output_path=archive_path,
-        )
+        with WFDBArchive(record_name=record_basename, mode="w") as archive:
+            archive.create_archive(
+                file_list=[hea_path, dat_path],
+                output_path=archive_path,
+            )
 
         yield {
             "record_name": os.path.join(tmpdir, record_basename),
