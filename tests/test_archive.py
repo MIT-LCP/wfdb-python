@@ -182,13 +182,14 @@ def test_archive_missing_file_error(temp_record):
         zf_name = [name for name in zf.namelist() if name.endswith(".dat")][0]
         zf.fp = None  # Prevent auto-close bug in some zipfile implementations
     os.rename(archive_path, archive_path + ".bak")
-    with zipfile.ZipFile(archive_path + ".bak", "r") as zin, zipfile.ZipFile(
-        archive_path, "w"
-    ) as zout:
+    with (
+        zipfile.ZipFile(archive_path + ".bak", "r") as zin,
+        zipfile.ZipFile(archive_path, "w") as zout,
+    ):
         for item in zin.infolist():
             if not item.filename.endswith(".dat"):
                 zout.writestr(item, zin.read(item.filename))
     os.remove(archive_path + ".bak")
 
-    with pytest.raises(FileNotFoundError, match=".*\.dat.*"):
+    with pytest.raises(FileNotFoundError, match=r".*\.dat.*"):
         rdrecord(archive_path)

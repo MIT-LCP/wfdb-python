@@ -2786,9 +2786,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
         )
         if not times.startswith("s"):
             sample_num = int(
-                sum(
-                    x * 60**i for i, x in enumerate([seconds, minutes, hours])
-                )
+                sum(x * 60**i for i, x in enumerate([seconds, minutes, hours]))
                 * record.fs
             )
         sample_num = "s" + str(sample_num)
