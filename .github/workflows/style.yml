@@ -1,0 +1,21 @@
+name: Style Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  style:
+    name: Style Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Install Python
+        run: uv python install 3.11
+      - name: Check style
+        run: uv run --extra dev black --check --diff .
