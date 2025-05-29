@@ -10,7 +10,7 @@ import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
-from wfdb.io.archive import get_archive
+from wfdb.io.archive import get_archive, WFDBArchive
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -911,6 +911,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             of the uniform signal (d_signal).
         write_dir : str, optional
             The directory in which to write the files.
+        wfdb_archive : str or WFDBArchive, optional
+            If provided, writes the record to a .wfdb archive. Can be either:
+            - A string path to the archive file (e.g., 'record.wfdb')
+            - A WFDBArchive object for more advanced usage
 
         Returns
         -------
@@ -926,6 +930,15 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                 if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
                     checksums[ch] = old_val
             self.checksum = checksums
+
+        # Handle wfdb_archive parameter
+        if wfdb_archive:
+            if isinstance(wfdb_archive, str):
+                # If a string path is provided, create a WFDBArchive object
+                from wfdb.io.archive import get_archive
+                wfdb_archive = get_archive(wfdb_archive, mode="w")
+            elif not isinstance(wfdb_archive, WFDBArchive):
+                raise TypeError("wfdb_archive must be either a string path or WFDBArchive object")
 
         # Perform field validity and cohesion checks, and write the
         # header file.
@@ -1975,7 +1988,6 @@ def rdrecord(
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/content/mitdb'
-        pn_dir='mitdb'.
     m2s : bool, optional
         Used when reading multi-segment records. Specifies whether to
         directly return a WFDB MultiRecord object (False), or to convert
@@ -2033,7 +2045,6 @@ def rdrecord(
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
                                channels=[1, 3])
-
     """
     wfdb_archive = None
     is_wfdb_archive = record_name.endswith(".wfdb")
@@ -2041,7 +2052,12 @@ def rdrecord(
     if is_wfdb_archive:
         record_base = record_name[:-5]  # remove ".wfdb"
         wfdb_archive = get_archive(record_base)
-        hea_file = os.path.basename(record_base) + ".hea"
+
+        # Find any .hea file in the archive
+        hea_files = [f for f in wfdb_archive.zipfile.namelist() if f.endswith('.hea')]
+        if not hea_files:
+            raise FileNotFoundError(f"No header file found in archive {record_name}")
+        hea_file = hea_files[0]  # Use the first header file found
 
         import tempfile
 
@@ -2954,6 +2970,10 @@ def wrsamp(
         setting both `base_date` and `base_time`.
     write_dir : str, optional
         The directory in which to write the files.
+    wfdb_archive : str or WFDBArchive, optional
+        If provided, writes the record to a .wfdb archive. Can be either:
+        - A string path to the archive file (e.g., 'record.wfdb')
+        - A WFDBArchive object for more advanced usage
 
     Returns
     -------
@@ -2978,6 +2998,10 @@ def wrsamp(
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
                     sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+    >>> # Write to a .wfdb archive using a string path
+    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
+                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'],
+                    wfdb_archive='ecgrecord.wfdb')
 
     """
     # Check for valid record name
@@ -3082,10 +3106,14 @@ def wrsamp(
     else:
         expanded = False
 
+    # Handle wfdb_archive parameter
     if wfdb_archive:
-        wfdb_archive = get_archive(
-            os.path.join(write_dir, record_name), mode="w"
-        )
+        if isinstance(wfdb_archive, str):
+            # If a string path is provided, create a WFDBArchive object
+            from wfdb.io.archive import get_archive
+            wfdb_archive = get_archive(wfdb_archive, mode="w")
+        elif not isinstance(wfdb_archive, WFDBArchive):
+            raise TypeError("wfdb_archive must be either a string path or WFDBArchive object")
 
     # Write the record files - header and associated dat
     record.wrsamp(

@@ -98,7 +98,7 @@ def test_wfdb_archive_inline_round_trip():
         sig = (np.random.randn(sig_len, 2) * 1000).astype(np.float32)
 
         # Create archive inline using context manager
-        with WFDBArchive(record_basename, mode="w") as wfdb_archive:
+        with WFDBArchive(record_path, mode="w") as wfdb_archive:
             wrsamp(
                 record_name=record_basename,
                 fs=fs,

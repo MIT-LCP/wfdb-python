@@ -1710,6 +1710,16 @@ def _rd_dat_file(
 
     # Local file or .wfdb archive
     if wfdb_archive is not None:
+        # If the exact file name isn't found, look for any .dat file
+        if not wfdb_archive.exists(file_name):
+            dat_files = [f for f in wfdb_archive.zipfile.namelist()
+                        if f.endswith('.dat')]
+            if not dat_files:
+                raise FileNotFoundError(
+                    f"No dat file found in archive for {file_name}"
+                )
+            file_name = dat_files[0]  # Use the first dat file found
+
         with wfdb_archive.open(file_name, "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
