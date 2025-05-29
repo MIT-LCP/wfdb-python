@@ -70,6 +70,7 @@ def temp_record():
         finally:
             # Clean up any open archive handles
             from wfdb.io.archive import _archive_cache
+
             for archive in _archive_cache.values():
                 if archive is not None:
                     archive.close()
@@ -122,10 +123,15 @@ def test_wfdb_archive_inline_round_trip():
             assert record.p_signal.shape == sig.shape
 
             # Add tolerance to account for loss of precision during archive round-trip
-            np.testing.assert_allclose(record.p_signal, sig, rtol=1e-2, atol=3e-3)
+            np.testing.assert_allclose(
+                record.p_signal, sig, rtol=1e-2, atol=3e-3
+            )
         finally:
             # Ensure we close the archive after reading
-            if hasattr(record, 'wfdb_archive') and record.wfdb_archive is not None:
+            if (
+                hasattr(record, "wfdb_archive")
+                and record.wfdb_archive is not None
+            ):
                 record.wfdb_archive.close()
 
 
