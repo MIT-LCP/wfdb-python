@@ -88,21 +88,20 @@ def test_wfdb_archive_inline_round_trip():
         sig_len = 1000
         sig = (np.random.randn(sig_len, 2) * 1000).astype(np.float32)
 
-        # Create archive inline
-        wfdb_archive = WFDBArchive(record_basename, mode="w")
-        wrsamp(
-            record_name=record_basename,
-            fs=fs,
-            units=["mV", "mV"],
-            sig_name=["I", "II"],
-            p_signal=sig,
-            fmt=["24", "24"],
-            adc_gain=[200.0, 200.0],
-            baseline=[0, 0],
-            write_dir=tmpdir,
-            wfdb_archive=wfdb_archive,
-        )
-        wfdb_archive.close()
+        # Create archive inline using context manager
+        with WFDBArchive(record_basename, mode="w") as wfdb_archive:
+            wrsamp(
+                record_name=record_basename,
+                fs=fs,
+                units=["mV", "mV"],
+                sig_name=["I", "II"],
+                p_signal=sig,
+                fmt=["24", "24"],
+                adc_gain=[200.0, 200.0],
+                baseline=[0, 0],
+                write_dir=tmpdir,
+                wfdb_archive=wfdb_archive,
+            )
 
         assert os.path.exists(archive_path), "Archive was not created"
 
