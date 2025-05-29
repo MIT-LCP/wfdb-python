@@ -60,12 +60,20 @@ def temp_record():
                 output_path=archive_path,
             )
 
-        yield {
-            "record_name": os.path.join(tmpdir, record_basename),
-            "archive_path": archive_path,
-            "original_signal": sig,
-            "fs": fs,
-        }
+        try:
+            yield {
+                "record_name": os.path.join(tmpdir, record_basename),
+                "archive_path": archive_path,
+                "original_signal": sig,
+                "fs": fs,
+            }
+        finally:
+            # Clean up any open archive handles
+            from wfdb.io.archive import _archive_cache
+            for archive in _archive_cache.values():
+                if archive is not None:
+                    archive.close()
+            _archive_cache.clear()
 
 
 def test_wfdb_archive_inline_round_trip():
@@ -108,12 +116,17 @@ def test_wfdb_archive_inline_round_trip():
         # Read back from archive
         record = rdrecord(archive_path)
 
-        assert record.fs == fs
-        assert record.n_sig == 2
-        assert record.p_signal.shape == sig.shape
+        try:
+            assert record.fs == fs
+            assert record.n_sig == 2
+            assert record.p_signal.shape == sig.shape
 
-        # Add tolerance to account for loss of precision during archive round-trip
-        np.testing.assert_allclose(record.p_signal, sig, rtol=1e-2, atol=3e-3)
+            # Add tolerance to account for loss of precision during archive round-trip
+            np.testing.assert_allclose(record.p_signal, sig, rtol=1e-2, atol=3e-3)
+        finally:
+            # Ensure we close the archive after reading
+            if hasattr(record, 'wfdb_archive') and record.wfdb_archive is not None:
+                record.wfdb_archive.close()
 
 
 def test_wfdb_archive_round_trip(temp_record):
