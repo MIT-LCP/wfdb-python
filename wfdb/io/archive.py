@@ -32,7 +32,7 @@ class WFDBArchive:
         """
         self.record_name = record_name
         # Only append .wfdb if it's not already there
-        if record_name.endswith('.wfdb'):
+        if record_name.endswith(".wfdb"):
             self.archive_path = record_name
         else:
             self.archive_path = f"{record_name}.wfdb"
@@ -45,24 +45,19 @@ class WFDBArchive:
                     f"Archive not found: {self.archive_path}"
                 )
             if not zipfile.is_zipfile(self.archive_path):
-                raise ValueError(
-                    f"Invalid WFDB archive: {self.archive_path}"
-                )
-            self.zipfile = zipfile.ZipFile(
-                self.archive_path, mode="r"
-            )
+                raise ValueError(f"Invalid WFDB archive: {self.archive_path}")
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="r")
 
         elif mode == "w":
             # Create archive file if needed
             if not os.path.exists(self.archive_path):
                 # Create the directory if it doesn't exist
-                os.makedirs(os.path.dirname(os.path.abspath(self.archive_path)), exist_ok=True)
-                WFDBArchive.make_archive_file(
-                    [], self.archive_path
+                os.makedirs(
+                    os.path.dirname(os.path.abspath(self.archive_path)),
+                    exist_ok=True,
                 )
-            self.zipfile = zipfile.ZipFile(
-                self.archive_path, mode="a"
-            )
+                WFDBArchive.make_archive_file([], self.archive_path)
+            self.zipfile = zipfile.ZipFile(self.archive_path, mode="a")
 
     def __enter__(self):
         return self

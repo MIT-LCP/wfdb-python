@@ -2054,9 +2054,13 @@ def rdrecord(
         wfdb_archive = get_archive(record_base)
 
         # Find any .hea file in the archive
-        hea_files = [f for f in wfdb_archive.zipfile.namelist() if f.endswith('.hea')]
+        hea_files = [
+            f for f in wfdb_archive.zipfile.namelist() if f.endswith(".hea")
+        ]
         if not hea_files:
-            raise FileNotFoundError(f"No header file found in archive {record_name}")
+            raise FileNotFoundError(
+                f"No header file found in archive {record_name}"
+            )
         hea_file = hea_files[0]  # Use the first header file found
 
         import tempfile
