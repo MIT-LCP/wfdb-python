@@ -936,9 +936,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             if isinstance(wfdb_archive, str):
                 # If a string path is provided, create a WFDBArchive object
                 from wfdb.io.archive import get_archive
+
                 wfdb_archive = get_archive(wfdb_archive, mode="w")
             elif not isinstance(wfdb_archive, WFDBArchive):
-                raise TypeError("wfdb_archive must be either a string path or WFDBArchive object")
+                raise TypeError(
+                    "wfdb_archive must be either a string path or WFDBArchive object"
+                )
 
         # Perform field validity and cohesion checks, and write the
         # header file.
@@ -3115,9 +3118,12 @@ def wrsamp(
         if isinstance(wfdb_archive, str):
             # If a string path is provided, create a WFDBArchive object
             from wfdb.io.archive import get_archive
+
             wfdb_archive = get_archive(wfdb_archive, mode="w")
         elif not isinstance(wfdb_archive, WFDBArchive):
-            raise TypeError("wfdb_archive must be either a string path or WFDBArchive object")
+            raise TypeError(
+                "wfdb_archive must be either a string path or WFDBArchive object"
+            )
 
     # Write the record files - header and associated dat
     record.wrsamp(
