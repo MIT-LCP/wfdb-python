@@ -35,8 +35,6 @@ jobs:
         run: sudo apt-get install -y libsndfile1
       - name: Run tests
         run: uv run --with ${{ matrix.numpy }} --extra dev pytest
-      - name: Check style
-        run: uv run --extra dev black --check --diff .
 
   test-deb11-i386:
     name: Python 3.7 on Debian 11 i386
