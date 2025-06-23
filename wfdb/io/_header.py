@@ -756,9 +756,25 @@ class MultiHeaderMixin(BaseHeaderMixin):
         for field in RECORD_SPECS.index:
             # If the field is being used, add it with its delimiter
             if field in write_fields:
-                record_line += RECORD_SPECS.loc[field, "delimiter"] + str(
-                    getattr(self, field)
+                string_field = str(getattr(self, field))
+
+                # Certain fields need extra processing
+                if field == "fs" and isinstance(self.fs, float):
+                    if round(self.fs, 8) == float(int(self.fs)):
+                        string_field = str(int(self.fs))
+                elif field == "base_time" and "." in string_field:
+                    string_field = string_field.rstrip("0")
+                elif field == "base_date":
+                    string_field = "/".join(
+                        (string_field[8:], string_field[5:7], string_field[:4])
+                    )
+
+                record_line += (
+                    RECORD_SPECS.loc[field, "delimiter"] + string_field
                 )
+                # The 'base_counter' field needs to be closed with ')'
+                if field == "base_counter":
+                    record_line += ")"
 
         header_lines = [record_line]
 
