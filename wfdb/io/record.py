@@ -405,6 +405,7 @@ class BaseRecord(object):
                 parent_class=(
                     lambda f: np.integer if f == "d_signal" else np.floating
                 )(field),
+                min_itemsize=8 if field == "p_signal" else None,
             )
         elif field in ["e_d_signal", "e_p_signal"]:
             for ch in range(len(item)):
@@ -418,6 +419,7 @@ class BaseRecord(object):
                         )
                     )(field),
                     channel_num=ch,
+                    min_itemsize=8 if field == "e_p_signal" else None,
                 )
 
         # Record specification fields
@@ -1745,7 +1747,9 @@ def _check_item_type(
             )
 
 
-def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
+def check_np_array(
+    item, field_name, ndim, parent_class, min_itemsize=None, channel_num=None
+):
     """
     Check a numpy array's shape and dtype against required
     specifications.
@@ -1781,6 +1785,15 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
         error_msg = "Field `%s` must have a dtype that subclasses %s" % (
             field_name,
             parent_class,
+        )
+        if channel_num is not None:
+            error_msg = ("Channel %d of f" % channel_num) + error_msg[1:]
+        raise TypeError(error_msg)
+
+    if min_itemsize is not None and item.dtype.itemsize < min_itemsize:
+        error_msg = "Field `%s` must have a dtype itemsize of at least %d" % (
+            field_name,
+            min_itemsize,
         )
         if channel_num is not None:
             error_msg = ("Channel %d of f" % channel_num) + error_msg[1:]
