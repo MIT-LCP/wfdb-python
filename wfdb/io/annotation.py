@@ -908,7 +908,18 @@ class Annotation(object):
         if self.custom_labels is not None:
             self.standardize_custom_labels()
             for i in self.custom_labels.index:
-                label_map.loc[i] = self.custom_labels.loc[i]
+                # label_map.loc[i] = self.custom_labels.loc[i]
+                label_map["label_store"] = label_map["label_store"].astype(
+                    "int64"
+                )
+                cl = self.custom_labels.astype(
+                    {"label_store": "int64"}
+                ).set_index("label_store")
+                lm = label_map.set_index("label_store").reindex(
+                    label_map["label_store"].unique()
+                )
+                lm.update(cl[["symbol", "description"]])
+                label_map = lm.reset_index()
 
         if inplace:
             self.__label_map__ = label_map
