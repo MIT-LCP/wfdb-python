@@ -1,4 +1,5 @@
 import datetime
+from dateutil import parser
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -240,7 +241,8 @@ class BaseHeaderMixin(object):
         """
         Get and process the fields as needed before writing
         """
-        string_field = str(getattr(self, field))
+        original_field = getattr(self, field)
+        string_field = str(original_field)
 
         # Certain fields need extra processing
         if field == "fs" and isinstance(self.fs, float):
@@ -249,9 +251,7 @@ class BaseHeaderMixin(object):
         elif field == "base_time" and "." in string_field:
             string_field = string_field.rstrip("0")
         elif field == "base_date":
-            string_field = "/".join(
-                (string_field[8:], string_field[5:7], string_field[:4])
-            )
+            string_field = original_field.strftime("%d/%m/%Y")
 
         return string_field
 
