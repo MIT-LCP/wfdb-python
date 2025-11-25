@@ -997,6 +997,33 @@ def wfdb_strptime(time_string: str) -> datetime.time:
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
+def wfdb_strptime_date(date_string: str) -> datetime.time:
+    """
+    Given a date string in an acceptable WFDB format, return
+    a datetime.date object.
+
+    Valid formats: d/m/y, d.m.y
+
+    Parameters
+    ----------
+    date_string : str
+        The date to be converted to a datetime.date object.
+
+    Returns
+    -------
+    datetime.date object
+        The date converted from str format.
+
+    """
+    try:
+        return datetime.datetime.strptime(date_string, "%d/%m/%Y").date()
+    except ValueError:
+        pass
+
+    # European date format?
+    return datetime.datetime.strptime(date_string, "%d.%m.%Y").date()
+
+
 def _parse_record_line(record_line: str) -> dict:
     """
     Extract fields from a record line string into a dictionary.
@@ -1054,9 +1081,9 @@ def _parse_record_line(record_line: str) -> dict:
                     record_fields["base_time"]
                 )
             elif field == "base_date":
-                record_fields["base_date"] = datetime.datetime.strptime(
-                    record_fields["base_date"], "%d/%m/%Y"
-                ).date()
+                record_fields["base_date"] = wfdb_strptime_date(
+                    record_fields["base_date"]
+                )
 
     # This is not a standard WFDB field, but is useful to set.
     if record_fields["base_date"] and record_fields["base_time"]:
