@@ -1,3 +1,4 @@
+import io
 import math
 import os
 import posixpath
@@ -6,7 +7,7 @@ import sys
 import fsspec
 import numpy as np
 
-from wfdb.io import download, _coreio, util
+from wfdb.io import _coreio, download, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 MAX_I32 = 2147483647
@@ -120,7 +121,7 @@ class SignalMixin(object):
 
     """
 
-    def wr_dats(self, expanded, write_dir):
+    def wr_dats(self, expanded, write_dir, wfdb_archive=None):
         """
         Write all dat files associated with a record
         expanded=True to use e_d_signal instead of d_signal.
@@ -132,6 +133,8 @@ class SignalMixin(object):
             the `d_signal` attribute (False).
         write_dir : str
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            If set, writes to a .wfdb archive instead of the filesystem.
 
         Returns
         -------
@@ -160,7 +163,9 @@ class SignalMixin(object):
         self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
-        self.wr_dat_files(expanded=expanded, write_dir=write_dir)
+        self.wr_dat_files(
+            expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+        )
 
     def check_sig_cohesion(self, write_fields, expanded):
         """
@@ -958,7 +963,7 @@ class SignalMixin(object):
             cs = [int(c) for c in cs]
         return cs
 
-    def wr_dat_files(self, expanded=False, write_dir=""):
+    def wr_dat_files(self, expanded=False, write_dir="", wfdb_archive=None):
         """
         Write each of the specified dat files.
 
@@ -969,6 +974,8 @@ class SignalMixin(object):
             the `d_signal` attribute (False).
         write_dir : str, optional
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            If set, writes to a .wfdb archive instead of the local filesystem.
 
         Returns
         -------
@@ -1003,6 +1010,7 @@ class SignalMixin(object):
                     [self.e_d_signal[ch] for ch in dat_channels[fn]],
                     [self.samps_per_frame[ch] for ch in dat_channels[fn]],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
         else:
             dsig = self.d_signal
@@ -1013,6 +1021,7 @@ class SignalMixin(object):
                     dsig[:, dat_channels[fn][0] : dat_channels[fn][-1] + 1],
                     dat_offsets[fn],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
 
     def smooth_frames(self, sigtype="physical"):
@@ -1120,6 +1129,7 @@ def _rd_segment(
     no_file=False,
     sig_data=None,
     return_res=64,
+    wfdb_archive=None,
 ):
     """
     Read the digital samples from a single segment record's associated
@@ -1264,6 +1274,7 @@ def _rd_segment(
             sampto=sampto,
             no_file=no_file,
             sig_data=sig_data,
+            wfdb_archive=wfdb_archive,
         )
 
         # Copy over the wanted signals
@@ -1288,6 +1299,7 @@ def _rd_dat_signals(
     sampto,
     no_file=False,
     sig_data=None,
+    wfdb_archive=None,
 ):
     """
     Read all signals from a WFDB dat file.
@@ -1390,7 +1402,13 @@ def _rd_dat_signals(
         )
     else:
         data_to_read = _rd_dat_file(
-            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples
+            file_name,
+            dir_name,
+            pn_dir,
+            fmt,
+            start_byte,
+            n_read_samples,
+            wfdb_archive=wfdb_archive,
         )
 
     if extra_flat_samples:
@@ -1630,7 +1648,9 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
+def _rd_dat_file(
+    file_name, dir_name, pn_dir, fmt, start_byte, n_samp, wfdb_archive=None
+):
     """
     Read data from a dat file, either local or remote, into a 1d numpy
     array.
@@ -1688,14 +1708,30 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
-    # Local or cloud dat file
-    if pn_dir is None:
+    # Local file or .wfdb archive
+    if wfdb_archive is not None:
+        # If the exact file name isn't found, look for any .dat file
+        if not wfdb_archive.exists(file_name):
+            dat_files = [
+                f for f in wfdb_archive.zipfile.namelist() if f.endswith(".dat")
+            ]
+            if not dat_files:
+                raise FileNotFoundError(
+                    f"No dat file found in archive for {file_name}"
+                )
+            file_name = dat_files[0]  # Use the first dat file found
+
+        with wfdb_archive.open(file_name, "rb") as fp:
+            fp.seek(start_byte)
+            sig_data = util.fromfile(
+                fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
+            )
+    elif pn_dir is None:
         with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
             )
-
     # Stream dat file from PhysioNet
     else:
         # check to make sure a cloud path isn't being passed under pn_dir
@@ -2312,6 +2348,7 @@ def wr_dat_file(
     e_d_signal=None,
     samps_per_frame=None,
     write_dir="",
+    wfdb_archive=None,
 ):
     """
     Write a dat file. All bytes are written one at a time to avoid
@@ -2509,16 +2546,30 @@ def wr_dat_file(
         else:
             raise ValueError(f"unknown format ({fmt})")
 
-        sf = soundfile.SoundFile(
-            file_path,
-            mode="w",
-            samplerate=96000,
-            channels=n_sig,
-            subtype=subtype,
-            format="FLAC",
-        )
-        with sf:
-            sf.write(d_signal)
+        if wfdb_archive:
+            with io.BytesIO() as f:
+                with soundfile.SoundFile(
+                    f,
+                    mode="w",
+                    samplerate=96000,
+                    channels=n_sig,
+                    subtype=subtype,
+                    format="FLAC",  # required for file-like
+                ) as sf:
+                    sf.write(d_signal)
+                wfdb_archive.write(os.path.basename(file_name), f.getvalue())
+            return
+        else:
+            sf = soundfile.SoundFile(
+                file_path,
+                mode="w",
+                samplerate=96000,
+                channels=n_sig,
+                subtype=subtype,
+                format="FLAC",
+            )
+            with sf:
+                sf.write(d_signal)
             return
 
     else:
@@ -2539,8 +2590,13 @@ def wr_dat_file(
         b_write = np.append(np.zeros(byte_offset, dtype="uint8"), b_write)
 
     # Write the bytes to the file
-    with open(file_path, "wb") as f:
-        b_write.tofile(f)
+    if wfdb_archive:
+        with io.BytesIO() as f:
+            f.write(b_write.tobytes())
+            wfdb_archive.write(os.path.basename(file_name), f.getvalue())
+    else:
+        with open(file_path, "wb") as f:
+            b_write.tofile(f)
 
 
 def describe_list_indices(full_list):

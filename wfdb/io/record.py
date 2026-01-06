@@ -1,21 +1,16 @@
 import datetime
 import multiprocessing.dummy
-import posixpath
 import os
+import posixpath
 import re
 
 import fsspec
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _header
-from wfdb.io import _signal
-from wfdb.io import _url
-from wfdb.io import download
-from wfdb.io import header
-from wfdb.io import util
+from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
-
+from wfdb.io.archive import get_archive, WFDBArchive
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -904,7 +899,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         return True
 
-    def wrsamp(self, expanded=False, write_dir=""):
+    def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """
         Write a WFDB header file and any associated dat files from this
         object.
@@ -916,6 +911,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             of the uniform signal (d_signal).
         write_dir : str, optional
             The directory in which to write the files.
+        wfdb_archive : str or WFDBArchive, optional
+            If provided, writes the record to a .wfdb archive. Can be either:
+            - A string path to the archive file (e.g., 'record.wfdb')
+            - A WFDBArchive object for more advanced usage
 
         Returns
         -------
@@ -932,13 +931,31 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                     checksums[ch] = old_val
             self.checksum = checksums
 
+        # Handle wfdb_archive parameter
+        if wfdb_archive:
+            if isinstance(wfdb_archive, str):
+                # If a string path is provided, create a WFDBArchive object
+                from wfdb.io.archive import get_archive
+
+                wfdb_archive = get_archive(wfdb_archive, mode="w")
+            elif not isinstance(wfdb_archive, WFDBArchive):
+                raise TypeError(
+                    "wfdb_archive must be either a string path or WFDBArchive object"
+                )
+
         # Perform field validity and cohesion checks, and write the
         # header file.
-        self.wrheader(write_dir=write_dir, expanded=expanded)
+        self.wrheader(
+            write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive
+        )
         if self.n_sig > 0:
             # Perform signal validity and cohesion checks, and write the
             # associated dat files.
-            self.wr_dats(expanded=expanded, write_dir=write_dir)
+            self.wr_dats(
+                expanded=expanded,
+                write_dir=write_dir,
+                wfdb_archive=wfdb_archive,
+            )
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """
@@ -1160,7 +1177,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             if not seg_len:
                 self.seg_len = [segment.sig_len for segment in segments]
 
-    def wrsamp(self, write_dir=""):
+    def wrsamp(self, write_dir="", wfdb_archive=None):
         """
         Write a multi-segment header, along with headers and dat files
         for all segments, from this object.
@@ -1177,11 +1194,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         """
         # Perform field validity and cohesion checks, and write the
         # header file.
-        self.wrheader(write_dir=write_dir)
+        self.wrheader(write_dir=write_dir, wfdb_archive=wfdb_archive)
         # Perform record validity and cohesion checks, and write the
         # associated segments.
         for seg in self.segments:
-            seg.wrsamp(write_dir=write_dir)
+            seg.wrsamp(write_dir=write_dir, wfdb_archive=wfdb_archive)
 
     def _check_segment_cohesion(self):
         """
@@ -1826,7 +1843,11 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     """
     dir_name, base_record_name = os.path.split(record_name)
-    file_name = f"{base_record_name}.hea"
+
+    if not base_record_name.endswith(".hea"):
+        file_name = f"{base_record_name}.hea"
+    else:
+        file_name = base_record_name
 
     # If this is a cloud path, use posixpath to construct the path and fsspec to open file
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
@@ -1970,7 +1991,6 @@ def rdrecord(
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
         eg. For record '100' in 'http://physionet.org/content/mitdb'
-        pn_dir='mitdb'.
     m2s : bool, optional
         Used when reading multi-segment records. Specifies whether to
         directly return a WFDB MultiRecord object (False), or to convert
@@ -2028,27 +2048,62 @@ def rdrecord(
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
                                channels=[1, 3])
-
     """
-    dir_name, base_record_name = os.path.split(record_name)
-    # Update the dir_name using abspath unless it is a cloud path
-    if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        dir_name = os.path.abspath(dir_name)
+    wfdb_archive = None
+    is_wfdb_archive = record_name.endswith(".wfdb")
 
-    # Read the header fields
-    if pn_dir is not None:
-        # check to make sure a cloud path isn't being passed under pn_dir
-        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-            raise ValueError(
-                "Cloud paths should be passed under record_name, not under pn_dir"
-            )
-        if "." not in pn_dir:
-            dir_list = pn_dir.split("/")
-            pn_dir = posixpath.join(
-                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-            )
+    if is_wfdb_archive:
+        record_base = record_name[:-5]  # remove ".wfdb"
+        wfdb_archive = get_archive(record_base)
 
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+        # Find any .hea file in the archive
+        hea_files = [
+            f for f in wfdb_archive.zipfile.namelist() if f.endswith(".hea")
+        ]
+        if not hea_files:
+            raise FileNotFoundError(
+                f"No header file found in archive {record_name}"
+            )
+        hea_file = hea_files[0]  # Use the first header file found
+
+        import tempfile
+
+        with wfdb_archive.open(hea_file, "r") as f:
+            header_str = f.read()
+
+        with tempfile.NamedTemporaryFile(
+            "w+", suffix=".hea", delete=False
+        ) as tmpf:
+            tmpf.write(header_str)
+            tmpf.flush()
+            record = rdheader(tmpf.name)
+            record.wfdb_archive = wfdb_archive
+
+        # Set dir_name to the archive base (needed for _rd_segment)
+        dir_name = os.path.dirname(record_base)
+
+    else:
+        dir_name, base_record_name = os.path.split(record_name)
+        # Update the dir_name using abspath unless it is a cloud path
+        if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+            dir_name = os.path.abspath(dir_name)
+
+        # Read the header fields
+        if pn_dir is not None:
+            # check to make sure a cloud path isn't being passed under pn_dir
+            if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+                raise ValueError(
+                    "Cloud paths should be passed under record_name, not under pn_dir"
+                )
+            if "." not in pn_dir:
+                dir_list = pn_dir.split("/")
+                pn_dir = posixpath.join(
+                    dir_list[0],
+                    download.get_version(dir_list[0]),
+                    *dir_list[1:],
+                )
+
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2150,6 +2205,7 @@ def rdrecord(
             no_file=no_file,
             sig_data=sig_data,
             return_res=return_res,
+            wfdb_archive=wfdb_archive,
         )
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
@@ -2861,6 +2917,7 @@ def wrsamp(
     base_date=None,
     base_datetime=None,
     write_dir="",
+    wfdb_archive=None,
 ):
     """
     Write a single segment WFDB record, creating a WFDB header file and any
@@ -2920,6 +2977,10 @@ def wrsamp(
         setting both `base_date` and `base_time`.
     write_dir : str, optional
         The directory in which to write the files.
+    wfdb_archive : str or WFDBArchive, optional
+        If provided, writes the record to a .wfdb archive. Can be either:
+        - A string path to the archive file (e.g., 'record.wfdb')
+        - A WFDBArchive object for more advanced usage
 
     Returns
     -------
@@ -2944,11 +3005,16 @@ def wrsamp(
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
                     sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+    >>> # Write to a .wfdb archive using a string path
+    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
+                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'],
+                    wfdb_archive='ecgrecord.wfdb')
 
     """
     # Check for valid record name
     if "." in record_name:
         raise Exception("Record name must not contain '.'")
+
     # Check input field combinations
     signal_list = [p_signal, d_signal, e_p_signal, e_d_signal]
     signals_set = sum(1 for var in signal_list if var is not None)
@@ -3047,8 +3113,22 @@ def wrsamp(
     else:
         expanded = False
 
+    # Handle wfdb_archive parameter
+    if wfdb_archive:
+        if isinstance(wfdb_archive, str):
+            # If a string path is provided, create a WFDBArchive object
+            from wfdb.io.archive import get_archive
+
+            wfdb_archive = get_archive(wfdb_archive, mode="w")
+        elif not isinstance(wfdb_archive, WFDBArchive):
+            raise TypeError(
+                "wfdb_archive must be either a string path or WFDBArchive object"
+            )
+
     # Write the record files - header and associated dat
-    record.wrsamp(write_dir=write_dir, expanded=expanded)
+    record.wrsamp(
+        write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive
+    )
 
 
 def dl_database(
