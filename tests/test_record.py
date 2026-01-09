@@ -1335,6 +1335,106 @@ class TestSignal(unittest.TestCase):
                     atol=(0.05 / gain),
                 )
 
+    def test_adc_gain_max_boundary(self):
+        """
+        Exercise the MAX_I32 clamp path: use a tiny range around a huge negative signal
+        so the computed baseline would exceed MAX_I32. Verify we hit that branch and
+        that a write/read round-trip preserves the physical signal within expected
+        quantization and the formula produces the expected result.
+        """
+        # Tiny range around a large negative value forces baseline > MAX_I32
+        base_value = -1e10
+        p_signal = np.array(
+            [
+                [base_value],
+                [base_value + 0.5],
+                [base_value + 1.0],
+                [base_value + 1.5],
+            ]
+        )
+
+        # Write the record
+        wfdb.wrsamp(
+            "test_negative_signal",
+            fs=250,
+            sig_name=["ECG"],
+            units=["mV"],
+            p_signal=p_signal,
+            fmt=["16"],
+            write_dir=self.temp_path,
+        )
+
+        # Read it back
+        record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "test_negative_signal"),
+            physical=True,
+        )
+
+        # Round-trip physical signal should match within quantization tolerance
+        np.testing.assert_allclose(
+            record.p_signal,
+            p_signal,
+            rtol=1e-4,
+            atol=1e4,  # Larger atol for large magnitude values
+        )
+
+        # Verify baseline was clamped to MAX_I32
+        self.assertEqual(record.baseline[0], 2147483647)  # MAX_I32
+
+        # Confirm the formula is correct
+        expected_gain = (2147483647 - (-32768)) / abs(base_value)
+        np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
+
+    def test_adc_gain_min_boundary(self):
+        """
+        Exercise the MIN_I32 clamp path: use a tiny range around a huge positive signal
+        so the computed baseline would drop below MIN_I32. Verify we hit that branch and
+        that a write/read round-trip preserves the physical signal within expected
+        quantization and the formula produces the expected result..
+        """
+        # Tiny range around a large positive value forces baseline < MIN_I32
+        base_value = 1e10
+        p_signal = np.array(
+            [
+                [base_value],
+                [base_value + 0.5],
+                [base_value + 1.0],
+                [base_value + 1.5],
+            ]
+        )
+
+        # Write the record
+        wfdb.wrsamp(
+            "test_positive_signal",
+            fs=250,
+            sig_name=["ECG"],
+            units=["mV"],
+            p_signal=p_signal,
+            fmt=["16"],
+            write_dir=self.temp_path,
+        )
+
+        # Read it back
+        record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "test_positive_signal"),
+            physical=True,
+        )
+
+        # Round-trip physical signal should match within quantization tolerance
+        np.testing.assert_allclose(
+            record.p_signal,
+            p_signal,
+            rtol=1e-4,
+            atol=1e4,
+        )
+
+        # Verify baseline was clamped to MIN_I32
+        self.assertEqual(record.baseline[0], -2147483648)
+
+        # Confirm the formula is correct
+        expected_gain = (32767 - (-2147483648)) / (base_value + 1.5)
+        np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
+
     @classmethod
     def setUpClass(cls):
         cls.temp_directory = tempfile.TemporaryDirectory()
