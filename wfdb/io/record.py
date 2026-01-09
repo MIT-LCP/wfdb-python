@@ -1160,13 +1160,17 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             if not seg_len:
                 self.seg_len = [segment.sig_len for segment in segments]
 
-    def wrsamp(self, write_dir=""):
+    def wrsamp(self, expanded=False, write_dir=""):
         """
         Write a multi-segment header, along with headers and dat files
         for all segments, from this object.
 
         Parameters
         ----------
+        expanded : bool, optional
+            Whether to write each segment's expanded signal (`e_d_signal`)
+            instead of the uniform signal (`d_signal`). This flag is passed
+            through to each segment's `Record.wrsamp()` call.
         write_dir : str, optional
             The directory in which to write the files.
 
@@ -1181,7 +1185,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Perform record validity and cohesion checks, and write the
         # associated segments.
         for seg in self.segments:
-            seg.wrsamp(write_dir=write_dir)
+            seg.wrsamp(expanded=expanded, write_dir=write_dir)
 
     def _check_segment_cohesion(self):
         """
