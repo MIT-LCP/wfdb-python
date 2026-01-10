@@ -538,6 +538,9 @@ class SignalMixin(object):
         # the input array is modified!
         def adc_inplace(p_signal, adc_gain, baseline, d_nan):
             nanlocs = np.isnan(p_signal)
+            # Convert to float64 for precise arithmetic to avoid precision loss
+            # that can occur with float32 input at digital value boundaries
+            p_signal = p_signal.astype("float64", copy=False)
             np.multiply(p_signal, adc_gain, p_signal)
             np.add(p_signal, baseline, p_signal)
             np.round(p_signal, 0, p_signal)
@@ -826,10 +829,14 @@ class SignalMixin(object):
             if np.where(np.isinf(self.p_signal))[0].size:
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
+            # Convert to float64 for precise arithmetic to avoid precision loss
+            # that can occur with float32 input when computing gain and baseline
+            p_signal = self.p_signal.astype("float64", copy=False)
+
             # min and max ignoring nans, unless whole channel is NAN.
             # Should suppress warning message.
-            minvals = np.nanmin(self.p_signal, axis=0)
-            maxvals = np.nanmax(self.p_signal, axis=0)
+            minvals = np.nanmin(p_signal, axis=0)
+            maxvals = np.nanmax(p_signal, axis=0)
 
             for ch in range(np.shape(self.p_signal)[1]):
                 adc_gain, baseline = self.calc_adc_gain_baseline(
@@ -842,8 +849,10 @@ class SignalMixin(object):
             minvals = []
             maxvals = []
             for ch in self.e_p_signal:
-                minvals.append(np.nanmin(ch))
-                maxvals.append(np.nanmax(ch))
+                # Convert to float64 for precise arithmetic
+                ch_f64 = ch.astype("float64", copy=False)
+                minvals.append(np.nanmin(ch_f64))
+                maxvals.append(np.nanmax(ch_f64))
 
             if any(x == math.inf for x in minvals) or any(
                 x == math.inf for x in maxvals
