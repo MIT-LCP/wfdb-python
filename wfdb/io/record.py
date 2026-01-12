@@ -1177,6 +1177,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
+        # Validate segment cohesion before writing anything.
+        self._check_segment_cohesion()
+
         # Perform field validity and cohesion checks, and write the
         # header file.
         self.wrheader(write_dir=write_dir)
