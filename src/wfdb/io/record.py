@@ -1192,6 +1192,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
+        # Validate segment cohesion before writing anything.
+        self._check_segment_cohesion()
+
         with archive_for_writing(wfdb_archive) as archive:
             # Perform field validity and cohesion checks, and write the
             # header file.
