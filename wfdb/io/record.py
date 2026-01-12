@@ -1226,6 +1226,34 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     f"The signal length of segment {seg_num} does not match the corresponding segment length"
                 )
 
+            # If segment has expanded signals, validate samps_per_frame and signal lengths
+            if segment.e_d_signal is not None or segment.e_p_signal is not None:
+                expanded_signal = (
+                    segment.e_d_signal
+                    if segment.e_d_signal is not None
+                    else segment.e_p_signal
+                )
+
+                if segment.samps_per_frame is None:
+                    raise ValueError(
+                        f"Segment {seg_num} has expanded signals but 'samps_per_frame' is not set"
+                    )
+
+                for ch in range(segment.n_sig):
+                    if segment.samps_per_frame[ch] is None:
+                        raise ValueError(
+                            f"Segment {seg_num}, channel {ch}: 'samps_per_frame' must be set for expanded signals"
+                        )
+
+                    expected_len = segment.samps_per_frame[ch] * segment.sig_len
+                    actual_len = len(expanded_signal[ch])
+
+                    if actual_len != expected_len:
+                        raise ValueError(
+                            f"Segment {seg_num}, channel {ch}: expanded signal length ({actual_len}) "
+                            f"does not match samps_per_frame[{ch}] * sig_len ({expected_len})"
+                        )
+
         # No need to check the sum of sig_lens from each segment object against sig_len
         # Already effectively done it when checking sum(seg_len) against sig_len
 
