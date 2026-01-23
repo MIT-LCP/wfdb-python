@@ -1469,7 +1469,7 @@ class Annotation(object):
                 return
 
         label_map = self.create_label_map(inplace=False)
-        label_map.set_index(label_map[source_field].values, inplace=True)
+        label_map.set_index(keys=pd.Index(label_map[source_field].values), inplace=True)
 
         try:
             target_item = label_map.loc[
@@ -3057,7 +3057,10 @@ ann_class_table = pd.DataFrame(
         "human_reviewed": [ac.human_reviewed for ac in ann_classes],
     }
 )
-ann_class_table.set_index(ann_class_table["extension"].values, inplace=True)
+ann_class_table.set_index(
+    keys=pd.Index(ann_class_table["extension"].values),
+    inplace=True,
+)
 ann_class_table = ann_class_table[
     ["extension", "description", "human_reviewed"]
 ]
