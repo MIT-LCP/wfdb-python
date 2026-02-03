@@ -5,6 +5,21 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Version 4.3.1 (Feb 2026)
+-----------------------------
+
+**Add fix for Pandas 3.0**
+  In Pandas 3.0, DataFrame.set_index() no longer accepts a raw numpy array as the keys argument. Adds fix by wrapping the index array in pd.Index().
+
+**Fix ADC formula**
+  Fixes [formula for ADC gain](https://github.com/MIT-LCP/wfdb-python/pull/551).
+
+**Allow multifrequency signals to be written with expanded argument**
+  Allow [expanded parameter in MultiRecord.wrsamp](https://github.com/MIT-LCP/wfdb-python/pull/555).
+
+**Date validation when saving multi-segment records**
+  Adds validation check for date and time fields in headers when saving  multi-segment records.
+
 Version 4.3.0 (Apr 2025)
 -----------------------------
 
