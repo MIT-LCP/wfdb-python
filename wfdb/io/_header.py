@@ -1,4 +1,5 @@
 import datetime
+from dateutil import parser
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
@@ -235,6 +236,24 @@ class BaseHeaderMixin(object):
             write_fields = dict_write_fields
 
         return write_fields
+
+    def preprocess_header(self, field):
+        """
+        Get and process the fields as needed before writing
+        """
+        original_field = getattr(self, field)
+        string_field = str(original_field)
+
+        # Certain fields need extra processing
+        if field == "fs" and isinstance(self.fs, float):
+            if round(self.fs, 8) == float(int(self.fs)):
+                string_field = str(int(self.fs))
+        elif field == "base_time" and "." in string_field:
+            string_field = string_field.rstrip("0")
+        elif field == "base_date":
+            string_field = original_field.strftime("%d/%m/%Y")
+
+        return string_field
 
 
 class HeaderMixin(BaseHeaderMixin):
@@ -534,19 +553,7 @@ class HeaderMixin(BaseHeaderMixin):
         for field in RECORD_SPECS.index:
             # If the field is being used, add it with its delimiter
             if field in rec_write_fields:
-                string_field = str(getattr(self, field))
-
-                # Certain fields need extra processing
-                if field == "fs" and isinstance(self.fs, float):
-                    if round(self.fs, 8) == float(int(self.fs)):
-                        string_field = str(int(self.fs))
-                elif field == "base_time" and "." in string_field:
-                    string_field = string_field.rstrip("0")
-                elif field == "base_date":
-                    string_field = "/".join(
-                        (string_field[8:], string_field[5:7], string_field[:4])
-                    )
-
+                string_field = self.preprocess_header(field)
                 record_line += (
                     RECORD_SPECS.loc[field, "delimiter"] + string_field
                 )
@@ -756,8 +763,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
         for field in RECORD_SPECS.index:
             # If the field is being used, add it with its delimiter
             if field in write_fields:
-                record_line += RECORD_SPECS.loc[field, "delimiter"] + str(
-                    getattr(self, field)
+                string_field = self.preprocess_header(field)
+                record_line += (
+                    RECORD_SPECS.loc[field, "delimiter"] + string_field
                 )
 
         header_lines = [record_line]
