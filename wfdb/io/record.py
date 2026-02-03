@@ -16,7 +16,6 @@ from wfdb.io import header
 from wfdb.io import util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
-
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
 

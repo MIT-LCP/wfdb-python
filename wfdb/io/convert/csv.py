@@ -625,20 +625,16 @@ def csv2ann(
             df_CSV.columns = ["onset", "duration", "description"]
         df_out = format_ann_from_df(df_CSV)
     else:
-        raise Exception(
-            """The number of columns in the CSV was not
-                        recognized."""
-        )
+        raise Exception("""The number of columns in the CSV was not
+                        recognized.""")
 
     # Remove extension from input file name
     file_name = file_name.split(".")[0]
     if time_onset:
         if not fs:
-            raise Exception(
-                """`fs` must be provided if `time_onset` is True
+            raise Exception("""`fs` must be provided if `time_onset` is True
                             since it is required to convert time onsets to
-                            samples"""
-            )
+                            samples""")
         sample = (df_out["onset"].to_numpy() * fs).astype(np.int64)
     else:
         sample = df_out["onset"].to_numpy()
