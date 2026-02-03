@@ -1469,7 +1469,9 @@ class Annotation(object):
                 return
 
         label_map = self.create_label_map(inplace=False)
-        label_map.set_index(keys=pd.Index(label_map[source_field].values), inplace=True)
+        label_map.set_index(
+            keys=pd.Index(label_map[source_field].values), inplace=True
+        )
 
         try:
             target_item = label_map.loc[
@@ -1959,7 +1961,7 @@ def rdann(
     filebytes = load_byte_pairs(record_name, extension, pn_dir)
 
     # Get WFDB annotation fields from the file bytes
-    (sample, label_store, subtype, chan, num, aux_note) = proc_ann_bytes(
+    sample, label_store, subtype, chan, num, aux_note = proc_ann_bytes(
         filebytes, sampto
     )
 
@@ -1970,17 +1972,17 @@ def rdann(
     )
 
     # Try to extract information describing the annotation file
-    (fs, custom_labels) = interpret_defintion_annotations(
+    fs, custom_labels = interpret_defintion_annotations(
         potential_definition_inds, aux_note
     )
 
     # Remove annotations that do not store actual sample and label information
-    (sample, label_store, subtype, chan, num, aux_note) = rm_empty_indices(
+    sample, label_store, subtype, chan, num, aux_note = rm_empty_indices(
         rm_inds, sample, label_store, subtype, chan, num, aux_note
     )
 
     # Convert lists to numpy arrays dtype='int'
-    (label_store, subtype, chan, num) = lists_to_int_arrays(
+    label_store, subtype, chan, num = lists_to_int_arrays(
         label_store, subtype, chan, num
     )
 

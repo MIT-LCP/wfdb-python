@@ -9,7 +9,6 @@ import urllib.request
 
 from wfdb.version import __version__
 
-
 # Value for 'buffering' indicating that the entire file should be
 # buffered at once.
 BUFFER_WHOLE_FILE = -2
@@ -486,7 +485,7 @@ class NetFile(io.BufferedIOBase):
             if buffer_store:
                 # Load data into buffer and then return a copy to the
                 # caller.
-                (start, data) = xfer.content()
+                start, data = xfer.content()
                 self._buffer = data
                 self._buffer_start = start
                 self._buffer_end = start + len(data)
@@ -767,7 +766,7 @@ def openurl(
         (io.BufferedIOBase) or text file API (io.TextIOBase).
 
     """
-    (scheme, netloc, path, _, _, _) = urllib.parse.urlparse(url)
+    scheme, netloc, path, _, _, _ = urllib.parse.urlparse(url)
     if scheme == "":
         raise NetFileError("no scheme specified for URL: %r" % (url,), url=url)
 

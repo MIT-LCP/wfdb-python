@@ -7,7 +7,6 @@ import numpy as np
 
 from wfdb.io import _url
 
-
 # The PhysioNet index url
 PN_INDEX_URL = "https://physionet.org/files/"
 PN_CONTENT_URL = "https://physionet.org/content/"
