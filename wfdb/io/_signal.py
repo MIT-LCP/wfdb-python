@@ -792,7 +792,7 @@ class SignalMixin(object):
         if baseline > MAX_I32:
             # pmin maps to dmin, baseline maps to 2**31 - 1
             # pmax will map to a lower value than before
-            adc_gain = (MAX_I32) - dmin / abs(pmin)
+            adc_gain = (MAX_I32 - dmin) / abs(pmin)
             baseline = MAX_I32
         # This may happen if pmin > 0
         elif baseline < MIN_I32:
