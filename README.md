@@ -3,7 +3,7 @@
 ![signals](https://raw.githubusercontent.com/MIT-LCP/wfdb-python/main/demo-img.png)
 
 [![PyPI Downloads](https://img.shields.io/pypi/dm/wfdb.svg?label=PyPI%20downloads)](https://pypi.org/project/wfdb/)
-[![PhysioNet Project](https://img.shields.io/badge/DOI-10.13026%2Fegpf--2788-blue)](https://doi.org/10.13026/egpf-2788)
+[![PhysioNet Project](https://img.shields.io/badge/DOI-10.13026%2Fjt5e--gq15-blue)](https://doi.org/10.13026/jt5e-gq15)
 
 ## Introduction
 
