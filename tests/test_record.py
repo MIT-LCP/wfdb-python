@@ -916,6 +916,60 @@ class TestRecord(unittest.TestCase):
         ]
         assert record.units.__eq__(sig_units_target)
 
+    def test_wrsamp_float32_precision(self):
+        """
+        Test that wrsamp correctly handles float32 input without overflow.
+
+        Regression test for GitHub issue where float32 physical signals
+        caused digital overflow at boundaries due to precision loss.
+        The fix converts to float64 internally during ADC parameter
+        calculation and conversion.
+
+        Uses real-world float32 data (750 samples × 12 channels) that
+        previously triggered overflow with fmt='32'.
+        """
+        # Load the test data (float32 format)
+        test_data = np.genfromtxt(
+            "sample-data/float32_test_signal.csv", delimiter=","
+        )
+        # Ensure it's float32 (this is the key to reproducing the bug)
+        test_data = test_data.astype("float32")
+
+        # Write the record with fmt='32' (this previously caused overflow)
+        wfdb.wrsamp(
+            record_name="float32_test",
+            fs=250,
+            units=["mV"] * 12,
+            sig_name=[f"CH{i+1}" for i in range(12)],
+            p_signal=test_data,
+            fmt=["32"] * 12,
+            write_dir=self.temp_path,
+        )
+
+        # Verify we can read it back without errors
+        record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "float32_test"), physical=False
+        )
+
+        # Verify no digital values are out of bounds for fmt='32'
+        dmin, dmax = -2147483648, 2147483647
+        assert np.all(record.d_signal >= dmin), "Digital values below minimum"
+        assert np.all(record.d_signal <= dmax), "Digital values above maximum"
+
+        # Verify the physical signal can be read back correctly
+        record_phys = wfdb.rdrecord(
+            os.path.join(self.temp_path, "float32_test")
+        )
+
+        # Values should be close (some precision loss is expected from ADC/DAC)
+        np.testing.assert_allclose(
+            record_phys.p_signal,
+            test_data,
+            rtol=1e-4,
+            atol=1e-6,
+            err_msg="Physical signal mismatch after round-trip",
+        )
+
     @classmethod
     def setUpClass(cls):
         cls.temp_directory = tempfile.TemporaryDirectory()
