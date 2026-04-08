@@ -30,23 +30,25 @@ WFDB Annotations
     :members: wrann
 
 
-Cloud and Remote Access
------------------------
+Cloud Storage Access
+--------------------
 
 WFDB-Python supports reading records and annotations directly from cloud
-storage and remote URLs via the ``fsspec`` library. Instead of downloading
-entire databases, you can access individual files on demand.
+storage via the ``fsspec`` library. Pass a cloud URI as the
+``record_name`` argument instead of a local path.
 
-**Supported protocols** include ``s3://`` (Amazon S3), ``gs://`` (Google
-Cloud Storage), ``az://`` (Azure Blob Storage), ``https://``, and any
-other protocol supported by ``fsspec``.
+**Supported protocols:** ``s3://`` (Amazon S3), ``gs://`` (Google Cloud
+Storage), ``az://`` (Azure Blob Storage), and ``azureml://`` (Azure ML).
 
-**Installation:**
+**Prerequisites:** Install the ``fsspec`` backend for your cloud provider:
 
 .. code-block:: bash
 
-    pip install wfdb[cloud]
-    # or: pip install fsspec s3fs  (for S3 specifically)
+    pip install s3fs      # Amazon S3
+    pip install gcsfs     # Google Cloud Storage
+    pip install adlfs     # Azure Blob Storage
+
+``fsspec`` itself is already included as a core dependency of ``wfdb``.
 
 **Usage examples:**
 
@@ -54,23 +56,30 @@ other protocol supported by ``fsspec``.
 
     import wfdb
 
-    # Read a record from an HTTPS URL
-    record = wfdb.rdrecord("100", pn_dir="https://physionet.org/files/mitdb/1.0.0/")
-
-    # Read from Amazon S3
+    # Read a record from Amazon S3
     record = wfdb.rdrecord("s3://my-bucket/wfdb-data/100")
 
-    # Read annotations from a remote path
-    ann = wfdb.rdann("100", "atr", pn_dir="https://physionet.org/files/mitdb/1.0.0/")
+    # Read from Google Cloud Storage
+    record = wfdb.rdrecord("gs://my-bucket/wfdb-data/100")
 
-**Authentication:** For cloud providers requiring credentials (S3, GCS,
-Azure), configure authentication through the standard provider-specific
-mechanism (e.g., ``~/.aws/credentials`` for S3, ``GOOGLE_APPLICATION_CREDENTIALS``
-for GCS). The ``fsspec`` library handles credential discovery automatically.
+    # Read annotations from S3
+    ann = wfdb.rdann("s3://my-bucket/wfdb-data/100", "atr")
 
-For PhysioNet databases that require credentialed access, you can pass
-credentials via ``fsspec`` storage options or configure them in your
-environment before calling ``wfdb`` functions.
+    # For PhysioNet databases, use pn_dir with the database name:
+    record = wfdb.rdrecord("100", pn_dir="mitdb")
+    ann = wfdb.rdann("100", "atr", pn_dir="mitdb")
+
+**Authentication:** Configure credentials through the standard
+provider-specific mechanism (e.g., ``~/.aws/credentials`` for S3,
+``GOOGLE_APPLICATION_CREDENTIALS`` for GCS). The ``fsspec`` library
+handles credential discovery automatically.
+
+.. note::
+
+    Cloud URIs must be passed as ``record_name``, not ``pn_dir``.
+    The ``pn_dir`` parameter is reserved for PhysioNet database names
+    (e.g., ``"mitdb"`` or ``"mimic4wdb/0.1.0"``), which are resolved
+    against the configured PhysioNet index URL.
 
 
 Downloading
