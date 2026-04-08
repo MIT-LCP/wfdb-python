@@ -200,32 +200,40 @@ class test_qrs:
         assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
 
-    def test_compare_annotations_empty_ref(self):
-        """When reference annotations are empty, sensitivity should be NaN."""
-        import math
+    pass
 
-        comparitor = processing.compare_annotations(
-            np.array([]), np.array([10, 20, 30]), 5
-        )
-        assert math.isnan(comparitor.sensitivity)
-        assert comparitor.positive_predictivity == 0.0
 
-    def test_compare_annotations_empty_test(self):
-        """When test annotations are empty, PPV should be NaN."""
-        import math
+# Module-level tests for empty-annotation edge cases (pytest collects these
+# directly, unlike the lowercase class above which is skipped by default).
 
-        comparitor = processing.compare_annotations(
-            np.array([10, 20, 30]), np.array([]), 5
-        )
-        assert comparitor.sensitivity == 0.0
-        assert math.isnan(comparitor.positive_predictivity)
+def test_compare_annotations_empty_ref():
+    """When reference annotations are empty, sensitivity should be NaN."""
+    import math
 
-    def test_compare_annotations_both_empty(self):
-        """When both annotation arrays are empty, both metrics should be NaN."""
-        import math
+    comparitor = processing.compare_annotations(
+        np.array([]), np.array([10, 20, 30]), 5
+    )
+    assert math.isnan(comparitor.sensitivity)
+    assert comparitor.positive_predictivity == 0.0
 
-        comparitor = processing.compare_annotations(
-            np.array([]), np.array([]), 5
-        )
-        assert math.isnan(comparitor.sensitivity)
-        assert math.isnan(comparitor.positive_predictivity)
+
+def test_compare_annotations_empty_test():
+    """When test annotations are empty, PPV should be NaN."""
+    import math
+
+    comparitor = processing.compare_annotations(
+        np.array([10, 20, 30]), np.array([]), 5
+    )
+    assert comparitor.sensitivity == 0.0
+    assert math.isnan(comparitor.positive_predictivity)
+
+
+def test_compare_annotations_both_empty():
+    """When both annotation arrays are empty, both metrics should be NaN."""
+    import math
+
+    comparitor = processing.compare_annotations(
+        np.array([]), np.array([]), 5
+    )
+    assert math.isnan(comparitor.sensitivity)
+    assert math.isnan(comparitor.positive_predictivity)
