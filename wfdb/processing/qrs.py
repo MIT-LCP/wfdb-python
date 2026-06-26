@@ -785,7 +785,7 @@ def xqrs_detect(
 
     """
     xqrs = XQRS(sig=sig, fs=fs, conf=conf)
-    xqrs.detect(sampfrom=sampfrom, sampto=sampto, verbose=verbose)
+    xqrs.detect(sampfrom=sampfrom, sampto=sampto, learn=learn, verbose=verbose)
     return xqrs.qrs_inds
 
 
