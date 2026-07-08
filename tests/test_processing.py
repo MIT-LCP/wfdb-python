@@ -1,3 +1,5 @@
+from unittest import mock
+
 import numpy as np
 
 import wfdb
@@ -199,3 +201,28 @@ class test_qrs:
 
         assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
+
+
+class TestXQRSDetect:
+    """
+    Tests for the xqrs_detect convenience wrapper.
+    """
+
+    def test_xqrs_detect_forwards_learn(self):
+        """
+        xqrs_detect should forward its learn argument to XQRS.detect
+        rather than silently dropping it (issue #473).
+        """
+        sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
+
+        def fake_detect(self, *args, **kwargs):
+            # Stand in for the real detector so xqrs_detect can return.
+            self.qrs_inds = np.array([], dtype=int)
+
+        with mock.patch.object(
+            processing.XQRS, "detect", autospec=True, side_effect=fake_detect
+        ) as mock_detect:
+            processing.xqrs_detect(sig=sig[:, 0], fs=fields["fs"], learn=False)
+
+        assert mock_detect.call_count == 1
+        assert mock_detect.call_args.kwargs["learn"] is False
