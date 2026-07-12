@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -1434,6 +1435,72 @@ class TestSignal(unittest.TestCase):
         # Confirm the formula is correct
         expected_gain = (32767 - (-2147483648)) / (base_value + 1.5)
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
+
+    def test_all_nan_single_channel(self):
+        """
+        Writing a channel that is entirely NaN should not crash or emit an
+        "All-NaN slice encountered" warning. Every NaN sample maps to the
+        format's reserved invalid-sample value, so the channel reads back
+        as all-NaN. Regression test for
+        https://github.com/MIT-LCP/wfdb-python/issues/485.
+        """
+        p_signal = np.array([[np.nan], [np.nan], [np.nan], [np.nan]])
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            wfdb.wrsamp(
+                "test_all_nan_single",
+                fs=250,
+                sig_name=["ECG"],
+                units=["mV"],
+                p_signal=p_signal,
+                fmt=["16"],
+                write_dir=self.temp_path,
+            )
+        self.assertFalse(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)]
+        )
+
+        record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "test_all_nan_single"),
+            physical=True,
+        )
+        self.assertTrue(np.all(np.isnan(record.p_signal)))
+
+    def test_all_nan_mixed_channels(self):
+        """
+        A multi-channel signal with one all-NaN channel and one normal
+        channel should write and read back without crashing or warning.
+        The all-NaN channel reads back as all-NaN; the normal channel
+        round-trips within quantization tolerance. Regression test for
+        https://github.com/MIT-LCP/wfdb-python/issues/485.
+        """
+        normal = np.array([1.0, 2.0, 3.0, 4.0])
+        p_signal = np.column_stack([normal, np.full(4, np.nan)])
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            wfdb.wrsamp(
+                "test_all_nan_mixed",
+                fs=250,
+                sig_name=["ECG", "EMPTY"],
+                units=["mV", "mV"],
+                p_signal=p_signal,
+                fmt=["16", "16"],
+                write_dir=self.temp_path,
+            )
+        self.assertFalse(
+            [w for w in caught if issubclass(w.category, RuntimeWarning)]
+        )
+
+        record = wfdb.rdrecord(
+            os.path.join(self.temp_path, "test_all_nan_mixed"),
+            physical=True,
+        )
+        np.testing.assert_allclose(
+            record.p_signal[:, 0], normal, rtol=1e-4, atol=1e-3
+        )
+        self.assertTrue(np.all(np.isnan(record.p_signal[:, 1])))
 
     @classmethod
     def setUpClass(cls):

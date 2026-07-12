@@ -2,6 +2,7 @@ import math
 import os
 import posixpath
 import sys
+import warnings
 
 import fsspec
 import numpy as np
@@ -746,7 +747,7 @@ class SignalMixin(object):
         # Figure out digital samples used to store physical samples
 
         # If the entire signal is NAN, gain/baseline won't be used
-        if pmin == np.nan:
+        if np.isnan(pmin):
             adc_gain = 1
             baseline = 1
         # If the signal is just one value, store one digital value.
@@ -827,9 +828,12 @@ class SignalMixin(object):
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             # min and max ignoring nans, unless whole channel is NAN.
-            # Should suppress warning message.
-            minvals = np.nanmin(self.p_signal, axis=0)
-            maxvals = np.nanmax(self.p_signal, axis=0)
+            # Suppress the "All-NaN slice encountered" warning; channels
+            # that are entirely NAN are handled in calc_adc_gain_baseline.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                minvals = np.nanmin(self.p_signal, axis=0)
+                maxvals = np.nanmax(self.p_signal, axis=0)
 
             for ch in range(np.shape(self.p_signal)[1]):
                 adc_gain, baseline = self.calc_adc_gain_baseline(
