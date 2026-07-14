@@ -123,8 +123,11 @@ class Comparitor(object):
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.sensitivity = float(self.tp) / float(self.tp + self.fn)
-        self.positive_predictivity = float(self.tp) / self.n_test
+        denom_sens = self.tp + self.fn
+        self.sensitivity = float(self.tp) / denom_sens if denom_sens > 0 else float("nan")
+        self.positive_predictivity = (
+            float(self.tp) / self.n_test if self.n_test > 0 else float("nan")
+        )
 
     def compare(self):
         """
