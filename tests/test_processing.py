@@ -4,7 +4,7 @@ import wfdb
 from wfdb import processing
 
 
-class test_processing:
+class TestProcessing:
     """
     Test processing functions
     """
@@ -61,6 +61,13 @@ class test_processing:
         hp, sp = processing.find_peaks(x)
         assert hp.shape == (0,)
         assert sp.shape == (0,)
+
+    def test_find_local_peaks(self):
+        # the sample `radius` positions to the right is part of the window
+        x = np.array([0, 1, 2, 3, 2, 1, 0], dtype=float)
+        assert np.array_equal(processing.find_local_peaks(x, 1), [3])
+        x = np.array([0, 1, 3, 2, 10, 5, 1, 0], dtype=float)
+        assert np.array_equal(processing.find_local_peaks(x, 2), [4])
 
     def test_gqrs(self):
         record = wfdb.rdrecord(
@@ -178,7 +185,7 @@ class test_processing:
         assert np.array_equal(yz, expected_peaks)
 
 
-class test_qrs:
+class TestQrs:
     """
     Testing QRS detectors
     """
