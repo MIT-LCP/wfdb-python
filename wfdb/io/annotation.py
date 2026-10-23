@@ -1344,12 +1344,12 @@ class Annotation(object):
             counts = np.unique(self.label_store, return_counts=True)
         elif self.symbol is not None:
             index_vals = set(self.symbol)
-            label_map.set_index(label_map["symbol"].values, inplace=True)
+            label_map.set_index("symbol", inplace=True)
             reset_index = True
             counts = np.unique(self.symbol, return_counts=True)
         elif self.description is not None:
             index_vals = set(self.description)
-            label_map.set_index(label_map["description"].values, inplace=True)
+            label_map.set_index("description", inplace=True)
             reset_index = True
             counts = np.unique(self.description, return_counts=True)
         else:
