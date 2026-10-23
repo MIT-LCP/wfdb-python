@@ -725,8 +725,8 @@ class Annotation(object):
                 :n_custom_labels
             ]
 
-        custom_labels.set_index(
-            custom_labels["label_store"].values, inplace=True
+        custom_labels = custom_labels.set_index(
+            custom_labels["label_store"].values
         )
         custom_labels = custom_labels[list(ann_label_fields)]
 
@@ -1322,8 +1322,8 @@ class Annotation(object):
             custom_labels = label_triplets_to_df(self.custom_labels)
         elif isinstance(self.custom_labels, pd.DataFrame):
             # Set the index just in case it doesn't already match the label_store
-            self.custom_labels.set_index(
-                self.custom_labels["label_store"].values, inplace=True
+            self.custom_labels = self.custom_labels.set_index(
+                self.custom_labels["label_store"].values
             )
             custom_labels = self.custom_labels
         else:
@@ -1344,12 +1344,12 @@ class Annotation(object):
             counts = np.unique(self.label_store, return_counts=True)
         elif self.symbol is not None:
             index_vals = set(self.symbol)
-            label_map.set_index(label_map["symbol"].values, inplace=True)
+            label_map = label_map.set_index(label_map["symbol"].values)
             reset_index = True
             counts = np.unique(self.symbol, return_counts=True)
         elif self.description is not None:
             index_vals = set(self.description)
-            label_map.set_index(label_map["description"].values, inplace=True)
+            label_map = label_map.set_index(label_map["description"].values)
             reset_index = True
             counts = np.unique(self.description, return_counts=True)
         else:
@@ -1365,8 +1365,8 @@ class Annotation(object):
         )
 
         if reset_index:
-            contained_labels.set_index(
-                contained_labels["label_store"].values, inplace=True
+            contained_labels = contained_labels.set_index(
+                contained_labels["label_store"].values
             )
 
         if inplace:
@@ -1469,8 +1469,8 @@ class Annotation(object):
                 return
 
         label_map = self.create_label_map(inplace=False)
-        label_map.set_index(
-            keys=pd.Index(label_map[source_field].values), inplace=True
+        label_map = label_map.set_index(
+            keys=pd.Index(label_map[source_field].values)
         )
 
         try:
@@ -1515,7 +1515,7 @@ def label_triplets_to_df(triplets):
         }
     )
 
-    label_df.set_index(label_df["label_store"].values, inplace=True)
+    label_df = label_df.set_index(label_df["label_store"].values)
     label_df = label_df[list(ann_label_fields)]
 
     return label_df
@@ -3059,9 +3059,8 @@ ann_class_table = pd.DataFrame(
         "human_reviewed": [ac.human_reviewed for ac in ann_classes],
     }
 )
-ann_class_table.set_index(
+ann_class_table = ann_class_table.set_index(
     keys=pd.Index(ann_class_table["extension"].values),
-    inplace=True,
 )
 ann_class_table = ann_class_table[
     ["extension", "description", "human_reviewed"]
@@ -3229,5 +3228,7 @@ ann_label_table = pd.DataFrame(
         "description": [al.description for al in ann_labels],
     }
 )
-ann_label_table.set_index(ann_label_table["label_store"].values, inplace=True)
+ann_label_table = ann_label_table.set_index(
+    ann_label_table["label_store"].values
+)
 ann_label_table = ann_label_table[["label_store", "symbol", "description"]]
