@@ -4,7 +4,7 @@ import wfdb
 from wfdb import processing
 
 
-class test_processing:
+class TestProcessing:
     """
     Test processing functions
     """
@@ -178,7 +178,7 @@ class test_processing:
         assert np.array_equal(yz, expected_peaks)
 
 
-class test_qrs:
+class TestQrs:
     """
     Testing QRS detectors
     """
