@@ -2,9 +2,8 @@ import os
 
 import numpy as np
 
-from wfdb.io.record import Record, rdrecord
+from wfdb.io.record import rdrecord
 from wfdb.io.util import downround, upround
-from wfdb.io.annotation import Annotation
 
 
 def _expand_channels(signal):
@@ -34,16 +33,12 @@ def _expand_channels(signal):
         elif signal.ndim == 2:
             return list(signal.transpose())
         else:
-            raise ValueError(
-                "invalid shape for signal array: {}".format(signal.shape)
-            )
+            raise ValueError(f"invalid shape for signal array: {signal.shape}")
     else:
         signal = list(signal)
         if any(s.ndim != 1 for s in signal):
             raise ValueError(
-                "invalid shape for signal array(s): {}".format(
-                    [s.shape for s in signal]
-                )
+                f"invalid shape for signal array(s): {[s.shape for s in signal]}"
             )
         return signal
 
@@ -74,8 +69,8 @@ def _get_sampling_freq(sampling_freq, n_sig, frame_freq):
     elif hasattr(sampling_freq, "__len__"):
         if len(sampling_freq) != n_sig:
             raise ValueError(
-                "length mismatch: n_sig = {}, "
-                "len(sampling_freq) = {}".format(n_sig, len(sampling_freq))
+                f"length mismatch: n_sig = {n_sig}, "
+                f"len(sampling_freq) = {len(sampling_freq)}"
             )
         return list(sampling_freq)
     else:
@@ -108,8 +103,7 @@ def _get_ann_freq(ann_freq, n_annot, frame_freq):
     elif hasattr(ann_freq, "__len__"):
         if len(ann_freq) != n_annot:
             raise ValueError(
-                "length mismatch: n_annot = {}, "
-                "len(ann_freq) = {}".format(n_annot, len(ann_freq))
+                f"length mismatch: n_annot = {n_annot}, len(ann_freq) = {len(ann_freq)}"
             )
         return list(ann_freq)
     else:
@@ -301,14 +295,14 @@ def plot_items(
             if len(xlabel) != signal.shape[1]:
                 raise Exception(
                     "The length of the xlabel must be the same as the "
-                    "signal: {} values".format(signal.shape[1])
+                    f"signal: {signal.shape[1]} values"
                 )
 
         if ylabel:
             if len(ylabel) != n_subplots:
                 raise Exception(
                     "The length of the ylabel must be the same as the "
-                    "signal: {} values".format(n_subplots)
+                    f"signal: {n_subplots} values"
                 )
 
         _label_figure(
@@ -609,20 +603,15 @@ def _plot_annotation(
                     y = np.zeros(len(ann_samp[ch]))
             except IndexError:
                 raise Exception(
-                    "IndexError: try setting shift_samps=True in "
-                    'the "rdann" function?'
+                    'IndexError: try setting shift_samps=True in the "rdann" function?'
                 )
 
-            axes[ch].plot(
-                ann_samp[ch] / downsample_factor, y, ann_style[ch], zorder=4
-            )
+            axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch], zorder=4)
 
             # Plot the annotation symbols if any
             if ann_sym is not None and ann_sym[ch] is not None:
                 for i, s in enumerate(ann_sym[ch]):
-                    axes[ch].annotate(
-                        s, (ann_samp[ch][i] / downsample_factor, y[i])
-                    )
+                    axes[ch].annotate(s, (ann_samp[ch][i] / downsample_factor, y[i]))
 
 
 def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
@@ -844,9 +833,7 @@ def _label_figure(
         # put placeholders
         n_missing_labels = n_subplots - len(ylabel)
         if n_missing_labels:
-            ylabel = ylabel + [
-                "ch_%d/NU" % i for i in range(len(ylabel), n_subplots)
-            ]
+            ylabel = ylabel + ["ch_%d/NU" % i for i in range(len(ylabel), n_subplots)]
 
     for ch in range(n_subplots):
         axes[ch].set_ylabel(ylabel[ch])
@@ -949,9 +936,7 @@ def plot_wfdb(
         ylabel,
         record_name,
         sig_units,
-    ) = _get_wfdb_plot_items(
-        record=record, annotation=annotation, plot_sym=plot_sym
-    )
+    ) = _get_wfdb_plot_items(record=record, annotation=annotation, plot_sym=plot_sym)
 
     if record:
         if record.e_p_signal is not None or record.e_d_signal is not None:
@@ -1184,9 +1169,7 @@ def plot_all_records(directory=""):
     directory = directory or os.getcwd()
 
     headers = [
-        f
-        for f in os.listdir(directory)
-        if os.path.isfile(os.path.join(directory, f))
+        f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))
     ]
     headers = [f for f in headers if f.endswith(".hea")]
 

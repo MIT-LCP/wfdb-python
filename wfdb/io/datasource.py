@@ -1,6 +1,5 @@
 from enum import Enum, auto
 from pathlib import Path
-from typing import Dict
 from urllib.parse import urlparse
 
 
@@ -33,9 +32,7 @@ class DataSource:
         elif self.ds_type is DataSourceType.HTTP:
             url = urlparse(value)
             if not url.netloc:
-                raise ValueError(
-                    "uri field for an HTTP DataSource must be a valid URL"
-                )
+                raise ValueError("uri field for an HTTP DataSource must be a valid URL")
         self._uri = value
 
 
@@ -46,7 +43,7 @@ _PHYSIONET_DATA_SOURCE = DataSource(
 )
 
 # Dict of configured data sources
-_data_sources: Dict[str, DataSource] = {"physionet": _PHYSIONET_DATA_SOURCE}
+_data_sources: dict[str, DataSource] = {"physionet": _PHYSIONET_DATA_SOURCE}
 
 
 def show_data_sources():

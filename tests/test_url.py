@@ -224,8 +224,8 @@ class TestRemoteFLACFiles(unittest.TestCase):
         N/A
 
         """
-        import soundfile
         import numpy as np
+        import soundfile
 
         data_file_path = "sample-data/flacformats.d2"
         expected_format = "FLAC"

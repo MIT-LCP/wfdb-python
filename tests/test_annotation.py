@@ -33,7 +33,7 @@ class TestAnnotation(unittest.TestCase):
         # no null to detect in the output text file of rdann.
 
         # Target data from WFDB software package
-        with open("tests/target-output/ann-1", "r") as f:
+        with open("tests/target-output/ann-1") as f:
             lines = tuple(f)
         nannot = len(lines)
 
@@ -109,7 +109,7 @@ class TestAnnotation(unittest.TestCase):
         annotation = wfdb.rdann("sample-data/12726", "anI")
 
         # Target data from WFDB software package
-        with open("tests/target-output/ann-2", "r") as f:
+        with open("tests/target-output/ann-2") as f:
             lines = tuple(f)
         nannot = len(lines)
 
@@ -183,7 +183,7 @@ class TestAnnotation(unittest.TestCase):
         annotation = wfdb.rdann("sample-data/1003", "atr")
 
         # Target data from WFDB software package
-        with open("tests/target-output/ann-3", "r") as f:
+        with open("tests/target-output/ann-3") as f:
             lines = tuple(f)
         nannot = len(lines)
 

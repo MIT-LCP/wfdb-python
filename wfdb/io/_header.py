@@ -1,11 +1,11 @@
 import datetime
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _signal
-from wfdb.io import util
+from wfdb.io import _signal, util
 from wfdb.io.header import HeaderSyntaxError, rx_record, rx_segment, rx_signal
 
 """
@@ -129,7 +129,7 @@ SEGMENT_SPECS = pd.DataFrame(
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 
-class BaseHeaderMixin(object):
+class BaseHeaderMixin:
     """
     Mixin class with multi-segment header methods. Inherited by Record and
     MultiRecord classes.
@@ -186,7 +186,7 @@ class BaseHeaderMixin(object):
                         write_fields.append(req_field)
                         req_field = record_specs.loc[req_field, "dependency"]
             # Add comments if any
-            if getattr(self, "comments") is not None:
+            if self.comments is not None:
                 write_fields.append("comments")
 
         # signal spec field. Need to return a potentially different list for each channel.
@@ -211,9 +211,7 @@ class BaseHeaderMixin(object):
                         # Add the field and its recursive dependencies
                         while req_field is not None:
                             write_fields_ch.append(req_field)
-                            req_field = signal_specs.loc[
-                                req_field, "dependency"
-                            ]
+                            req_field = signal_specs.loc[req_field, "dependency"]
 
                 write_fields.append(write_fields_ch)
 
@@ -454,10 +452,7 @@ class HeaderMixin(BaseHeaderMixin):
 
             # Return if no default to set, or if the field is already
             # present.
-            if (
-                SIGNAL_SPECS.loc[field, "write_default"] is None
-                or item is not None
-            ):
+            if SIGNAL_SPECS.loc[field, "write_default"] is None or item is not None:
                 return
 
             # Set more specific defaults if possible
@@ -518,10 +513,7 @@ class HeaderMixin(BaseHeaderMixin):
                     if self.file_name[ch] not in datoffsets:
                         datoffsets[self.file_name[ch]] = self.byte_offset[ch]
                     else:
-                        if (
-                            datoffsets[self.file_name[ch]]
-                            != self.byte_offset[ch]
-                        ):
+                        if datoffsets[self.file_name[ch]] != self.byte_offset[ch]:
                             raise ValueError(
                                 "Each file_name (dat file) specified must have the same byte offset"
                             )
@@ -553,9 +545,7 @@ class HeaderMixin(BaseHeaderMixin):
             # If the field is being used, add it with its delimiter
             if field in rec_write_fields:
                 string_field = self.preprocess_header(field)
-                record_line += (
-                    RECORD_SPECS.loc[field, "delimiter"] + string_field
-                )
+                record_line += RECORD_SPECS.loc[field, "delimiter"] + string_field
                 # The 'base_counter' field needs to be closed with ')'
                 if field == "base_counter":
                     record_line += ")"
@@ -571,13 +561,10 @@ class HeaderMixin(BaseHeaderMixin):
                     # If the field is being used, add each of its
                     # elements with the delimiter to the appropriate
                     # line
-                    if (
-                        field in sig_write_fields
-                        and ch in sig_write_fields[field]
-                    ):
-                        signal_lines[ch] += SIGNAL_SPECS.loc[
-                            field, "delimiter"
-                        ] + str(getattr(self, field)[ch])
+                    if field in sig_write_fields and ch in sig_write_fields[field]:
+                        signal_lines[ch] += SIGNAL_SPECS.loc[field, "delimiter"] + str(
+                            getattr(self, field)[ch]
+                        )
                     # The 'baseline' field needs to be closed with ')'
                     if field == "baseline":
                         signal_lines[ch] += ")"
@@ -605,7 +592,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
     n_seg: int
     seg_len: Sequence[int]
-    segments: Optional[Sequence]
+    segments: Sequence | None
 
     def set_defaults(self):
         """
@@ -763,9 +750,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             # If the field is being used, add it with its delimiter
             if field in write_fields:
                 string_field = self.preprocess_header(field)
-                record_line += (
-                    RECORD_SPECS.loc[field, "delimiter"] + string_field
-                )
+                record_line += RECORD_SPECS.loc[field, "delimiter"] + string_field
 
         header_lines = [record_line]
 
@@ -775,9 +760,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
         # to the appropriate line
         for field in SEGMENT_SPECS.index:
             for seg_num in range(self.n_seg):
-                segment_lines[seg_num] += SEGMENT_SPECS.loc[
-                    field, "delimiter"
-                ] + str(getattr(self, field)[seg_num])
+                segment_lines[seg_num] += SEGMENT_SPECS.loc[field, "delimiter"] + str(
+                    getattr(self, field)[seg_num]
+                )
 
         header_lines = header_lines + segment_lines
 
@@ -824,10 +809,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         elif isinstance(sig_name, str):
             sig_segs = []
             for i in range(self.n_seg):
-                if (
-                    self.seg_name[i] != "~"
-                    and sig_name in self.segments[i].sig_name
-                ):
+                if self.seg_name[i] != "~" and sig_name in self.segments[i].sig_name:
                     sig_segs.append(i)
             return sig_segs
         else:
@@ -862,7 +844,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
         return sig_name
 
-    def contained_ranges(self, sig_name: str) -> List[Tuple[int, int]]:
+    def contained_ranges(self, sig_name: str) -> list[tuple[int, int]]:
         """
         Given a signal name, return the sample ranges that contain signal values,
         relative to the start of the full record. Does not account for NaNs/missing
@@ -931,7 +913,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
     def contained_combined_ranges(
         self,
         sig_names: Sequence[str],
-    ) -> List[Tuple[int, int]]:
+    ) -> list[tuple[int, int]]:
         """
         Given a collection of signal name, return the sample ranges that
         contain all of the specified signals, relative to the start of the
@@ -1020,7 +1002,7 @@ def _parse_record_line(record_line: str) -> dict:
 
     """
     # Dictionary for record fields
-    record_fields: Dict[str, Any] = {}
+    record_fields: dict[str, Any] = {}
 
     # Read string fields from record line
     match = rx_record.match(record_line)
@@ -1057,9 +1039,7 @@ def _parse_record_line(record_line: str) -> dict:
                         fs = int(fs)
                     record_fields["fs"] = fs
             elif field == "base_time":
-                record_fields["base_time"] = wfdb_strptime(
-                    record_fields["base_time"]
-                )
+                record_fields["base_time"] = wfdb_strptime(record_fields["base_time"])
             elif field == "base_date":
                 record_fields["base_date"] = datetime.datetime.strptime(
                     record_fields["base_date"], "%d/%m/%Y"
@@ -1124,15 +1104,11 @@ def _parse_signal_lines(signal_lines):
             # Note: Never set a field to None. [None]* n_sig is accurate, indicating
             # that different channels can be present or missing.
             if signal_fields[field][ch] == "":
-                signal_fields[field][ch] = SIGNAL_SPECS.loc[
-                    field, "read_default"
-                ]
+                signal_fields[field][ch] = SIGNAL_SPECS.loc[field, "read_default"]
 
                 # Special case: missing baseline defaults to ADCzero if present
                 if field == "baseline" and signal_fields["adc_zero"][ch] != "":
-                    signal_fields["baseline"][ch] = int(
-                        signal_fields["adc_zero"][ch]
-                    )
+                    signal_fields["baseline"][ch] = int(signal_fields["adc_zero"][ch])
             # Typecast non-empty strings for numerical fields
             else:
                 if SIGNAL_SPECS.loc[field, "allowed_types"] is int_types:
@@ -1140,10 +1116,7 @@ def _parse_signal_lines(signal_lines):
                 elif SIGNAL_SPECS.loc[field, "allowed_types"] is float_types:
                     signal_fields[field][ch] = float(signal_fields[field][ch])
                     # Special case: adc_gain of 0 means 200
-                    if (
-                        field == "adc_gain"
-                        and signal_fields["adc_gain"][ch] == 0
-                    ):
+                    if field == "adc_gain" and signal_fields["adc_gain"][ch] == 0:
                         signal_fields["adc_gain"][ch] = 200.0
 
     return signal_fields

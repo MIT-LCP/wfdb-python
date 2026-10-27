@@ -1,20 +1,18 @@
 import copy
-import fsspec
-import numpy as np
 import os
-import pandas as pd
-import re
 import posixpath
+import re
 import sys
 
-from wfdb.io import download
-from wfdb.io import _header
-from wfdb.io import record
-from wfdb.io import util
+import fsspec
+import numpy as np
+import pandas as pd
+
+from wfdb.io import _header, download, record, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 
-class Annotation(object):
+class Annotation:
     """
     The class representing WFDB annotations.
 
@@ -464,9 +462,7 @@ class Annotation(object):
 
             if len(item) != len(set(symbol)):
                 raise ValueError(
-                    "The symbol values of the "
-                    + field
-                    + " field must be unique"
+                    "The symbol values of the " + field + " field must be unique"
                 )
 
             for i in range(len(item)):
@@ -478,9 +474,7 @@ class Annotation(object):
                             + " field must be integer-like"
                         )
 
-                if not isinstance(symbol[i], str_types) or len(
-                    symbol[i]
-                ) not in [
+                if not isinstance(symbol[i], str_types) or len(symbol[i]) not in [
                     1,
                     2,
                     3,
@@ -546,9 +540,7 @@ class Annotation(object):
             if len(self.sample) == 1:
                 sampdiffs = np.array([self.sample[0]])
             elif len(self.sample) > 1:
-                sampdiffs = np.concatenate(
-                    ([self.sample[0]], np.diff(self.sample))
-                )
+                sampdiffs = np.concatenate(([self.sample[0]], np.diff(self.sample)))
             else:
                 raise ValueError(
                     "The 'sample' field must be a numpy array with length greater than 0"
@@ -564,9 +556,7 @@ class Annotation(object):
 
         elif field == "label_store":
             if min(item) < 1 or max(item) > 49:
-                raise ValueError(
-                    "The label_store values must be between 1 and 49"
-                )
+                raise ValueError("The label_store values must be between 1 and 49")
 
         # The C WFDB library stores num/sub/chan as chars.
         elif field == "subtype":
@@ -721,13 +711,9 @@ class Annotation(object):
                     "There are more custom_label definitions than storage values available for them."
                 )
 
-            custom_labels["label_store"] = available_label_stores[
-                :n_custom_labels
-            ]
+            custom_labels["label_store"] = available_label_stores[:n_custom_labels]
 
-        custom_labels = custom_labels.set_index(
-            custom_labels["label_store"].values
-        )
+        custom_labels = custom_labels.set_index(custom_labels["label_store"].values)
         custom_labels = custom_labels[list(ann_label_fields)]
 
         self.custom_labels = custom_labels
@@ -806,9 +792,7 @@ class Annotation(object):
             else:
                 # the label_store values from the standard WFDB annotation labels
                 # whose symbols are not contained in this annotation
-                unused_field = (
-                    set(ann_label_table[usefield].values) - contained_field
-                )
+                unused_field = set(ann_label_table[usefield].values) - contained_field
                 unused_label_stores = ann_label_table.loc[
                     ann_label_table[usefield] in unused_field, "label_store"
                 ].values
@@ -1184,9 +1168,7 @@ class Annotation(object):
         for i in range(len(sampdiff)):
             # Process the samp (difference) and sym items
             data_bytes.append(
-                field2bytes(
-                    "samptype", [sampdiff[i], self.symbol[i]], typecodes
-                )
+                field2bytes("samptype", [sampdiff[i], self.symbol[i]], typecodes)
             )
 
             # Process the extra optional fields
@@ -1469,9 +1451,7 @@ class Annotation(object):
                 return
 
         label_map = self.create_label_map(inplace=False)
-        label_map = label_map.set_index(
-            keys=pd.Index(label_map[source_field].values)
-        )
+        label_map = label_map.set_index(keys=pd.Index(label_map[source_field].values))
 
         try:
             target_item = label_map.loc[
@@ -1953,9 +1933,7 @@ def rdann(
                 dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
             )
 
-    return_label_elements = check_read_inputs(
-        sampfrom, sampto, return_label_elements
-    )
+    return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
 
     # Read the file in byte pairs
     filebytes = load_byte_pairs(record_name, extension, pn_dir)
@@ -1967,9 +1945,7 @@ def rdann(
 
     # Get the indices of annotations that hold definition information about
     # the entire annotation file, and other empty annotations to be removed.
-    potential_definition_inds, rm_inds = get_special_inds(
-        sample, label_store, aux_note
-    )
+    potential_definition_inds, rm_inds = get_special_inds(sample, label_store, aux_note)
 
     # Try to extract information describing the annotation file
     fs, custom_labels = interpret_defintion_annotations(
@@ -2249,17 +2225,13 @@ def proc_core_fields(filebytes, bpi):
 
     # Not a skip - it is the actual sample number + annotation type store value
     label_store = int(filebytes[bpi, 1]) >> 2
-    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * (
-        np.int64(filebytes[bpi, 1]) & 3
-    )
+    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * (np.int64(filebytes[bpi, 1]) & 3)
     bpi = bpi + 1
 
     return sample_diff, label_store, bpi
 
 
-def proc_extra_field(
-    label_store, filebytes, bpi, subtype, chan, num, aux_note, update
-):
+def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, update):
     """
     Process extra fields belonging to the current annotation. Potential
     updated fields: subtype, chan, num, aux_note.
@@ -2505,9 +2477,7 @@ def interpret_defintion_annotations(potential_definition_inds, aux_note):
                             symbol,
                             description,
                         ) = rx_custom_label.findall(aux_note[i])[0]
-                        custom_labels.append(
-                            (int(label_store), symbol, description)
-                        )
+                        custom_labels.append((int(label_store), symbol, description))
                         i += 1
                     i += 1
             else:
@@ -2722,14 +2692,13 @@ def mrgann(
                 total_seconds = hours * 60 * 60 + minutes * 60 + seconds
                 if (i == 1) and (total_seconds == 0):
                     raise Exception(
-                        "End time can not be set to the start of " "the record"
+                        "End time can not be set to the start of the record"
                     )
                 sample = int(total_seconds * ann1.fs)
                 if sample > max([max(ann1.sample), max(ann2.sample)]):
                     if i == 0:
                         raise Exception(
-                            "Start time can not be set to the "
-                            "end of the record"
+                            "Start time can not be set to the end of the record"
                         )
                     else:
                         print(
@@ -2748,21 +2717,15 @@ def mrgann(
             print("Combining the two files together")
         # The sample should never be empty but others can (though they
         # shouldn't be)
-        both_sample = np.concatenate([ann1.sample, ann2.sample]).astype(
-            np.int64
-        )
+        both_sample = np.concatenate([ann1.sample, ann2.sample]).astype(np.int64)
         # Generate a list of sorted indices then sort the array
         sort_indices = np.argsort(both_sample)
         both_sample = np.sort(both_sample)
         # Find where to filter the array
         if merge_method == "combine":
-            sample_range = (both_sample >= start_sample) & (
-                both_sample <= end_sample
-            )
+            sample_range = (both_sample >= start_sample) & (both_sample <= end_sample)
         if merge_method == "delete":
-            sample_range = (both_sample < start_sample) | (
-                both_sample > end_sample
-            )
+            sample_range = (both_sample < start_sample) | (both_sample > end_sample)
         index_range = np.where(sample_range)[0]
         both_sample = both_sample[sample_range]
         # Combine both annotation attributes
@@ -2829,9 +2792,9 @@ def mrgann(
         # shouldn't be)
         keep_ann_sample = keep_ann.sample[keep_index_range]
         remove_ann_sample = remove_ann.sample[remove_index_range]
-        both_sample = np.concatenate(
-            [keep_ann_sample, remove_ann_sample]
-        ).astype(np.int64)
+        both_sample = np.concatenate([keep_ann_sample, remove_ann_sample]).astype(
+            np.int64
+        )
         # Generate a list of sorted indices then sort the array
         sort_indices = np.argsort(both_sample)
         both_sample = np.sort(both_sample)
@@ -2876,15 +2839,11 @@ def mrgann(
                     if remove_cat is not None
                     else blank_array
                 )
-                temp_cat = np.concatenate([keep_cat, remove_cat]).astype(
-                    np.int64
-                )
+                temp_cat = np.concatenate([keep_cat, remove_cat]).astype(np.int64)
                 if temp_cat.shape[0] == 0:
                     ann_attr[cat] = None
                 else:
-                    ann_attr[cat] = np.array(
-                        [temp_cat[i] for i in sort_indices]
-                    )
+                    ann_attr[cat] = np.array([temp_cat[i] for i in sort_indices])
     else:
         raise Exception(
             "Invalid value for 'merge_method': options are "
@@ -3013,7 +2972,7 @@ str_types = (str, np.str_)
 ann_label_fields = ("label_store", "symbol", "description")
 
 
-class AnnotationClass(object):
+class AnnotationClass:
     """
     Describes the annotations.
 
@@ -3062,13 +3021,11 @@ ann_class_table = pd.DataFrame(
 ann_class_table = ann_class_table.set_index(
     keys=pd.Index(ann_class_table["extension"].values),
 )
-ann_class_table = ann_class_table[
-    ["extension", "description", "human_reviewed"]
-]
+ann_class_table = ann_class_table[["extension", "description", "human_reviewed"]]
 
 
 # Individual annotation labels
-class AnnotationLabel(object):
+class AnnotationLabel:
     """
     Describes the individual annotation labels.
 
@@ -3166,9 +3123,7 @@ ann_labels = [
     AnnotationLabel(6, "F", "FUSION", "Fusion of ventricular and normal beat"),
     AnnotationLabel(7, "J", "NPC", "Nodal (junctional) premature beat"),
     AnnotationLabel(8, "A", "APC", "Atrial premature contraction"),
-    AnnotationLabel(
-        9, "S", "SVPB", "Premature or ectopic supraventricular beat"
-    ),
+    AnnotationLabel(9, "S", "SVPB", "Premature or ectopic supraventricular beat"),
     AnnotationLabel(10, "E", "VESC", "Ventricular escape beat"),
     AnnotationLabel(11, "j", "NESC", "Nodal (junctional) escape beat"),
     AnnotationLabel(12, "/", "PACE", "Paced beat"),
@@ -3191,24 +3146,16 @@ ann_labels = [
     AnnotationLabel(29, "u", "UWAVE", "U-wave peak"),
     AnnotationLabel(30, "?", "LEARN", "Learning"),
     AnnotationLabel(31, "!", "FLWAV", "Ventricular flutter wave"),
-    AnnotationLabel(
-        32, "[", "VFON", "Start of ventricular flutter/fibrillation"
-    ),
-    AnnotationLabel(
-        33, "]", "VFOFF", "End of ventricular flutter/fibrillation"
-    ),
+    AnnotationLabel(32, "[", "VFON", "Start of ventricular flutter/fibrillation"),
+    AnnotationLabel(33, "]", "VFOFF", "End of ventricular flutter/fibrillation"),
     AnnotationLabel(34, "e", "AESC", "Atrial escape beat"),
     AnnotationLabel(35, "n", "SVESC", "Supraventricular escape beat"),
-    AnnotationLabel(
-        36, "@", "LINK", "Link to external data (aux_note contains URL)"
-    ),
+    AnnotationLabel(36, "@", "LINK", "Link to external data (aux_note contains URL)"),
     AnnotationLabel(37, "x", "NAPC", "Non-conducted P-wave (blocked APB)"),
     AnnotationLabel(38, "f", "PFUS", "Fusion of paced and normal beat"),
     AnnotationLabel(39, "(", "WFON", "Waveform onset"),
     AnnotationLabel(40, ")", "WFOFF", "Waveform end"),
-    AnnotationLabel(
-        41, "r", "RONT", "R-on-T premature ventricular contraction"
-    ),
+    AnnotationLabel(41, "r", "RONT", "R-on-T premature ventricular contraction"),
     # AnnotationLabel(42, None, None, None),
     # AnnotationLabel(43, None, None, None),
     # AnnotationLabel(44, None, None, None),
@@ -3221,14 +3168,10 @@ ann_labels = [
 
 ann_label_table = pd.DataFrame(
     {
-        "label_store": np.array(
-            [al.label_store for al in ann_labels], dtype="int"
-        ),
+        "label_store": np.array([al.label_store for al in ann_labels], dtype="int"),
         "symbol": [al.symbol for al in ann_labels],
         "description": [al.description for al in ann_labels],
     }
 )
-ann_label_table = ann_label_table.set_index(
-    ann_label_table["label_store"].values
-)
+ann_label_table = ann_label_table.set_index(ann_label_table["label_store"].values)
 ann_label_table = ann_label_table[["label_store", "symbol", "description"]]

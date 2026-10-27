@@ -4,9 +4,7 @@ import struct
 
 import numpy as np
 
-from wfdb.io import Record
-from wfdb.io import download
-from wfdb.io import _url
+from wfdb.io import Record, _url, download
 from wfdb.io.record import rdrecord
 
 
@@ -128,15 +126,9 @@ def wfdb_to_wav(
     if write_header:
         record.adc_zero = record.n_sig * [0]
         record.adc_res = record.n_sig * [16]
-        record.adc_gain = [
-            (r * (1 << shift[i])) for i, r in enumerate(record.adc_gain)
-        ]
-        record.baseline = [
-            (b - offset[i]) for i, b in enumerate(record.baseline)
-        ]
-        record.baseline = [
-            (b * (1 << shift[i])) for i, b in enumerate(record.baseline)
-        ]
+        record.adc_gain = [(r * (1 << shift[i])) for i, r in enumerate(record.adc_gain)]
+        record.baseline = [(b - offset[i]) for i, b in enumerate(record.baseline)]
+        record.baseline = [(b * (1 << shift[i])) for i, b in enumerate(record.baseline)]
         record.file_name = record.n_sig * [record_name_out + ".wav"]
         record.block_size = record.n_sig * [0]
         record.fmt = record.n_sig * ["16"]
@@ -242,24 +234,20 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         record_name.split(os.sep)[-1].replace("-", "_").replace(".wav", "")
     )
 
-    chunk_ID = "".join(
-        [s.decode() for s in struct.unpack(">4s", wave_file.read(4))]
-    )
+    chunk_ID = "".join([s.decode() for s in struct.unpack(">4s", wave_file.read(4))])
     if chunk_ID != "RIFF":
-        raise Exception("{} is not a .wav-format file".format(record_name))
+        raise Exception(f"{record_name} is not a .wav-format file")
 
     correct_chunk_size = os.path.getsize(record_name) - 8
     chunk_size = struct.unpack("<I", wave_file.read(4))[0]
     if chunk_size != correct_chunk_size:
         raise Exception(
-            "Header chunk has incorrect length (is {} should be {})".format(
-                chunk_size, correct_chunk_size
-            )
+            f"Header chunk has incorrect length (is {chunk_size} should be {correct_chunk_size})"
         )
 
     fmt = struct.unpack(">4s", wave_file.read(4))[0].decode()
     if fmt != "WAVE":
-        raise Exception("{} is not a .wav-format file".format(record_name))
+        raise Exception(f"{record_name} is not a .wav-format file")
 
     subchunk1_ID = struct.unpack(">4s", wave_file.read(4))[0].decode()
     if subchunk1_ID != "fmt ":
@@ -268,10 +256,10 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     subchunk1_size = struct.unpack("<I", wave_file.read(4))[0]
     audio_format = struct.unpack("<H", wave_file.read(2))[0]
     if audio_format > 1:
-        print("PCM has compression of {}".format(audio_format))
+        print(f"PCM has compression of {audio_format}")
 
     if (subchunk1_size != 16) or (audio_format != 1):
-        raise Exception("Unsupported format {}".format(audio_format))
+        raise Exception(f"Unsupported format {audio_format}")
 
     num_channels = struct.unpack("<H", wave_file.read(2))[0]
     if num_channels == 1:
@@ -279,16 +267,16 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     elif num_channels == 2:
         print("Reading Stereo formatted .wav file...")
     else:
-        print("Reading {}-channel formatted .wav file...".format(num_channels))
+        print(f"Reading {num_channels}-channel formatted .wav file...")
 
     sample_rate = struct.unpack("<I", wave_file.read(4))[0]
-    print("Sample rate: {}".format(sample_rate))
+    print(f"Sample rate: {sample_rate}")
     byte_rate = struct.unpack("<I", wave_file.read(4))[0]
-    print("Byte rate: {}".format(byte_rate))
+    print(f"Byte rate: {byte_rate}")
     block_align = struct.unpack("<H", wave_file.read(2))[0]
-    print("Block align: {}".format(block_align))
+    print(f"Block align: {block_align}")
     bits_per_sample = struct.unpack("<H", wave_file.read(2))[0]
-    print("Bits per sample: {}".format(bits_per_sample))
+    print(f"Bits per sample: {bits_per_sample}")
     # I wish this were more precise but unfortunately some information
     # is lost in .wav files which is needed for these calculations
     if bits_per_sample <= 8:
@@ -298,14 +286,10 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         adc_res = 16
         adc_gain = 6400
     else:
-        raise Exception(
-            "Unsupported resolution ({} bits/sample)".format(bits_per_sample)
-        )
+        raise Exception(f"Unsupported resolution ({bits_per_sample} bits/sample)")
 
     if block_align != (num_channels * int(adc_res / 8)):
-        raise Exception(
-            "Format chunk of {} has incorrect frame length".format(block_align)
-        )
+        raise Exception(f"Format chunk of {block_align} has incorrect frame length")
 
     subchunk2_ID = struct.unpack(">4s", wave_file.read(4))[0].decode()
     if subchunk2_ID != "data":
@@ -315,9 +299,7 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     subchunk2_size = struct.unpack("<I", wave_file.read(4))[0]
     if subchunk2_size != correct_subchunk2_size:
         raise Exception(
-            "Data chunk has incorrect length.. (is {} should be {})".format(
-                subchunk2_size, correct_subchunk2_size
-            )
+            f"Data chunk has incorrect length.. (is {subchunk2_size} should be {correct_subchunk2_size})"
         )
     sig_len = int(subchunk2_size / block_align)
 

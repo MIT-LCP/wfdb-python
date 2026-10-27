@@ -92,9 +92,7 @@ def _rdheader(fp):
         # storage method
         if tag == 1001:
             storage_method = fs = struct.unpack("B", fp.read(1))[0]
-            storage_method = {0: "recording", 1: "manual", 2: "online"}[
-                storage_method
-            ]
+            storage_method = {0: "recording", 1: "manual", 2: "online"}[storage_method]
         # fs, unit16
         elif tag == 1003:
             fs = struct.unpack(">H", fp.read(2))[0]
@@ -130,9 +128,7 @@ def _rdheader(fp):
                     if item[0] <= data <= item[1]:
                         base_name = item[2]
                         break
-                existing_count = [base_name in name for name in sig_name].count(
-                    True
-                )
+                existing_count = [base_name in name for name in sig_name].count(True)
                 sig_name.append("%s_%d" % (base_name, existing_count))
         # Display scale. Probably not useful.
         elif tag == 1009:

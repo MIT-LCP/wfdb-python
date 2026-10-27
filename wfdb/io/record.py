@@ -1,19 +1,14 @@
 import datetime
 import multiprocessing.dummy
-import posixpath
 import os
+import posixpath
 import re
 
 import fsspec
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _header
-from wfdb.io import _signal
-from wfdb.io import _url
-from wfdb.io import download
-from wfdb.io import header
-from wfdb.io import util
+from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
@@ -157,7 +152,7 @@ SIG_UNITS = {
 }
 
 
-class BaseRecord(object):
+class BaseRecord:
     """
     The base WFDB class extended by the Record and MultiRecord classes.
 
@@ -222,13 +217,9 @@ class BaseRecord(object):
         self.sig_len = sig_len
         if base_datetime is not None:
             if base_time is not None:
-                raise TypeError(
-                    "cannot specify both base_time and base_datetime"
-                )
+                raise TypeError("cannot specify both base_time and base_datetime")
             if base_date is not None:
-                raise TypeError(
-                    "cannot specify both base_date and base_datetime"
-                )
+                raise TypeError("cannot specify both base_date and base_datetime")
             self.base_datetime = base_datetime
         else:
             self.base_time = base_time
@@ -241,9 +232,7 @@ class BaseRecord(object):
         if self.base_date is None or self.base_time is None:
             return None
         else:
-            return datetime.datetime.combine(
-                date=self.base_date, time=self.base_time
-            )
+            return datetime.datetime.combine(date=self.base_date, time=self.base_time)
 
     @base_datetime.setter
     def base_datetime(self, value):
@@ -405,9 +394,9 @@ class BaseRecord(object):
                 item=item,
                 field_name=field,
                 ndim=2,
-                parent_class=(
-                    lambda f: np.integer if f == "d_signal" else np.floating
-                )(field),
+                parent_class=(lambda f: np.integer if f == "d_signal" else np.floating)(
+                    field
+                ),
             )
         elif field in ["e_d_signal", "e_p_signal"]:
             for ch in range(len(item)):
@@ -416,9 +405,7 @@ class BaseRecord(object):
                     field_name=field,
                     ndim=1,
                     parent_class=(
-                        lambda f: (
-                            np.integer if f == "e_d_signal" else np.floating
-                        )
+                        lambda f: np.integer if f == "e_d_signal" else np.floating
                     )(field),
                     channel_num=ch,
                 )
@@ -427,10 +414,7 @@ class BaseRecord(object):
         elif field == "record_name":
             # Allow letters, digits, hyphens, and underscores.
             accepted_string = re.match(r"[-\w]+", self.record_name)
-            if (
-                not accepted_string
-                or accepted_string.string != self.record_name
-            ):
+            if not accepted_string or accepted_string.string != self.record_name:
                 raise ValueError(
                     "record_name must only comprise of letters, digits, hyphens, and underscores."
                 )
@@ -467,10 +451,7 @@ class BaseRecord(object):
                 if field == "file_name":
                     # Check for file_name characters
                     accepted_string = re.match(r"[-\w]+\.?[\w]+", item[ch])
-                    if (
-                        not accepted_string
-                        or accepted_string.string != item[ch]
-                    ):
+                    if not accepted_string or accepted_string.string != item[ch]:
                         raise ValueError(
                             "File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat"
                         )
@@ -492,9 +473,7 @@ class BaseRecord(object):
                         )
                 elif field == "skew":
                     if item[ch] < 0:
-                        raise ValueError(
-                            "skew values must be non-negative integers"
-                        )
+                        raise ValueError("skew values must be non-negative integers")
                 elif field == "byte_offset":
                     if item[ch] < 0:
                         raise ValueError(
@@ -511,14 +490,10 @@ class BaseRecord(object):
                         )
                 elif field == "units":
                     if re.search(r"\s", item[ch]):
-                        raise ValueError(
-                            "units strings may not contain whitespaces."
-                        )
+                        raise ValueError("units strings may not contain whitespaces.")
                 elif field == "adc_res":
                     if item[ch] < 0:
-                        raise ValueError(
-                            "adc_res values must be non-negative integers"
-                        )
+                        raise ValueError("adc_res values must be non-negative integers")
                 elif field == "block_size":
                     if item[ch] < 0:
                         raise ValueError(
@@ -527,13 +502,11 @@ class BaseRecord(object):
                 elif field == "sig_name":
                     if item[ch][:1].isspace() or item[ch][-1:].isspace():
                         raise ValueError(
-                            "sig_name strings may not begin or end with "
-                            "whitespace."
+                            "sig_name strings may not begin or end with whitespace."
                         )
                     if re.search(r"[\x00-\x1f\x7f-\x9f]", item[ch]):
                         raise ValueError(
-                            "sig_name strings may not contain "
-                            "control characters."
+                            "sig_name strings may not contain control characters."
                         )
                     if len(set(item)) != len(item):
                         raise ValueError("sig_name strings must be unique.")
@@ -546,10 +519,7 @@ class BaseRecord(object):
                     if item[ch] == "~":
                         continue
                     accepted_string = re.match(r"[-\w]+", item[ch])
-                    if (
-                        not accepted_string
-                        or accepted_string.string != item[ch]
-                    ):
+                    if not accepted_string or accepted_string.string != item[ch]:
                         raise ValueError(
                             "Non-null segment names may only contain alphanumerics and dashes. Null segment names must be set to '~'"
                         )
@@ -635,18 +605,14 @@ class BaseRecord(object):
         # Channel Ranges
         if len(channels):
             if min(channels) < 0:
-                raise ValueError(
-                    "Input channels must all be non-negative integers"
-                )
+                raise ValueError("Input channels must all be non-negative integers")
             if max(channels) > self.n_sig - 1:
                 raise ValueError(
                     "Input channels must all be lower than the total number of channels"
                 )
 
         if return_res not in [64, 32, 16, 8]:
-            raise ValueError(
-                "return_res must be one of the following: 64, 32, 16, 8"
-            )
+            raise ValueError("return_res must be one of the following: 64, 32, 16, 8")
         if physical and return_res == 8:
             raise ValueError(
                 "return_res must be one of the following when physical is True: 64, 32, 16"
@@ -823,7 +789,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         # Note the lack of the 'n_seg' field. Single segment records cannot
         # have this field. Even n_seg = 1 makes the header a multi-segment
         # header.
-        super(Record, self).__init__(
+        super().__init__(
             record_name=record_name,
             n_sig=n_sig,
             fs=fs,
@@ -974,16 +940,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         if not smooth_frames:
             # Checksum and init_value to be updated if present
             # unless the whole signal length was input
-            if self.sig_len != int(
-                len(self.e_d_signal[0]) / self.samps_per_frame[0]
-            ):
+            if self.sig_len != int(len(self.e_d_signal[0]) / self.samps_per_frame[0]):
                 self.checksum = self.calc_checksum(True)
                 self.init_value = [s[0] for s in self.e_d_signal]
 
             self.n_sig = len(channels)
-            self.sig_len = int(
-                len(self.e_d_signal[0]) / self.samps_per_frame[0]
-            )
+            self.sig_len = int(len(self.e_d_signal[0]) / self.samps_per_frame[0])
 
         # MxN numpy array d_signal
         else:
@@ -1144,7 +1106,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         sig_name=None,
         sig_segments=None,
     ):
-        super(MultiRecord, self).__init__(
+        super().__init__(
             record_name=record_name,
             n_sig=n_sig,
             fs=fs,
@@ -1271,9 +1233,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if sampto == cumsumlengths[len(cumsumlengths) - 1]:
             seg_numbers.append(len(cumsumlengths) - 1)
         else:
-            seg_numbers.append(
-                [sampto <= cs for cs in cumsumlengths].index(True)
-            )
+            seg_numbers.append([sampto <= cs for cs in cumsumlengths].index(True))
 
         # Add 1 for variable layout records
         seg_numbers = list(np.add(seg_numbers, startseg))
@@ -1420,9 +1380,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # the signal was read.
             if not force_channels:
                 # The desired signal names.
-                desired_sig_names = [
-                    self.segments[0].sig_name[ch] for ch in channels
-                ]
+                desired_sig_names = [self.segments[0].sig_name[ch] for ch in channels]
                 # Actual contained signal names of individual segments
                 # contained_sig_names = [seg.sig_name for seg in self.segments[1:]]
                 contained_sig_names = set(
@@ -1435,14 +1393,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 )
                 # Remove non-present names. Keep the order.
                 sig_name = [
-                    name
-                    for name in desired_sig_names
-                    if name in contained_sig_names
+                    name for name in desired_sig_names if name in contained_sig_names
                 ]
                 # Channel indices to keep for signal specification fields
-                channels = [
-                    self.segments[0].sig_name.index(name) for name in sig_name
-                ]
+                channels = [self.segments[0].sig_name.index(name) for name in sig_name]
 
             # Rearrange signal specification fields
             for field in _header.SIGNAL_SPECS.index:
@@ -1928,9 +1882,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
                 if s == "~":
                     record.segments.append(None)
                 else:
-                    record.segments.append(
-                        rdheader(os.path.join(dir_name, s), pn_dir)
-                    )
+                    record.segments.append(rdheader(os.path.join(dir_name, s), pn_dir))
             # Fill in the sig_name attribute
             record.sig_name = record.get_sig_name()
             # Fill in the sig_segments attribute
@@ -2449,7 +2401,7 @@ def sampfreq(record_name, pn_dir=None):
     sig_name = record.sig_name
 
     for sig, samp in zip(sig_name, samps_per_frame):
-        print("{}\t{}".format(sig, samp))
+        print(f"{sig}\t{samp}")
 
 
 def signame(record_name, pn_dir=None, sig_nums=[]):
@@ -2507,7 +2459,7 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
             try:
                 print(record.sig_name[n])
             except IndexError:
-                raise Exception("sig_nums value {} out of range".format(n))
+                raise Exception(f"sig_nums value {n} out of range")
     else:
         print(*record.sig_name, sep="\n")
 
@@ -2614,7 +2566,7 @@ def wfdbdesc(record_name, pn_dir=None):
     print(f"Length: {record_length} ({record.sig_len} sample intervals)")
 
     print(f"Sampling frequency: {record.fs} Hz")
-    print(f'{record.n_sig} signal{"" if record.n_sig==1 else "s"}')
+    print(f"{record.n_sig} signal{'' if record.n_sig == 1 else 's'}")
 
     if type(record) is not MultiRecord:
         for i in range(record.n_sig):
@@ -2722,9 +2674,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
     record = rdheader(record_name, pn_dir=pn_dir)
     try:
-        start_time = datetime.datetime.combine(
-            record.base_date, record.base_time
-        )
+        start_time = datetime.datetime.combine(record.base_date, record.base_time)
     except TypeError:
         try:
             start_time = record.base_time
@@ -2747,9 +2697,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
                 new_times = float(sample_num / record.fs)
                 times_split = [f"{new_times}"]
             elif "/" in times:
-                out_date = datetime.datetime.strptime(
-                    times, "%H:%M:%S.%f %d/%m/%Y"
-                )
+                out_date = datetime.datetime.strptime(times, "%H:%M:%S.%f %d/%m/%Y")
                 try:
                     start_time = datetime.datetime.combine(
                         datetime.date.min, start_time
@@ -2759,17 +2707,13 @@ def wfdbtime(record_name, input_times, pn_dir=None):
                 try:
                     elapsed_time = out_date - start_time
                 except TypeError:
-                    raise Exception(
-                        "No start date or time provided in the record."
-                    )
+                    raise Exception("No start date or time provided in the record.")
                 total_seconds = elapsed_time.total_seconds()
-                sample_num = "s" + str(
-                    int(elapsed_time.total_seconds() * record.fs)
-                )
+                sample_num = "s" + str(int(elapsed_time.total_seconds() * record.fs))
                 hours = int(total_seconds // 60 // 60)
                 minutes = int(total_seconds // 60)
                 out_time = f"{hours:02}:{minutes:02}:{total_seconds:06.3f}"
-                out_date = f'[{out_date.strftime("%H:%M:%S.%f %d/%m/%Y")}]'
+                out_date = f"[{out_date.strftime('%H:%M:%S.%f %d/%m/%Y')}]"
                 print(f"{sample_num:>12}{out_time:>24}{out_date:>32}")
                 break
             else:
@@ -2792,9 +2736,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
             if minutes >= 60:
                 raise Exception("Minutes not in correct format")
         out_time = f"{hours:02}:{minutes:02}:{seconds:06.3f}"
-        out_date = _get_date_from_time(
-            start_time, hours, minutes, seconds, out_time
-        )
+        out_date = _get_date_from_time(start_time, hours, minutes, seconds, out_time)
         if not times.startswith("s"):
             sample_num = int(
                 sum(x * 60**i for i, x in enumerate([seconds, minutes, hours]))
@@ -2843,7 +2785,9 @@ def _get_date_from_time(start_time, hours, minutes, seconds, out_time):
             microseconds=microseconds,
         )
         out_date = start_time + elapsed_time
-        out_date = f'[{(datetime.datetime.min+out_date).strftime("%H:%M:%S.%f %d/%m/%Y")}]'
+        out_date = (
+            f"[{(datetime.datetime.min + out_date).strftime('%H:%M:%S.%f %d/%m/%Y')}]"
+        )
     else:
         out_date = out_time
     return out_date
@@ -2878,9 +2822,7 @@ def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
         ]
     else:
         return [
-            record_sig_names.index(s)
-            for s in wanted_sig_names
-            if s in record_sig_names
+            record_sig_names.index(s) for s in wanted_sig_names if s in record_sig_names
         ]
 
 
@@ -3003,9 +2945,7 @@ def wrsamp(
             raise Exception(
                 "When using d_signal or e_d_signal, must also specify 'fmt', 'gain', and 'baseline' fields"
             )
-    if (
-        e_p_signal is not None or e_d_signal is not None
-    ) and samps_per_frame is None:
+    if (e_p_signal is not None or e_d_signal is not None) and samps_per_frame is None:
         raise Exception(
             "When passing e_p_signal or e_d_signal, you also need to specify samples per frame for each channel"
         )
@@ -3022,9 +2962,9 @@ def wrsamp(
         )
         if isinstance(first_valid_signal, np.ndarray):
             num_sig_channels = first_valid_signal.shape[1]
-            channel_samples = [
-                first_valid_signal.shape[0]
-            ] * first_valid_signal.shape[1]
+            channel_samples = [first_valid_signal.shape[0]] * first_valid_signal.shape[
+                1
+            ]
         elif isinstance(first_valid_signal, list):
             num_sig_channels = len(first_valid_signal)
             channel_samples = [len(channel) for channel in first_valid_signal]
@@ -3187,9 +3127,7 @@ def dl_database(
         # If MIT format, have to figure out all associated files
         all_files.append(rec + ".hea")
         dir_name, base_rec_name = os.path.split(rec)
-        record = rdheader(
-            base_rec_name, pn_dir=posixpath.join(db_dir, dir_name)
-        )
+        record = rdheader(base_rec_name, pn_dir=posixpath.join(db_dir, dir_name))
 
         # Single segment record
         if isinstance(record, Record):
@@ -3217,9 +3155,7 @@ def dl_database(
         if annotators is not None:
             for a in annotators:
                 ann_file = rec + "." + a
-                url = posixpath.join(
-                    download.config.db_index_url, db_dir, ann_file
-                )
+                url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
                 try:
                     _url.openurl(url, check_access=True)
                     all_files.append(ann_file)

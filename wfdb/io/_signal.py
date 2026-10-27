@@ -6,7 +6,7 @@ import sys
 import fsspec
 import numpy as np
 
-from wfdb.io import download, _coreio, util
+from wfdb.io import _coreio, download, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 MAX_I32 = 2147483647
@@ -109,7 +109,7 @@ INVALID_SAMPLE_VALUE = {
 }
 
 
-class SignalMixin(object):
+class SignalMixin:
     """
     Mixin class with signal methods. Inherited by Record class.
 
@@ -190,9 +190,7 @@ class SignalMixin(object):
 
             # Match the actual signal shape against stated length and number of channels
             if self.n_sig != len(self.e_d_signal):
-                raise ValueError(
-                    "n_sig does not match the length of e_d_signal"
-                )
+                raise ValueError("n_sig does not match the length of e_d_signal")
             for ch in range(self.n_sig):
                 if len(self.e_d_signal[ch]) != spf[ch] * self.sig_len:
                     raise ValueError(
@@ -251,9 +249,7 @@ class SignalMixin(object):
                 print("sig_len: ", self.sig_len)
                 print("n_sig: ", self.n_sig)
                 print("d_signal.shape: ", self.d_signal.shape)
-                raise ValueError(
-                    "sig_len and n_sig do not match shape of d_signal"
-                )
+                raise ValueError("sig_len and n_sig do not match shape of d_signal")
 
             # For each channel (if any), make sure the digital format has no values out of bounds
             for ch in range(self.n_sig):
@@ -279,9 +275,7 @@ class SignalMixin(object):
                 if "checksum" in write_fields:
                     realchecksum = self.calc_checksum()
                     if self.checksum != realchecksum:
-                        print(
-                            "The actual checksum of d_signal is: ", realchecksum
-                        )
+                        print("The actual checksum of d_signal is: ", realchecksum)
                         raise ValueError(
                             "checksum field does not match actual checksum of d_signal"
                         )
@@ -341,9 +335,7 @@ class SignalMixin(object):
 
             # Use e_p_signal to set fields
             self.check_field("e_p_signal", "all")
-            self.sig_len = int(
-                len(self.e_p_signal[0]) / self.samps_per_frame[0]
-            )
+            self.sig_len = int(len(self.e_p_signal[0]) / self.samps_per_frame[0])
             self.n_sig = len(self.e_p_signal)
         else:
             if do_dac:
@@ -439,9 +431,7 @@ class SignalMixin(object):
 
             # Use e_d_signal to set fields
             self.check_field("e_d_signal", "all")
-            self.sig_len = int(
-                len(self.e_d_signal[0]) / self.samps_per_frame[0]
-            )
+            self.sig_len = int(len(self.e_d_signal[0]) / self.samps_per_frame[0])
             self.n_sig = len(self.e_d_signal)
             self.init_value = [sig[0] for sig in self.e_d_signal]
             self.checksum = self.calc_checksum(expanded)
@@ -685,9 +675,7 @@ class SignalMixin(object):
                 for ch in range(self.n_sig):
                     # NAN locations for the channel
                     ch_nanlocs = self.e_d_signal[ch] == d_nans[ch]
-                    ch_p_signal = self.e_d_signal[ch].astype(
-                        floatdtype, copy=False
-                    )
+                    ch_p_signal = self.e_d_signal[ch].astype(floatdtype, copy=False)
                     np.subtract(ch_p_signal, self.baseline[ch], ch_p_signal)
                     np.divide(ch_p_signal, self.adc_gain[ch], ch_p_signal)
                     ch_p_signal[ch_nanlocs] = np.nan
@@ -832,9 +820,7 @@ class SignalMixin(object):
             maxvals = np.nanmax(self.p_signal, axis=0)
 
             for ch in range(np.shape(self.p_signal)[1]):
-                adc_gain, baseline = self.calc_adc_gain_baseline(
-                    ch, minvals, maxvals
-                )
+                adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
                 adc_gains.append(adc_gain)
                 baselines.append(baseline)
 
@@ -851,16 +837,12 @@ class SignalMixin(object):
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             for ch, _ in enumerate(self.e_p_signal):
-                adc_gain, baseline = self.calc_adc_gain_baseline(
-                    ch, minvals, maxvals
-                )
+                adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
                 adc_gains.append(adc_gain)
                 baselines.append(baseline)
 
         else:
-            raise Exception(
-                "Must supply p_signal or e_p_signal to calc_adc_params"
-            )
+            raise Exception("Must supply p_signal or e_p_signal to calc_adc_params")
 
         return (adc_gains, baselines)
 
@@ -897,9 +879,7 @@ class SignalMixin(object):
             if smooth_frames:
                 current_dtype = self.p_signal.dtype
                 if current_dtype != return_dtype:
-                    self.p_signal = self.p_signal.astype(
-                        return_dtype, copy=False
-                    )
+                    self.p_signal = self.p_signal.astype(return_dtype, copy=False)
             else:
                 for ch in range(self.n_sig):
                     if self.e_p_signal[ch].dtype != return_dtype:
@@ -916,17 +896,13 @@ class SignalMixin(object):
                         raise Exception(
                             "Cannot convert digital samples to lower dtype. Risk of overflow/underflow."
                         )
-                    self.d_signal = self.d_signal.astype(
-                        return_dtype, copy=False
-                    )
+                    self.d_signal = self.d_signal.astype(return_dtype, copy=False)
             else:
                 for ch in range(self.n_sig):
                     current_dtype = self.e_d_signal[ch].dtype
                     if current_dtype != return_dtype:
                         # Do not allow changing integer dtype to lower value due to over/underflow
-                        if int(str(current_dtype)[3:]) > int(
-                            str(return_dtype)[3:]
-                        ):
+                        if int(str(current_dtype)[3:]) > int(str(return_dtype)[3:]):
                             raise Exception(
                                 "Cannot convert digital samples to lower dtype. Risk of overflow/underflow."
                             )
@@ -1067,8 +1043,7 @@ class SignalMixin(object):
             if len(expanded_signal[ch]) != sig_len * spf[ch]:
                 raise ValueError(
                     "length mismatch: signal %d has %d samples,"
-                    " expected %dx%d"
-                    % (ch, len(expanded_signal), sig_len, spf[ch])
+                    " expected %dx%d" % (ch, len(expanded_signal), sig_len, spf[ch])
                 )
             input_dtypes.add(expanded_signal[ch].dtype)
 
@@ -1402,18 +1377,14 @@ def _rd_dat_signals(
             sig_data = np.concatenate(
                 (
                     data_to_read,
-                    np.zeros(
-                        n_extra_bytes, dtype=np.dtype(DATA_LOAD_TYPES[fmt])
-                    ),
+                    np.zeros(n_extra_bytes, dtype=np.dtype(DATA_LOAD_TYPES[fmt])),
                 )
             )
         else:
             sig_data = np.concatenate(
                 (
                     data_to_read,
-                    np.zeros(
-                        extra_flat_samples, dtype=np.dtype(DATA_LOAD_TYPES[fmt])
-                    ),
+                    np.zeros(extra_flat_samples, dtype=np.dtype(DATA_LOAD_TYPES[fmt])),
                 )
             )
     else:
@@ -1475,9 +1446,7 @@ def _rd_dat_signals(
         signal.append(ch_signal)
         ch_start = ch_end
     # Skew the signal
-    signal = _skew_sig(
-        signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame
-    )
+    signal = _skew_sig(signal, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame)
 
     # Integrity check of signal shape after reading
     _check_sig_dims(signal, read_len, n_sig, samps_per_frame)
@@ -1749,9 +1718,7 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
         sig[0::2] = sig_data[0::3] + 256 * np.bitwise_and(sig_data[1::3], 0x0F)
         # Odd numbered samples (len(sig) always > 1 due to processing of
         # whole blocks)
-        sig[1::2] = sig_data[2::3] + 256 * np.bitwise_and(
-            sig_data[1::3] >> 4, 0x0F
-        )
+        sig[1::2] = sig_data[2::3] + 256 * np.bitwise_and(sig_data[1::3] >> 4, 0x0F)
 
         # Remove trailing sample read within the byte block if
         # originally odd sampled
@@ -1768,13 +1735,13 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
 
         # One sample triplet is stored in one byte quartet
         # First sample is 7 msb of first byte and 3 lsb of second byte.
-        sig[0::3] = (sig_data[0::4] >> 1)[
-            0 : len(sig[0::3])
-        ] + 128 * np.bitwise_and(sig_data[1::4], 0x07)[0 : len(sig[0::3])]
+        sig[0::3] = (sig_data[0::4] >> 1)[0 : len(sig[0::3])] + 128 * np.bitwise_and(
+            sig_data[1::4], 0x07
+        )[0 : len(sig[0::3])]
         # Second signal is 7 msb of third byte and 3 lsb of forth byte
-        sig[1::3] = (sig_data[2::4] >> 1)[
-            0 : len(sig[1::3])
-        ] + 128 * np.bitwise_and(sig_data[3::4], 0x07)[0 : len(sig[1::3])]
+        sig[1::3] = (sig_data[2::4] >> 1)[0 : len(sig[1::3])] + 128 * np.bitwise_and(
+            sig_data[3::4], 0x07
+        )[0 : len(sig[1::3])]
         # Third signal is 5 msb of second byte and 5 msb of forth byte
         sig[2::3] = (
             np.bitwise_and((sig_data[1::4] >> 3), 0x1F)[0 : len(sig[2::3])]
@@ -1796,13 +1763,13 @@ def _blocks_to_samples(sig_data, n_samp, fmt):
             + 256 * np.bitwise_and(sig_data[1::4], 0x03)[0 : len(sig[0::3])]
         )
         # Second sample is 6 msb of second byte and 4 lsb of third byte
-        sig[1::3] = (sig_data[1::4] >> 2)[
-            0 : len(sig[1::3])
-        ] + 64 * np.bitwise_and(sig_data[2::4], 0x0F)[0 : len(sig[1::3])]
+        sig[1::3] = (sig_data[1::4] >> 2)[0 : len(sig[1::3])] + 64 * np.bitwise_and(
+            sig_data[2::4], 0x0F
+        )[0 : len(sig[1::3])]
         # Third sample is 4 msb of third byte and 6 msb of forth byte
-        sig[2::3] = (sig_data[2::4] >> 4)[
-            0 : len(sig[2::3])
-        ] + 16 * np.bitwise_and(sig_data[3::4], 0x7F)[0 : len(sig[2::3])]
+        sig[2::3] = (sig_data[2::4] >> 4)[0 : len(sig[2::3])] + 16 * np.bitwise_and(
+            sig_data[3::4], 0x7F
+        )[0 : len(sig[2::3])]
 
         # Loaded values as un_signed. Convert to 2's complement form.
         # Values > 2^9-1 are negative.
@@ -2003,9 +1970,7 @@ def _rd_compressed_file(
     return sig_data.reshape(-1)
 
 
-def _skew_sig(
-    sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
-):
+def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None):
     """
     Skew the signal, insert nans, and shave off end of array if needed.
 
@@ -2419,9 +2384,7 @@ def wr_dat_file(
         # Triplet 1 from lowest 8 bits of sample 1
         b_write[0::3] = d_signal[0::2] & 255
         # Triplet 2 from highest 4 bits of samples 1 (lower) and 2 (upper)
-        b_write[1::3] = ((d_signal[0::2] & 3840) >> 8) + (
-            (d_signal[1::2] & 3840) >> 4
-        )
+        b_write[1::3] = ((d_signal[0::2] & 3840) >> 8) + ((d_signal[1::2] & 3840) >> 4)
         # Triplet 3 from lowest 8 bits of sample 2
         b_write[2::3] = d_signal[1::2] & 255
 
@@ -2625,9 +2588,7 @@ def _infer_sig_len(
                 "Cloud paths should be passed under record_name, not under pn_dir"
             )
 
-        file_size = download._remote_file_size(
-            file_name=file_name, pn_dir=pn_dir
-        )
+        file_size = download._remote_file_size(file_name=file_name, pn_dir=pn_dir)
 
     # If it isn't a cloud path or a PhysioNet path, we treat as a local file
     else:

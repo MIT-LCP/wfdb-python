@@ -159,9 +159,7 @@ class RangeTransfer:
             }
 
         session = _get_session()
-        self._response = session.request(
-            method, url, headers=headers, stream=True
-        )
+        self._response = session.request(method, url, headers=headers, stream=True)
         self._content_iter = self._response.iter_content(4096)
         try:
             self._parse_headers(method, self._response)
@@ -201,9 +199,7 @@ class RangeTransfer:
 
         # Raise an exception if an error occurs.
         if response.status_code >= 400 and response.status_code != 416:
-            _LOGGER.info(
-                "%s %s: %s", method, response.url, response.status_code
-            )
+            _LOGGER.info("%s %s: %s", method, response.url, response.status_code)
             if response.status_code in (401, 403):
                 cls = NetFilePermissionError
             elif response.status_code == 404:
@@ -791,8 +787,6 @@ def openurl(
     if mode == "rb":
         return nf
     elif mode == "r" or mode == "rt":
-        return io.TextIOWrapper(
-            nf, encoding=encoding, errors=errors, newline=newline
-        )
+        return io.TextIOWrapper(nf, encoding=encoding, errors=errors, newline=newline)
     else:
         return ValueError("invalid mode: %r" % (mode,))

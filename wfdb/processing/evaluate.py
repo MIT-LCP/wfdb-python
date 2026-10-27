@@ -1,4 +1,4 @@
-from multiprocessing import cpu_count, Pool
+from multiprocessing import Pool, cpu_count
 
 import numpy as np
 
@@ -7,7 +7,7 @@ from wfdb.io.download import get_record_list
 from wfdb.io.record import rdsamp
 
 
-class Comparitor(object):
+class Comparitor:
     """
     The class to implement and hold comparisons between two sets of
     annotations. See methods `compare`, `print_summary` and `plot`.
@@ -48,10 +48,7 @@ class Comparitor(object):
         if len(ref_sample) > 1 and len(test_sample) > 1:
             if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
                 raise ValueError(
-                    (
-                        "The sample locations must be monotonically"
-                        + " increasing"
-                    )
+                    "The sample locations must be monotonically" + " increasing"
                 )
 
         self.ref_sample = ref_sample
@@ -204,9 +201,7 @@ class Comparitor(object):
                     )
                     # Assign the reference-test pair if close enough
                     if smallest_samp_diff < self.window_width:
-                        self.matching_sample_nums[ref_samp_num] = (
-                            closest_samp_num
-                        )
+                        self.matching_sample_nums[ref_samp_num] = closest_samp_num
                     # Set the starting test sample number to inspect
                     # for the next reference sample.
                     test_samp_num = closest_samp_num + 1
@@ -302,10 +297,7 @@ class Comparitor(object):
         print("False Positives (unmatched test samples): %d" % self.fp)
         print("False Negatives (unmatched reference samples): %d\n" % self.fn)
 
-        print(
-            "Sensitivity: %.4f (%d/%d)"
-            % (self.sensitivity, self.tp, self.n_ref)
-        )
+        print("Sensitivity: %.4f (%d/%d)" % (self.sensitivity, self.tp, self.n_ref))
         print(
             "Positive Predictivity: %.4f (%d/%d)"
             % (self.positive_predictivity, self.tp, self.n_test)
@@ -510,9 +502,7 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
 
     # Calculate aggregate stats
     sensitivity = np.mean([c.sensitivity for c in comparitors])
-    positive_predictivity = np.mean(
-        [c.positive_predictivity for c in comparitors]
-    )
+    positive_predictivity = np.mean([c.positive_predictivity for c in comparitors])
 
     comparitors = dict(zip(record_list, comparitors))
 

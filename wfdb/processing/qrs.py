@@ -3,12 +3,12 @@ import copy
 import numpy as np
 from scipy import signal
 
+from wfdb.io.record import Record
 from wfdb.processing.basic import get_filter_gain, normalize
 from wfdb.processing.peaks import find_local_peaks
-from wfdb.io.record import Record
 
 
-class XQRS(object):
+class XQRS:
     """
     The QRS detector class for the XQRS algorithm. The `XQRS.Conf`
     class is the configuration class that stores initial parameters
@@ -75,7 +75,7 @@ class XQRS(object):
         self.conf = conf or XQRS.Conf()
         self._set_conf()
 
-    class Conf(object):
+    class Conf:
         """
         Initial signal configuration object for this QRS detector.
 
@@ -217,9 +217,7 @@ class XQRS(object):
         """
         wavelet_filter = ricker(self.qrs_width, 4)
 
-        self.sig_i = (
-            signal.filtfilt(wavelet_filter, [1], self.sig_f, axis=0) ** 2
-        )
+        self.sig_i = signal.filtfilt(wavelet_filter, [1], self.sig_f, axis=0) ** 2
 
         # Save the MWI gain (x2 due to double filtering) and the total
         # gain from raw to MWI
@@ -289,9 +287,7 @@ class XQRS(object):
         # Skip if no peaks in range
         if not peak_inds_f.size or not peak_nums_r.size or not peak_nums_l.size:
             if self.verbose:
-                print(
-                    "Failed to find %d beats during learning." % n_calib_beats
-                )
+                print("Failed to find %d beats during learning." % n_calib_beats)
             self._set_default_init_params()
             return
 
@@ -362,9 +358,7 @@ class XQRS(object):
         # Failed to find enough calibration beats. Use default values.
         else:
             if self.verbose:
-                print(
-                    "Failed to find %d beats during learning." % n_calib_beats
-                )
+                print("Failed to find %d beats during learning." % n_calib_beats)
 
             self._set_default_init_params()
 
@@ -513,13 +507,9 @@ class XQRS(object):
         # was found via backsearch
         if backsearch:
             self.backsearch_qrs_inds.append(i)
-            self.qrs_amp_recent = (
-                0.75 * self.qrs_amp_recent + 0.25 * self.sig_i[i]
-            )
+            self.qrs_amp_recent = 0.75 * self.qrs_amp_recent + 0.25 * self.sig_i[i]
         else:
-            self.qrs_amp_recent = (
-                0.875 * self.qrs_amp_recent + 0.125 * self.sig_i[i]
-            )
+            self.qrs_amp_recent = 0.875 * self.qrs_amp_recent + 0.125 * self.sig_i[i]
 
         self.qrs_thr = max(
             (0.25 * self.qrs_amp_recent + 0.75 * self.noise_amp_recent),
@@ -582,9 +572,7 @@ class XQRS(object):
 
         """
         i = self.peak_inds_i[peak_num]
-        self.noise_amp_recent = (
-            0.875 * self.noise_amp_recent + 0.125 * self.sig_i[i]
-        )
+        self.noise_amp_recent = 0.875 * self.noise_amp_recent + 0.125 * self.sig_i[i]
         return
 
     def _require_backsearch(self):
@@ -628,9 +616,7 @@ class XQRS(object):
 
         """
         if self.last_qrs_peak_num is not None:
-            for peak_num in range(
-                self.last_qrs_peak_num + 1, self.peak_num + 1
-            ):
+            for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
                 if self._is_qrs(peak_num=peak_num, backsearch=True):
                     self._update_qrs(peak_num=peak_num, backsearch=True)
                 # No need to update noise parameters if it was classified as
@@ -740,9 +726,7 @@ class XQRS(object):
         self._run_detection()
 
 
-def xqrs_detect(
-    sig, fs, sampfrom=0, sampto="end", conf=None, learn=True, verbose=True
-):
+def xqrs_detect(sig, fs, sampfrom=0, sampto="end", conf=None, learn=True, verbose=True):
     """
     Run the 'xqrs' QRS detection algorithm on a signal. See the
     docstring of the XQRS class for algorithm details.
@@ -809,7 +793,7 @@ def time_to_sample_number(seconds, frequency):
     return seconds * frequency + 0.5
 
 
-class GQRS(object):
+class GQRS:
     """
     GQRS detection class.
 
@@ -819,7 +803,7 @@ class GQRS(object):
 
     """
 
-    class Conf(object):
+    class Conf:
         """
         Initial signal configuration object for this QRS detector.
 
@@ -909,9 +893,7 @@ class GQRS(object):
 
             self.dt = int(self.QS * self.sps / 4)
             if self.dt < 1:
-                raise Exception(
-                    "Sampling rate is too low. Unable to use signal."
-                )
+                raise Exception("Sampling rate is too low. Unable to use signal.")
 
             self.rtmin = int(self.RTmin * self.sps)
             self.rtmean = int(0.75 * self.QT * self.sps)
@@ -935,7 +917,7 @@ class GQRS(object):
             self.smt = 0
             self.smt0 = 0 + self.smdt
 
-    class Peak(object):
+    class Peak:
         """
         Holds all of the peak information for the QRS object.
 
@@ -957,7 +939,7 @@ class GQRS(object):
             self.next_peak = None
             self.prev_peak = None
 
-    class Annotation(object):
+    class Annotation:
         """
         Holds all of the annotation information for the QRS object.
 
@@ -1265,18 +1247,12 @@ class GQRS(object):
         # needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
         dv2 -= self.smv_at(self.t - self.c.dt4)
-        dv1 = int(
-            self.smv_at(self.t + self.c.dt) - self.smv_at(self.t - self.c.dt)
-        )
+        dv1 = int(self.smv_at(self.t + self.c.dt) - self.smv_at(self.t - self.c.dt))
         dv = dv1 << 1
-        dv -= int(
-            self.smv_at(self.t + self.c.dt2) - self.smv_at(self.t - self.c.dt2)
-        )
+        dv -= int(self.smv_at(self.t + self.c.dt2) - self.smv_at(self.t - self.c.dt2))
         dv = dv << 1
         dv += dv1
-        dv -= int(
-            self.smv_at(self.t + self.c.dt3) - self.smv_at(self.t - self.c.dt3)
-        )
+        dv -= int(self.smv_at(self.t + self.c.dt3) - self.smv_at(self.t - self.c.dt3))
         dv = dv << 1
         dv += dv2
         self.v1 += dv
@@ -1462,20 +1438,12 @@ class GQRS(object):
             q1 = self.qfv_at(self.t - 1)
             q2 = self.qfv_at(self.t - 2)
             # state == RUNNING only
-            if (
-                q1 > self.c.pthr
-                and q2 < q1
-                and q1 >= q0
-                and self.t > self.c.dt4
-            ):
+            if q1 > self.c.pthr and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
                 add_peak(self.t - 1, q1, 0)
                 last_peak = self.t - 1
                 p = self.current_peak.next_peak
                 while p.time < self.t - self.c.rtmax:
-                    if (
-                        p.time >= self.annot.time + self.c.rrmin
-                        and peaktype(p) == 1
-                    ):
+                    if p.time >= self.annot.time + self.c.rrmin and peaktype(p) == 1:
                         if p.amp > self.c.qthr:
                             rr = p.time - self.annot.time
                             q = find_missing(r, p)
@@ -1542,8 +1510,7 @@ class GQRS(object):
                                     "TWAVE",
                                     (
                                         1
-                                        if tmp_time
-                                        > self.annot.time + self.c.rtmean
+                                        if tmp_time > self.annot.time + self.c.rtmean
                                         else 0
                                     ),
                                     rtdmin,
@@ -1567,10 +1534,7 @@ class GQRS(object):
                             self.c.qthr -= self.c.qthr >> 4
                     # end:
                     p = p.next_peak
-            elif (
-                self.t - last_peak > self.c.rrmax
-                and self.c.pthr > self.c.pthmin
-            ):
+            elif self.t - last_peak > self.c.rrmax and self.c.pthr > self.c.pthmin:
                 self.c.pthr -= self.c.pthr >> 4
 
             self.t += 1
