@@ -167,10 +167,14 @@ class BaseRecord(object):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : int, float, optional
@@ -718,10 +722,14 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : float, optional
@@ -1066,10 +1074,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : int, float, optional
@@ -1802,10 +1814,14 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -1951,10 +1967,14 @@ def rdrecord(
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -2267,10 +2287,17 @@ def rdsamp(
     Parameters
     ----------
     record_name : str
-        The name of the WFDB record to be read (without any file
-        extensions). If the argument contains any path delimiter
-        characters, the argument will be interpreted as PATH/baserecord
-        and the data files will be searched for in the local path.
+        The name of the WFDB record to be read, without any file
+        extensions. If the argument contains any path delimiter
+        characters, the argument will be interpreted as PATH/BASE_RECORD.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -2384,10 +2411,14 @@ def sampfreq(record_name, pn_dir=None):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2431,10 +2462,14 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2488,10 +2523,14 @@ def wfdbdesc(record_name, pn_dir=None):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2618,10 +2657,14 @@ def wfdbtime(record_name, input_times, pn_dir=None):
         The name of the WFDB record to be read, without any file
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        Both relative and absolute paths are accepted. If `pn_dir` is set,
+        `record_name` should contain just the base record name, and the
+        files will be searched for remotely on PhysioNet. Otherwise,
+        files are searched for locally, or when `record_name` is a
+        supported cloud URI, they are read directly from cloud storage
+        via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
+        `azureml://`. Install the appropriate `fsspec` backend
+        (e.g., `s3fs`, `gcsfs`, `adlfs`).
     input_times : str, list
         The desired times (or samples) to be converted and displayed for the
         chosen record. This can either be a single string, or a list of
