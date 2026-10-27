@@ -13,6 +13,7 @@ import stat
 import tempfile
 import weakref
 import zipfile
+from contextlib import contextmanager
 
 ARCHIVE_EXTENSION = ".wfdb"
 
@@ -332,3 +333,29 @@ def create_archive(file_paths, archive_path):
 def is_archive_path(record_name):
     """Check whether a record name refers to a .wfdb archive."""
     return os.fspath(record_name).endswith(ARCHIVE_EXTENSION)
+
+
+@contextmanager
+def archive_for_writing(wfdb_archive):
+    """Get a WFDBArchive to write a record to.
+
+    Parameters
+    ----------
+    wfdb_archive : str, os.PathLike, WFDBArchive or None
+        A path opens a new archive that is saved when the context exits,
+        or discarded if an error occurs. A WFDBArchive opened in write
+        mode is used as it is and left open. None gives None.
+
+    """
+    if wfdb_archive is None:
+        yield None
+    elif isinstance(wfdb_archive, WFDBArchive):
+        wfdb_archive._require_mode("w")
+        yield wfdb_archive
+    elif isinstance(wfdb_archive, (str, os.PathLike)):
+        with WFDBArchive(wfdb_archive, mode="w") as archive:
+            yield archive
+    else:
+        raise TypeError(
+            "wfdb_archive must be a path or a WFDBArchive opened in write mode"
+        )

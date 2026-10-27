@@ -290,7 +290,7 @@ class HeaderMixin(BaseHeaderMixin):
         for f in sfields:
             self.set_default(f)
 
-    def wrheader(self, write_dir="", expanded=True):
+    def wrheader(self, write_dir="", expanded=True, wfdb_archive=None):
         """Write a WFDB header file.
 
         The signals are not used. Before writing:
@@ -307,6 +307,9 @@ class HeaderMixin(BaseHeaderMixin):
             Whether the header file should include `samps_per_frame` (this
             should only be true if the signal files are written using
             `expanded=True`).
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the header file to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -338,7 +341,7 @@ class HeaderMixin(BaseHeaderMixin):
         self.check_field_cohesion(rec_write_fields, list(sig_write_fields))
 
         # Write the header file using the specified fields
-        self.wr_header_file(rec_write_fields, sig_write_fields, write_dir)
+        self.wr_header_file(rec_write_fields, sig_write_fields, write_dir, wfdb_archive)
 
     def get_write_fields(self):
         """Get the header fields to write, split into record and signal fields.
@@ -514,7 +517,9 @@ class HeaderMixin(BaseHeaderMixin):
                                 "Each file_name (dat file) specified must have the same byte offset"
                             )
 
-    def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
+    def wr_header_file(
+        self, rec_write_fields, sig_write_fields, write_dir, wfdb_archive=None
+    ):
         """Write a header file using the specified fields.
 
         Converts Record attributes into appropriate WFDB format strings.
@@ -528,6 +533,9 @@ class HeaderMixin(BaseHeaderMixin):
             being equal to a list of channels to write for each field.
         write_dir : str
             The directory in which to write the header file.
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the header file to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -572,7 +580,11 @@ class HeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
+        if wfdb_archive is not None:
+            content = "".join(f"{line}\n" for line in header_lines)
+            wfdb_archive.write(self.record_name + ".hea", content.encode("utf-8"))
+        else:
+            util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
 
 
 class MultiHeaderMixin(BaseHeaderMixin):

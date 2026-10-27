@@ -11,7 +11,7 @@ import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
-from wfdb.io.archive import WFDBArchive, is_archive_path
+from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -872,7 +872,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         return True
 
-    def wrsamp(self, expanded=False, write_dir=""):
+    def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write a WFDB header file and any associated dat files from this object.
 
         Parameters
@@ -882,6 +882,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             of the uniform signal (d_signal).
         write_dir : str, optional
             The directory in which to write the files.
+        wfdb_archive : str, os.PathLike or WFDBArchive, optional
+            Write the record into a .wfdb archive instead of writing separate
+            files to `write_dir`. A path creates a new archive, replacing any
+            existing archive at that path. A WFDBArchive must be opened in
+            write mode, and is left open.
 
         Returns
         -------
@@ -898,13 +903,16 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                     checksums[ch] = old_val
             self.checksum = checksums
 
-        # Perform field validity and cohesion checks, and write the
-        # header file.
-        self.wrheader(write_dir=write_dir, expanded=expanded)
-        if self.n_sig > 0:
-            # Perform signal validity and cohesion checks, and write the
-            # associated dat files.
-            self.wr_dats(expanded=expanded, write_dir=write_dir)
+        with archive_for_writing(wfdb_archive) as archive:
+            # Perform field validity and cohesion checks, and write the
+            # header file.
+            self.wrheader(write_dir=write_dir, expanded=expanded, wfdb_archive=archive)
+            if self.n_sig > 0:
+                # Perform signal validity and cohesion checks, and write the
+                # associated dat files.
+                self.wr_dats(
+                    expanded=expanded, write_dir=write_dir, wfdb_archive=archive
+                )
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """Arrange/edit object fields to reflect user channel and/or signal range input.
@@ -2937,6 +2945,7 @@ def wrsamp(
     base_date=None,
     base_datetime=None,
     write_dir="",
+    wfdb_archive=None,
 ):
     """Write a single segment WFDB record with a header and any dat files.
 
@@ -2992,6 +3001,11 @@ def wrsamp(
         setting both `base_date` and `base_time`.
     write_dir : str, optional
         The directory in which to write the files.
+    wfdb_archive : str, os.PathLike or WFDBArchive, optional
+        Write the record into a .wfdb archive instead of writing separate
+        files to `write_dir`. A path creates a new archive, replacing any
+        existing archive at that path. A WFDBArchive must be opened in
+        write mode, and is left open.
 
     Returns
     -------
@@ -3016,6 +3030,10 @@ def wrsamp(
     >>> # Write a local WFDB record (manually inserting fields)
     >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
                     sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+    >>> # Write the same record into a .wfdb archive
+    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
+                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'],
+                    wfdb_archive='ecgrecord.wfdb')
 
     """
     # Check for valid record name
@@ -3120,7 +3138,7 @@ def wrsamp(
         expanded = False
 
     # Write the record files - header and associated dat
-    record.wrsamp(write_dir=write_dir, expanded=expanded)
+    record.wrsamp(write_dir=write_dir, expanded=expanded, wfdb_archive=wfdb_archive)
 
 
 def dl_database(

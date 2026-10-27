@@ -1,3 +1,4 @@
+import io
 import math
 import os
 import posixpath
@@ -119,7 +120,7 @@ class SignalMixin:
 
     """
 
-    def wr_dats(self, expanded, write_dir):
+    def wr_dats(self, expanded, write_dir, wfdb_archive=None):
         """Write all dat files of a record.
 
         Use expanded=True to use e_d_signal instead of d_signal.
@@ -131,6 +132,9 @@ class SignalMixin:
             the `d_signal` attribute (False).
         write_dir : str
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the dat files to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -159,7 +163,9 @@ class SignalMixin:
         self.check_sig_cohesion([], expanded)
 
         # Write each of the specified dat files
-        self.wr_dat_files(expanded=expanded, write_dir=write_dir)
+        self.wr_dat_files(
+            expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+        )
 
     def check_sig_cohesion(self, write_fields, expanded):
         """Check the cohesion of d_signal/e_d_signal with the other fields.
@@ -936,7 +942,7 @@ class SignalMixin:
             cs = [int(c) for c in cs]
         return cs
 
-    def wr_dat_files(self, expanded=False, write_dir=""):
+    def wr_dat_files(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write each of the specified dat files.
 
         Parameters
@@ -946,6 +952,9 @@ class SignalMixin:
             the `d_signal` attribute (False).
         write_dir : str, optional
             The directory to write the output file to.
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the dat files to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -980,6 +989,7 @@ class SignalMixin:
                     [self.e_d_signal[ch] for ch in dat_channels[fn]],
                     [self.samps_per_frame[ch] for ch in dat_channels[fn]],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
         else:
             dsig = self.d_signal
@@ -990,6 +1000,7 @@ class SignalMixin:
                     dsig[:, dat_channels[fn][0] : dat_channels[fn][-1] + 1],
                     dat_offsets[fn],
                     write_dir=write_dir,
+                    wfdb_archive=wfdb_archive,
                 )
 
     def smooth_frames(self, sigtype="physical"):
@@ -2309,6 +2320,7 @@ def wr_dat_file(
     e_d_signal=None,
     samps_per_frame=None,
     write_dir="",
+    wfdb_archive=None,
 ):
     """Write a dat file. All bytes are written one at a time to avoid endianness issues.
 
@@ -2332,6 +2344,9 @@ def wr_dat_file(
         The samples/frame for each signal of the dat file.
     write_dir : str, optional
         The directory to write the output file to.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to write the dat file to, instead of
+        `write_dir`.
 
     Returns
     -------
@@ -2458,8 +2473,9 @@ def wr_dat_file(
         else:
             raise ValueError(f"unknown format ({fmt})")
 
+        target = io.BytesIO() if wfdb_archive is not None else file_path
         sf = soundfile.SoundFile(
-            file_path,
+            target,
             mode="w",
             samplerate=96000,
             channels=n_sig,
@@ -2468,7 +2484,9 @@ def wr_dat_file(
         )
         with sf:
             sf.write(d_signal)
-            return
+        if wfdb_archive is not None:
+            wfdb_archive.write(file_name, target.getvalue())
+        return
 
     else:
         raise ValueError(
@@ -2488,8 +2506,11 @@ def wr_dat_file(
         b_write = np.append(np.zeros(byte_offset, dtype="uint8"), b_write)
 
     # Write the bytes to the file
-    with open(file_path, "wb") as f:
-        b_write.tofile(f)
+    if wfdb_archive is not None:
+        wfdb_archive.write(file_name, b_write.tobytes())
+    else:
+        with open(file_path, "wb") as f:
+            b_write.tofile(f)
 
 
 def describe_list_indices(full_list):

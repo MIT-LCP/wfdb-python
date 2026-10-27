@@ -317,6 +317,142 @@ def test_archive_holds_one_record(tmp_path):
         assert sorted(zf.namelist()) == ["100.atr", "100.dat", "100.hea"]
 
 
+def write_kwargs(fmt="16"):
+    rng = np.random.default_rng(1234)
+    return dict(
+        fs=250,
+        units=["mV", "mV"],
+        sig_name=["I", "II"],
+        p_signal=rng.standard_normal((1000, 2)),
+        fmt=[fmt, fmt],
+    )
+
+
+@pytest.mark.parametrize("fmt", ["16", "24", "32", "516"])
+def test_wrsamp_archive_matches_files(fmt, tmp_path):
+    """Writing to an archive gives the same result as writing separate files."""
+    kwargs = write_kwargs(fmt)
+    archive_path = os.fspath(tmp_path / "archive" / "rec.wfdb")
+    files_dir = tmp_path / "files"
+    files_dir.mkdir()
+
+    wfdb.wrsamp("rec", wfdb_archive=archive_path, **kwargs)
+    wfdb.wrsamp("rec", write_dir=os.fspath(files_dir), **kwargs)
+
+    for physical in [True, False]:
+        record = wfdb.rdrecord(archive_path, physical=physical)
+        expected = wfdb.rdrecord(os.fspath(files_dir / "rec"), physical=physical)
+        assert_records_equal(record, expected)
+
+
+def test_wrsamp_archive_object(tmp_path):
+    """An open WFDBArchive is written to and left open, with no separate files."""
+    archive_path = os.fspath(tmp_path / "rec.wfdb")
+
+    with WFDBArchive(archive_path, mode="w") as archive:
+        wfdb.wrsamp(
+            "rec",
+            write_dir=os.fspath(tmp_path),
+            wfdb_archive=archive,
+            **write_kwargs(),
+        )
+        archive.write("notes.txt", b"extra file")
+
+    assert os.listdir(tmp_path) == ["rec.wfdb"]
+    with zipfile.ZipFile(archive_path) as zf:
+        assert sorted(zf.namelist()) == ["notes.txt", "rec.dat", "rec.hea"]
+    assert wfdb.rdrecord(archive_path).sig_len == 1000
+
+
+def test_record_wrsamp_archive_round_trip(tmp_path):
+    """A record read from an archive can be written to a new archive."""
+    source = archive_sample_record("sample-data/100", tmp_path)
+    record = wfdb.rdrecord(source, physical=False)
+    copy_path = os.fspath(tmp_path / "copy" / "100.wfdb")
+
+    record.wrsamp(wfdb_archive=copy_path)
+
+    assert_records_equal(
+        wfdb.rdrecord(copy_path, physical=False),
+        wfdb.rdrecord("sample-data/100", physical=False),
+    )
+
+
+def test_wrsamp_archive_replaces_existing(tmp_path):
+    archive_path = archive_sample_record("sample-data/100", tmp_path)
+
+    wfdb.wrsamp("100", wfdb_archive=archive_path, **write_kwargs())
+
+    with zipfile.ZipFile(archive_path) as zf:
+        assert sorted(zf.namelist()) == ["100.dat", "100.hea"]
+    assert wfdb.rdrecord(archive_path).sig_name == ["I", "II"]
+
+
+def test_wrsamp_archive_error_writes_nothing(tmp_path, monkeypatch):
+    """A failed write leaves no archive or temporary file.
+
+    This is the case even if the failure happens after the header was written.
+    """
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("failed while writing the dat file")
+
+    monkeypatch.setattr(wfdb.io._signal, "wr_dat_file", fail)
+
+    with pytest.raises(RuntimeError, match="dat file"):
+        wfdb.wrsamp(
+            "rec",
+            wfdb_archive=os.fspath(tmp_path / "rec.wfdb"),
+            **write_kwargs(),
+        )
+
+    assert os.listdir(tmp_path) == []
+
+
+def test_wrsamp_two_records_in_one_archive(tmp_path):
+    """Writing a second record into an archive fails.
+
+    The archive is not saved.
+    """
+    archive_path = os.fspath(tmp_path / "rec.wfdb")
+
+    with pytest.raises(ValueError, match="holds a single record"):
+        with WFDBArchive(archive_path, mode="w") as archive:
+            wfdb.wrsamp("rec", wfdb_archive=archive, **write_kwargs())
+            wfdb.wrsamp("other", wfdb_archive=archive, **write_kwargs())
+
+    assert os.listdir(tmp_path) == []
+
+
+def test_wrsamp_archive_invalid_argument(tmp_path):
+    archive_path = archive_sample_record("sample-data/100", tmp_path)
+
+    with pytest.raises(TypeError, match="wfdb_archive"):
+        wfdb.wrsamp("rec", wfdb_archive=123, **write_kwargs())
+
+    with WFDBArchive(archive_path, mode="r") as archive:
+        with pytest.raises(ValueError, match="cannot be written to"):
+            wfdb.wrsamp("rec", wfdb_archive=archive, **write_kwargs())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
+def test_archive_permissions(tmp_path):
+    """A new archive gets the same permissions as other new files.
+
+    A replaced archive keeps its permissions.
+    """
+    archive_path = tmp_path / "rec.wfdb"
+    other_path = tmp_path / "other.txt"
+    other_path.write_text("")
+
+    wfdb.wrsamp("rec", wfdb_archive=os.fspath(archive_path), **write_kwargs())
+    assert archive_path.stat().st_mode == other_path.stat().st_mode
+
+    archive_path.chmod(0o640)
+    wfdb.wrsamp("rec", wfdb_archive=os.fspath(archive_path), **write_kwargs())
+    assert archive_path.stat().st_mode & 0o777 == 0o640
+
+
 def test_archive_temporary_file(tmp_path):
     """While an archive is written, its temporary file is named after it.
 
