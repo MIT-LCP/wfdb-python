@@ -1099,6 +1099,7 @@ def _rd_segment(
     no_file=False,
     sig_data=None,
     return_res=64,
+    wfdb_archive=None,
 ):
     """Read the digital samples from a single segment record's associated dat file(s).
 
@@ -1146,6 +1147,9 @@ def _rd_segment(
         32, 16, and 8, where the value represents the numpy int or float
         dtype. Note that the value cannot be 8 when physical is True
         since there is no float8 format.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to read the signal files from instead of
+        `dir_name` or `pn_dir`.
 
     Returns
     -------
@@ -1243,6 +1247,7 @@ def _rd_segment(
             sampto=sampto,
             no_file=no_file,
             sig_data=sig_data,
+            wfdb_archive=wfdb_archive,
         )
 
         # Copy over the wanted signals
@@ -1267,6 +1272,7 @@ def _rd_dat_signals(
     sampto,
     no_file=False,
     sig_data=None,
+    wfdb_archive=None,
 ):
     """Read all signals from a WFDB dat file.
 
@@ -1304,6 +1310,9 @@ def _rd_dat_signals(
     sig_data : ndarray, optional
         The signal data that would normally be imported using the associated
         .dat and .hea files. Should only be used when no_file is set to True.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to read the signal files from instead of
+        `dir_name` or `pn_dir`.
 
     Returns
     -------
@@ -1365,10 +1374,17 @@ def _rd_dat_signals(
             samps_per_frame=samps_per_frame,
             start_frame=sampfrom,
             end_frame=sampto,
+            wfdb_archive=wfdb_archive,
         )
     else:
         data_to_read = _rd_dat_file(
-            file_name, dir_name, pn_dir, fmt, start_byte, n_read_samples
+            file_name,
+            dir_name,
+            pn_dir,
+            fmt,
+            start_byte,
+            n_read_samples,
+            wfdb_archive=wfdb_archive,
         )
 
     if extra_flat_samples:
@@ -1606,7 +1622,9 @@ def _required_byte_num(mode, fmt, n_samp):
     return int(n_bytes)
 
 
-def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
+def _rd_dat_file(
+    file_name, dir_name, pn_dir, fmt, start_byte, n_samp, wfdb_archive=None
+):
     """Read data from a dat file, either local or remote, into a 1d numpy array.
 
     This is the lowest level dat reading function (along with
@@ -1631,6 +1649,9 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         The total number of samples to read. Does NOT need to create
         whole blocks for special format. Any number of samples should be
         readable.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to read the signal files from instead of
+        `dir_name` or `pn_dir`.
 
     Returns
     -------
@@ -1662,8 +1683,16 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
         element_count = n_samp
         byte_count = n_samp * BYTES_PER_SAMPLE[fmt]
 
+    # Dat file in a .wfdb archive
+    if wfdb_archive is not None:
+        with wfdb_archive.open(file_name) as fp:
+            fp.seek(start_byte)
+            sig_data = util.fromfile(
+                fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
+            )
+
     # Local or cloud dat file
-    if pn_dir is None:
+    elif pn_dir is None:
         with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
@@ -1811,6 +1840,7 @@ def _rd_compressed_file(
     samps_per_frame,
     start_frame,
     end_frame,
+    wfdb_archive=None,
 ):
     """Read data from a compressed file into a 1D numpy array.
 
@@ -1837,6 +1867,9 @@ def _rd_compressed_file(
         The starting frame number to read.
     end_frame : int
         The ending frame number to read.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to read the signal files from instead of
+        `dir_name` or `pn_dir`.
 
     Returns
     -------
@@ -1861,10 +1894,14 @@ def _rd_compressed_file(
             "sampling rate and samples per frame"
         )
 
-    if pn_dir is None:
-        file_name = os.path.join(dir_name, file_name)
+    if wfdb_archive is not None:
+        open_file = wfdb_archive.open(file_name)
+    else:
+        if pn_dir is None:
+            file_name = os.path.join(dir_name, file_name)
+        open_file = _coreio._open_file(pn_dir, file_name, "rb")
 
-    with _coreio._open_file(pn_dir, file_name, "rb") as fp:
+    with open_file as fp:
         signature = fp.read(4)
         if signature != b"fLaC":
             raise ValueError(f"{fp.name} is not a FLAC file")
@@ -2489,7 +2526,13 @@ def describe_list_indices(full_list):
 
 
 def _infer_sig_len(
-    file_name, fmt, tsamps_per_frame, byte_offset, dir_name, pn_dir=None
+    file_name,
+    fmt,
+    tsamps_per_frame,
+    byte_offset,
+    dir_name,
+    pn_dir=None,
+    wfdb_archive=None,
 ):
     """Infer the length of a signal from a dat file.
 
@@ -2509,6 +2552,9 @@ def _infer_sig_len(
     pn_dir : str, optional
         The PhysioNet directory where the dat file(s) are located, if
         the dat file(s) are on a PhysioNet server.
+    wfdb_archive : WFDBArchive, optional
+        An open .wfdb archive to read the dat file from instead of
+        `dir_name` or `pn_dir`.
 
     Returns
     -------
@@ -2522,9 +2568,13 @@ def _infer_sig_len(
     """
     from wfdb.io.record import CLOUD_PROTOCOLS
 
+    # If the dat file is in a .wfdb archive, get its uncompressed size
+    if wfdb_archive is not None:
+        file_size = wfdb_archive.file_size(file_name)
+
     # If this is a cloud path, use posixpath to construct the path and fsspec to open
     # file
-    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+    elif any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         with fsspec.open(posixpath.join(dir_name, file_name), mode="rb") as f:
             file_size = f.seek(0, os.SEEK_END)
 

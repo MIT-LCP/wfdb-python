@@ -1,3 +1,4 @@
+import contextlib
 import datetime
 import multiprocessing.dummy
 import os
@@ -10,6 +11,7 @@ import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
+from wfdb.io.archive import WFDBArchive, is_archive_path
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -1759,7 +1761,9 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
         `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        (e.g., `s3fs`, `gcsfs`, `adlfs`). To read the header from a
+        local .wfdb archive, pass the path of the archive including the
+        .wfdb extension.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -1782,10 +1786,17 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     """
     dir_name, base_record_name = os.path.split(record_name)
     file_name = f"{base_record_name}.hea"
+    is_archive = is_archive_path(record_name)
+
+    # Read the header from a .wfdb archive
+    if is_archive:
+        _check_archive_read_args(record_name, pn_dir)
+        with WFDBArchive(record_name, mode="r") as archive:
+            header_content = archive.read_header()
 
     # If this is a cloud path, use posixpath to construct the path and fsspec to open
     # file
-    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+    elif any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
             header_content = f.read()
 
@@ -1817,6 +1828,45 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         ) as f:
             header_content = f.read()
 
+    record = _parse_header_content(header_content)
+
+    # If specified, read the segment headers of a multi-segment record
+    if rd_segments and isinstance(record, MultiRecord):
+        if is_archive:
+            raise NotImplementedError(
+                "Multi-segment records in .wfdb archives are not supported"
+            )
+        record.segments = []
+        # Get the base record name (could be empty)
+        for s in record.seg_name:
+            if s == "~":
+                record.segments.append(None)
+            else:
+                record.segments.append(rdheader(os.path.join(dir_name, s), pn_dir))
+        # Fill in the sig_name attribute
+        record.sig_name = record.get_sig_name()
+        # Fill in the sig_segments attribute
+        record.sig_segments = record.get_sig_segments()
+
+    return record
+
+
+def _parse_header_content(header_content):
+    """Create a `Record` or `MultiRecord` object from the content of a header file.
+
+    The segment headers of a multi-segment record are not read.
+
+    Parameters
+    ----------
+    header_content : str
+        The content of the header file.
+
+    Returns
+    -------
+    record : Record or MultiRecord
+        The record described by the header.
+
+    """
     # Separate comment and non-comment lines
     header_lines, comment_lines = header.parse_header_content(header_content)
 
@@ -1860,24 +1910,20 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         else:
             record.layout = "fixed"
 
-        # If specified, read the segment headers
-        if rd_segments:
-            record.segments = []
-            # Get the base record name (could be empty)
-            for s in record.seg_name:
-                if s == "~":
-                    record.segments.append(None)
-                else:
-                    record.segments.append(rdheader(os.path.join(dir_name, s), pn_dir))
-            # Fill in the sig_name attribute
-            record.sig_name = record.get_sig_name()
-            # Fill in the sig_segments attribute
-            record.sig_segments = record.get_sig_segments()
-
     # Set the comments field
     record.comments = [line.strip(" \t#") for line in comment_lines]
 
     return record
+
+
+def _check_archive_read_args(record_name, pn_dir):
+    """Check that a .wfdb archive is read from a supported location."""
+    if pn_dir is not None:
+        raise ValueError("pn_dir cannot be used to read a .wfdb archive")
+    if any(os.fspath(record_name).startswith(p) for p in CLOUD_PROTOCOLS):
+        raise NotImplementedError(
+            "Reading .wfdb archives from cloud storage is not supported"
+        )
 
 
 def rdrecord(
@@ -1912,7 +1958,9 @@ def rdrecord(
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
         `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        (e.g., `s3fs`, `gcsfs`, `adlfs`). To read a record from a local
+        .wfdb archive, pass the path of the archive including the .wfdb
+        extension. Multi-segment records are not supported in archives.
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -1987,6 +2035,56 @@ def rdrecord(
     --------
     >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
                                channels=[1, 3])
+    >>> record = wfdb.rdrecord('100.wfdb')
+
+    """
+    if is_archive_path(record_name):
+        _check_archive_read_args(record_name, pn_dir)
+        archive = WFDBArchive(record_name, mode="r")
+    else:
+        archive = contextlib.nullcontext()
+
+    with archive as wfdb_archive:
+        return _rdrecord(
+            record_name=record_name,
+            sampfrom=sampfrom,
+            sampto=sampto,
+            channels=channels,
+            physical=physical,
+            pn_dir=pn_dir,
+            m2s=m2s,
+            smooth_frames=smooth_frames,
+            ignore_skew=ignore_skew,
+            return_res=return_res,
+            force_channels=force_channels,
+            channel_names=channel_names,
+            warn_empty=warn_empty,
+            wfdb_archive=wfdb_archive,
+        )
+
+
+def _rdrecord(
+    record_name,
+    sampfrom,
+    sampto,
+    channels,
+    physical,
+    pn_dir,
+    m2s,
+    smooth_frames,
+    ignore_skew,
+    return_res,
+    force_channels,
+    channel_names,
+    warn_empty,
+    wfdb_archive,
+):
+    """Read a WFDB record.
+
+    See `rdrecord` for the parameters.
+
+    If `wfdb_archive` is set, it is the open WFDBArchive that
+    `record_name` refers to, and the signal files are read from it.
 
     """
     dir_name, base_record_name = os.path.split(record_name)
@@ -2007,7 +2105,14 @@ def rdrecord(
                 dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
             )
 
-    record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+    if wfdb_archive is not None:
+        record = _parse_header_content(wfdb_archive.read_header())
+        if isinstance(record, MultiRecord):
+            raise NotImplementedError(
+                "Multi-segment records in .wfdb archives are not supported"
+            )
+    else:
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2033,6 +2138,7 @@ def rdrecord(
                     byte_offset=record.byte_offset[0],
                     dir_name=dir_name,
                     pn_dir=pn_dir,
+                    wfdb_archive=wfdb_archive,
                 )
         sampto = record.sig_len
 
@@ -2109,6 +2215,7 @@ def rdrecord(
             no_file=no_file,
             sig_data=sig_data,
             return_res=return_res,
+            wfdb_archive=wfdb_archive,
         )
 
         # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
