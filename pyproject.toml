@@ -62,6 +62,10 @@ ignore = [
     "B905",
 ]
 
+[tool.ruff.lint.pycodestyle]
+# Wrap docstrings and comments at the same width as the code
+max-doc-length = 88
+
 [tool.ruff.lint.per-file-ignores]
 # Re-exports
 "__init__.py" = ["F401"]

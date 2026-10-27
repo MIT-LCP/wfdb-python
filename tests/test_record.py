@@ -330,8 +330,9 @@ class TestRecord:
 
     def test_unique_samps_per_frame_e_p_signal(self, temp_path):
         """
-        Test writing an e_p_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
-        parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
+        Test writing an e_p_signal with wfdb.io.wrsamp where the signals have different
+        samples per frame. All other parameters which overlap between a Record object
+        and wfdb.io.wrsamp are also checked.
         """
         # Read in a record with different samples per frame
         record = wfdb.rdrecord(
@@ -408,8 +409,9 @@ class TestRecord:
 
     def test_unique_samps_per_frame_e_d_signal(self, temp_path):
         """
-        Test writing an e_d_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
-        parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
+        Test writing an e_d_signal with wfdb.io.wrsamp where the signals have different
+        samples per frame. All other parameters which overlap between a Record object
+        and wfdb.io.wrsamp are also checked.
         """
         # Read in a record with different samples per frame
         record = wfdb.rdrecord(
@@ -640,7 +642,8 @@ class TestRecord:
         """
         Format 310, selected duration, digital
         Target file created with:
-            rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 | cut -f 2- | wrsamp -o 310derive -O 310
+            rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 | cut -f 2-
+                | wrsamp -o 310derive -O 310
             rdsamp -r 310derive -f 0.007 | cut -f 2- > record-2d
         """
         record = wfdb.rdrecord("sample-data/310derive", sampfrom=2, physical=False)
@@ -653,7 +656,8 @@ class TestRecord:
         Format 311, selected duration, physical.
 
         Target file created with:
-            rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 -s 1 | cut -f 2- | wrsamp -o 311derive -O 311
+            rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 -s 1 | cut -f 2-
+                | wrsamp -o 311derive -O 311
             rdsamp -r 311derive -f 0.005 -t 3.91 -P | cut -f 2- > record-2e
         """
         sig, fields = wfdb.rdsamp("sample-data/311derive", sampfrom=1, sampto=978)
@@ -697,7 +701,8 @@ class TestRecord:
         Multi-dat, selected duration, selected channels, physical.
 
         Target file created with:
-            rdsamp -r sample-data/s0010_re -f 5 -t 38 -P -s 13 0 4 8 3 | cut -f 2- > record-3b
+            rdsamp -r sample-data/s0010_re -f 5 -t 38 -P -s 13 0 4 8 3 | cut -f 2-
+                > record-3b
         """
         sig, fields = wfdb.rdsamp(
             "sample-data/s0010_re",
@@ -929,7 +934,8 @@ class TestMultiRecord:
         Multi-segment, fixed layout, read entire signal.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/fixed1/v102s -P | cut -f 2- > record-multi-fixed-a
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -P | cut -f 2-
+                > record-multi-fixed-a
         """
         record = wfdb.rdrecord("sample-data/multi-segment/fixed1/v102s")
         sig_round = np.round(record.p_signal, decimals=8)
@@ -943,7 +949,8 @@ class TestMultiRecord:
         from one segment.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2- > record-multi-fixed-b
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2-
+                > record-multi-fixed-b
         """
         record = wfdb.rdrecord("sample-data/multi-segment/fixed1/v102s", sampto=75000)
         sig_round = np.round(record.p_signal, decimals=8)
@@ -957,7 +964,8 @@ class TestMultiRecord:
         samples read from multiple segments
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/fixed1/v102s -f s70000 -t s80000 -s 1 0 3 -P | cut -f 2- > record-multi-fixed-c
+            rdsamp -r sample-data/multi-segment/fixed1/v102s -f s70000 -t s80000
+                -s 1 0 3 -P | cut -f 2- > record-multi-fixed-c
         """
         record = wfdb.rdrecord(
             "sample-data/multi-segment/fixed1/v102s",
@@ -1020,7 +1028,8 @@ class TestMultiRecord:
         from one segment only.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428365 -t s14428375 -P | cut -f 2- > record-multi-variable-a
+            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31
+                -f s14428365 -t s14428375 -P | cut -f 2- > record-multi-variable-a
         """
         record = wfdb.rdrecord(
             "sample-data/multi-segment/s00001/s00001-2896-10-10-00-31",
@@ -1038,7 +1047,8 @@ class TestMultiRecord:
         from several segments.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31 -f s14428364 -t s14428375 -P | cut -f 2- > record-multi-variable-b
+            rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31
+                -f s14428364 -t s14428375 -P | cut -f 2- > record-multi-variable-b
         """
         record = wfdb.rdrecord(
             "sample-data/multi-segment/s00001/s00001-2896-10-10-00-31",
@@ -1064,7 +1074,8 @@ class TestMultiRecord:
         ```
         for i in {01..18}
         do
-            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2- >> record-multi-variable-c
+            rdsamp -r sample-data/multi-segment/s25047/3234460_00$i -P | cut -f 2-
+                >> record-multi-variable-c
         done
         ```
 
@@ -1109,7 +1120,9 @@ class TestMultiRecord:
         fmt, adc_gain, and baseline do not change between the segments.
 
         Target file created with:
-            rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57 -f s3550 -t s7500 -s 0 1 | cut -f 2- | perl -p -e 's/-32768/  -128/g;' > record-multi-variable-d
+            rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57
+                -f s3550 -t s7500 -s 0 1 | cut -f 2- | perl -p -e 's/-32768/  -128/g;'
+                > record-multi-variable-d
 
         """
         record = wfdb.rdrecord(

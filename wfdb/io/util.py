@@ -127,8 +127,9 @@ def overlapping_ranges(
 
 def fromfile(fileobj, dtype, count=-1):
     """
-    Read binary data from a file-like object into a NumPy array, using `np.fromfile` when possible.
-    Falls back to manual reading for file-like objects that are not compatible with np.fromfile.
+    Read binary data from a file-like object into a NumPy array, using `np.fromfile`
+    when possible. Falls back to manual reading for file-like objects that are not
+    compatible with np.fromfile.
 
     Parameters
     ----------
@@ -140,7 +141,8 @@ def fromfile(fileobj, dtype, count=-1):
         Number of elements or bytes to read depending on the format:
         - For most formats, this is the number of elements (e.g., samples) to read.
         - For formats "212", "310", "311", and "24", this is the number of bytes.
-        If set to -1 (default), reads until the end of the file and infers size from the stream
+        If set to -1 (default), reads until the end of the file and infers size from
+        the stream
     """
     if isinstance(fileobj, io.FileIO) or (
         isinstance(fileobj, (io.BufferedReader, io.BufferedRandom))

@@ -26,9 +26,10 @@ class TestAnnotation:
         # This is not the fault of the script. The annotation file specifies a
         # length 3
         annotation.aux_note[0] = "(N"
-        # aux_note field with a null written after '(N' which the script correctly picks up. I am just
-        # getting rid of the null in this unit test to compare with the regexp output below which has
-        # no null to detect in the output text file of rdann.
+        # aux_note field with a null written after '(N' which the script correctly picks
+        # up. I am just getting rid of the null in this unit test to compare with the
+        # regexp output below which has no null to detect in the output text file of
+        # rdann.
 
         # Target data from WFDB software package
         with open("tests/target-output/ann-1") as f:

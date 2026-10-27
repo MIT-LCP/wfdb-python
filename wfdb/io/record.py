@@ -378,7 +378,8 @@ class BaseRecord:
 
         # We should have a list specifying these automatically.
 
-        # Whether the item should be a list. Watch out for required_channels for `segments`
+        # Whether the item should be a list. Watch out for required_channels for
+        # `segments`
         expect_list = True if field in LIST_FIELDS else False
 
         # Check the type of the field (and of its elements if it should
@@ -1179,7 +1180,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
         for seg_num, segment in enumerate(self.segments):
-            # If segment 0 is a layout specification record, check that its file names are all == '~''
+            # If segment 0 is a layout specification record, check that its file names
+            # are all == '~''
             if seg_num == 0 and self.seg_len[0] == 0:
                 for file_name in segment.file_name:
                     if file_name != "~":
@@ -1193,7 +1195,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     "The 'fs' in each segment must match the overall record's 'fs'"
                 )
 
-            # Check the signal length of the segment against the corresponding seg_len field
+            # Check the signal length of the segment against the corresponding seg_len
+            # field
             if segment.sig_len != self.seg_len[seg_num]:
                 raise ValueError(
                     f"The signal length of segment {seg_num} does not match the corresponding segment length"
@@ -1802,12 +1805,14 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     dir_name, base_record_name = os.path.split(record_name)
     file_name = f"{base_record_name}.hea"
 
-    # If this is a cloud path, use posixpath to construct the path and fsspec to open file
+    # If this is a cloud path, use posixpath to construct the path and fsspec to open
+    # file
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
             header_content = f.read()
 
-    # If the PhysioNet database path is provided, construct the download path using the database version
+    # If the PhysioNet database path is provided, construct the download path using the
+    # database version
     elif pn_dir is not None:
         # check to make sure a cloud path isn't being passed under pn_dir
         if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
@@ -2663,7 +2668,8 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
     * Note, the final argument results in the same date field as the argument
       but a different value for the elapsed time.
-    >>> wfdb.wfdbtime('sample-data/3000003_0003', ['s1','::5','e','19:46:34.981 01/01/0001'])
+    >>> wfdb.wfdbtime('sample-data/3000003_0003',
+    ...               ['s1', '::5', 'e', '19:46:34.981 01/01/0001'])
           s1            00:00:00.008    [19:46:25.765000 01/01/0001]
         s625            00:00:05.000    [19:46:30.757000 01/01/0001]
        s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
@@ -2954,7 +2960,8 @@ def wrsamp(
             "When passing e_p_signal or e_d_signal, you also need to specify samples per frame for each channel"
         )
 
-    # If samps_per_frame is provided, check that it aligns as expected with the channels in the signal
+    # If samps_per_frame is provided, check that it aligns as expected with the channels
+    # in the signal
     if samps_per_frame:
         # Get the number of elements being passed in samps_per_frame
         samps_per_frame_length = (
@@ -2976,7 +2983,8 @@ def wrsamp(
             raise TypeError(
                 "Unsupported signal format. Must be ndarray or list of lists."
             )
-        # Check that the number of channels matches the number of samps_per_frame entries
+        # Check that the number of channels matches the number of samps_per_frame
+        # entries
         if num_sig_channels != samps_per_frame_length:
             raise Exception(
                 "When passing samps_per_frame, it must have the same number of entries as the signal has channels"

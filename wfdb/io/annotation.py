@@ -29,7 +29,8 @@ class Annotation:
 
     The current annotation values organized as such::
 
-        AnnotationLabel(label_store (or subtype), symbol (or aux_note), short_description, description)
+        AnnotationLabel(label_store (or subtype), symbol (or aux_note),
+                        short_description, description)
 
     where the associated values are::
 
@@ -43,7 +44,9 @@ class Annotation:
             AnnotationLabel(6, "F", 'FUSION', 'Fusion of ventricular and normal beat'),
             AnnotationLabel(7, "J", 'NPC', 'Nodal (junctional) premature beat'),
             AnnotationLabel(8, "A", 'APC', 'Atrial premature contraction'),
-            AnnotationLabel(9, "S", 'SVPB', 'Premature or ectopic supraventricular beat'),
+            AnnotationLabel(
+                9, "S", 'SVPB', 'Premature or ectopic supraventricular beat'
+            ),
             AnnotationLabel(10, "E", 'VESC', 'Ventricular escape beat'),
             AnnotationLabel(11, "j", 'NESC', 'Nodal (junctional) escape beat'),
             AnnotationLabel(12, "/", 'PACE', 'Paced beat'),
@@ -64,16 +67,24 @@ class Annotation:
             AnnotationLabel(29, "u", 'UWAVE',  'U-wave peak'),
             AnnotationLabel(30, "?", 'LEARN',  'Learning'),
             AnnotationLabel(31, "!", 'FLWAV',  'Ventricular flutter wave'),
-            AnnotationLabel(32, "[", 'VFON',  'Start of ventricular flutter/fibrillation'),
-            AnnotationLabel(33, "]", 'VFOFF',  'End of ventricular flutter/fibrillation'),
+            AnnotationLabel(
+                32, "[", 'VFON',  'Start of ventricular flutter/fibrillation'
+            ),
+            AnnotationLabel(
+                33, "]", 'VFOFF',  'End of ventricular flutter/fibrillation'
+            ),
             AnnotationLabel(34, "e", 'AESC',  'Atrial escape beat'),
             AnnotationLabel(35, "n", 'SVESC',  'Supraventricular escape beat'),
-            AnnotationLabel(36, "@", 'LINK',  'Link to external data (aux_note contains URL)'),
+            AnnotationLabel(
+                36, "@", 'LINK',  'Link to external data (aux_note contains URL)'
+            ),
             AnnotationLabel(37, "x", 'NAPC',  'Non-conducted P-wave (blocked APB)'),
             AnnotationLabel(38, "f", 'PFUS',  'Fusion of paced and normal beat'),
             AnnotationLabel(39, "(", 'WFON',  'Waveform onset'),
             AnnotationLabel(40, ")", 'WFOFF',  'Waveform end'),
-            AnnotationLabel(41, "r", 'RONT',  'R-on-T premature ventricular contraction')
+            AnnotationLabel(
+                41, "r", 'RONT',  'R-on-T premature ventricular contraction'
+            )
         ]
 
     The current annotation classes are organized as such::
@@ -499,9 +510,14 @@ class Annotation:
                         + " field must be strings"
                     )
 
-                # Would be good to enfore this but existing garbage annotations have tabs and newlines...
+                # Would be good to enforce this but existing garbage annotations have
+                # tabs and newlines...
                 # if bool(re.search('[\t\n\r\f\v]', description[i])):
-                #    raise ValueError('The description values of the '+field+' field must not contain tabs or newlines')
+                #    raise ValueError(
+                #        "The description values of the "
+                #        + field
+                #        + " field must not contain tabs or newlines"
+                #    )
 
         # The string fields
         elif field in ["symbol", "description", "aux_note"]:
@@ -613,9 +629,9 @@ class Annotation:
                         + "' fields do not match"
                     )
 
-        # Ensure all label fields are defined by the label map. This has to be checked because
-        # it is possible the user defined (or lack of) custom_labels does not capture all the
-        # labels present.
+        # Ensure all label fields are defined by the label map. This has to be checked
+        # because it is possible the user defined (or lack of) custom_labels does not
+        # capture all the labels present.
         for field in present_label_fields:
             defined_values = self.__label_map__[field].values
 
@@ -755,7 +771,8 @@ class Annotation:
             If 'usefield' is explicitly specified, the function will use that
             field to figure out available label stores. If 'usefield'
             is set to 'tryall', the function will choose one of the contained
-            attributes by checking availability in the order: label_store, symbol, description.
+            attributes by checking availability in the order: label_store, symbol,
+            description.
 
         Returns
         -------
@@ -937,7 +954,8 @@ class Annotation:
             os.path.join(write_dir, self.record_name + "." + self.extension),
             "wb",
         ) as f:
-            # Combine all bytes to write: fs (if any), custom annotations (if any), main content, file terminator
+            # Combine all bytes to write: fs (if any), custom annotations (if any), main
+            # content, file terminator
             np.concatenate(
                 (
                     fs_bytes,
@@ -1071,7 +1089,8 @@ class Annotation:
             115,
         ]
 
-        # The end wrapper: '0 NOTE length aux_note ## end of definitions' followed by SKIP -1, +1
+        # The end wrapper: '0 NOTE length aux_note ## end of definitions' followed by
+        # SKIP -1, +1
         tailbytes = [
             0,
             88,
@@ -1110,7 +1129,13 @@ class Annotation:
 
         # writecontent = []
         # for i in range(len(self.custom_labels)):
-        #     writecontent.append([freenumbers[i],list(custom_labels.keys())[i],list(custom_labels.values())[i]])
+        #     writecontent.append(
+        #         [
+        #             freenumbers[i],
+        #             list(custom_labels.keys())[i],
+        #             list(custom_labels.values())[i],
+        #         ]
+        #     )
 
         # custombytes = [customcode2bytes(triplet) for triplet in writecontent]
         # custombytes = [item for sublist in custombytes for item in sublist]
@@ -1317,7 +1342,9 @@ class Annotation:
             for i in custom_labels.index:
                 label_map.loc[i] = custom_labels.loc[i]
             # This doesn't work...
-            # label_map.loc[custom_labels.index] = custom_labels.loc[custom_labels.index]
+            # label_map.loc[custom_labels.index] = custom_labels.loc[
+            #     custom_labels.index
+            # ]
 
         # Get the labels using one of the features
         if self.label_store is not None:
@@ -1517,7 +1544,8 @@ def custom_triplet_bytes(custom_triplet):
         All the bytes converted from the tiplet.
 
     """
-    # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space, description, (0 null if necessary)
+    # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space,
+    # description, (0 null if necessary)
     # Remember, aux_note string includes 'number(s)<space><symbol><space><description>''
     annbytes = (
         [0, 88, len(custom_triplet[2]) + 3 + len(str(custom_triplet[0])), 252]
@@ -2205,8 +2233,8 @@ def proc_core_fields(filebytes, bpi):
     """
     sample_diff = 0
 
-    # The current byte pair will contain either the actual d_sample + annotation store value,
-    # or 0 + SKIP.
+    # The current byte pair will contain either the actual d_sample + annotation store
+    # value, or 0 + SKIP.
     while int(filebytes[bpi, 1]) >> 2 == 59:
         # 4 bytes storing dt
         skip_diff = (
@@ -2216,7 +2244,8 @@ def proc_core_fields(filebytes, bpi):
             + (int(filebytes[bpi + 2, 1]) << 8)
         )
 
-        # Data type is long integer (stored in two's complement). Range -2**31 to 2**31 - 1
+        # Data type is long integer (stored in two's complement).
+        # Range -2**31 to 2**31 - 1
         if skip_diff > 2147483647:
             skip_diff = skip_diff - 4294967296
 

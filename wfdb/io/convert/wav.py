@@ -86,8 +86,8 @@ def wfdb_to_wav(
     with open(output_filename, "wb") as f:
         # Write the WAV file identifier
         f.write(struct.pack(">4s", b"RIFF"))
-        # Write the number of bytes to follow in the file
-        # (num_samps*frame_length) sample bytes, and 36 more bytes of miscellaneous embedded header
+        # Write the number of bytes to follow in the file (num_samps*frame_length)
+        # sample bytes, and 36 more bytes of miscellaneous embedded header
         f.write(struct.pack("<I", file_bytes))
         # Descriptor for the format of the file
         f.write(struct.pack(">8s", b"WAVEfmt "))

@@ -189,7 +189,8 @@ class BaseHeaderMixin:
             if self.comments is not None:
                 write_fields.append("comments")
 
-        # signal spec field. Need to return a potentially different list for each channel.
+        # signal spec field. Need to return a potentially different list for each
+        # channel.
         elif spec_type == "signal":
             # List of lists for each channel
             write_fields = []
@@ -203,7 +204,8 @@ class BaseHeaderMixin:
                         continue
 
                     item = getattr(self, field)
-                    # If the field is required by default or has been defined by the user
+                    # If the field is required by default or has been defined by the
+                    # user
                     if signal_specs.loc[field, "write_required"] or (
                         item is not None and item[ch] is not None
                     ):
@@ -493,7 +495,8 @@ class HeaderMixin(BaseHeaderMixin):
                         "The length of field: " + f + " must match field n_sig."
                     )
 
-            # Each file_name must correspond to only one fmt, (and only one byte offset if defined).
+            # Each file_name must correspond to only one fmt, (and only one byte offset
+            # if defined).
             datfmts = {}
             for ch in range(self.n_sig):
                 if self.file_name[ch] not in datfmts:
@@ -862,7 +865,8 @@ class MultiHeaderMixin(BaseHeaderMixin):
         Returns
         -------
         ranges : List[Tuple[int, int]]
-            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            Tuple pairs which specify the sample ranges in which the signal is
+            contained.
             The second value of each tuple pair will be one beyond the signal index.
             eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
             selection using signal[0:1000].
@@ -931,7 +935,8 @@ class MultiHeaderMixin(BaseHeaderMixin):
         Returns
         -------
         ranges : List[Tuple[int, int]]
-            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            Tuple pairs which specify the sample ranges in which the signal is
+            contained.
             The second value of each tuple pair will be one beyond the signal index.
             eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
             selection using signal[0:1000].

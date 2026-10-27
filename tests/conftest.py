@@ -3,7 +3,7 @@ import requests
 
 from wfdb.io._url import NetFileError
 
-# Errors that indicate that PhysioNet is unreachable or too slow (and not a test failure)
+# Errors that mean PhysioNet is unreachable or too slow (not that a test failed)
 NETWORK_ERRORS = (
     requests.exceptions.ConnectionError,
     requests.exceptions.ChunkedEncodingError,
