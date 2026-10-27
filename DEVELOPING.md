@@ -15,6 +15,12 @@ ruff format .
 ruff check .
 ```
 
+Commits that only reformat the code are listed in [.git-blame-ignore-revs](./.git-blame-ignore-revs). GitHub skips them in its blame view automatically. To do the same locally, run:
+
+```sh
+git config blame.ignoreRevsFile .git-blame-ignore-revs
+```
+
 ## Package and Dependency Management
 
 This project uses [uv](https://docs.astral.sh/uv/) for package management and distribution.
