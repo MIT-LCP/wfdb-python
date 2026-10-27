@@ -8,10 +8,11 @@ We welcome community contributions in the form of pull requests. When contributi
 - Unit tests are written for new features that are not covered by [existing tests](https://github.com/MIT-LCP/wfdb-python/tree/main/tests).
 - The code style is consistent with the project's formating standards.
 
-Run the formatter with:
+Format and lint the code with [Ruff](https://docs.astral.sh/ruff/):
 
 ```sh
-black .
+ruff format .
+ruff check .
 ```
 
 ## Package and Dependency Management

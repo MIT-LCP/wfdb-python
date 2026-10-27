@@ -17,6 +17,9 @@ Unreleased
 **Build with uv_build**
   The package is now built with ``uv_build`` instead of ``hatchling``. The version number is specified in ``pyproject.toml`` only, and ``wfdb.__version__`` is read from the installed package metadata (it is ``"unknown"`` if the package is run from a source tree without being installed).
 
+**Use Ruff for formatting and linting**
+  The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 

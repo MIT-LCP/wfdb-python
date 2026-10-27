@@ -26,8 +26,7 @@ dependencies = [
 dev = [
     "pytest >= 8.0.0",
     "pytest-xdist >= 3.5.0",
-    "pylint >= 2.13.7",
-    "black >= 22.3.0",
+    "ruff >= 0.13.0",
     "sphinx >= 7.0.0",
 ]
 
@@ -36,9 +35,31 @@ homepage = "https://github.com/MIT-LCP/wfdb-python/"
 repository = "https://github.com/MIT-LCP/wfdb-python/"
 documentation = "https://wfdb.readthedocs.io/"
 
-[tool.black]
-line-length = 80
-target-version = ["py311"]
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+# Existing violations (other than E501), to be cleaned up separately
+ignore = [
+    "E501",  # handled by the formatter
+    "E711",
+    "E721",
+    "E722",
+    "E741",
+    "F841",
+    "UP031",
+    "B006",
+    "B007",
+    "B020",
+    "B904",
+    "B905",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports
+"__init__.py" = ["F401"]
 
 [tool.uv.build-backend]
 module-root = ""
