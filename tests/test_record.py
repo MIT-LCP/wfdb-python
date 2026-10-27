@@ -1152,6 +1152,25 @@ class TestMultiRecord:
             assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
 
+    def test_multi_variable_write(self, tmp_path):
+        """Write a variable layout multi-segment record and read it back.
+
+        This includes its layout header and empty segments.
+        """
+        record_name = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        multi_record = wfdb.rdrecord(record_name, m2s=False, physical=False)
+
+        multi_record.wrsamp(write_dir=str(tmp_path))
+        layout = wfdb.rdheader(str(tmp_path / "3234460_layout"))
+        record = wfdb.rdrecord(str(tmp_path / "s25047-2704-05-04-10-44"))
+
+        expected = wfdb.rdrecord(record_name)
+        assert layout.sig_len == 0
+        assert layout.file_name == ["~"] * 3
+        assert layout.fmt == ["0"] * 3
+        assert record.sig_name == expected.sig_name
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
 
 class TestTimeConversion:
     """Test cases for time conversion"""

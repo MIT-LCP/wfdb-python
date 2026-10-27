@@ -451,9 +451,13 @@ class BaseRecord:
                         continue
 
                 if field == "file_name":
-                    # Check for file_name characters
+                    # Check for file_name characters. A null signal (format
+                    # 0), as in the layout header of a variable layout
+                    # multi-segment record, has no file and uses '~'.
                     accepted_string = re.match(r"[-\w]+\.?[\w]+", item[ch])
-                    if not accepted_string or accepted_string.string != item[ch]:
+                    if item[ch] == "~" and self.fmt[ch] == "0":
+                        pass
+                    elif not accepted_string or accepted_string.string != item[ch]:
                         raise ValueError(
                             "File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat"
                         )
@@ -463,7 +467,11 @@ class BaseRecord:
                             "Signals in a record that share a given file must be consecutive."
                         )
                 elif field == "fmt":
-                    if item[ch] not in _signal.DAT_FMTS:
+                    # Format 0 is a null signal, which has no samples and
+                    # no file
+                    if item[ch] == "0" and self.file_name[ch] == "~":
+                        pass
+                    elif item[ch] not in _signal.DAT_FMTS:
                         raise ValueError(
                             "File formats must be valid WFDB dat formats:",
                             _signal.DAT_FMTS,
@@ -894,10 +902,17 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         N/A
 
         """
+        # A record whose signals have no files, such as the layout header
+        # of a variable layout multi-segment record, has no samples:
+        # only its header is written.
+        has_signal_files = self.n_sig > 0 and (
+            self.file_name is None or any(f != "~" for f in self.file_name)
+        )
+
         # Update the checksum field (except for channels that did not have
         # a checksum to begin with, or where the checksum was already
         # valid.)
-        if self.checksum is not None:
+        if self.checksum is not None and has_signal_files:
             checksums = self.calc_checksum(expanded=expanded)
             for ch, old_val in enumerate(self.checksum):
                 if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
@@ -908,7 +923,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             # Perform field validity and cohesion checks, and write the
             # header file.
             self.wrheader(write_dir=write_dir, expanded=expanded, wfdb_archive=archive)
-            if self.n_sig > 0:
+            if has_signal_files:
                 # Perform signal validity and cohesion checks, and write the
                 # associated dat files.
                 self.wr_dats(

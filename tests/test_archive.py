@@ -855,11 +855,24 @@ def test_multi_record_archive_named_after_record(tmp_path):
     assert os.listdir(tmp_path) == []
 
 
-@pytest.mark.parametrize("record", ["fixed1/v102s", "041s/041s"])
-def test_multi_record_wrsamp_archive(record, tmp_path):
+@pytest.mark.parametrize(
+    "record, kwargs",
+    [
+        ("fixed1/v102s", {}),
+        ("041s/041s", {}),
+        ("s25047/s25047-2704-05-04-10-44", {}),
+        (
+            "s00001/s00001-2896-10-10-00-31",
+            dict(sampfrom=14428364, sampto=14428375),
+        ),
+    ],
+)
+def test_multi_record_wrsamp_archive(record, kwargs, tmp_path):
     """A multi-segment record written into an archive reads back like its files.
 
     In 'fixed1', all segments share one dat file, which is written to the archive once.
+    's25047' and 's00001' have a variable layout, with a layout header and empty
+    segments.
     """
     record_name = f"sample-data/multi-segment/{record}"
     archive_name = os.path.basename(record_name) + ".wfdb"
@@ -873,6 +886,7 @@ def test_multi_record_wrsamp_archive(record, tmp_path):
         assert sorted(zf.namelist()) == sorted(
             os.path.basename(path) for path in multi_record_files(record_name)
         )
-    record = wfdb.rdrecord(archive_path, physical=False)
-    expected = wfdb.rdrecord(record_name, physical=False)
-    np.testing.assert_array_equal(record.d_signal, expected.d_signal)
+    record = wfdb.rdrecord(archive_path, **kwargs)
+    expected = wfdb.rdrecord(record_name, **kwargs)
+    assert record.sig_name == expected.sig_name
+    np.testing.assert_array_equal(record.p_signal, expected.p_signal)

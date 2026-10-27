@@ -77,6 +77,9 @@ Unreleased
 **Read and write .wfdb archive files**
   A record can be stored in a single ``.wfdb`` archive file (a ZIP file containing the header and signal files). ``rdrecord``, ``rdsamp``, ``rdheader`` and ``rdann`` read a record or its annotations from an archive when given the path of the archive, and ``wrsamp`` writes a record into an archive with the new ``wfdb_archive`` argument. Multi-segment records are supported, with all their segments stored in the same archive.
 
+**Write variable layout multi-segment records**
+  ``MultiRecord.wrsamp`` can now write variable layout multi-segment records, such as those read with ``rdrecord(..., m2s=False)``. Previously, writing the layout header failed because its signals have no samples (format ``0``, file name ``~``).
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
