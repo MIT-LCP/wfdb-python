@@ -254,19 +254,110 @@ def test_read_archive_header_too_large(tmp_path, monkeypatch):
         wfdb.rdrecord(archive_path)
 
 
-def test_read_multi_segment_archive_not_supported(tmp_path):
-    record_dir = "sample-data/multi-segment/fixed1"
-    archive_path = os.fspath(tmp_path / "v102s.wfdb")
-    # create_archive only accepts one header, so build the archive the way
-    # other software might
-    with zipfile.ZipFile(archive_path, "w") as zf:
-        for name in sorted(os.listdir(record_dir)):
-            zf.write(os.path.join(record_dir, name), arcname=name)
+def multi_record_files(record_name):
+    """Return the paths of the files of a multi-segment record on disk.
 
-    with pytest.raises(NotImplementedError, match="Multi-segment"):
+    These are its header, and the header and dat files of each segment. Segments that
+    are not in sample-data are left out.
+    """
+    dir_name = os.path.dirname(record_name)
+    files = [record_name + ".hea"]
+    for seg_name in wfdb.rdheader(record_name).seg_name:
+        seg_path = os.path.join(dir_name, seg_name)
+        if seg_name != "~" and os.path.exists(seg_path + ".hea"):
+            files += [path for path in record_files(seg_path) if not path.endswith("~")]
+    return list(dict.fromkeys(files))
+
+
+MULTI_SEGMENT_READS = [
+    # Fixed layout, segments sharing one dat file
+    ("fixed1/v102s", {}),
+    ("fixed1/v102s", dict(sampfrom=70000, sampto=80000, channels=[1, 0, 3])),
+    # Fixed layout, one dat file per segment
+    ("041s/041s", dict(channels=[3, 2, 1])),
+    # Variable layout with a layout header and empty segments
+    ("s25047/s25047-2704-05-04-10-44", {}),
+    ("s25047/s25047-2704-05-04-10-44", dict(channel_names=["ABP", "II"])),
+    (
+        "s00001/s00001-2896-10-10-00-31",
+        dict(sampfrom=14428364, sampto=14428375),
+    ),
+]
+
+
+@pytest.mark.parametrize("record, kwargs", MULTI_SEGMENT_READS)
+def test_read_multi_segment_archive_matches_files(record, kwargs, tmp_path):
+    """Reading a multi-segment record from an archive matches reading its files."""
+    record_name = f"sample-data/multi-segment/{record}"
+    archive_path = os.fspath(tmp_path / (os.path.basename(record_name) + ".wfdb"))
+    create_archive(multi_record_files(record_name), archive_path)
+
+    for physical in [True, False]:
+        try:
+            expected = wfdb.rdrecord(record_name, physical=physical, **kwargs)
+        except Exception as e:
+            # For example, variable layout records can't be converted to
+            # a single segment in digital format
+            with pytest.raises(type(e)):
+                wfdb.rdrecord(archive_path, physical=physical, **kwargs)
+            continue
+        record = wfdb.rdrecord(archive_path, physical=physical, **kwargs)
+        assert record.sig_name == expected.sig_name
+        attr = "p_signal" if physical else "d_signal"
+        np.testing.assert_array_equal(getattr(record, attr), getattr(expected, attr))
+
+    record = wfdb.rdrecord(archive_path, m2s=False, **kwargs)
+    expected = wfdb.rdrecord(record_name, m2s=False, **kwargs)
+    assert record.seg_name == expected.seg_name
+    assert [s is None for s in record.segments] == [
+        s is None for s in expected.segments
+    ]
+
+
+def test_rdheader_multi_segment_archive(tmp_path):
+    record_name = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+    archive_path = os.fspath(tmp_path / "s25047-2704-05-04-10-44.wfdb")
+    create_archive(multi_record_files(record_name), archive_path)
+
+    header = wfdb.rdheader(archive_path, rd_segments=True)
+    expected = wfdb.rdheader(record_name, rd_segments=True)
+
+    assert header.record_name == expected.record_name
+    assert header.seg_name == expected.seg_name
+    assert header.sig_name == expected.sig_name
+    assert header.sig_segments == expected.sig_segments
+    assert [s.sig_name if s else None for s in header.segments] == [
+        s.sig_name if s else None for s in expected.segments
+    ]
+
+
+def test_read_multi_segment_archive_missing_segment(tmp_path):
+    """A segment listed in the main header but missing from the archive is an error."""
+    record_name = "sample-data/multi-segment/041s/041s"
+    archive_path = os.fspath(tmp_path / "041s.wfdb")
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        for path in multi_record_files(record_name):
+            if "041s02" not in path:
+                zf.write(path, arcname=os.path.basename(path))
+
+    with pytest.raises(FileNotFoundError, match="041s02.hea"):
         wfdb.rdrecord(archive_path)
-    with pytest.raises(NotImplementedError, match="Multi-segment"):
-        wfdb.rdheader(archive_path, rd_segments=True)
+
+
+def test_multi_segment_archive_with_other_header(tmp_path):
+    """A multi-segment archive can't contain a header that isn't one of its segments."""
+    record_dir = "sample-data/multi-segment/s00001"
+    record_name = os.path.join(record_dir, "s00001-2896-10-10-00-31")
+    archive_path = os.fspath(tmp_path / "s00001.wfdb")
+
+    with pytest.raises(ValueError, match="holds a single record"):
+        create_archive(
+            multi_record_files(record_name)
+            + [os.path.join(record_dir, "3248903_layout.hea")],
+            archive_path,
+        )
+
+    assert os.listdir(tmp_path) == []
 
 
 def test_read_archive_unsupported_locations():
@@ -333,10 +424,14 @@ def test_archive_mode_checks(tmp_path):
 
     with WFDBArchive(os.fspath(tmp_path / "new.wfdb"), mode="w") as archive:
         archive.write("new.hea", b"new 0\n")
-        with pytest.raises(ValueError, match="already written"):
-            archive.write("new.hea", b"new 0\n")
+        # Writing the same content again is allowed, and has no effect
+        archive.write("new.hea", b"new 0\n")
+        with pytest.raises(ValueError, match="different content"):
+            archive.write("new.hea", b"new 1\n")
         with pytest.raises(ValueError, match="cannot be read from"):
             archive.open("new.hea")
+    with zipfile.ZipFile(tmp_path / "new.wfdb") as zf:
+        assert zf.namelist() == ["new.hea"]
 
     with pytest.raises(ValueError, match="mode"):
         WFDBArchive(archive_path, mode="a")
@@ -367,9 +462,10 @@ def test_archive_file_names(tmp_path, file_name):
 
 
 def test_archive_holds_one_record(tmp_path):
-    """Only one header file can be written to an archive.
+    """An archive holds one record, so that it is clear which record to read.
 
-    This way, it is clear which record the archive holds. Other files can be added.
+    A second header that isn't a segment of the record is refused when the archive is
+    closed, and the archive is not saved. Other files can be added.
     """
     archive_path = os.fspath(tmp_path / "100.wfdb")
 
@@ -380,12 +476,17 @@ def test_archive_holds_one_record(tmp_path):
         )
     assert os.listdir(tmp_path) == []
 
+    with pytest.raises(ValueError, match="holds a single record"):
+        with WFDBArchive(archive_path, mode="w") as archive:
+            for path in record_files("sample-data/100"):
+                archive.add_file(path)
+            archive.write("other.hea", b"other 0\n")
+    assert os.listdir(tmp_path) == []
+
     with WFDBArchive(archive_path, mode="w") as archive:
         for path in record_files("sample-data/100"):
             archive.add_file(path)
         archive.add_file("sample-data/100.atr")
-        with pytest.raises(ValueError, match="already contains the header"):
-            archive.write("other.hea", b"other 0\n")
 
     with zipfile.ZipFile(archive_path) as zf:
         assert sorted(zf.namelist()) == ["100.atr", "100.dat", "100.hea"]
@@ -740,3 +841,38 @@ def test_archive_write_bytes_like(tmp_path, monkeypatch):
             assert info.external_attr == 0o600 << 16
         assert zf.getinfo("rec.hea").compress_type == zipfile.ZIP_STORED
         assert zf.getinfo("array.dat").compress_type == zipfile.ZIP_STORED
+
+
+def test_multi_record_archive_named_after_record(tmp_path):
+    """The main header of a multi-segment record must be named after the archive."""
+    multi_record = wfdb.rdrecord(
+        "sample-data/multi-segment/fixed1/v102s", m2s=False, physical=False
+    )
+
+    with pytest.raises(ValueError, match="must be named after the archive"):
+        multi_record.wrsamp(wfdb_archive=tmp_path / "other.wfdb")
+
+    assert os.listdir(tmp_path) == []
+
+
+@pytest.mark.parametrize("record", ["fixed1/v102s", "041s/041s"])
+def test_multi_record_wrsamp_archive(record, tmp_path):
+    """A multi-segment record written into an archive reads back like its files.
+
+    In 'fixed1', all segments share one dat file, which is written to the archive once.
+    """
+    record_name = f"sample-data/multi-segment/{record}"
+    archive_name = os.path.basename(record_name) + ".wfdb"
+    archive_path = os.fspath(tmp_path / archive_name)
+    multi_record = wfdb.rdrecord(record_name, m2s=False, physical=False)
+
+    multi_record.wrsamp(wfdb_archive=archive_path)
+
+    assert os.listdir(tmp_path) == [archive_name]
+    with zipfile.ZipFile(archive_path) as zf:
+        assert sorted(zf.namelist()) == sorted(
+            os.path.basename(path) for path in multi_record_files(record_name)
+        )
+    record = wfdb.rdrecord(archive_path, physical=False)
+    expected = wfdb.rdrecord(record_name, physical=False)
+    np.testing.assert_array_equal(record.d_signal, expected.d_signal)
