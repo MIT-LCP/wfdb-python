@@ -168,7 +168,7 @@ class BaseHeaderMixin(object):
 
             # Remove the n_seg requirement for single segment items
             if not hasattr(self, "n_seg"):
-                record_specs.drop("n_seg", inplace=True)
+                record_specs = record_specs.drop("n_seg")
 
             for field in record_specs.index[-1::-1]:
                 # Continue if the field has already been included
