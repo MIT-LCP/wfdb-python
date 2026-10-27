@@ -30,3 +30,20 @@ jobs:
         env:
           MPLBACKEND: Agg
         run: uv run --python ${{ matrix.python-version }} --extra dev pytest
+
+  # Make sure the lower bounds of the direct dependencies are actually usable
+  test-minimum:
+    name: Minimum dependency versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Install Python 3.11
+        run: uv python install 3.11
+      - name: Install libsndfile
+        run: sudo apt-get install -y libsndfile1
+      - name: Run tests
+        env:
+          MPLBACKEND: Agg
+        run: uv run --python 3.11 --resolution lowest-direct --extra dev pytest

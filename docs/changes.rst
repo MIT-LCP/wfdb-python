@@ -5,6 +5,15 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Unreleased
+----------
+
+**Drop support for Python 3.9 and 3.10**
+  The minimum supported Python version is now 3.11. The package is now also tested with Python 3.14 and 3.15.
+
+**Raise minimum versions of dependencies**
+  The minimum versions of ``soundfile`` (0.12.1), ``matplotlib`` (3.8.0) and ``requests`` (2.31.0) have been raised. The minimum versions of the other dependencies are unchanged.
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
