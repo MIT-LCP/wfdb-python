@@ -10,21 +10,17 @@ on:
 
 jobs:
   test:
-    name: Python ${{ matrix.python-version }} / ${{ matrix.os }} / ${{ matrix.numpy }}
+    name: Python ${{ matrix.python-version }} / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        numpy: ["numpy"]
-        include:
-          - os: ubuntu-latest
-            python-version: "3.9"
-            numpy: "numpy==1.26.4"
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v3
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Install Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
       - name: Install libsndfile
@@ -33,34 +29,4 @@ jobs:
       - name: Run tests
         env:
           MPLBACKEND: Agg
-        run: uv run --with ${{ matrix.numpy }} --extra dev pytest
-
-  test-deb11-i386:
-    name: Python 3.7 on Debian 11 i386
-    runs-on: ubuntu-latest
-    container: i386/debian:11
-    env:
-      NPY_PROMOTION_STATE: weak_and_warn
-    steps:
-      - name: Install dependencies
-        run: |
-          apt-get update
-          apt-get install -y --no-install-recommends \
-                  python3-fsspec \
-                  python3-matplotlib \
-                  python3-numpy \
-                  python3-pandas \
-                  python3-pip \
-                  python3-requests \
-                  python3-scipy \
-                  python3-soundfile \
-                  python3-pytest \
-                  git
-          python3 --version
-      # Note: "actions/checkout@v2" requires libstdc++6:amd64 to be
-      # installed in the container.  To keep things simple, use
-      # "actions/checkout@v1" instead.
-      # https://github.com/actions/checkout/issues/334
-      - uses: actions/checkout@v1
-      - name: Run tests
-        run: pytest-3
+        run: uv run --python ${{ matrix.python-version }} --extra dev pytest
