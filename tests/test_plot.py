@@ -115,9 +115,7 @@ class TestPlotWfdb(unittest.TestCase):
 
         self.assertEqual(len(fig.axes), record.n_sig)
         for ch in range(record.n_sig):
-            self.assertAxesMatchSignal(
-                fig.axes[ch], record.d_signal[:, ch], record.fs
-            )
+            self.assertAxesMatchSignal(fig.axes[ch], record.d_signal[:, ch], record.fs)
 
     def test_physical_multifrequency(self):
         """
@@ -177,9 +175,7 @@ class TestPlotInternal(unittest.TestCase):
         record = wfdb.rdrecord(
             "sample-data/100", physical=True, sampfrom=sampfrom, sampto=sampto
         )
-        ann = wfdb.rdann(
-            "sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto
-        )
+        ann = wfdb.rdann("sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto)
         sig_len, n_sig, n_annot, n_subplots = plot._get_plot_dims(
             signal=record.p_signal, ann_samp=[ann.sample]
         )

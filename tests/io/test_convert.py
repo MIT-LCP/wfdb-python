@@ -4,9 +4,9 @@ import unittest
 
 import numpy as np
 
-from wfdb.io.record import rdrecord
-from wfdb.io.convert.edf import read_edf
 from wfdb.io.convert.csv import csv_to_wfdb
+from wfdb.io.convert.edf import read_edf
+from wfdb.io.record import rdrecord
 
 
 class TestEdfToWfdb:
@@ -170,9 +170,7 @@ class TestCsvToWfdb(unittest.TestCase):
         self.assertEqual(record_write.sig_name, ["MLII", "V5"])
         self.assertEqual(record_write.sig_name, self.record_100_dat.sig_name)
         self.assertEqual(record_write.p_signal.size, 1300000)
-        self.assertEqual(
-            record_write.p_signal.size, self.record_100_dat.p_signal.size
-        )
+        self.assertEqual(record_write.p_signal.size, self.record_100_dat.p_signal.size)
 
 
 if __name__ == "__main__":

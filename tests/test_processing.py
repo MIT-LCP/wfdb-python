@@ -18,9 +18,7 @@ class TestProcessing:
         fs = fields["fs"]
         fs_target = 50
 
-        new_sig, new_ann = processing.resample_singlechan(
-            sig[:, 0], ann, fs, fs_target
-        )
+        new_sig, new_ann = processing.resample_singlechan(sig[:, 0], ann, fs, fs_target)
 
         expected_length = int(sig.shape[0] * fs_target / fs)
 
@@ -33,9 +31,7 @@ class TestProcessing:
         fs = fields["fs"]
         fs_target = 50
 
-        new_sig, new_ann = processing.resample_multichan(
-            sig, ann, fs, fs_target
-        )
+        new_sig, new_ann = processing.resample_multichan(sig, ann, fs, fs_target)
 
         expected_length = int(sig.shape[0] * fs_target / fs)
 

@@ -12,7 +12,7 @@ PN_INDEX_URL = "https://physionet.org/files/"
 PN_CONTENT_URL = "https://physionet.org/content/"
 
 
-class Config(object):
+class Config:
     """
     General class structure for the PhysioNet database.
 
@@ -267,9 +267,7 @@ def get_record_list(db_dir, records="all"):
     """
     # Full url PhysioNet database
     if "/" not in db_dir:
-        db_url = posixpath.join(
-            config.db_index_url, db_dir, get_version(db_dir)
-        )
+        db_url = posixpath.join(config.db_index_url, db_dir, get_version(db_dir))
     else:
         db_url = posixpath.join(config.db_index_url, db_dir)
 
@@ -279,9 +277,7 @@ def get_record_list(db_dir, records="all"):
             with _url.openurl(posixpath.join(db_url, "RECORDS"), "rb") as f:
                 content = f.read()
         except FileNotFoundError:
-            raise ValueError(
-                "The database %s has no WFDB files to download" % db_url
-            )
+            raise ValueError("The database %s has no WFDB files to download" % db_url)
 
         # Get each line as a string
         record_list = content.decode("ascii").splitlines()
@@ -328,8 +324,7 @@ def get_annotators(db_dir, annotators):
                 return
             else:
                 raise ValueError(
-                    "The database %s has no annotation files to download"
-                    % db_url
+                    "The database %s has no annotation files to download" % db_url
                 )
 
         # Make sure the input annotators are present in the database
@@ -348,8 +343,7 @@ def get_annotators(db_dir, annotators):
             for a in annotators:
                 if a not in ann_list:
                     raise ValueError(
-                        "The database contains no annotators with extension: %s"
-                        % a
+                        "The database contains no annotators with extension: %s" % a
                     )
 
     return annotators

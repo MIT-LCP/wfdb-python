@@ -93,11 +93,9 @@ class TestMultiRecordRanges:
             (14428365, 14450865),
             (14458365, 14495865),
         ]
-        assert (
-            record.contained_combined_ranges(["II", "V", "MCL1", "ABP"]) == []
-        )
+        assert record.contained_combined_ranges(["II", "V", "MCL1", "ABP"]) == []
 
-    def test_contained_combined_ranges_variable_layout(self):
+    def test_contained_combined_ranges_all_pairs(self):
         record = wfdb.rdheader(
             "sample-data/multi-segment/041s/041s",
             rd_segments=True,
@@ -108,6 +106,4 @@ class TestMultiRecordRanges:
                 if sig_1 == sig_2:
                     continue
 
-                assert record.contained_combined_ranges([sig_1, sig_2]) == [
-                    (0, 2000)
-                ]
+                assert record.contained_combined_ranges([sig_1, sig_2]) == [(0, 2000)]

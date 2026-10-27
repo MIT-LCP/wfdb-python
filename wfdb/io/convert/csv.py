@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from wfdb.io.annotation import format_ann_from_df, Annotation, wrann
+from wfdb.io.annotation import Annotation, format_ann_from_df, wrann
 from wfdb.io.record import Record, wrsamp
 
 
@@ -302,10 +302,10 @@ def csv_to_wfdb(
     # The dataframe should be in (`sig_len`, `n_sig`) dimensions
     sig_len = p_signal.shape[0]
     if verbose:
-        print("Signal length: {}".format(sig_len))
+        print(f"Signal length: {sig_len}")
     n_sig = p_signal.shape[1]
     if verbose:
-        print("Number of signals: {}".format(n_sig))
+        print(f"Number of signals: {n_sig}")
 
     # Check if signal names are valid and set defaults
     if not sig_name:
@@ -316,24 +316,22 @@ def csv_to_wfdb(
                     "WARNING: One or more of your signal names are numbers, this "
                     "is not recommended:\n- Does your CSV have a header line "
                     "which defines the signal names?\n- If not, please set the "
-                    "parameter 'header' to False.\nSignal names: {}".format(
-                        sig_name
-                    )
+                    f"parameter 'header' to False.\nSignal names: {sig_name}"
                 )
         else:
             sig_name = ["ch_" + str(i) for i in range(n_sig)]
             if verbose:
-                print("Signal names: {}".format(sig_name))
+                print(f"Signal names: {sig_name}")
 
     record_name = os.path.splitext(os.path.basename(file_name))[0]
     if verbose:
-        print("Record name: {}.hea".format(record_name))
+        print(f"Record name: {record_name}.hea")
 
     # Replace the CSV file tag with DAT
     dat_file_name = record_name + ".dat"
     dat_file_name = [dat_file_name] * n_sig
     if verbose:
-        print("Output record: {}".format(dat_file_name[0]))
+        print(f"Output record: {dat_file_name[0]}")
 
     # Convert `units` from string to list if necessary
     units = [units] * n_sig if type(units) is str else units
@@ -343,14 +341,14 @@ def csv_to_wfdb(
         fmt = ["16"] * n_sig
     fmt = [fmt] * n_sig if type(fmt) is str else fmt
     if verbose:
-        print("Signal format: {}".format(fmt))
+        print(f"Signal format: {fmt}")
 
     # Set the default `adc_gain` if none exists
     if not adc_gain:
         adc_gain = [200] * n_sig
     adc_gain = [adc_gain] * n_sig if type(adc_gain) is int else adc_gain
     if verbose:
-        print("Signal ADC gain: {}".format(adc_gain))
+        print(f"Signal ADC gain: {adc_gain}")
 
     # Set the default `baseline` if none exists
     if not baseline:
@@ -360,36 +358,32 @@ def csv_to_wfdb(
             baseline = [0] * n_sig
     baseline = [baseline] * n_sig if type(baseline) is int else baseline
     if verbose:
-        print("Signal baseline: {}".format(baseline))
+        print(f"Signal baseline: {baseline}")
 
     # Convert `samps_per_frame` from int to list if necessary
     samps_per_frame = (
-        [samps_per_frame] * n_sig
-        if type(samps_per_frame) is int
-        else samps_per_frame
+        [samps_per_frame] * n_sig if type(samps_per_frame) is int else samps_per_frame
     )
 
     # Convert `skew` from int to list if necessary
     skew = [skew] * n_sig if type(skew) is int else skew
 
     # Convert `byte_offset` from int to list if necessary
-    byte_offset = (
-        [byte_offset] * n_sig if type(byte_offset) is int else byte_offset
-    )
+    byte_offset = [byte_offset] * n_sig if type(byte_offset) is int else byte_offset
 
     # Set the default `adc_res` if none exists
     if not adc_res:
         adc_res = [12] * n_sig
     adc_res = [adc_res] * n_sig if type(adc_res) is int else adc_res
     if verbose:
-        print("Signal ADC resolution: {}".format(adc_res))
+        print(f"Signal ADC resolution: {adc_res}")
 
     # Set the default `adc_zero` if none exists
     if not adc_zero:
         adc_zero = [0] * n_sig
     adc_zero = [adc_zero] * n_sig if type(adc_zero) is int else adc_zero
     if verbose:
-        print("Signal ADC zero: {}".format(adc_zero))
+        print(f"Signal ADC zero: {adc_zero}")
 
     # Set the default `init_value`
     # NOTE: Initial value (and subsequently the digital signal) won't be correct
@@ -400,20 +394,20 @@ def csv_to_wfdb(
         init_value = baseline + (np.array(adc_gain) * init_value)
         init_value = [int(i) for i in init_value.tolist()]
     if verbose:
-        print("Signal initial value: {}".format(init_value))
+        print(f"Signal initial value: {init_value}")
 
     # Set the default `checksum`
     if not checksum:
         checksum = [int(np.sum(v) % 65536) for v in np.transpose(p_signal)]
     if verbose:
-        print("Signal checksum: {}".format(checksum))
+        print(f"Signal checksum: {checksum}")
 
     # Set the default `block_size`
     if not block_size:
         block_size = [0] * n_sig
     block_size = [block_size] * n_sig if type(block_size) is int else block_size
     if verbose:
-        print("Signal block size: {}".format(block_size))
+        print(f"Signal block size: {block_size}")
 
     # Convert array to floating point
     p_signal = p_signal.astype("float64")

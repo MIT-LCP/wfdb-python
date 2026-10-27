@@ -7,7 +7,6 @@ This module will eventually replace _header.py
 
 import datetime
 import re
-from typing import List, Tuple
 
 
 class HeaderSyntaxError(ValueError):
@@ -98,7 +97,7 @@ def wfdb_strptime(time_string: str) -> datetime.time:
 
 def parse_header_content(
     header_content: str,
-) -> Tuple[List[str], List[str]]:
+) -> tuple[list[str], list[str]]:
     """
     Parse the text of a header file.
 

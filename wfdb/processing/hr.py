@@ -2,8 +2,8 @@ import posixpath
 
 import numpy as np
 
-from wfdb.io.annotation import rdann, wrann
 from wfdb.io import download
+from wfdb.io.annotation import rdann, wrann
 
 
 def compute_hr(sig_len, qrs_inds, fs):

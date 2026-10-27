@@ -3,8 +3,7 @@ import posixpath
 import numpy as np
 import pandas as pd
 
-from wfdb.io import annotation
-from wfdb.io import download
+from wfdb.io import annotation, download
 from wfdb.io.record import rdrecord
 
 

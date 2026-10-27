@@ -8,10 +8,9 @@ import struct
 import numpy as np
 import pandas as pd
 
+from wfdb.io import _url, download
 from wfdb.io.annotation import Annotation, format_ann_from_df, wrann
-from wfdb.io.record import Record, rdrecord, SIG_UNITS
-from wfdb.io import _url
-from wfdb.io import download
+from wfdb.io.record import SIG_UNITS, Record, rdrecord
 
 
 def read_edf(
@@ -147,17 +146,15 @@ def read_edf(
     # Check to see that the input is an EDF file. (This check will detect
     # most but not all other types of files.)
     if version != "0       ":
-        raise Exception(
-            "Input does not appear to be EDF -- no conversion attempted"
-        )
+        raise Exception("Input does not appear to be EDF -- no conversion attempted")
     else:
         if verbose:
-            print("EDF version number: {}".format(version.strip()))
+            print(f"EDF version number: {version.strip()}")
 
     # Local patient identification (80 bytes)
     patient_id = struct.unpack("<80s", edf_file.read(80))[0].decode(encoding)
     if verbose:
-        print("Patient ID: {}".format(patient_id))
+        print(f"Patient ID: {patient_id}")
 
     # Local recording identification (80 bytes)
     # Bob Kemp recommends using this field to encode the start date
@@ -166,12 +163,12 @@ def read_edf(
     # record. EDF+ requires this.
     record_id = struct.unpack("<80s", edf_file.read(80))[0].decode(encoding)
     if verbose:
-        print("Recording ID: {}".format(record_id))
+        print(f"Recording ID: {record_id}")
 
     # Start date of recording (dd.mm.yy) (8 bytes)
     start_date = struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
     if verbose:
-        print("Recording Date: {}".format(start_date))
+        print(f"Recording Date: {start_date}")
     start_day, start_month, start_year = [int(i) for i in start_date.split(".")]
     # This should work for a while
     if start_year < 1970:
@@ -182,17 +179,13 @@ def read_edf(
     # Start time of recording (hh.mm.ss) (8 bytes)
     start_time = struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
     if verbose:
-        print("Recording Time: {}".format(start_time))
-    start_hour, start_minute, start_second = [
-        int(i) for i in start_time.split(".")
-    ]
+        print(f"Recording Time: {start_time}")
+    start_hour, start_minute, start_second = [int(i) for i in start_time.split(".")]
 
     # Number of bytes in header (8 bytes)
-    header_bytes = int(
-        struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
-    )
+    header_bytes = int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
-        print("Number of bytes in header record: {}".format(header_bytes))
+        print(f"Number of bytes in header record: {header_bytes}")
 
     # Reserved (44 bytes)
     reserved_notes = (
@@ -206,46 +199,36 @@ def read_edf(
         #      Pages 1755-1761, ISSN 1388-2457
         pass
     elif reserved_notes[:5] == "EDF+D":
-        raise Exception(
-            "EDF+ File: interrupted data records (not currently supported)"
-        )
+        raise Exception("EDF+ File: interrupted data records (not currently supported)")
     else:
         if verbose:
-            print("Free Space: {}".format(reserved_notes))
+            print(f"Free Space: {reserved_notes}")
 
     # Number of blocks (-1 if unknown) (8 bytes)
     num_blocks = int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
-        print("Number of data records: {}".format(num_blocks))
+        print(f"Number of data records: {num_blocks}")
     if num_blocks == -1:
-        raise Exception(
-            "Number of data records in unknown (not currently supported)"
-        )
+        raise Exception("Number of data records in unknown (not currently supported)")
 
     # Duration of a block, in seconds (8 bytes)
-    block_duration = float(
-        struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)
-    )
+    block_duration = float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
     if verbose:
-        print(
-            "Duration of each data record in seconds: {}".format(block_duration)
-        )
+        print(f"Duration of each data record in seconds: {block_duration}")
     if block_duration <= 0.0:
         block_duration = 1.0
 
     # Number of signals (4 bytes)
     n_sig = int(struct.unpack("<4s", edf_file.read(4))[0].decode(encoding))
     if verbose:
-        print("Number of signals: {}".format(n_sig))
+        print(f"Number of signals: {n_sig}")
     if n_sig < 1:
         raise Exception("Done: not any signals left to read")
 
     # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
     sig_name = []
     for _ in range(n_sig):
-        temp_sig = (
-            struct.unpack("<16s", edf_file.read(16))[0].decode(encoding).strip()
-        )
+        temp_sig = struct.unpack("<16s", edf_file.read(16))[0].decode(encoding).strip()
         if temp_sig == "EDF Annotations" and not rdedfann_flag:
             print(
                 "*** This may be an EDF+ Annotation file instead, please see "
@@ -253,7 +236,7 @@ def read_edf(
             )
         sig_name.append(temp_sig)
     if verbose:
-        print("Signal Labels: {}".format(sig_name))
+        print(f"Signal Labels: {sig_name}")
 
     # Transducer type (e.g., AgAgCl electrode) (80 bytes each)
     transducer_types = []
@@ -262,7 +245,7 @@ def read_edf(
             struct.unpack("<80s", edf_file.read(80))[0].decode(encoding).strip()
         )
     if verbose:
-        print("Transducer Types: {}".format(transducer_types))
+        print(f"Transducer Types: {transducer_types}")
 
     # Physical dimension (e.g., uV or degreeC) (8 bytes each)
     physical_dims = []
@@ -271,7 +254,7 @@ def read_edf(
             struct.unpack("<8s", edf_file.read(8))[0].decode(encoding).strip()
         )
     if verbose:
-        print("Physical Dimensions: {}".format(physical_dims))
+        print(f"Physical Dimensions: {physical_dims}")
 
     # Physical minimum (e.g., -500 or 34) (8 bytes each)
     physical_min = np.array([])
@@ -281,7 +264,7 @@ def read_edf(
             float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
-        print("Physical Minimums: {}".format(physical_min))
+        print(f"Physical Minimums: {physical_min}")
 
     # Physical maximum (e.g., 500 or 40) (8 bytes each)
     physical_max = np.array([])
@@ -291,7 +274,7 @@ def read_edf(
             float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
-        print("Physical Maximums: {}".format(physical_max))
+        print(f"Physical Maximums: {physical_max}")
 
     # Digital minimum (e.g., -2048) (8 bytes each)
     digital_min = np.array([])
@@ -301,7 +284,7 @@ def read_edf(
             float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
-        print("Digital Minimums: {}".format(digital_min))
+        print(f"Digital Minimums: {digital_min}")
 
     # Digital maximum (e.g., 2047) (8 bytes each)
     digital_max = np.array([])
@@ -311,7 +294,7 @@ def read_edf(
             float(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding)),
         )
     if verbose:
-        print("Digital Maximums: {}".format(digital_max))
+        print(f"Digital Maximums: {digital_max}")
 
     # Prefiltering (e.g., HP:0.1Hz LP:75Hz) (80 bytes each)
     prefilter_info = []
@@ -320,7 +303,7 @@ def read_edf(
             struct.unpack("<80s", edf_file.read(80))[0].decode(encoding).strip()
         )
     if verbose:
-        print("Prefiltering Information: {}".format(prefilter_info))
+        print(f"Prefiltering Information: {prefilter_info}")
 
     # Number of samples per block (8 bytes each)
     samps_per_block = []
@@ -329,7 +312,7 @@ def read_edf(
             int(struct.unpack("<8s", edf_file.read(8))[0].decode(encoding))
         )
     if verbose:
-        print("Number of Samples per Record: {}".format(samps_per_block))
+        print(f"Number of Samples per Record: {samps_per_block}")
 
     # The last 32*nsig bytes in the header are unused
     for _ in range(n_sig):
@@ -638,12 +621,10 @@ def wfdb_to_edf(
 
     if bytes_per_block > edf_max_block:
         print(
-            (
-                "Can't convert record %s to EDF: EDF blocks can't be larger "
-                "than {} bytes, but each input frame requires {} bytes.  Use "
-                "'channels' to select a subset of the input signals or trim "
-                "using 'sampfrom' and 'sampto'."
-            ).format(edf_max_block, samples_per_frame * 2)
+            "Can't convert record %s to EDF: EDF blocks can't be larger "
+            f"than {edf_max_block} bytes, but each input frame requires {samples_per_frame * 2} bytes.  Use "
+            "'channels' to select a subset of the input signals or trim "
+            "using 'sampfrom' and 'sampto'."
         )
 
     # Calculate the number of blocks to be written. The calculation rounds
@@ -676,16 +657,10 @@ def wfdb_to_edf(
         else:
             temp_adc_res = record.adc_res[i]
         # Determine the physical and digital extrema
-        digital_max.append(
-            int(record.adc_zero[i] + (1 << (temp_adc_res - 1)) - 1)
-        )
+        digital_max.append(int(record.adc_zero[i] + (1 << (temp_adc_res - 1)) - 1))
         digital_min.append(int(record.adc_zero[i] - (1 << (temp_adc_res - 1))))
-        physical_max.append(
-            (digital_max[i] - record.baseline[i]) / record.adc_gain[i]
-        )
-        physical_min.append(
-            (digital_min[i] - record.baseline[i]) / record.adc_gain[i]
-        )
+        physical_max.append((digital_max[i] - record.baseline[i]) / record.adc_gain[i])
+        physical_min.append((digital_min[i] - record.baseline[i]) / record.adc_gain[i])
 
     # The maximum record name length to write is 80 bytes
     if len(record_name_out) > 80:
@@ -779,9 +754,9 @@ def wfdb_to_edf(
 
         # Local patient identification (80 bytes)
         f.write(
-            struct.pack(
-                "<80s", "{}".format(record_name_write).encode("ascii")
-            ).replace(b"\x00", b"\x20")
+            struct.pack("<80s", f"{record_name_write}".encode("ascii")).replace(
+                b"\x00", b"\x20"
+            )
         )
 
         # Local recording identification (80 bytes)
@@ -793,16 +768,14 @@ def wfdb_to_edf(
             f.write(
                 struct.pack(
                     "<80s",
-                    "Startdate {}-{}-{}".format(
-                        start_day, month_names[start_month - 1], start_year
-                    ).encode("ascii"),
+                    f"Startdate {start_day}-{month_names[start_month - 1]}-{start_year}".encode(
+                        "ascii"
+                    ),
                 ).replace(b"\x00", b"\x20")
             )
         else:
             f.write(
-                struct.pack("<80s", b"Startdate not recorded").replace(
-                    b"\x00", b"\x20"
-                )
+                struct.pack("<80s", b"Startdate not recorded").replace(b"\x00", b"\x20")
             )
         if edf_plus:
             print("WARNING: EDF+ requires start date (not specified)")
@@ -811,9 +784,9 @@ def wfdb_to_edf(
         f.write(
             struct.pack(
                 "<8s",
-                "{:02d}.{:02d}.{:02d}".format(
-                    start_day, start_month, start_year % 100
-                ).encode("ascii"),
+                f"{start_day:02d}.{start_month:02d}.{start_year % 100:02d}".encode(
+                    "ascii"
+                ),
             ).replace(b"\x00", b"\x20")
         )
 
@@ -821,17 +794,17 @@ def wfdb_to_edf(
         f.write(
             struct.pack(
                 "<8s",
-                "{:02d}.{:02d}.{:02d}".format(
-                    start_hour, start_minute, start_second
-                ).encode("ascii"),
+                f"{start_hour:02d}.{start_minute:02d}.{start_second:02d}".encode(
+                    "ascii"
+                ),
             ).replace(b"\x00", b"\x20")
         )
 
         # Number of bytes in header (8 bytes)
         f.write(
-            struct.pack(
-                "<8s", "{:d}".format(header_bytes).encode("ascii")
-            ).replace(b"\x00", b"\x20")
+            struct.pack("<8s", f"{header_bytes:d}".encode("ascii")).replace(
+                b"\x00", b"\x20"
+            )
         )
 
         # Reserved (44 bytes)
@@ -842,31 +815,29 @@ def wfdb_to_edf(
 
         # Number of blocks (-1 if unknown) (8 bytes)
         f.write(
-            struct.pack(
-                "<8s", "{:d}".format(num_blocks).encode("ascii")
-            ).replace(b"\x00", b"\x20")
+            struct.pack("<8s", f"{num_blocks:d}".encode("ascii")).replace(
+                b"\x00", b"\x20"
+            )
         )
 
         # Duration of a block, in seconds (8 bytes)
         f.write(
-            struct.pack(
-                "<8s", "{:g}".format(seconds_per_block_write).encode("ascii")
-            ).replace(b"\x00", b"\x20")
+            struct.pack("<8s", f"{seconds_per_block_write:g}".encode("ascii")).replace(
+                b"\x00", b"\x20"
+            )
         )
 
         # Number of signals (4 bytes)
         f.write(
-            struct.pack(
-                "<4s", "{:d}".format(record.n_sig).encode("ascii")
-            ).replace(b"\x00", b"\x20")
+            struct.pack("<4s", f"{record.n_sig:d}".encode("ascii")).replace(
+                b"\x00", b"\x20"
+            )
         )
 
         # Label (e.g., EEG FpzCz or Body temp) (16 bytes each)
         for i in sig_name_write:
             f.write(
-                struct.pack("<16s", "{}".format(i).encode("ascii")).replace(
-                    b"\x00", b"\x20"
-                )
+                struct.pack("<16s", f"{i}".encode("ascii")).replace(b"\x00", b"\x20")
             )
 
         # Transducer type (e.g., AgAgCl electrode) (80 bytes each)
@@ -880,15 +851,13 @@ def wfdb_to_edf(
         # Physical dimension (e.g., uV or degreeC) (8 bytes each)
         for i in units_write:
             f.write(
-                struct.pack("<8s", "{}".format(i).encode("ascii")).replace(
-                    b"\x00", b"\x20"
-                )
+                struct.pack("<8s", f"{i}".encode("ascii")).replace(b"\x00", b"\x20")
             )
 
         # Physical minimum (e.g., -500 or 34) (8 bytes each)
         for pmin in physical_min:
             f.write(
-                struct.pack("<8s", "{:g}".format(pmin).encode("ascii")).replace(
+                struct.pack("<8s", f"{pmin:g}".encode("ascii")).replace(
                     b"\x00", b"\x20"
                 )
             )
@@ -896,7 +865,7 @@ def wfdb_to_edf(
         # Physical maximum (e.g., 500 or 40) (8 bytes each)
         for pmax in physical_max:
             f.write(
-                struct.pack("<8s", "{:g}".format(pmax).encode("ascii")).replace(
+                struct.pack("<8s", f"{pmax:g}".encode("ascii")).replace(
                     b"\x00", b"\x20"
                 )
             )
@@ -904,7 +873,7 @@ def wfdb_to_edf(
         # Digital minimum (e.g., -2048) (8 bytes each)
         for dmin in digital_min:
             f.write(
-                struct.pack("<8s", "{:d}".format(dmin).encode("ascii")).replace(
+                struct.pack("<8s", f"{dmin:d}".encode("ascii")).replace(
                     b"\x00", b"\x20"
                 )
             )
@@ -912,7 +881,7 @@ def wfdb_to_edf(
         # Digital maximum (e.g., 2047) (8 bytes each)
         for dmax in digital_max:
             f.write(
-                struct.pack("<8s", "{:d}".format(dmax).encode("ascii")).replace(
+                struct.pack("<8s", f"{dmax:d}".encode("ascii")).replace(
                     b"\x00", b"\x20"
                 )
             )
@@ -928,9 +897,7 @@ def wfdb_to_edf(
         # Number of samples per block (8 bytes each)
         for spr in samps_per_record:
             f.write(
-                struct.pack("<8s", "{:d}".format(spr).encode("ascii")).replace(
-                    b"\x00", b"\x20"
-                )
+                struct.pack("<8s", f"{spr:d}".encode("ascii")).replace(b"\x00", b"\x20")
             )
 
         # The last 32*nsig bytes in the header are unused
@@ -947,11 +914,9 @@ def wfdb_to_edf(
         for i in range(num_to_write):
             f.write(b"\x00\x80")
 
-    print("Header block size: {:d} bytes".format((record.n_sig + 1) * 256))
+    print(f"Header block size: {(record.n_sig + 1) * 256:d} bytes")
     print(
-        "Data block size: {:g} seconds ({:d} frames or {:d} bytes)".format(
-            seconds_per_block, int(frames_per_block), int(bytes_per_block)
-        )
+        f"Data block size: {seconds_per_block:g} seconds ({int(frames_per_block):d} frames or {int(bytes_per_block):d} bytes)"
     )
     print(
         "Recording length: {:d} ({:d} data blocks, {:d} frames, {:d} bytes)".format(
@@ -968,22 +933,18 @@ def wfdb_to_edf(
         )
     )
     print(
-        "Total length of file to be written: {:d} bytes".format(
-            int((record.n_sig + 1) * 256 + num_blocks * bytes_per_block)
-        )
+        f"Total length of file to be written: {int((record.n_sig + 1) * 256 + num_blocks * bytes_per_block):d} bytes"
     )
 
     if edf_plus:
         print(
-            (
-                "WARNING: EDF+ requires the subject's gender, birthdate, and name, as "
-                "well as additional information about the recording that is not usually "
-                "available. This information is not saved in the output file even if "
-                "available. EDF+ also requires the use of standard names for signals and "
-                "for physical units;  these requirements are not enforced by this program. "
-                "To make the output file fully EDF+ compliant, its header must be edited "
-                "manually."
-            )
+            "WARNING: EDF+ requires the subject's gender, birthdate, and name, as "
+            "well as additional information about the recording that is not usually "
+            "available. This information is not saved in the output file even if "
+            "available. EDF+ also requires the use of standard names for signals and "
+            "for physical units;  these requirements are not enforced by this program. "
+            "To make the output file fully EDF+ compliant, its header must be edited "
+            "manually."
         )
 
         if "EDF-Annotations" not in record.sig_name:
@@ -998,11 +959,7 @@ def wfdb_to_edf(
     header_test = open(output_filename, "rb").read((record.n_sig + 1) * 256)
     for i, val in enumerate(header_test):
         if (val < 32) or (val > 126):
-            print(
-                "WARNING: output contains an invalid character, {}, at byte {}".format(
-                    val, i
-                )
-            )
+            print(f"WARNING: output contains an invalid character, {val}, at byte {i}")
 
 
 def rdedfann(
@@ -1104,8 +1061,7 @@ def rdedfann(
     # Some preliminary checks
     if info_only and record_only:
         raise Exception(
-            "Both `info_only` and `record_only` are set. Only one "
-            "can be set at a time."
+            "Both `info_only` and `record_only` are set. Only one can be set at a time."
         )
 
     # According to the EDF+ docs:
@@ -1126,12 +1082,8 @@ def rdedfann(
         if chunk + 1 == 0:
             continue
         else:
-            adjusted_hex = hex(
-                struct.unpack("<H", struct.pack(">H", chunk + 1))[0]
-            )
-            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(
-                encoding
-            )
+            adjusted_hex = hex(struct.unpack("<H", struct.pack(">H", chunk + 1))[0])
+            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(encoding)
             # Remove all of the whitespace
             for rep in ["\x00", "\x14", "\x15"]:
                 annotation_string = annotation_string.replace(rep, " ")
@@ -1156,9 +1108,7 @@ def rdedfann(
             duration = float(ann_split[1])
             comment = " ".join(ann_split[2:])
             if verbose:
-                print(
-                    f"{onset_time}\t{sample_num}\t{comment}\t\tduration: {duration}"
-                )
+                print(f"{onset_time}\t{sample_num}\t{comment}\t\tduration: {duration}")
             onsets.append(onset)
             onset_times.append(onset_time)
             sample_nums.append(sample_num)

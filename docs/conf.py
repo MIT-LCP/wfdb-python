@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # WFDB documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan  2 13:19:02 2018.

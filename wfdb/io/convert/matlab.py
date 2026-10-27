@@ -7,9 +7,7 @@ import numpy as np
 from wfdb.io.record import rdrecord
 
 
-def wfdb_to_mat(
-    record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
-):
+def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
     """
     This program converts the signals of any PhysioNet record (or one in any
     compatible format) into a .mat file that can be read directly using any version
@@ -93,9 +91,7 @@ def wfdb_to_mat(
     The output file name is 100m.mat and 100m.hea
 
     """
-    record = rdrecord(
-        record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto
-    )
+    record = rdrecord(record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto)
     record_name_out = record_name.split(os.sep)[-1].replace("-", "_") + "m"
 
     # Some variables describing the format of the .mat file
@@ -225,11 +221,7 @@ def wfdb_to_mat(
         #     = 192
 
         # Copy the selected data into the .mat file
-        out_data = (
-            record.p_signal * record.adc_gain
-            + record.baseline
-            - record.adc_zero
-        )
+        out_data = record.p_signal * record.adc_gain + record.baseline - record.adc_zero
         # Cast the data to the correct type base on the bytes_per_element
         out_data = np.around(out_data).astype(out_type)
         # out_data should be [r1c1, r1c2, r2c1, r2c2, etc.]
@@ -242,50 +234,30 @@ def wfdb_to_mat(
         if record.base_date is None:
             datetime_string = "[None]"
         else:
-            datetime_string = "[{}]".format(
-                record.base_date.strftime("%d/%m/%Y")
-            )
+            datetime_string = "[{}]".format(record.base_date.strftime("%d/%m/%Y"))
     else:
         if record.base_date is None:
-            datetime_string = "[{}]".format(
-                record.base_time.strftime("%H:%M:%S.%f")
-            )
+            datetime_string = "[{}]".format(record.base_time.strftime("%H:%M:%S.%f"))
         else:
             datetime_string = "[{} {}]".format(
                 record.base_time.strftime("%H:%M:%S.%f"),
                 record.base_date.strftime("%d/%m/%Y"),
             )
 
-    print("Source: record {}\t\tStart: {}".format(record_name, datetime_string))
+    print(f"Source: record {record_name}\t\tStart: {datetime_string}")
     print(
-        "val has {} rows (signals) and {} columns (samples/signal)".format(
-            record.n_sig, desired_length
-        )
+        f"val has {record.n_sig} rows (signals) and {desired_length} columns (samples/signal)"
     )
-    duration_string = str(
-        datetime.timedelta(seconds=desired_length / record.fs)
-    )
-    print("Duration: {}".format(duration_string))
+    duration_string = str(datetime.timedelta(seconds=desired_length / record.fs))
+    print(f"Duration: {duration_string}")
+    print(f"Sampling frequency: {record.fs} Hz\tSampling interval: {1 / record.fs} sec")
     print(
-        "Sampling frequency: {} Hz\tSampling interval: {} sec".format(
-            record.fs, 1 / record.fs
-        )
-    )
-    print(
-        "{:<7}{:<20}{:<17}{:<10}{:<10}".format(
-            "Row", "Signal", "Gain", "Base", "Units"
-        )
+        "{:<7}{:<20}{:<17}{:<10}{:<10}".format("Row", "Signal", "Gain", "Base", "Units")
     )
     record.sig_name = [s.replace(" ", "_") for s in record.sig_name]
     for i in range(record.n_sig):
         print(
-            "{:<7}{:<20}{:<17}{:<10}{:<10}".format(
-                i,
-                record.sig_name[i],
-                record.adc_gain[i],
-                record.baseline[i] - record.adc_zero[i] + offset,
-                record.units[i],
-            )
+            f"{i:<7}{record.sig_name[i]:<20}{record.adc_gain[i]:<17}{record.baseline[i] - record.adc_zero[i] + offset:<10}{record.units[i]:<10}"
         )
 
     # Modify the record file to reflect the new data
@@ -296,9 +268,7 @@ def wfdb_to_mat(
     record.file_name = num_channels * [output_file]
     record.fmt = num_channels * [wfdb_type]
     record.byte_offset = num_channels * [192]
-    record.baseline = [
-        b - record.adc_zero[i] for i, b in enumerate(record.baseline)
-    ]
+    record.baseline = [b - record.adc_zero[i] for i, b in enumerate(record.baseline)]
     record.adc_zero = num_channels * [0]
     record.init_value = out_data[: record.n_sig].tolist()
 
@@ -307,4 +277,4 @@ def wfdb_to_mat(
     # Append the following lines to create a signature
     with open(record_name_out + ".hea", "a") as f:
         f.write("#Creator: wfdb2mat\n")
-        f.write("#Source: record {}\n".format(record_name))
+        f.write(f"#Source: record {record_name}\n")

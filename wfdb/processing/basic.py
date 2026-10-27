@@ -59,10 +59,7 @@ def resample_sig(x, fs, fs_target):
     if np.isnan(x).any():
         x = pd.Series(x.reshape((-1,))).interpolate().values
     resampled_x, resampled_t = signal.resample(x, num=new_length, t=t)
-    assert (
-        resampled_x.shape == resampled_t.shape
-        and resampled_x.shape[0] == new_length
-    )
+    assert resampled_x.shape == resampled_t.shape and resampled_x.shape[0] == new_length
     assert np.all(np.diff(resampled_t) > 0)
 
     return resampled_x, resampled_t
