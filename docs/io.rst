@@ -34,6 +34,52 @@ WFDB Annotations
     :members: wrann
 
 
+WFDB Archives
+-------------
+
+A ``.wfdb`` archive is a ZIP file containing the files of a single
+record: its header file, the signal files listed in the header, and
+optionally annotation files.
+Header files are compressed, while signal files are stored without
+compression so that part of a signal can be read without decompressing
+the whole file.
+
+To read a record from an archive, pass the path of the archive,
+including the ``.wfdb`` extension, to ``rdrecord``, ``rdsamp`` or
+``rdheader``. Annotations are read the same way with ``rdann``. To
+write a record into an archive, pass the path of the archive as the
+``wfdb_archive`` argument of ``wrsamp``.
+
+.. code-block:: python
+
+    import wfdb
+
+    # Write a record into an archive
+    wfdb.wrsamp("100", fs=360, units=["mV"], sig_name=["MLII"],
+                p_signal=signal, fmt=["212"], wfdb_archive="100.wfdb")
+
+    # Read the record back, or part of it
+    record = wfdb.rdrecord("100.wfdb")
+    record = wfdb.rdrecord("100.wfdb", sampfrom=1000, sampto=2000)
+
+    # Put the files of an existing record, including its annotations,
+    # into an archive, and read the annotations
+    from wfdb.io.archive import create_archive
+    create_archive(["100.hea", "100.dat", "100.atr"], "100.wfdb")
+    annotation = wfdb.rdann("100.wfdb", "atr")
+
+An archive holds a single record, so only one header file can be
+written to it. Annotation files can be added alongside the record.
+Multi-segment records, and archives in cloud storage or on PhysioNet,
+are not supported yet.
+
+.. autofunction:: wfdb.io.archive.create_archive
+
+.. autoclass:: wfdb.io.archive.WFDBArchive
+    :members: namelist, exists, file_size, open, header_file_name,
+              read_header, write, add_file, close, abort
+
+
 Cloud Storage Access
 --------------------
 
