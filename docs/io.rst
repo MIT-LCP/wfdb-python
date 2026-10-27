@@ -12,21 +12,25 @@ WFDB Records
     :members: rdrecord, rdheader, rdsamp, wrsamp
 
 .. autoclass:: wfdb.io.Record
+    :no-index:
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
               wrsamp, adc, dac, to_dataframe
 
 .. autoclass:: wfdb.io.MultiRecord
+    :no-index:
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
               multi_to_single, contained_ranges, contained_combined_ranges
 
 
 WFDB Annotations
----------------
+----------------
 
 .. automodule:: wfdb.io
+    :no-index:
     :members: rdann, wrann, show_ann_labels, show_ann_classes
 
 .. autoclass:: wfdb.io.Annotation
+    :no-index:
     :members: wrann
 
 
@@ -86,4 +90,5 @@ Downloading
 -----------
 
 .. automodule:: wfdb.io
+    :no-index:
     :members: dl_files, dl_database, get_dbs, get_record_list, set_db_index_url

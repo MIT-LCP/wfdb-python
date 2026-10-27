@@ -509,8 +509,8 @@ class SignalMixin:
             The digital conversion of the signal. Either a 2d numpy
             array or a list of 1d numpy arrays.
 
-        Examples:
-        ---------
+        Examples
+        --------
         >>> import wfdb
         >>> record = wfdb.rdsamp('sample-data/100')
         >>> d_signal = record.adc()

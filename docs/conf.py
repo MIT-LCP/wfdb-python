@@ -49,6 +49,10 @@ extensions = [
     "numpydoc",
 ]
 
+# The class members are documented by the autoclass directives, so don't link the
+# method tables to (non-existent) autosummary stubs.
+numpydoc_class_members_toctree = False
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 

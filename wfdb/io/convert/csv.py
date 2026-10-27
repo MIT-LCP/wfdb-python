@@ -277,15 +277,16 @@ def csv_to_wfdb(
 
     Return just the record, note the use of lists to specify which values should
     be applied to each signal
-    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360, units=['mV','mV'],
-                                 fmt=['80',212'], adc_gain=[100,200],
-                                 baseline=[1024,512], record_only=True)
+    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360,
+    ...                          units=['mV', 'mV'], fmt=['80', '212'],
+    ...                          adc_gain=[100, 200], baseline=[1024, 512],
+    ...                          record_only=True)
 
     Return just the record, note the use of single strings and ints to specify
     when fields can be applied to all signals
     >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360, units='mV',
-                                 fmt=['80','212'], adc_gain=200, baseline=1024,
-                                 record_only=True)
+    ...                          fmt=['80', '212'], adc_gain=200, baseline=1024,
+    ...                          record_only=True)
 
     """
     # NOTE: No need to write input checks here since the Record class should

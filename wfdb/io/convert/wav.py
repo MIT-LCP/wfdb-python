@@ -175,38 +175,38 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     Files that can be processed successfully using `read_wav` always have exactly
     three chunks (a header chunk, a format chunk, and a data chunk).  In .wav
     files, binary data are always written in little-endian format (least
-    significant byte first). The format of `read_wav`'s input files is as follows:
+    significant byte first). The format of `read_wav`'s input files is as follows::
 
-    [Header chunk]
-    Bytes  0 -  3: "RIFF" [4 ASCII characters]
-    Bytes  4 -  7: L-8 (number of bytes to follow in the file, excluding bytes 0-7)
-    Bytes  8 - 11: "WAVE" [4 ASCII characters]
+        [Header chunk]
+        Bytes  0 -  3: "RIFF" [4 ASCII characters]
+        Bytes  4 -  7: L-8 (number of bytes to follow in the file, excluding bytes 0-7)
+        Bytes  8 - 11: "WAVE" [4 ASCII characters]
 
-    [Format chunk]
-    Bytes 12 - 15: "fmt " [4 ASCII characters, note trailing space]
-    Bytes 16 - 19: 16 (format chunk length in bytes, excluding bytes 12-19)
-    Bytes 20 - 35: format specification, consisting of:
-    Bytes 20 - 21: 1 (format tag, indicating no compression is used)
-    Bytes 22 - 23: number of signals (1 - 65535)
-    Bytes 24 - 27: sampling frequency in Hz (per signal)
-                   Note that the sampling frequency in a .wav file must be an
-                   integer multiple of 1 Hz, a restriction that is not imposed
-                   by MIT (WFDB) format.
-    Bytes 28 - 31: bytes per second (sampling frequency * frame size in bytes)
-    Bytes 32 - 33: frame size in bytes
-    Bytes 34 - 35: bits per sample (ADC resolution in bits)
-                   Note that the actual ADC resolution (e.g., 12) is written in
-                   this field, although each output sample is right-padded to fill
-                   a full (16-bit) word. (.wav format allows for 8, 16, 24, and
-                   32 bits per sample)
+        [Format chunk]
+        Bytes 12 - 15: "fmt " [4 ASCII characters, note trailing space]
+        Bytes 16 - 19: 16 (format chunk length in bytes, excluding bytes 12-19)
+        Bytes 20 - 35: format specification, consisting of:
+        Bytes 20 - 21: 1 (format tag, indicating no compression is used)
+        Bytes 22 - 23: number of signals (1 - 65535)
+        Bytes 24 - 27: sampling frequency in Hz (per signal)
+                       Note that the sampling frequency in a .wav file must be an
+                       integer multiple of 1 Hz, a restriction that is not imposed
+                       by MIT (WFDB) format.
+        Bytes 28 - 31: bytes per second (sampling frequency * frame size in bytes)
+        Bytes 32 - 33: frame size in bytes
+        Bytes 34 - 35: bits per sample (ADC resolution in bits)
+                       Note that the actual ADC resolution (e.g., 12) is written in
+                       this field, although each output sample is right-padded to fill
+                       a full (16-bit) word. (.wav format allows for 8, 16, 24, and
+                       32 bits per sample)
 
-    [Data chunk]
-    Bytes 36 - 39: "data" [4 ASCII characters]
-    Bytes 40 - 43: L-44 (number of bytes to follow in the data chunk)
-    Bytes 44 - L-1: sample data, consisting of:
-    Bytes 44 - 45: sample 0, channel 0
-    Bytes 46 - 47: sample 0, channel 1
-    ... etc. (same order as in a multiplexed WFDB signal file)
+        [Data chunk]
+        Bytes 36 - 39: "data" [4 ASCII characters]
+        Bytes 40 - 43: L-44 (number of bytes to follow in the data chunk)
+        Bytes 44 - L-1: sample data, consisting of:
+        Bytes 44 - 45: sample 0, channel 0
+        Bytes 46 - 47: sample 0, channel 1
+        ... etc. (same order as in a multiplexed WFDB signal file)
 
     Examples
     --------

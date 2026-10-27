@@ -21,9 +21,10 @@ WFDB Records
 
 
 WFDB Annotations
----------------
+----------------
 
 .. automodule:: wfdb
+    :no-index:
     :members: rdann, wrann, show_ann_labels, show_ann_classes
 
 .. autoclass:: wfdb.Annotation
@@ -34,6 +35,7 @@ Downloading
 -----------
 
 .. automodule:: wfdb
+    :no-index:
     :members: dl_files, dl_database, get_dbs, get_record_list, set_db_index_url
 
 
@@ -41,4 +43,5 @@ Plotting
 --------
 
 .. automodule:: wfdb
+    :no-index:
     :members: plot_items, plot_wfdb, plot_all_records

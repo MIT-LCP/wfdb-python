@@ -1663,7 +1663,8 @@ def gqrs_detect(
       non-qrs peaks as in the main detection phase, without saving the QRS
       locations. During this phase, running parameters of recent intervals
       and peak/qrs thresholds are adjusted.
-    - Run the detection:
+    - Run the detection::
+
         if a sample is bigger than its immediate neighbors and larger
         than the peak detection threshold, it is a peak.
             if it is further than RRmin from the previous QRS, and is a

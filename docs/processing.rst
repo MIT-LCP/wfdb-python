@@ -17,6 +17,7 @@ Heart Rate
 ----------
 
 .. automodule:: wfdb.processing
+    :no-index:
     :members: compute_hr, calc_rr, calc_mean_hr, ann2rr, rr2ann
 
 
@@ -24,18 +25,21 @@ Peaks
 -----
 
 .. automodule:: wfdb.processing
+    :no-index:
     :members: find_peaks, find_local_peaks, correct_peaks
 
 Filters
 -------
 
 .. automodule:: wfdb.processing
+    :no-index:
     :members: sigavg
 
 QRS Detectors
 -------------
 
 .. automodule:: wfdb.processing
+    :no-index:
     :members: XQRS, xqrs_detect, gqrs_detect
 
 
@@ -43,4 +47,5 @@ Annotation Evaluators
 ---------------------
 
 .. automodule:: wfdb.processing
+    :no-index:
     :members: Comparitor, compare_annotations, benchmark_mitdb

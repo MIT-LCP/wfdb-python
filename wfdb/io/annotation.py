@@ -27,11 +27,11 @@ class Annotation:
     text used to label annotations that are not one of these codes should go in
     the 'aux_note' field rather than the 'sym' field.
 
-    The current annotation values organized as such:
+    The current annotation values organized as such::
 
         AnnotationLabel(label_store (or subtype), symbol (or aux_note), short_description, description)
 
-    where the associated values are:
+    where the associated values are::
 
         ann_labels = [
             AnnotationLabel(0, " ", 'NOTANN', 'Not an actual annotation'),
@@ -76,11 +76,11 @@ class Annotation:
             AnnotationLabel(41, "r", 'RONT',  'R-on-T premature ventricular contraction')
         ]
 
-    The current annotation classes are organized as such:
+    The current annotation classes are organized as such::
 
         AnnotationClass(extension, description, human_reviewed)
 
-    where the associated values are:
+    where the associated values are::
 
         ann_classes = [
             AnnotationClass('atr', 'Reference ECG annotations', True),

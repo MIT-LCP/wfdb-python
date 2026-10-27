@@ -250,6 +250,7 @@ class BaseRecord:
         Convert a time value to a frame number.
 
         A time value may be specified as:
+
         - An integer or floating-point number, representing the number of
           WFDB frames elapsed from the start of the record.
         - A `datetime.timedelta` object, representing elapsed time from the
@@ -292,6 +293,7 @@ class BaseRecord:
         Convert a time value to an elapsed time in seconds.
 
         A time value may be specified as:
+
         - An integer or floating-point number, representing the number of
           WFDB frames elapsed from the start of the record.
         - A `datetime.timedelta` object, representing elapsed time from the
@@ -318,6 +320,7 @@ class BaseRecord:
         Convert a time value to an absolute date and time.
 
         A time value may be specified as:
+
         - An integer or floating-point number, representing the number of
           WFDB frames elapsed from the start of the record.
         - A `datetime.timedelta` object, representing elapsed time from the
@@ -2283,10 +2286,11 @@ def rdsamp(
     fields : dict
         A dictionary containing several key attributes of the read
         record:
-          - fs: The sampling frequency of the record.
-          - units: The units for each channel.
-          - sig_name: The signal name for each channel.
-          - comments: Any comments written in the header.
+
+        - fs: The sampling frequency of the record.
+        - units: The units for each channel.
+        - sig_name: The signal name for each channel.
+        - comments: Any comments written in the header.
 
     Notes
     -----

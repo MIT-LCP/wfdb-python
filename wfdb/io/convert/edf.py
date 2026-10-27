@@ -75,53 +75,53 @@ def read_edf(
 
     Notes
     -----
-    The entire file is composed of (seen here: https://www.edfplus.info/specs/edf.html):
+    The entire file is composed of (seen here: https://www.edfplus.info/specs/edf.html)::
 
-    HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
-    8 ascii : version of this data format (0)
-    80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
-    80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
-    8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
-    8 ascii : starttime of recording (hh.mm.ss)
-    8 ascii : number of bytes in header record
-    44 ascii : reserved
-    8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
-    8 ascii : duration of a data record, in seconds
-    4 ascii : number of signals (ns) in data record
-    ns * 16 ascii : ns * label (e.g. EEG Fpz-Cz or Body temp) (mind item 9 of the additional EDF+ specs)
-    ns * 80 ascii : ns * transducer type (e.g. AgAgCl electrode)
-    ns * 8 ascii : ns * physical dimension (e.g. uV or degreeC)
-    ns * 8 ascii : ns * physical minimum (e.g. -500 or 34)
-    ns * 8 ascii : ns * physical maximum (e.g. 500 or 40)
-    ns * 8 ascii : ns * digital minimum (e.g. -2048)
-    ns * 8 ascii : ns * digital maximum (e.g. 2047)
-    ns * 80 ascii : ns * prefiltering (e.g. HP:0.1Hz LP:75Hz)
-    ns * 8 ascii : ns * nr of samples in each data record
-    ns * 32 ascii : ns * reserved
+        HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
+        8 ascii : version of this data format (0)
+        80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
+        80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
+        8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
+        8 ascii : starttime of recording (hh.mm.ss)
+        8 ascii : number of bytes in header record
+        44 ascii : reserved
+        8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
+        8 ascii : duration of a data record, in seconds
+        4 ascii : number of signals (ns) in data record
+        ns * 16 ascii : ns * label (e.g. EEG Fpz-Cz or Body temp) (mind item 9 of the additional EDF+ specs)
+        ns * 80 ascii : ns * transducer type (e.g. AgAgCl electrode)
+        ns * 8 ascii : ns * physical dimension (e.g. uV or degreeC)
+        ns * 8 ascii : ns * physical minimum (e.g. -500 or 34)
+        ns * 8 ascii : ns * physical maximum (e.g. 500 or 40)
+        ns * 8 ascii : ns * digital minimum (e.g. -2048)
+        ns * 8 ascii : ns * digital maximum (e.g. 2047)
+        ns * 80 ascii : ns * prefiltering (e.g. HP:0.1Hz LP:75Hz)
+        ns * 8 ascii : ns * nr of samples in each data record
+        ns * 32 ascii : ns * reserved
 
-    DATA RECORD
-    nr of samples[1] * integer : first signal in the data record
-    nr of samples[2] * integer : second signal
-    ..
-    ..
-    nr of samples[ns] * integer : last signal
+        DATA RECORD
+        nr of samples[1] * integer : first signal in the data record
+        nr of samples[2] * integer : second signal
+        ..
+        ..
+        nr of samples[ns] * integer : last signal
 
-    Bytes   0 - 127: descriptive text
-    Bytes 128 - 131: master tag (data type = matrix)
-    Bytes 132 - 135: master tag (data size)
-    Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 152 - 167: array dimension (4 byte tag with data type, 4
-                     byte tag with subelement size, 8 bytes of content)
-    Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
-                     tag with subelement size, ... bytes of content)
+        Bytes   0 - 127: descriptive text
+        Bytes 128 - 131: master tag (data type = matrix)
+        Bytes 132 - 135: master tag (data size)
+        Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 152 - 167: array dimension (4 byte tag with data type, 4
+                         byte tag with subelement size, 8 bytes of content)
+        Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
+                         tag with subelement size, ... bytes of content)
 
     Examples
     --------
     >>> record = read_edf('x001_FAROS.edf',
-                           pn_dir='simultaneous-measurements/raw_data')
+    ...                    pn_dir='simultaneous-measurements/raw_data')
 
     """
     if pn_dir is not None:
@@ -512,48 +512,48 @@ def wfdb_to_edf(
 
     Notes
     -----
-    The entire file is composed of (seen here: https://www.edfplus.info/specs/edf.html):
+    The entire file is composed of (seen here: https://www.edfplus.info/specs/edf.html)::
 
-    HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
-    8 ascii : version of this data format (0)
-    80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
-    80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
-    8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
-    8 ascii : starttime of recording (hh.mm.ss)
-    8 ascii : number of bytes in header record
-    44 ascii : reserved
-    8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
-    8 ascii : duration of a data record, in seconds
-    4 ascii : number of signals (ns) in data record
-    ns * 16 ascii : ns * label (e.g. EEG Fpz-Cz or Body temp) (mind item 9 of the additional EDF+ specs)
-    ns * 80 ascii : ns * transducer type (e.g. AgAgCl electrode)
-    ns * 8 ascii : ns * physical dimension (e.g. uV or degreeC)
-    ns * 8 ascii : ns * physical minimum (e.g. -500 or 34)
-    ns * 8 ascii : ns * physical maximum (e.g. 500 or 40)
-    ns * 8 ascii : ns * digital minimum (e.g. -2048)
-    ns * 8 ascii : ns * digital maximum (e.g. 2047)
-    ns * 80 ascii : ns * prefiltering (e.g. HP:0.1Hz LP:75Hz)
-    ns * 8 ascii : ns * nr of samples in each data record
-    ns * 32 ascii : ns * reserved
+        HEADER RECORD (we suggest to also adopt the 12 simple additional EDF+ specs)
+        8 ascii : version of this data format (0)
+        80 ascii : local patient identification (mind item 3 of the additional EDF+ specs)
+        80 ascii : local recording identification (mind item 4 of the additional EDF+ specs)
+        8 ascii : startdate of recording (dd.mm.yy) (mind item 2 of the additional EDF+ specs)
+        8 ascii : starttime of recording (hh.mm.ss)
+        8 ascii : number of bytes in header record
+        44 ascii : reserved
+        8 ascii : number of data records (-1 if unknown, obey item 10 of the additional EDF+ specs)
+        8 ascii : duration of a data record, in seconds
+        4 ascii : number of signals (ns) in data record
+        ns * 16 ascii : ns * label (e.g. EEG Fpz-Cz or Body temp) (mind item 9 of the additional EDF+ specs)
+        ns * 80 ascii : ns * transducer type (e.g. AgAgCl electrode)
+        ns * 8 ascii : ns * physical dimension (e.g. uV or degreeC)
+        ns * 8 ascii : ns * physical minimum (e.g. -500 or 34)
+        ns * 8 ascii : ns * physical maximum (e.g. 500 or 40)
+        ns * 8 ascii : ns * digital minimum (e.g. -2048)
+        ns * 8 ascii : ns * digital maximum (e.g. 2047)
+        ns * 80 ascii : ns * prefiltering (e.g. HP:0.1Hz LP:75Hz)
+        ns * 8 ascii : ns * nr of samples in each data record
+        ns * 32 ascii : ns * reserved
 
-    DATA RECORD
-    nr of samples[1] * integer : first signal in the data record
-    nr of samples[2] * integer : second signal
-    ..
-    ..
-    nr of samples[ns] * integer : last signal
+        DATA RECORD
+        nr of samples[1] * integer : first signal in the data record
+        nr of samples[2] * integer : second signal
+        ..
+        ..
+        nr of samples[ns] * integer : last signal
 
-    Bytes   0 - 127: descriptive text
-    Bytes 128 - 131: master tag (data type = matrix)
-    Bytes 132 - 135: master tag (data size)
-    Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 152 - 167: array dimension (4 byte tag with data type, 4
-                     byte tag with subelement size, 8 bytes of content)
-    Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
-                     tag with subelement size, ... bytes of content)
+        Bytes   0 - 127: descriptive text
+        Bytes 128 - 131: master tag (data type = matrix)
+        Bytes 132 - 135: master tag (data size)
+        Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 152 - 167: array dimension (4 byte tag with data type, 4
+                         byte tag with subelement size, 8 bytes of content)
+        Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
+                         tag with subelement size, ... bytes of content)
 
     Examples
     --------
@@ -974,7 +974,8 @@ def rdedfann(
     """
     This program returns the annotation information from an EDF+ file
     containing annotations (with the signal name given as 'EDF Annotations').
-    The information that is returned if `info_only` is set to True is:
+    The information that is returned if `info_only` is set to True is::
+
         {
             'onset_time': list of %H:%M:%S.fff strings denoting the annotation
                           onset times,
@@ -983,6 +984,7 @@ def rdedfann(
             'comment': list of comments (`aux_note`) for the annotations,
             'duration': list of floats denoting the duration of the event
         }
+
     Else, this function will return either the WFDB Annotation format of the
     information of the file if `record_only` is set to True, or nothing if
     neither are set to True though a WFDB Annotation file will be created.

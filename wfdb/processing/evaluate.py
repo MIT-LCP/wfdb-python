@@ -129,15 +129,15 @@ class Comparitor:
         these ref/test scenarios:
 
         Parameters
-        -------
+        ----------
         N/A
 
         Returns
         -------
         N/A
 
-        Example
-        -------
+        Examples
+        --------
         A:
         o----o---o---o
         x-------x----x
