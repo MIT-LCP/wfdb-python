@@ -14,6 +14,9 @@ Unreleased
 **Raise minimum versions of dependencies**
   The minimum versions of ``soundfile`` (0.12.1), ``matplotlib`` (3.8.0) and ``requests`` (2.31.0) have been raised. The minimum versions of the other dependencies are unchanged.
 
+**Build with uv_build**
+  The package is now built with ``uv_build`` instead of ``hatchling``. The version number is specified in ``pyproject.toml`` only, and ``wfdb.__version__`` is read from the installed package metadata (it is ``"unknown"`` if the package is run from a source tree without being installed).
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
