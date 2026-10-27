@@ -97,7 +97,7 @@ class TestMultiRecordRanges:
             record.contained_combined_ranges(["II", "V", "MCL1", "ABP"]) == []
         )
 
-    def test_contained_combined_ranges_variable_layout(self):
+    def test_contained_combined_ranges_all_pairs(self):
         record = wfdb.rdheader(
             "sample-data/multi-segment/041s/041s",
             rd_segments=True,
