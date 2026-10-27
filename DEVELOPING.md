@@ -36,15 +36,10 @@ uv add <somepackage> --optional <somegroup>
 
 It may be useful to publish to testpypi and preview the changes before publishing to PyPi. However, the project dependencies likely will not be available when trying to install from there.
 
-Setup: configure access to repositories:
+Setup: create an API token on PyPI (and on TestPyPI for test uploads) and pass it to uv:
 
 ```sh
-# Create an API token, then add it
-poetry config pypi-token.pypi <my-token>
-
-# For testpypi
-poetry config repositories.test-pypi https://test.pypi.org/legacy/
-poetry config pypi-token.test-pypi <my-testpypi-token>
+export UV_PUBLISH_TOKEN=<my-token>
 ```
 
 To build and upload a new distribution:
