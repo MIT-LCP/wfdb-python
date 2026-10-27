@@ -19,6 +19,7 @@
 #
 import os
 import sys
+import tomllib
 
 sys.path.insert(0, os.path.abspath(".."))
 
@@ -66,8 +67,8 @@ project = "wfdb"
 copyright = "2018, MIT Lab for Computational Physiology"
 author = "MIT Lab for Computational Physiology"
 
-with open("../wfdb/version.py") as f:
-    __version__ = f.read().split()[-1].strip("'")
+with open("../pyproject.toml", "rb") as f:
+    __version__ = tomllib.load(f)["project"]["version"]
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.

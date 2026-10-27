@@ -26,7 +26,7 @@ uv add <somepackage> --optional <somegroup>
 
 ## Creating Distributions
 
-1. Bump the version in [version.py](./wfdb/version.py).
+1. Bump the version in [pyproject.toml](./pyproject.toml).
 
 2. Add a summary of the changes to [the changelog](https://github.com/MIT-LCP/wfdb-python/blob/main/docs/changes.rst). You may also need to update [the documentation](https://github.com/MIT-LCP/wfdb-python/tree/main/docs). For example, if function arguments have been updated, this change will need to be captured. Open a pull request to merge these changes to the main branch.
 

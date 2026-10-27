@@ -1,12 +1,14 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build >= 0.13.0, < 0.14"]
+build-backend = "uv_build"
 
 [project]
 name = "wfdb"
+version = "4.3.1"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = [{name = "The Laboratory for Computational Physiology", email = "contact@physionet.org"}]
-license = {text = "MIT License"}
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">= 3.11"
 dependencies = [
@@ -19,7 +21,6 @@ dependencies = [
     "fsspec >= 2023.10.0",
     "aiohttp >= 3.10.11",
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 dev = [
@@ -39,13 +40,5 @@ documentation = "https://wfdb.readthedocs.io/"
 line-length = 80
 target-version = ["py311"]
 
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "/tests",
-    "/sample-data",
-    "/demo-img.png",
-    "/demo.ipynb",
-]
-
-[tool.hatch.version]
-path = "wfdb/version.py"
+[tool.uv.build-backend]
+module-root = ""
