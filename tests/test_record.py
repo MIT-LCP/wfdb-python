@@ -37,7 +37,7 @@ class TestRecord:
         "base_datetime",
     ]
 
-    # ----------------------- 1. Basic Tests -----------------------#
+    # ------------------------ 1. Basic Tests ------------------------ #
 
     def test_1a(self, source, temp_path):
         """
@@ -537,7 +537,7 @@ class TestRecord:
         )
         np.testing.assert_array_equal(record.p_signal, sig_target)
 
-    # ------------------ 2. Special format records ------------------ #
+    # ------------------ 2. Special format records ------------------- #
 
     def test_2a(self, source):
         """
