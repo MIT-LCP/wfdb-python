@@ -27,20 +27,26 @@ The distribution is hosted on PyPI at: [https://pypi.python.org/pypi/wfdb/](http
 pip install wfdb
 ```
 
+Alternatively, add it to a project managed with [uv](https://docs.astral.sh/uv/):
+
+```sh
+uv add wfdb
+```
+
 On some less-common systems, you may need to install `libsndfile` separately.  See the [soundfile installation notes](https://pypi.org/project/soundfile/) for more information.
 
 ## Development
 
-The development version is hosted at: [https://github.com/MIT-LCP/wfdb-python](https://github.com/MIT-LCP/wfdb-python). This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run:
+The development version is hosted at: [https://github.com/MIT-LCP/wfdb-python](https://github.com/MIT-LCP/wfdb-python). This repository also contains demo scripts and example data. To set up a development environment, install [uv](https://docs.astral.sh/uv/), clone the repository, navigate to the base directory, and run:
 
 ```sh
-pip install .
+uv sync
 ```
 
-If you intend to make changes to the repository, you can install additional packages that are useful for development by running:
+This creates a virtual environment in `.venv` containing the package and all development tools. Commands can then be run inside this environment with `uv run`, for example:
 
 ```sh
-pip install ".[dev]"
+uv run pytest
 ```
 
 Please see the [DEVELOPING.md](https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md) document for contribution/development instructions.

@@ -22,18 +22,25 @@ dependencies = [
     "aiohttp >= 3.10.11",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest >= 8.0.0",
-    "pytest-xdist >= 3.5.0",
-    "ruff >= 0.13.0",
-    "sphinx >= 7.0.0",
-]
-
 [project.urls]
 homepage = "https://github.com/MIT-LCP/wfdb-python/"
 repository = "https://github.com/MIT-LCP/wfdb-python/"
 documentation = "https://wfdb.readthedocs.io/"
+
+[dependency-groups]
+dev = [
+    "pytest >= 8.0.0",
+    "pytest-xdist >= 3.5.0",
+    "ruff == 0.17.3",
+]
+# Heavy dependencies are mocked in docs/conf.py, so the project itself is not needed
+docs = [
+    "fsspec >= 2023.10.0",
+    "numpydoc == 1.7.0",
+    "readthedocs-sphinx-search == 0.3.2",
+    "sphinx == 7.0.0",
+    "sphinx-rtd-theme == 3.0.0",
+]
 
 [tool.ruff]
 target-version = "py311"
