@@ -1,6 +1,10 @@
 import gzip
 import http.server
 import threading
+import time
+
+import pytest
+import requests
 
 import wfdb.io._url
 
@@ -9,6 +13,18 @@ class TestNetFiles:
     """
     Test accessing remote files.
     """
+
+    def test_timeout(self, monkeypatch):
+        """
+        Test that a server that does not respond causes a timeout error.
+
+        Without a timeout, the request would wait for the server forever.
+        """
+        monkeypatch.setattr(wfdb.io._url, "TIMEOUT", (5, 0.2))
+        with DummyHTTPServer({"/foo.txt": b"foo"}, delay=1.5) as server:
+            with pytest.raises(requests.exceptions.Timeout):
+                with wfdb.io._url.openurl(server.url("/foo.txt"), "rb") as f:
+                    f.read()
 
     def test_requests(self):
         """
@@ -273,6 +289,9 @@ class DummyHTTPServer(http.server.HTTPServer):
         True if the server should return partial responses (using 206
         Partial Content and "Content-Range") when the client requests
         them (using "Range").
+    delay : float, optional
+        Number of seconds that the server waits before it responds to a
+        request (to simulate a server that does not respond).
     server_address : tuple (str, int), optional
         A tuple specifying the address and port number where the
         server should listen for connections.  If the port is 0, an
@@ -286,12 +305,14 @@ class DummyHTTPServer(http.server.HTTPServer):
         file_content,
         allow_gzip=True,
         allow_range=True,
+        delay=0,
         server_address=("127.0.0.1", 0),
     ):
         super().__init__(server_address, DummyHTTPRequestHandler)
         self.file_content = file_content
         self.allow_gzip = allow_gzip
         self.allow_range = allow_range
+        self.delay = delay
 
     def url(self, path="/"):
         """
@@ -342,6 +363,7 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     def send_head(self):
+        time.sleep(self.server.delay)
         content = self.server.file_content.get(self.path)
         if content is None:
             self.send_error(404)
