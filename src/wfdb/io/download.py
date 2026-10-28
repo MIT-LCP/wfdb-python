@@ -13,8 +13,7 @@ PN_CONTENT_URL = "https://physionet.org/content/"
 
 
 class Config:
-    """
-    General class structure for the PhysioNet database.
+    """General class structure for the PhysioNet database.
 
     Attributes
     ----------
@@ -31,9 +30,7 @@ config.db_index_url = PN_INDEX_URL
 
 
 def set_db_index_url(db_index_url=PN_INDEX_URL):
-    """
-    Set the database index url to a custom value, to stream remote
-    files from another location.
+    """Set the database index url to a custom location for streaming.
 
     Parameters
     ----------
@@ -50,8 +47,7 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
 
 
 def _remote_file_size(url=None, file_name=None, pn_dir=None):
-    """
-    Get the remote file size in bytes.
+    """Get the remote file size in bytes.
 
     Parameters
     ----------
@@ -82,8 +78,7 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
 
 
 def _stream_header(file_name: str, pn_dir: str) -> str:
-    """
-    Stream the text of a remote header file.
+    """Stream the text of a remote header file.
 
     Parameters
     ----------
@@ -111,8 +106,7 @@ def _stream_header(file_name: str, pn_dir: str) -> str:
 
 
 def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
-    """
-    Stream data from a remote dat file into a 1d numpy array.
+    """Stream data from a remote dat file into a 1d numpy array.
 
     Parameters
     ----------
@@ -148,8 +142,7 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
 
 
 def _stream_annotation(file_name, pn_dir):
-    """
-    Stream an entire remote annotation file from Physionet.
+    """Stream an entire remote annotation file from Physionet.
 
     Parameters
     ----------
@@ -178,8 +171,7 @@ def _stream_annotation(file_name, pn_dir):
 
 
 def get_dbs():
-    """
-    Get a list of all the PhysioNet databases available.
+    """Get a list of all the PhysioNet databases available.
 
     Parameters
     ----------
@@ -215,8 +207,7 @@ def get_dbs():
 
 
 def get_version(pn_dir):
-    """
-    Get the version number of the desired project.
+    """Get the version number of the desired project.
 
     Parameters
     ----------
@@ -243,8 +234,7 @@ def get_version(pn_dir):
 
 
 def get_record_list(db_dir, records="all"):
-    """
-    Get a list of records belonging to a database.
+    """Get a list of records belonging to a database.
 
     Parameters
     ----------
@@ -289,8 +279,7 @@ def get_record_list(db_dir, records="all"):
 
 
 def get_annotators(db_dir, annotators):
-    """
-    Get a list of annotators belonging to a database.
+    """Get a list of annotators belonging to a database.
 
     Parameters
     ----------
@@ -350,8 +339,7 @@ def get_annotators(db_dir, annotators):
 
 
 def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
-    """
-    Make any required local directories to prepare for downloading.
+    """Make any required local directories to prepare for downloading.
 
     Parameters
     ----------
@@ -385,9 +373,10 @@ def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
 
 
 def dl_pn_file(inputs):
-    """
-    Download a file from Physionet. The input args are to be unpacked
-    for the use of multiprocessing map, because python2 doesn't have starmap.
+    """Download a file from Physionet.
+
+    The input args are to be unpacked for the use of multiprocessing map, because
+    python2 doesn't have starmap.
 
     Parameters
     ----------
@@ -447,8 +436,7 @@ def dl_pn_file(inputs):
 
 
 def dl_full_file(url, save_file_name):
-    """
-    Download a file. No checks are performed.
+    """Download a file. No checks are performed.
 
     Parameters
     ----------
@@ -471,8 +459,7 @@ def dl_full_file(url, save_file_name):
 
 
 def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
-    """
-    Download specified files from a PhysioNet database.
+    """Download specified files from a PhysioNet database.
 
     Parameters
     ----------

@@ -4,8 +4,7 @@ from wfdb.processing.basic import smooth
 
 
 def find_peaks(sig):
-    r"""
-    Find hard peaks and soft peaks in a signal, defined as follows:
+    r"""Find hard peaks and soft peaks in a signal, defined as follows:
 
     - Hard peak: a peak that is either /\ or \/.
     - Soft peak: a peak that is either /-*\ or \-*/.
@@ -56,10 +55,10 @@ def find_peaks(sig):
 
 
 def find_local_peaks(sig, radius):
-    """
-    Find all local peaks in a signal. A sample is a local peak if it is
-    the largest value within the <radius> samples on its left and right.
-    In cases where it shares the max value with nearby samples, the
+    """Find all local peaks in a signal.
+
+    A sample is a local peak if it is the largest value within the <radius> samples on
+    its left and right. In cases where it shares the max value with nearby samples, the
     middle sample is classified as the local peak.
 
     Parameters
@@ -109,8 +108,7 @@ def find_local_peaks(sig, radius):
 def correct_peaks(
     sig, peak_inds, search_radius, smooth_window_size, peak_dir="compare"
 ):
-    """
-    Adjust a set of detected peaks to coincide with local signal maxima.
+    """Adjust a set of detected peaks to coincide with local signal maxima.
 
     Parameters
     ----------
@@ -197,9 +195,9 @@ def correct_peaks(
 
 
 def shift_peaks(sig, peak_inds, search_radius, peak_up):
-    """
-    Helper function for correct_peaks. Return the shifted peaks to local
-    maxima or minima within a radius.
+    """Helper function for correct_peaks.
+
+    Return the shifted peaks to local maxima or minima within a radius.
 
     Parameters
     ----------

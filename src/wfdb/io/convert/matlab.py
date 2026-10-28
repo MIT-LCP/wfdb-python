@@ -8,14 +8,14 @@ from wfdb.io.record import rdrecord
 
 
 def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
-    """
-    This program converts the signals of any PhysioNet record (or one in any
-    compatible format) into a .mat file that can be read directly using any version
-    of Matlab, and a short text file containing information about the signals
-    (names, gains, baselines, units, sampling frequency, and start time/date if
-    known). If the input record name is REC, the output files are RECm.mat and
-    RECm.hea. The output files can also be read by any WFDB application as record
-    RECm.
+    """Convert a PhysioNet record to a Matlab .mat file.
+
+    This program converts the signals of any PhysioNet record (or one in any compatible
+    format) into a .mat file that can be read directly using any version of Matlab, and
+    a short text file containing information about the signals (names, gains, baselines,
+    units, sampling frequency, and start time/date if known). If the input record name
+    is REC, the output files are RECm.mat and RECm.hea. The output files can also be
+    read by any WFDB application as record RECm.
 
     This program does not convert annotation files; for that task, 'rdann' is
     recommended.
@@ -70,19 +70,19 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
 
     Notes
     -----
-    The entire file is composed of:
+    The entire file is composed of::
 
-    Bytes   0 - 127: descriptive text
-    Bytes 128 - 131: master tag (data type = matrix)
-    Bytes 132 - 135: master tag (data size)
-    Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 152 - 167: array dimension (4 byte tag with data type, 4
-                     byte tag with subelement size, 8 bytes of content)
-    Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
-                     tag with subelement size, 8 bytes of content)
-    Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
-                     tag with subelement size, ... bytes of content)
+        Bytes   0 - 127: descriptive text
+        Bytes 128 - 131: master tag (data type = matrix)
+        Bytes 132 - 135: master tag (data size)
+        Bytes 136 - 151: array flags (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 152 - 167: array dimension (4 byte tag with data type, 4
+                         byte tag with subelement size, 8 bytes of content)
+        Bytes 168 - 183: array name (4 byte tag with data type, 4 byte
+                         tag with subelement size, 8 bytes of content)
+        Bytes 184 - ...: array content (4 byte tag with data type, 4 byte
+                         tag with subelement size, ... bytes of content)
 
     Examples
     --------

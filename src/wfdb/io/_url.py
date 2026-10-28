@@ -37,8 +37,7 @@ _SESSION_LOCK = threading.Lock()
 
 
 def _get_session():
-    """
-    Obtain a session object suitable for requesting remote files.
+    """Obtain a session object suitable for requesting remote files.
 
     Parameters
     ----------
@@ -103,8 +102,7 @@ class NetFilePermissionError(NetFileError, PermissionError):
 
 
 class RangeTransfer:
-    """
-    A single HTTP transfer representing a range of bytes.
+    """A single HTTP transfer representing a range of bytes.
 
     Parameters
     ----------
@@ -176,8 +174,7 @@ class RangeTransfer:
             raise
 
     def _parse_headers(self, method, response):
-        """
-        Parse the headers of the response object.
+        """Parse the headers of the response object.
 
         Parameters
         ----------
@@ -274,8 +271,7 @@ class RangeTransfer:
             self.close()
 
     def close(self):
-        """
-        Finish reading data from the response.
+        """Finish reading data from the response.
 
         Any leftover data in the response body will be discarded and
         the underlying HTTP connection will be returned to the pool.
@@ -314,8 +310,7 @@ class RangeTransfer:
             response.close()
 
     def iter_chunks(self):
-        """
-        Iterate over the response body as a sequence of chunks.
+        """Iterate over the response body as a sequence of chunks.
 
         Parameters
         ----------
@@ -338,8 +333,7 @@ class RangeTransfer:
             self.file_size = self._current_pos
 
     def content(self):
-        """
-        Read the complete response.
+        """Read the complete response.
 
         Parameters
         ----------
@@ -362,8 +356,7 @@ class RangeTransfer:
 
 
 class NetFile(io.BufferedIOBase):
-    """
-    File object providing random access to a remote file over HTTP.
+    """File object providing random access to a remote file over HTTP.
 
     Attributes
     ----------
@@ -391,8 +384,7 @@ class NetFile(io.BufferedIOBase):
         self._current_url = self.url
 
     def _read_buffered_range(self, start, end):
-        """
-        Read a range of bytes from the internal buffer.
+        """Read a range of bytes from the internal buffer.
 
         Parameters
         ----------
@@ -415,8 +407,7 @@ class NetFile(io.BufferedIOBase):
             return memoryview(b"")
 
     def _read_range(self, start, end):
-        """
-        Read a range of bytes from the remote file.
+        """Read a range of bytes from the remote file.
 
         The result is returned as a sequence of chunks; the sizes of
         the individual chunks are unspecified.  The total size may be
@@ -513,8 +504,7 @@ class NetFile(io.BufferedIOBase):
                 self._file_size = xfer.file_size
 
     def _get_size(self):
-        """
-        Determine the size of the remote file.
+        """Determine the size of the remote file.
 
         Parameters
         ----------
@@ -541,8 +531,7 @@ class NetFile(io.BufferedIOBase):
         return size
 
     def readable(self):
-        """
-        Determine whether the file supports read() and read1() operations.
+        """Determine whether the file supports read() and read1() operations.
 
         Parameters
         ----------
@@ -556,8 +545,7 @@ class NetFile(io.BufferedIOBase):
         return True
 
     def read(self, size=-1):
-        """
-        Read bytes from the file.
+        """Read bytes from the file.
 
         Parameters
         ----------
@@ -586,8 +574,7 @@ class NetFile(io.BufferedIOBase):
         return result
 
     def read1(self, size=-1):
-        """
-        Read bytes from the file.
+        """Read bytes from the file.
 
         Parameters
         ----------
@@ -605,8 +592,7 @@ class NetFile(io.BufferedIOBase):
         return self.read(size)
 
     def readinto(self, b):
-        """
-        Read bytes from the file.
+        """Read bytes from the file.
 
         Parameters
         ----------
@@ -632,8 +618,7 @@ class NetFile(io.BufferedIOBase):
         return count
 
     def readinto1(self, b):
-        """
-        Read bytes from the file.
+        """Read bytes from the file.
 
         Parameters
         ----------
@@ -651,8 +636,7 @@ class NetFile(io.BufferedIOBase):
         return self.readinto(b)
 
     def seekable(self):
-        """
-        Determine whether the file supports seek() and tell() operations.
+        """Determine whether the file supports seek() and tell() operations.
 
         Parameters
         ----------
@@ -666,8 +650,7 @@ class NetFile(io.BufferedIOBase):
         return True
 
     def seek(self, offset, whence=os.SEEK_SET):
-        """
-        Set the current file position.
+        """Set the current file position.
 
         Parameters
         ----------
@@ -705,8 +688,7 @@ class NetFile(io.BufferedIOBase):
         return pos
 
     def tell(self):
-        """
-        Retrieve the current file position.
+        """Retrieve the current file position.
 
         Parameters
         ----------
@@ -731,8 +713,7 @@ def openurl(
     newline=None,
     check_access=False,
 ):
-    """
-    Open a URL as a random-access file object.
+    """Open a URL as a random-access file object.
 
     Parameters
     ----------

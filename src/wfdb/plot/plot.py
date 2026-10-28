@@ -7,8 +7,7 @@ from wfdb.io.util import downround, upround
 
 
 def _expand_channels(signal):
-    """
-    Convert application-specified signal data to a list.
+    """Convert application-specified signal data to a list.
 
     Parameters
     ----------
@@ -44,8 +43,7 @@ def _expand_channels(signal):
 
 
 def _get_sampling_freq(sampling_freq, n_sig, frame_freq):
-    """
-    Convert application-specified sampling frequency to a list.
+    """Convert application-specified sampling frequency to a list.
 
     Parameters
     ----------
@@ -78,8 +76,7 @@ def _get_sampling_freq(sampling_freq, n_sig, frame_freq):
 
 
 def _get_ann_freq(ann_freq, n_annot, frame_freq):
-    """
-    Convert application-specified annotation frequency to a list.
+    """Convert application-specified annotation frequency to a list.
 
     Parameters
     ----------
@@ -132,8 +129,7 @@ def plot_items(
     sampling_freq=None,
     ann_freq=None,
 ):
-    """
-    Subplot individual channels of signals and/or annotations.
+    """Subplot individual channels of signals and/or annotations.
 
     Parameters
     ----------
@@ -329,8 +325,7 @@ def plot_items(
 
 
 def _get_plot_dims(signal, ann_samp):
-    """
-    Figure out the number of plot channels.
+    """Figure out the number of plot channels.
 
     Parameters
     ----------
@@ -388,8 +383,7 @@ def _get_plot_dims(signal, ann_samp):
 
 
 def _create_figure(n_subplots, sharex, sharey, figsize):
-    """
-    Create the plot figure and subplot axes.
+    """Create the plot figure and subplot axes.
 
     Parameters
     ----------
@@ -422,8 +416,7 @@ def _create_figure(n_subplots, sharex, sharey, figsize):
 def _plot_signal(
     signal, sig_len, n_sig, fs, time_units, sig_style, axes, sampling_freq=None
 ):
-    """
-    Plot signal channels.
+    """Plot signal channels.
 
     Parameters
     ----------
@@ -510,8 +503,8 @@ def _plot_annotation(
     sampling_freq=None,
     ann_freq=None,
 ):
-    """
-    Plot annotations, possibly overlaid on signals.
+    """Plot annotations, possibly overlaid on signals.
+
     ann_samp, n_annot, ann_sym, signal, n_sig, fs, time_units, ann_style, axes
 
     Parameters
@@ -615,8 +608,7 @@ def _plot_annotation(
 
 
 def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
-    """
-    Add ECG grids to the axes.
+    """Add ECG grids to the axes.
 
     Parameters
     ----------
@@ -692,8 +684,7 @@ def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
 
 
 def _calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
-    """
-    Calculate tick intervals for ECG grids.
+    """Calculate tick intervals for ECG grids.
 
     - 5mm 0.2s major grids, 0.04s minor grids.
     - 0.5mV major grids, 0.125 minor grids.
@@ -771,8 +762,7 @@ def _calc_ecg_grids(minsig, maxsig, sig_units, fs, maxt, time_units):
 def _label_figure(
     axes, n_subplots, time_units, sig_name, sig_units, xlabel, ylabel, title
 ):
-    """
-    Add title, and axes labels.
+    """Add title, and axes labels.
 
     Parameters
     ----------
@@ -852,8 +842,7 @@ def plot_wfdb(
     return_fig=False,
     sharex="auto",
 ):
-    """
-    Subplot individual channels of a WFDB record and/or annotation.
+    """Subplot individual channels of a WFDB record and/or annotation.
 
     This function implements the base functionality of the `plot_items`
     function, while allowing direct input of WFDB objects.
@@ -989,8 +978,7 @@ def plot_wfdb(
 
 
 def _get_wfdb_plot_items(record, annotation, plot_sym):
-    """
-    Get items to plot from WFDB objects.
+    """Get items to plot from WFDB objects.
 
     Parameters
     ----------
@@ -1151,9 +1139,10 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
 
 
 def plot_all_records(directory=""):
-    """
-    Plot all WFDB records in a directory (by finding header files), one at
-    a time, until the 'enter' key is pressed.
+    """Plot all WFDB records in a directory, one at a time.
+
+    The records are found by their header files. The plots are shown until the 'enter'
+    key is pressed.
 
     Parameters
     ----------

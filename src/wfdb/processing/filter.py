@@ -19,19 +19,18 @@ def sigavg(
     stop_time=-1,
     verbose=False,
 ):
-    """
-    A common problem in signal processing is to determine the shape of a
-    recurring waveform in the presence of noise. If the waveform recurs
-    periodically (for example, once per second) the signal can be divided into
-    segments of an appropriate length (one second in this example), and the
-    segments can be averaged to reduce the amplitude of any noise that is
-    uncorrelated with the signal. Typically, noise is reduced by a factor of
-    the square root of the number of segments included in the average. For
-    physiologic signals, the waveforms of interest are usually not strictly
-    periodic, however. This function averages such waveforms by defining
-    segments (averaging windows) relative to the locations of waveform
-    annotations. By default, all QRS (beat) annotations for the specified
-    annotator are included.
+    """Average a recurring waveform in a signal to reduce the noise.
+
+    A common problem in signal processing is to determine the shape of a recurring
+    waveform in the presence of noise. If the waveform recurs periodically (for example,
+    once per second) the signal can be divided into segments of an appropriate length
+    (one second in this example), and the segments can be averaged to reduce the
+    amplitude of any noise that is uncorrelated with the signal. Typically, noise is
+    reduced by a factor of the square root of the number of segments included in the
+    average. For physiologic signals, the waveforms of interest are usually not strictly
+    periodic, however. This function averages such waveforms by defining segments
+    (averaging windows) relative to the locations of waveform annotations. By default,
+    all QRS (beat) annotations for the specified annotator are included.
 
     Parameters
     ----------

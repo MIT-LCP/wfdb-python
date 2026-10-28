@@ -17,4 +17,4 @@ jobs:
       - name: Install Python
         run: uv python install 3.12
       - name: Build documentation
-        run: uv run --python 3.12 --only-group docs make -C docs html
+        run: uv run --python 3.12 --only-group docs make -C docs html SPHINXOPTS="-W --keep-going"

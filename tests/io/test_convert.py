@@ -8,14 +8,10 @@ from wfdb.io.record import rdrecord
 
 
 class TestEdfToWfdb:
-    """
-    Tests for the io.convert.edf module.
-    """
+    """Tests for the io.convert.edf module."""
 
     def test_edf_uniform(self):
-        """
-        EDF format conversion to MIT for uniform sample rates.
-        """
+        """EDF format conversion to MIT for uniform sample rates."""
         # Uniform sample rates
         record_MIT = rdrecord("sample-data/n16").__dict__
         record_EDF = read_edf("sample-data/n16.edf").__dict__
@@ -64,9 +60,7 @@ class TestEdfToWfdb:
         assert np.array_equal(test_results, target_results)
 
     def test_edf_non_uniform(self):
-        """
-        EDF format conversion to MIT for non-uniform sample rates.
-        """
+        """EDF format conversion to MIT for non-uniform sample rates."""
         # Non-uniform sample rates
         record_MIT = rdrecord("sample-data/wave_4").__dict__
         record_EDF = read_edf("sample-data/wave_4.edf").__dict__
@@ -116,14 +110,10 @@ class TestEdfToWfdb:
 
 
 class TestCsvToWfdb:
-    """
-    Tests for the io.convert.csv module.
-    """
+    """Tests for the io.convert.csv module."""
 
     def test_write_dir(self, tmp_path):
-        """
-        Call the function with the write_dir argument.
-        """
+        """Call the function with the write_dir argument."""
         test_dir = str(tmp_path)
         record_100_csv = "sample-data/100.csv"
         # Load 100.dat file for comparison to 100.csv file

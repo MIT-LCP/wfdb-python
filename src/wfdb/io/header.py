@@ -1,5 +1,4 @@
-"""
-Module for parsing header files.
+"""Module for parsing header files.
 
 This module will eventually replace _header.py
 
@@ -14,7 +13,8 @@ class HeaderSyntaxError(ValueError):
 
 
 # Record line pattern. Format:
-# RECORD_NAME/NUM_SEG NUM_SIG SAMP_FREQ/COUNT_FREQ(BASE_COUNT_VAL) SAMPS_PER_SIG BASE_TIME BASE_DATE
+# RECORD_NAME/NUM_SEG NUM_SIG SAMP_FREQ/COUNT_FREQ(BASE_COUNT_VAL) SAMPS_PER_SIG
+# BASE_TIME BASE_DATE
 rx_record = re.compile(
     r"""
     [ \t]* (?P<record_name>[-\w]+)
@@ -31,7 +31,8 @@ rx_record = re.compile(
 )
 
 # Signal line pattern. Format:
-# FILE_NAME FORMATxSAMP_PER_FRAME:SKEW+BYTE_OFFSET ADC_GAIN(BASELINE)/UNITS ADC_RES ADC_ZERO CHECKSUM BLOCK_SIZE DESCRIPTION
+# FILE_NAME FORMATxSAMP_PER_FRAME:SKEW+BYTE_OFFSET ADC_GAIN(BASELINE)/UNITS ADC_RES
+# ADC_ZERO CHECKSUM BLOCK_SIZE DESCRIPTION
 rx_signal = re.compile(
     r"""
     [ \t]* (?P<file_name>~?[-\w]*\.?[\w]*)
@@ -63,9 +64,7 @@ rx_segment = re.compile(
 
 
 def wfdb_strptime(time_string: str) -> datetime.time:
-    """
-    Given a time string in an acceptable WFDB format, return
-    a datetime.time object.
+    """Given a time string in an acceptable WFDB format, return a datetime.time object.
 
     Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
 
@@ -98,8 +97,7 @@ def wfdb_strptime(time_string: str) -> datetime.time:
 def parse_header_content(
     header_content: str,
 ) -> tuple[list[str], list[str]]:
-    """
-    Parse the text of a header file.
+    """Parse the text of a header file.
 
     Parameters
     ----------

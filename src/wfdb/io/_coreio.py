@@ -20,8 +20,7 @@ def _open_file(
     newline=None,
     check_access=False,
 ):
-    """
-    Open a data file as a random-access file object.
+    """Open a data file as a random-access file object.
 
     See the documentation of `open` and `wfdb.io._url.openurl` for details
     about the `mode`, `buffering`, `encoding`, `errors`, and `newline`

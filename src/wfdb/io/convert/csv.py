@@ -35,9 +35,9 @@ def csv_to_wfdb(
     verbose=False,
     write_dir="",
 ):
-    """
-    Read a WFDB header file and return either a `Record` object with the
-    record descriptors as attributes or write a record and header file.
+    """Read a CSV file and return a `Record` object or write a record.
+
+    A record and header file are written if `write_dir` is set.
 
     Parameters
     ----------
@@ -277,15 +277,16 @@ def csv_to_wfdb(
 
     Return just the record, note the use of lists to specify which values should
     be applied to each signal
-    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360, units=['mV','mV'],
-                                 fmt=['80',212'], adc_gain=[100,200],
-                                 baseline=[1024,512], record_only=True)
+    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360,
+    ...                          units=['mV', 'mV'], fmt=['80', '212'],
+    ...                          adc_gain=[100, 200], baseline=[1024, 512],
+    ...                          record_only=True)
 
     Return just the record, note the use of single strings and ints to specify
     when fields can be applied to all signals
     >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360, units='mV',
-                                 fmt=['80','212'], adc_gain=200, baseline=1024,
-                                 record_only=True)
+    ...                          fmt=['80', '212'], adc_gain=200, baseline=1024,
+    ...                          record_only=True)
 
     """
     # NOTE: No need to write input checks here since the Record class should
@@ -478,9 +479,9 @@ def csv2ann(
     delimiter=",",
     verbose=False,
 ):
-    """
-    Read a CSV/TSV/etc. file and return either an `Annotation` object with the
-    annotation descriptors as attributes or write an annotation file.
+    """Read a CSV file and return an `Annotation` object or write a file.
+
+    The annotation descriptors are the attributes of the `Annotation` object.
 
     Parameters
     ----------

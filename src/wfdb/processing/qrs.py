@@ -9,10 +9,10 @@ from wfdb.processing.peaks import find_local_peaks
 
 
 class XQRS:
-    """
-    The QRS detector class for the XQRS algorithm. The `XQRS.Conf`
-    class is the configuration class that stores initial parameters
-    for the detection. The `XQRS.detect` method runs the detection algorithm.
+    """The QRS detector class for the XQRS algorithm.
+
+    The `XQRS.Conf` class is the configuration class that stores initial parameters for
+    the detection. The `XQRS.detect` method runs the detection algorithm.
 
     The process works as follows:
 
@@ -76,8 +76,7 @@ class XQRS:
         self._set_conf()
 
     class Conf:
-        """
-        Initial signal configuration object for this QRS detector.
+        """Initial signal configuration object for this QRS detector.
 
         Attributes
         ----------
@@ -138,10 +137,9 @@ class XQRS:
             self.t_inspect_period = t_inspect_period
 
     def _set_conf(self):
-        """
-        Set configuration parameters from the Conf object into the detector
-        object. Time values are converted to samples, and amplitude values
-        are in mV.
+        """Set configuration parameters from the Conf object into the detector object.
+
+        Time values are converted to samples, and amplitude values are in mV.
 
         Parameters
         ----------
@@ -167,9 +165,7 @@ class XQRS:
         self.t_inspect_period = int(self.conf.t_inspect_period * self.fs)
 
     def _bandpass(self, fc_low=5, fc_high=20):
-        """
-        Apply a bandpass filter onto the signal, and save the filtered
-        signal.
+        """Apply a bandpass filter onto the signal, and save the filtered signal.
 
         Parameters
         ----------
@@ -200,10 +196,10 @@ class XQRS:
         )
 
     def _mwi(self):
-        """
-        Apply moving wave integration (MWI) with a Ricker (Mexican hat)
-        wavelet onto the filtered signal, and save the square of the
-        integrated signal. The width of the hat is equal to the QRS width.
+        """Apply moving wave integration (MWI) with a Ricker (Mexican hat) wavelet.
+
+        The wavelet is applied onto the filtered signal, and the square of the
+        integrated signal is saved. The width of the hat is equal to the QRS width.
         After integration, find all local peaks in the MWI signal.
 
         Parameters
@@ -235,8 +231,10 @@ class XQRS:
         self.n_peaks_i = len(self.peak_inds_i)
 
     def _learn_init_params(self, n_calib_beats=8):
-        """
-        Find a number of consecutive beats and use them to initialize:
+        """Find consecutive beats and use them to initialize the detector.
+
+        The following parameters are initialized:
+
         - recent QRS amplitude
         - recent noise amplitude
         - recent R-R interval
@@ -365,8 +363,7 @@ class XQRS:
     def _set_init_params(
         self, qrs_amp_recent, noise_amp_recent, rr_recent, last_qrs_ind
     ):
-        """
-        Set initial online parameters.
+        """Set initial online parameters.
 
         Parameters
         ----------
@@ -399,8 +396,7 @@ class XQRS:
         self.last_qrs_peak_num = None
 
     def _set_default_init_params(self):
-        """
-        Set initial running parameters using default values.
+        """Set initial running parameters using default values.
 
         The steady state equation is:
           `qrs_thr = 0.25*qrs_amp + 0.75*noise_amp`
@@ -439,9 +435,10 @@ class XQRS:
         self.learned_init_params = False
 
     def _is_qrs(self, peak_num, backsearch=False):
-        """
-        Check whether a peak is a QRS complex. It is classified as QRS
-        if it:
+        """Check whether a peak is a QRS complex.
+
+        It is classified as QRS if it:
+
         - Comes after the refractory period.
         - Passes QRS threshold.
         - Is not a T-wave (check it if the peak is close to the previous QRS).
@@ -474,9 +471,9 @@ class XQRS:
         return False
 
     def _update_qrs(self, peak_num, backsearch=False):
-        """
-        Update live QRS parameters. Adjust the recent R-R intervals and
-        QRS amplitudes, and the QRS threshold.
+        """Update live QRS parameters.
+
+        Adjust the recent R-R intervals and QRS amplitudes, and the QRS threshold.
 
         Parameters
         ----------
@@ -519,9 +516,10 @@ class XQRS:
         return
 
     def _is_twave(self, peak_num):
-        """
-        Check whether a segment is a T-wave. Compare the maximum gradient of
-        the filtered signal segment with that of the previous QRS segment.
+        """Check whether a segment is a T-wave.
+
+        Compare the maximum gradient of the filtered signal segment with that of the
+        previous QRS segment.
 
         Parameters
         ----------
@@ -558,8 +556,7 @@ class XQRS:
             return False
 
     def _update_noise(self, peak_num):
-        """
-        Update live noise parameters.
+        """Update live noise parameters.
 
         Parameters
         ----------
@@ -576,8 +573,7 @@ class XQRS:
         return
 
     def _require_backsearch(self):
-        """
-        Determine whether a backsearch should be performed on prior peaks.
+        """Determine whether a backsearch should be performed on prior peaks.
 
         Parameters
         ----------
@@ -602,9 +598,7 @@ class XQRS:
             return False
 
     def _backsearch(self):
-        """
-        Inspect previous peaks from the last detected QRS peak (if any),
-        using a lower threshold.
+        """Inspect peaks since the last detected QRS (if any) using a lower threshold.
 
         Parameters
         ----------
@@ -623,9 +617,7 @@ class XQRS:
                 # noise. It would have already been updated.
 
     def _run_detection(self):
-        """
-        Run the QRS detection after all signals and parameters have been
-        configured and set.
+        """Run the QRS detection after the signals and parameters have been set.
 
         Parameters
         ----------
@@ -666,8 +658,7 @@ class XQRS:
             print("QRS detection complete.")
 
     def detect(self, sampfrom=0, sampto="end", learn=True, verbose=True):
-        """
-        Detect QRS locations between two samples.
+        """Detect QRS locations between two samples.
 
         Parameters
         ----------
@@ -727,9 +718,9 @@ class XQRS:
 
 
 def xqrs_detect(sig, fs, sampfrom=0, sampto="end", conf=None, learn=True, verbose=True):
-    """
-    Run the 'xqrs' QRS detection algorithm on a signal. See the
-    docstring of the XQRS class for algorithm details.
+    """Run the 'xqrs' QRS detection algorithm on a signal.
+
+    See the docstring of the XQRS class for algorithm details.
 
     Parameters
     ----------
@@ -774,8 +765,7 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto="end", conf=None, learn=True, verbos
 
 
 def time_to_sample_number(seconds, frequency):
-    """
-    Convert time to sample number.
+    """Convert time to sample number.
 
     Parameters
     ----------
@@ -794,8 +784,7 @@ def time_to_sample_number(seconds, frequency):
 
 
 class GQRS:
-    """
-    GQRS detection class.
+    """GQRS detection class.
 
     Attributes
     ----------
@@ -804,8 +793,7 @@ class GQRS:
     """
 
     class Conf:
-        """
-        Initial signal configuration object for this QRS detector.
+        """Initial signal configuration object for this QRS detector.
 
         Attributes
         ----------
@@ -918,8 +906,7 @@ class GQRS:
             self.smt0 = 0 + self.smdt
 
     class Peak:
-        """
-        Holds all of the peak information for the QRS object.
+        """Holds all of the peak information for the QRS object.
 
         Attributes
         ----------
@@ -940,8 +927,7 @@ class GQRS:
             self.prev_peak = None
 
     class Annotation:
-        """
-        Holds all of the annotation information for the QRS object.
+        """Holds all of the annotation information for the QRS object.
 
         Attributes
         ----------
@@ -963,8 +949,7 @@ class GQRS:
             self.num = ann_num
 
     def putann(self, annotation):
-        """
-        Add an annotation to the object.
+        """Add an annotation to the object.
 
         Parameters
         ----------
@@ -979,8 +964,7 @@ class GQRS:
         self.annotations.append(copy.deepcopy(annotation))
 
     def detect(self, x, conf, adc_zero):
-        """
-        Run detection.
+        """Run detection.
 
         Parameters
         ----------
@@ -1053,8 +1037,7 @@ class GQRS:
         return self.annotations
 
     def rewind_gqrs(self):
-        """
-        Rewind the gqrs.
+        """Rewind the gqrs.
 
         Parameters
         ----------
@@ -1079,8 +1062,7 @@ class GQRS:
             p = p.next_peak
 
     def at(self, t):
-        """
-        Determine the value of the sample at the specified time.
+        """Determine the value of the sample at the specified time.
 
         Parameters
         ----------
@@ -1102,8 +1084,7 @@ class GQRS:
         return self.x[t]
 
     def smv_at(self, t):
-        """
-        Determine the SMV value of the sample at the specified time.
+        """Determine the SMV value of the sample at the specified time.
 
         Parameters
         ----------
@@ -1118,8 +1099,7 @@ class GQRS:
         return self.smv[t & (self.c._BUFLN - 1)]
 
     def smv_put(self, t, v):
-        """
-        Put the SMV value of the sample at the specified time.
+        """Put the SMV value of the sample at the specified time.
 
         Parameters
         ----------
@@ -1136,8 +1116,7 @@ class GQRS:
         self.smv[t & (self.c._BUFLN - 1)] = v
 
     def qfv_at(self, t):
-        """
-        Determine the QFV value of the sample at the specified time.
+        """Determine the QFV value of the sample at the specified time.
 
         Parameters
         ----------
@@ -1152,8 +1131,7 @@ class GQRS:
         return self.qfv[t & (self.c._BUFLN - 1)]
 
     def qfv_put(self, t, v):
-        """
-        Put the QFV value of the sample at the specified time.
+        """Put the QFV value of the sample at the specified time.
 
         Parameters
         ----------
@@ -1170,11 +1148,11 @@ class GQRS:
         self.qfv[t & (self.c._BUFLN - 1)] = v
 
     def sm(self, at_t):
-        """
-        Implements a trapezoidal low pass (smoothing) filter (with a gain
-        of 4*smdt) applied to input signal sig before the QRS matched
-        filter qf(). Before attempting to 'rewind' by more than BUFLN-smdt
-        samples, reset smt and smt0.
+        """Apply a trapezoidal low pass (smoothing) filter with a gain of 4*smdt.
+
+        The filter is applied to the input signal sig before the QRS matched filter
+        qf(). Before attempting to 'rewind' by more than BUFLN-smdt samples, reset smt
+        and smt0.
 
         Parameters
         ----------
@@ -1231,8 +1209,7 @@ class GQRS:
         return self.smv_at(at_t)
 
     def qf(self):
-        """
-        Evaluate the QRS detector filter for the next sample.
+        """Evaluate the QRS detector filter for the next sample.
 
         Parameters
         ----------
@@ -1261,8 +1238,7 @@ class GQRS:
         self.SIG_QRS.append(v0**2)
 
     def gqrs(self, from_sample, to_sample):
-        """
-        The GQRS algorithm.
+        """The GQRS algorithm.
 
         Parameters
         ----------
@@ -1297,8 +1273,7 @@ class GQRS:
         self.SIG_QRS = []
 
         def add_peak(peak_time, peak_amp, peak_type):
-            """
-            Add a peak.
+            """Add a peak.
 
             Parameters
             ----------
@@ -1322,19 +1297,17 @@ class GQRS:
             p.next_peak.amp = 0
 
         def peaktype(p):
-            """
-            The neighborhood consists of all other peaks within rrmin.
-            Normally, "most prominent" is equivalent to "largest in
-            amplitude", but this is not always true.  For example, consider
-            three consecutive peaks a, b, c such that a and b share a
-            neighborhood, b and c share a neighborhood, but a and c do not;
-            and suppose that amp(a) > amp(b) > amp(c).  In this case, if
+            """The neighborhood consists of all other peaks within rrmin.
+
+            Normally, "most prominent" is equivalent to "largest in amplitude", but this
+            is not always true.  For example, consider three consecutive peaks a, b, c
+            such that a and b share a neighborhood, b and c share a neighborhood, but a
+            and c do not; and suppose that amp(a) > amp(b) > amp(c).  In this case, if
             there are no other peaks, a is the most prominent peak in the (a, b)
-            neighborhood.  Since b is thus identified as a non-prominent peak,
-            c becomes the most prominent peak in the (b, c) neighborhood.
-            This is necessary to permit detection of low-amplitude beats that
-            closely precede or follow beats with large secondary peaks (as,
-            for example, in R-on-T PVCs).
+            neighborhood.  Since b is thus identified as a non-prominent peak, c becomes
+            the most prominent peak in the (b, c) neighborhood. This is necessary to
+            permit detection of low-amplitude beats that closely precede or follow beats
+            with large secondary peaks (as, for example, in R-on-T PVCs).
 
             Parameters
             ----------
@@ -1382,8 +1355,7 @@ class GQRS:
                 return p.type
 
         def find_missing(r, p):
-            """
-            Find the missing peaks.
+            """Find the missing peaks.
 
             Parameters
             ----------
@@ -1580,12 +1552,12 @@ def gqrs_detect(
     QRSa=750,
     QRSamin=130,
 ):
-    """
-    Detect QRS locations in a single channel ecg. Functionally, a direct port
-    of the GQRS algorithm from the original WFDB package. Accepts either a
-    physical signal, or a digital signal with known adc_gain and adc_zero. See
-    the notes below for a summary of the program. This algorithm is not being
-    developed/supported.
+    """Detect QRS locations in a single channel ecg.
+
+    Functionally, a direct port of the GQRS algorithm from the original WFDB package.
+    Accepts either a physical signal, or a digital signal with known adc_gain and
+    adc_zero. See the notes below for a summary of the program. This algorithm is not
+    being developed/supported.
 
     Parameters
     ----------
@@ -1663,7 +1635,8 @@ def gqrs_detect(
       non-qrs peaks as in the main detection phase, without saving the QRS
       locations. During this phase, running parameters of recent intervals
       and peak/qrs thresholds are adjusted.
-    - Run the detection:
+    - Run the detection::
+
         if a sample is bigger than its immediate neighbors and larger
         than the peak detection threshold, it is a peak.
             if it is further than RRmin from the previous QRS, and is a
@@ -1780,8 +1753,7 @@ def gqrs_detect(
 
 
 def ricker(points, a):
-    """
-    Return a Ricker wavelet, also known as the "Mexican hat wavelet".
+    """Return a Ricker wavelet, also known as the "Mexican hat wavelet".
 
     It models the function:
 

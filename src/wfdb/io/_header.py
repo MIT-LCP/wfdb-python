@@ -130,9 +130,9 @@ FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 
 class BaseHeaderMixin:
-    """
-    Mixin class with multi-segment header methods. Inherited by Record and
-    MultiRecord classes.
+    """Mixin class with multi-segment header methods.
+
+    Inherited by Record and MultiRecord classes.
 
     Attributes
     ----------
@@ -141,11 +141,10 @@ class BaseHeaderMixin:
     """
 
     def get_write_subset(self, spec_type):
-        """
-        Get a set of fields used to write the header; either 'record'
-        or 'signal' specification fields. Helper function for
-        `get_write_fields`. Gets the default required fields, the user
-        defined fields, and their dependencies.
+        """Get the fields used to write a 'record' or 'signal' header.
+
+        Helper function for `get_write_fields`. Gets the default required fields, the
+        user defined fields, and their dependencies.
 
         Parameters
         ----------
@@ -189,7 +188,8 @@ class BaseHeaderMixin:
             if self.comments is not None:
                 write_fields.append("comments")
 
-        # signal spec field. Need to return a potentially different list for each channel.
+        # signal spec field. Need to return a potentially different list for each
+        # channel.
         elif spec_type == "signal":
             # List of lists for each channel
             write_fields = []
@@ -203,7 +203,8 @@ class BaseHeaderMixin:
                         continue
 
                     item = getattr(self, field)
-                    # If the field is required by default or has been defined by the user
+                    # If the field is required by default or has been defined by the
+                    # user
                     if signal_specs.loc[field, "write_required"] or (
                         item is not None and item[ch] is not None
                     ):
@@ -235,9 +236,7 @@ class BaseHeaderMixin:
         return write_fields
 
     def preprocess_header(self, field):
-        """
-        Get and process the fields as needed before writing
-        """
+        """Get and process the fields as needed before writing"""
         original_field = getattr(self, field)
         string_field = str(original_field)
 
@@ -254,8 +253,7 @@ class BaseHeaderMixin:
 
 
 class HeaderMixin(BaseHeaderMixin):
-    """
-    Mixin class with single-segment header methods. Inherited by Record class.
+    """Mixin class with single-segment header methods. Inherited by Record class.
 
     Attributes
     ----------
@@ -264,9 +262,7 @@ class HeaderMixin(BaseHeaderMixin):
     """
 
     def set_defaults(self):
-        """
-        Set defaults for fields needed to write the header if they have
-        defaults.
+        """Set defaults for fields needed to write the header if they have defaults.
 
         Parameters
         ----------
@@ -295,9 +291,10 @@ class HeaderMixin(BaseHeaderMixin):
             self.set_default(f)
 
     def wrheader(self, write_dir="", expanded=True):
-        """
-        Write a WFDB header file. The signals are not used. Before
-        writing:
+        """Write a WFDB header file.
+
+        The signals are not used. Before writing:
+
         - Get the fields used to write the header for this instance.
         - Check each required field.
         - Check that the fields are cohesive with one another.
@@ -344,10 +341,10 @@ class HeaderMixin(BaseHeaderMixin):
         self.wr_header_file(rec_write_fields, sig_write_fields, write_dir)
 
     def get_write_fields(self):
-        """
-        Get the list of fields used to write the header, separating
-        record and signal specification fields. Returns the default
-        required fields, the user defined fields, and their dependencies.
+        """Get the header fields to write, split into record and signal fields.
+
+        Returns the default required fields, the user defined fields, and their
+        dependencies.
 
         Does NOT include `d_signal` or `e_d_signal`.
 
@@ -414,10 +411,9 @@ class HeaderMixin(BaseHeaderMixin):
             ]
 
     def set_default(self, field):
-        """
-        Set the object's attribute to its default value if it is missing
-        and there is a default. Not responsible for initializing the
-        attribute. That is done by the constructor.
+        """Set a missing attribute to its default value, if it has one.
+
+        Not responsible for initializing the attribute. That is done by the constructor.
 
         Parameters
         ----------
@@ -467,8 +463,7 @@ class HeaderMixin(BaseHeaderMixin):
             )
 
     def check_field_cohesion(self, rec_write_fields, sig_write_fields):
-        """
-        Check the cohesion of fields used to write the header.
+        """Check the cohesion of fields used to write the header.
 
         Parameters
         ----------
@@ -493,7 +488,8 @@ class HeaderMixin(BaseHeaderMixin):
                         "The length of field: " + f + " must match field n_sig."
                     )
 
-            # Each file_name must correspond to only one fmt, (and only one byte offset if defined).
+            # Each file_name must correspond to only one fmt, (and only one byte offset
+            # if defined).
             datfmts = {}
             for ch in range(self.n_sig):
                 if self.file_name[ch] not in datfmts:
@@ -519,9 +515,9 @@ class HeaderMixin(BaseHeaderMixin):
                             )
 
     def wr_header_file(self, rec_write_fields, sig_write_fields, write_dir):
-        """
-        Write a header file using the specified fields. Converts Record
-        attributes into appropriate WFDB format strings.
+        """Write a header file using the specified fields.
+
+        Converts Record attributes into appropriate WFDB format strings.
 
         Parameters
         ----------
@@ -580,9 +576,7 @@ class HeaderMixin(BaseHeaderMixin):
 
 
 class MultiHeaderMixin(BaseHeaderMixin):
-    """
-    Mixin class with multi-segment header methods. Inherited by
-    MultiRecord class.
+    """Mixin class with multi-segment header methods. Inherited by MultiRecord class.
 
     Attributes
     ----------
@@ -595,12 +589,12 @@ class MultiHeaderMixin(BaseHeaderMixin):
     segments: Sequence | None
 
     def set_defaults(self):
-        """
-        Set defaults for fields needed to write the header if they have
-        defaults. This is NOT called by rdheader. It is only called by the
-        gateway wrsamp for convenience. It is also not called by wrheader since
-        it is supposed to be an explicit function. Not responsible for
-        initializing the attributes. That is done by the constructor.
+        """Set defaults for fields needed to write the header if they have defaults.
+
+        This is NOT called by rdheader. It is only called by the gateway wrsamp for
+        convenience. It is also not called by wrheader since it is supposed to be an
+        explicit function. Not responsible for initializing the attributes. That is done
+        by the constructor.
 
         Parameters
         ----------
@@ -615,9 +609,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
             self.set_default(field)
 
     def wrheader(self, write_dir=""):
-        """
-        Write a multi-segment WFDB header file. The signals or segments are
-        not used. Before writing:
+        """Write a multi-segment WFDB header file.
+
+        The signals or segments are not used. Before writing:
+
         - Get the fields used to write the header for this instance.
         - Check each required field.
         - Check that the fields are cohesive with one another.
@@ -651,8 +646,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         self.wr_header_file(write_fields, write_dir)
 
     def get_write_fields(self):
-        """
-        Get the list of fields used to write the multi-segment header.
+        """Get the list of fields used to write the multi-segment header.
 
         Parameters
         ----------
@@ -677,8 +671,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         return write_fields
 
     def set_default(self, field):
-        """
-        Set a field to its default value if there is a default.
+        """Set a field to its default value if there is a default.
 
         Parameters
         ----------
@@ -701,8 +694,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             setattr(self, field, RECORD_SPECS[field].write_def)
 
     def check_field_cohesion(self):
-        """
-        Check the cohesion of fields used to write the header.
+        """Check the cohesion of fields used to write the header.
 
         Parameters
         ----------
@@ -727,8 +719,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             )
 
     def wr_header_file(self, write_fields, write_dir):
-        """
-        Write a header file using the specified fields.
+        """Write a header file using the specified fields.
 
         Parameters
         ----------
@@ -774,10 +765,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
         util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
 
     def get_sig_segments(self, sig_name=None):
-        """
-        Get a list of the segment numbers that contain a particular signal
-        (or a dictionary of segment numbers for a list of signals).
-        Only works if information about the segments has been read in.
+        """Get the numbers of the segments that contain a signal.
+
+        A list of signals returns a dictionary of segment numbers. Only works if
+        information about the segments has been read in.
 
         Parameters
         ----------
@@ -816,8 +807,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             raise TypeError("sig_name must be a string or a list of strings")
 
     def get_sig_name(self):
-        """
-        Get the signal names for the entire record.
+        """Get the signal names for the entire record.
 
         Parameters
         ----------
@@ -845,10 +835,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
         return sig_name
 
     def contained_ranges(self, sig_name: str) -> list[tuple[int, int]]:
-        """
-        Given a signal name, return the sample ranges that contain signal values,
-        relative to the start of the full record. Does not account for NaNs/missing
-        values.
+        """Return the sample ranges that contain values of a signal.
+
+        The ranges are relative to the start of the full record. Does not account for
+        NaNs/missing values.
 
         This function is mainly useful for variable layout records, but can also be
         used for fixed-layout records. Only works if the headers from the individual
@@ -862,7 +852,8 @@ class MultiHeaderMixin(BaseHeaderMixin):
         Returns
         -------
         ranges : List[Tuple[int, int]]
-            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            Tuple pairs which specify the sample ranges in which the signal is
+            contained.
             The second value of each tuple pair will be one beyond the signal index.
             eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
             selection using signal[0:1000].
@@ -914,10 +905,10 @@ class MultiHeaderMixin(BaseHeaderMixin):
         self,
         sig_names: Sequence[str],
     ) -> list[tuple[int, int]]:
-        """
-        Given a collection of signal name, return the sample ranges that
-        contain all of the specified signals, relative to the start of the
-        full record. Does not account for NaNs/missing values.
+        """Return the sample ranges that contain all of the given signals.
+
+        The ranges are relative to the start of the full record. Does not account for
+        NaNs/missing values.
 
         This function is mainly useful for variable layout records, but can also be
         used for fixed-layout records. Only works if the headers from the individual
@@ -931,7 +922,8 @@ class MultiHeaderMixin(BaseHeaderMixin):
         Returns
         -------
         ranges : List[Tuple[int, int]]
-            Tuple pairs which specify thee sample ranges in which the signal is contained.
+            Tuple pairs which specify the sample ranges in which the signal is
+            contained.
             The second value of each tuple pair will be one beyond the signal index.
             eg. A length 1000 signal would generate a tuple of: (0, 1000), allowing
             selection using signal[0:1000].
@@ -954,9 +946,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
 
 
 def wfdb_strptime(time_string: str) -> datetime.time:
-    """
-    Given a time string in an acceptable WFDB format, return
-    a datetime.time object.
+    """Given a time string in an acceptable WFDB format, return a datetime.time object.
 
     Valid formats: SS, MM:SS, HH:MM:SS, all with and without microsec.
 
@@ -987,8 +977,7 @@ def wfdb_strptime(time_string: str) -> datetime.time:
 
 
 def _parse_record_line(record_line: str) -> dict:
-    """
-    Extract fields from a record line string into a dictionary.
+    """Extract fields from a record line string into a dictionary.
 
     Parameters
     ----------
@@ -1055,8 +1044,7 @@ def _parse_record_line(record_line: str) -> dict:
 
 
 def _parse_signal_lines(signal_lines):
-    """
-    Extract fields from a list of signal line strings into a dictionary.
+    """Extract fields from a list of signal line strings into a dictionary.
 
     Parameters
     ----------
@@ -1123,8 +1111,7 @@ def _parse_signal_lines(signal_lines):
 
 
 def _read_segment_lines(segment_lines):
-    """
-    Extract fields from segment line strings into a dictionary.
+    """Extract fields from segment line strings into a dictionary.
 
     Parameters
     ----------

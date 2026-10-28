@@ -7,9 +7,7 @@ from wfdb import processing
 
 
 class TestProcessing:
-    """
-    Test processing functions
-    """
+    """Test processing functions"""
 
     def test_resample_single(self):
         sig, fields = wfdb.rdsamp("sample-data/100")
@@ -177,14 +175,10 @@ class TestProcessing:
 
 
 class TestQrs:
-    """
-    Testing QRS detectors
-    """
+    """Testing QRS detectors"""
 
     def test_xqrs(self):
-        """
-        Run XQRS detector on record 100 and compare to reference annotations
-        """
+        """Run XQRS detector on record 100 and compare to reference annotations"""
         sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
         ann_ref = wfdb.rdann("sample-data/100", "atr")
 
@@ -200,15 +194,10 @@ class TestQrs:
 
 
 class TestXQRSDetect:
-    """
-    Tests for the xqrs_detect convenience wrapper.
-    """
+    """Tests for the xqrs_detect convenience wrapper."""
 
     def test_xqrs_detect_forwards_learn(self):
-        """
-        xqrs_detect should forward its learn argument to XQRS.detect
-        rather than silently dropping it (issue #473).
-        """
+        """xqrs_detect forwards its learn argument to XQRS.detect (issue #473)."""
         sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
 
         def fake_detect(self, *args, **kwargs):

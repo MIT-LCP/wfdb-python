@@ -7,8 +7,7 @@ from wfdb.io.annotation import rdann, wrann
 
 
 def compute_hr(sig_len, qrs_inds, fs):
-    """
-    Compute instantaneous heart rate from peak indices.
+    """Compute instantaneous heart rate from peak indices.
 
     Parameters
     ----------
@@ -53,9 +52,7 @@ def calc_rr(
     qrs_units="samples",
     rr_units="samples",
 ):
-    """
-    Compute R-R intervals from QRS indices by extracting the time
-    differences.
+    """Compute R-R intervals from QRS indices by extracting the time differences.
 
     Parameters
     ----------
@@ -106,9 +103,9 @@ def calc_rr(
 
 
 def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units="samples"):
-    """
-    Compute mean heart rate in beats per minute, from a set of R-R
-    intervals. Returns 0 if rr is empty.
+    """Compute mean heart rate in beats per minute, from a set of R-R intervals.
+
+    Returns 0 if rr is empty.
 
     Parameters
     ----------
@@ -162,8 +159,7 @@ def ann2rr(
     format=None,
     as_array=True,
 ):
-    """
-    Obtain RR interval series from ECG annotation files.
+    """Obtain RR interval series from ECG annotation files.
 
     Parameters
     ----------
@@ -236,11 +232,11 @@ def ann2rr(
 
 
 def rr2ann(rr_array, record_name, extension, fs=250, as_time=False):
-    """
-    Creates an annotation file from the standard input, which should usually
-    be a Numpy array of intervals in the format produced by `ann2rr`. (For
-    exceptions, see the `as_time` parameter below.). An optional second column
-    may be provided which gives the respective annotation mnemonic.
+    """Create an annotation file from an array of intervals.
+
+    The intervals should usually be a Numpy array in the format produced by `ann2rr`.
+    (For exceptions, see the `as_time` parameter below.). An optional second column may
+    be provided which gives the respective annotation mnemonic.
 
     Parameters
     ----------

@@ -8,16 +8,15 @@ import wfdb
 
 
 class TestAnnotation:
-    """
-    Testing read and write of WFDB annotations, including Physionet
-    streaming.
+    """Testing read and write of WFDB annotations, including Physionet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
     """
 
     def test_1(self, source, temp_path):
-        """
+        """Read a standard annotation file.
+
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-1
         """
@@ -26,9 +25,10 @@ class TestAnnotation:
         # This is not the fault of the script. The annotation file specifies a
         # length 3
         annotation.aux_note[0] = "(N"
-        # aux_note field with a null written after '(N' which the script correctly picks up. I am just
-        # getting rid of the null in this unit test to compare with the regexp output below which has
-        # no null to detect in the output text file of rdann.
+        # aux_note field with a null written after '(N' which the script correctly picks
+        # up. I am just getting rid of the null in this unit test to compare with the
+        # regexp output below which has no null to detect in the output text file of
+        # rdann.
 
         # Target data from WFDB software package
         with open("tests/target-output/ann-1") as f:
@@ -100,8 +100,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_2(self, source, temp_path):
-        """
-        Annotation file with many aux_note strings.
+        """Annotation file with many aux_note strings.
 
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-2
@@ -176,8 +175,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_3(self, source, temp_path):
-        """
-        Annotation file with custom annotation types
+        """Annotation file with custom annotation types
 
         Target file created with:
             rdann -r sample-data/1003 -a atr > ann-3
@@ -253,8 +251,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_4(self, temp_path):
-        """
-        Read and write annotations with large time skips
+        """Read and write annotations with large time skips
 
         Annotation file created by:
             echo "xxxxxxxxx 10000000000 N 0 0 0" | wrann -r huge -a qrs
@@ -268,9 +265,7 @@ class TestAnnotation:
         assert annotation1 == annotation2
 
     def test_5(self, temp_path):
-        """
-        Write and read annotations with custom labels.
-        """
+        """Write and read annotations with custom labels."""
         ann_idx = np.array([1, 1000, 2000, 3000])
         ann_chan = np.array([3, 1, 2, 3])
         # write custom labels
