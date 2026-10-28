@@ -16,6 +16,12 @@ BUFFER_WHOLE_FILE = -2
 # Default buffer size for remote files.
 DEFAULT_BUFFER_SIZE = 32768
 
+# Timeouts in seconds (connect, read) for requests. The read timeout is the
+# maximum time to wait for the server to send data (not the total time of a
+# transfer). Without a timeout, a server that accepts a connection but does
+# not respond would block forever.
+TIMEOUT = (10, 60)
+
 # Logger for this module.
 _LOGGER = logging.getLogger(__name__)
 
@@ -159,7 +165,9 @@ class RangeTransfer:
             }
 
         session = _get_session()
-        self._response = session.request(method, url, headers=headers, stream=True)
+        self._response = session.request(
+            method, url, headers=headers, stream=True, timeout=TIMEOUT
+        )
         self._content_iter = self._response.iter_content(4096)
         try:
             self._parse_headers(method, self._response)

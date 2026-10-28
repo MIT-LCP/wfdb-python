@@ -1,5 +1,3 @@
-import unittest
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -7,69 +5,48 @@ import wfdb
 from wfdb.plot import plot
 
 
-class TestPlotWfdb(unittest.TestCase):
+def assert_axes_match_signal(axes, signal, t_divisor=1):
+    """
+    Check that axis limits are reasonable for plotting a signal array.
+
+    Parameters
+    ----------
+    axes : matplotlib.axes.Axes
+        An Axes object.
+    signal : numpy.ndarray
+        A one-dimensional array of sample values.
+    t_divisor : float, optional
+        The intended plotting resolution (number of samples of `signal`
+        per unit of the X axis.)
+
+    """
+    xmin, xmax = axes.get_xlim()
+    tmin = 0
+    tmax = (len(signal) - 1) / t_divisor
+    # The range from tmin to tmax should fit within the plot.
+    assert xmin <= tmin, f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]"
+    assert xmax >= tmax, f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]"
+    # The padding on left and right sides should be approximately equal.
+    assert abs(xmin - tmin - (tmax - xmax)) <= (tmax - tmin) / 10 + 1 / t_divisor, (
+        f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]"
+    )
+
+    ymin, ymax = axes.get_ylim()
+    vmin = np.nanmin(signal)
+    vmax = np.nanmax(signal)
+    # The range from vmin to vmax should fit within the plot.
+    assert ymin <= vmin, f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]"
+    assert ymax >= vmax, f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]"
+    # The padding on top and bottom should be approximately equal.
+    assert abs(ymin - vmin - (vmax - ymax)) <= (vmax - vmin) / 10, (
+        f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]"
+    )
+
+
+class TestPlotWfdb:
     """
     Tests for the wfdb.plot_wfdb function
     """
-
-    def assertAxesMatchSignal(self, axes, signal, t_divisor=1):
-        """
-        Check that axis limits are reasonable for plotting a signal array.
-
-        Parameters
-        ----------
-        axes : matplotlib.axes.Axes
-            An Axes object.
-        signal : numpy.ndarray
-            A one-dimensional array of sample values.
-        t_divisor : float, optional
-            The intended plotting resolution (number of samples of `signal`
-            per unit of the X axis.)
-
-        """
-        xmin, xmax = axes.get_xlim()
-        tmin = 0
-        tmax = (len(signal) - 1) / t_divisor
-        # The range from tmin to tmax should fit within the plot.
-        self.assertLessEqual(
-            xmin,
-            tmin,
-            msg=f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]",
-        )
-        self.assertGreaterEqual(
-            xmax,
-            tmax,
-            msg=f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]",
-        )
-        # The padding on left and right sides should be approximately equal.
-        self.assertAlmostEqual(
-            xmin - tmin,
-            tmax - xmax,
-            delta=(tmax - tmin) / 10 + 1 / t_divisor,
-            msg=f"X range is [{xmin}, {xmax}]; expected [{tmin}, {tmax}]",
-        )
-
-        ymin, ymax = axes.get_ylim()
-        vmin = np.nanmin(signal)
-        vmax = np.nanmax(signal)
-        # The range from vmin to vmax should fit within the plot.
-        self.assertLessEqual(
-            ymin,
-            vmin,
-            msg=f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]",
-        )
-        self.assertGreaterEqual(
-            ymax,
-            vmax,
-            msg=f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]",
-        )
-        # The padding on top and bottom should be approximately equal.
-        self.assertAlmostEqual(
-            ymin - vmin,
-            vmax - ymax,
-            delta=(vmax - vmin) / 10,
-            msg=f"Y range is [{ymin}, {ymax}]; expected [{vmin}, {vmax}]",
-        )
 
     def test_physical_smooth(self):
         """
@@ -81,7 +58,7 @@ class TestPlotWfdb(unittest.TestCase):
             physical=True,
             smooth_frames=True,
         )
-        self.assertIsNotNone(record.p_signal)
+        assert record.p_signal is not None
 
         annotation = wfdb.rdann("sample-data/100", "atr", sampto=1000)
 
@@ -94,9 +71,9 @@ class TestPlotWfdb(unittest.TestCase):
         )
         plt.close(fig)
 
-        self.assertEqual(len(fig.axes), record.n_sig)
+        assert len(fig.axes) == record.n_sig
         for ch in range(record.n_sig):
-            self.assertAxesMatchSignal(fig.axes[ch], record.p_signal[:, ch])
+            assert_axes_match_signal(fig.axes[ch], record.p_signal[:, ch])
 
     def test_digital_smooth(self):
         """
@@ -108,14 +85,14 @@ class TestPlotWfdb(unittest.TestCase):
             physical=False,
             smooth_frames=True,
         )
-        self.assertIsNotNone(record.d_signal)
+        assert record.d_signal is not None
 
         fig = wfdb.plot_wfdb(record, time_units="seconds", return_fig=True)
         plt.close(fig)
 
-        self.assertEqual(len(fig.axes), record.n_sig)
+        assert len(fig.axes) == record.n_sig
         for ch in range(record.n_sig):
-            self.assertAxesMatchSignal(fig.axes[ch], record.d_signal[:, ch], record.fs)
+            assert_axes_match_signal(fig.axes[ch], record.d_signal[:, ch], record.fs)
 
     def test_physical_multifrequency(self):
         """
@@ -127,14 +104,14 @@ class TestPlotWfdb(unittest.TestCase):
             physical=True,
             smooth_frames=False,
         )
-        self.assertIsNotNone(record.e_p_signal)
+        assert record.e_p_signal is not None
 
         fig = wfdb.plot_wfdb(record, time_units="seconds", return_fig=True)
         plt.close(fig)
 
-        self.assertEqual(len(fig.axes), record.n_sig)
+        assert len(fig.axes) == record.n_sig
         for ch in range(record.n_sig):
-            self.assertAxesMatchSignal(
+            assert_axes_match_signal(
                 fig.axes[ch],
                 record.e_p_signal[ch],
                 record.fs * record.samps_per_frame[ch],
@@ -150,21 +127,21 @@ class TestPlotWfdb(unittest.TestCase):
             physical=False,
             smooth_frames=False,
         )
-        self.assertIsNotNone(record.e_d_signal)
+        assert record.e_d_signal is not None
 
         fig = wfdb.plot_wfdb(record, time_units="seconds", return_fig=True)
         plt.close(fig)
 
-        self.assertEqual(len(fig.axes), record.n_sig)
+        assert len(fig.axes) == record.n_sig
         for ch in range(record.n_sig):
-            self.assertAxesMatchSignal(
+            assert_axes_match_signal(
                 fig.axes[ch],
                 record.e_d_signal[ch],
                 record.fs * record.samps_per_frame[ch],
             )
 
 
-class TestPlotInternal(unittest.TestCase):
+class TestPlotInternal:
     """
     Unit tests for internal wfdb.plot.plot functions
     """
@@ -202,7 +179,3 @@ class TestPlotInternal(unittest.TestCase):
         assert fig is not None
         assert axes is not None
         assert len(axes) == n_subplots
-
-
-if __name__ == "__main__":
-    unittest.main()

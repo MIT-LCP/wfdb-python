@@ -1,15 +1,30 @@
 import gzip
 import http.server
 import threading
-import unittest
+import time
+
+import pytest
+import requests
 
 import wfdb.io._url
 
 
-class TestNetFiles(unittest.TestCase):
+class TestNetFiles:
     """
     Test accessing remote files.
     """
+
+    def test_timeout(self, monkeypatch):
+        """
+        Test that a server that does not respond causes a timeout error.
+
+        Without a timeout, the request would wait for the server forever.
+        """
+        monkeypatch.setattr(wfdb.io._url, "TIMEOUT", (5, 0.2))
+        with DummyHTTPServer({"/foo.txt": b"foo"}, delay=1.5) as server:
+            with pytest.raises(requests.exceptions.Timeout):
+                with wfdb.io._url.openurl(server.url("/foo.txt"), "rb") as f:
+                    f.read()
 
     def test_requests(self):
         """
@@ -78,10 +93,10 @@ class TestNetFiles(unittest.TestCase):
         """
         # read(-1), readable(), seekable()
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
-            self.assertTrue(tf.readable())
-            self.assertTrue(tf.seekable())
-            self.assertEqual(tf.read(), content)
-            self.assertEqual(tf.read(), "")
+            assert tf.readable()
+            assert tf.seekable()
+            assert tf.read() == content
+            assert tf.read() == ""
 
         # read(10)
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
@@ -91,7 +106,7 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) < 10:
                     break
-            self.assertEqual(result, content)
+            assert result == content
 
         # readline(), seek(), tell()
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
@@ -104,7 +119,7 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
+            assert result == content
 
     def _test_binary(self, url, content, buffering):
         """
@@ -126,11 +141,11 @@ class TestNetFiles(unittest.TestCase):
         """
         # read(-1), readable(), seekable()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
-            self.assertTrue(bf.readable())
-            self.assertTrue(bf.seekable())
-            self.assertEqual(bf.read(), content)
-            self.assertEqual(bf.read(), b"")
-            self.assertEqual(bf.tell(), len(content))
+            assert bf.readable()
+            assert bf.seekable()
+            assert bf.read() == content
+            assert bf.read() == b""
+            assert bf.tell() == len(content)
 
         # read(10)
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -140,8 +155,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) < 10:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readline()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -151,13 +166,13 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # read1(10), seek(), tell()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
             bf.seek(0, 2)
-            self.assertEqual(bf.tell(), len(content))
+            assert bf.tell() == len(content)
             bf.seek(0)
             result = b""
             while True:
@@ -168,8 +183,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readinto(bytearray(10))
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -180,8 +195,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk[:count]
                 if count < 10:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readinto1(bytearray(10))
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -192,11 +207,11 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk[:count]
                 if count == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
 
-class TestRemoteFLACFiles(unittest.TestCase):
+class TestRemoteFLACFiles:
     """
     Test reading FLAC files over HTTP.
     """
@@ -233,8 +248,8 @@ class TestRemoteFLACFiles(unittest.TestCase):
 
         # Read the file using standard file I/O
         sf1 = soundfile.SoundFile(data_file_path)
-        self.assertEqual(sf1.format, expected_format)
-        self.assertEqual(sf1.subtype, expected_subtype)
+        assert sf1.format == expected_format
+        assert sf1.subtype == expected_subtype
         data1 = sf1.read()
 
         # Read the file using HTTP
@@ -244,8 +259,8 @@ class TestRemoteFLACFiles(unittest.TestCase):
             url = server.url("/foo.dat")
             file2 = wfdb.io._url.openurl(url, "rb")
             sf2 = soundfile.SoundFile(file2)
-            self.assertEqual(sf2.format, expected_format)
-            self.assertEqual(sf2.subtype, expected_subtype)
+            assert sf2.format == expected_format
+            assert sf2.subtype == expected_subtype
             data2 = sf2.read()
 
         # Check that results are equal
@@ -274,6 +289,9 @@ class DummyHTTPServer(http.server.HTTPServer):
         True if the server should return partial responses (using 206
         Partial Content and "Content-Range") when the client requests
         them (using "Range").
+    delay : float, optional
+        Number of seconds that the server waits before it responds to a
+        request (to simulate a server that does not respond).
     server_address : tuple (str, int), optional
         A tuple specifying the address and port number where the
         server should listen for connections.  If the port is 0, an
@@ -287,12 +305,14 @@ class DummyHTTPServer(http.server.HTTPServer):
         file_content,
         allow_gzip=True,
         allow_range=True,
+        delay=0,
         server_address=("127.0.0.1", 0),
     ):
         super().__init__(server_address, DummyHTTPRequestHandler)
         self.file_content = file_content
         self.allow_gzip = allow_gzip
         self.allow_range = allow_range
+        self.delay = delay
 
     def url(self, path="/"):
         """
@@ -343,6 +363,7 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
         pass
 
     def send_head(self):
+        time.sleep(self.server.delay)
         content = self.server.file_content.get(self.path)
         if content is None:
             self.send_error(404)
@@ -387,7 +408,3 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header(h, v)
         self.end_headers()
         return content
-
-
-if __name__ == "__main__":
-    unittest.main()
