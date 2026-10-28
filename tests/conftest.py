@@ -1,12 +1,27 @@
 import pytest
 import requests
 
+from wfdb.io._url import NetFileError
+
 # Errors that indicate that PhysioNet is unreachable or too slow (and not a test failure)
 NETWORK_ERRORS = (
     requests.exceptions.ConnectionError,
     requests.exceptions.ChunkedEncodingError,
     requests.exceptions.Timeout,
 )
+
+
+def is_network_error(exc):
+    """Whether an exception means that PhysioNet is not available right now."""
+    if isinstance(exc, NETWORK_ERRORS):
+        return True
+    # Server errors (for example 502 Bad Gateway) and rate limiting, but not errors
+    # like 404 or 403 which indicate a real problem
+    return (
+        isinstance(exc, NetFileError)
+        and exc.status_code is not None
+        and (exc.status_code >= 500 or exc.status_code == 429)
+    )
 
 
 @pytest.fixture(scope="class")
@@ -29,7 +44,7 @@ def pytest_runtest_makereport(item, call):
         call.when == "call"
         and report.failed
         and call.excinfo is not None
-        and call.excinfo.errisinstance(NETWORK_ERRORS)
+        and is_network_error(call.excinfo.value)
         and item.get_closest_marker("network")
     ):
         report.outcome = "skipped"
