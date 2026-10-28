@@ -19,5 +19,5 @@ jobs:
         run: uv python install 3.11
       - name: Check style
         run: |
-          uv run --extra dev ruff format --check --diff .
-          uv run --extra dev ruff check .
+          uv run ruff format --check --diff .
+          uv run ruff check .

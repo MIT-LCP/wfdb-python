@@ -29,7 +29,7 @@ jobs:
       - name: Run tests
         env:
           MPLBACKEND: Agg
-        run: uv run --python ${{ matrix.python-version }} --extra dev pytest
+        run: uv run --python ${{ matrix.python-version }} pytest
 
   # Make sure the lower bounds of the direct dependencies are actually usable
   test-minimum:
@@ -46,4 +46,4 @@ jobs:
       - name: Run tests
         env:
           MPLBACKEND: Agg
-        run: uv run --python 3.11 --resolution lowest-direct --extra dev pytest
+        run: uv run --python 3.11 --resolution lowest-direct pytest

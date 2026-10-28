@@ -4,3 +4,14 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    # Bump exact pins and upper bounds, but leave lower bounds alone
+    versioning-strategy: increase-if-necessary
+    cooldown:
+      default-days: 7
