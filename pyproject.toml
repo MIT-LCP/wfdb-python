@@ -37,9 +37,7 @@ dev = [
 docs = [
     "fsspec >= 2023.10.0",
     "numpydoc == 1.7.0",
-    "readthedocs-sphinx-search == 0.3.2",
     "sphinx == 7.0.0",
-    "sphinx-rtd-theme == 3.0.0",
 ]
 
 [tool.ruff]
