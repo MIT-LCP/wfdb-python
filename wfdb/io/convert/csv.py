@@ -35,9 +35,9 @@ def csv_to_wfdb(
     verbose=False,
     write_dir="",
 ):
-    """
-    Read a WFDB header file and return either a `Record` object with the
-    record descriptors as attributes or write a record and header file.
+    """Read a CSV file and return a `Record` object or write a record.
+
+    A record and header file are written if `write_dir` is set.
 
     Parameters
     ----------
@@ -479,9 +479,9 @@ def csv2ann(
     delimiter=",",
     verbose=False,
 ):
-    """
-    Read a CSV/TSV/etc. file and return either an `Annotation` object with the
-    annotation descriptors as attributes or write an annotation file.
+    """Read a CSV file and return an `Annotation` object or write a file.
+
+    The annotation descriptors are the attributes of the `Annotation` object.
 
     Parameters
     ----------

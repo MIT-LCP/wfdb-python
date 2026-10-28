@@ -110,8 +110,7 @@ INVALID_SAMPLE_VALUE = {
 
 
 class SignalMixin:
-    """
-    Mixin class with signal methods. Inherited by Record class.
+    """Mixin class with signal methods. Inherited by Record class.
 
     Attributes
     ----------
@@ -121,9 +120,9 @@ class SignalMixin:
     """
 
     def wr_dats(self, expanded, write_dir):
-        """
-        Write all dat files associated with a record
-        expanded=True to use e_d_signal instead of d_signal.
+        """Write all dat files of a record.
+
+        Use expanded=True to use e_d_signal instead of d_signal.
 
         Parameters
         ----------
@@ -163,9 +162,7 @@ class SignalMixin:
         self.wr_dat_files(expanded=expanded, write_dir=write_dir)
 
     def check_sig_cohesion(self, write_fields, expanded):
-        """
-        Check the cohesion of the d_signal/e_d_signal field with the other
-        fields used to write the record.
+        """Check the cohesion of d_signal/e_d_signal with the other fields.
 
         Parameters
         ----------
@@ -295,9 +292,7 @@ class SignalMixin:
                         )
 
     def set_p_features(self, do_dac=False, expanded=False):
-        """
-        Use properties of the physical signal field to set the following
-        features: n_sig, sig_len.
+        """Set n_sig and sig_len using properties of the physical signal.
 
         Parameters
         ----------
@@ -357,10 +352,10 @@ class SignalMixin:
             self.n_sig = self.p_signal.shape[1]
 
     def set_d_features(self, do_adc=False, single_fmt=True, expanded=False):
-        """
-        Use properties of the digital signal field to set the following
-        features: n_sig, sig_len, init_value, checksum, and possibly
-        *(fmt, adc_gain, baseline).
+        """Set several features using properties of the digital signal field.
+
+        The features are n_sig, sig_len, init_value, checksum, and possibly (fmt,
+        adc_gain, baseline).
 
         Parameters
         ----------
@@ -487,9 +482,10 @@ class SignalMixin:
             self.checksum = self.calc_checksum()
 
     def adc(self, expanded=False, inplace=False):
-        """
-        Performs analogue to digital conversion of the physical signal stored
-        in p_signal if expanded is False, or e_p_signal if expanded is True.
+        """Perform analogue to digital conversion of the physical signal.
+
+        The signal is stored in p_signal if expanded is False, or in e_p_signal if
+        expanded is True.
 
         The p_signal/e_p_signal, fmt, gain, and baseline fields must all be
         valid.
@@ -587,10 +583,10 @@ class SignalMixin:
                 )
 
     def dac(self, expanded=False, return_res=64, inplace=False):
-        """
-        Performs the digital to analogue conversion of the signal stored
-        in `d_signal` if expanded is False, or `e_d_signal` if expanded
-        is True.
+        """Perform the digital to analogue conversion of the signal.
+
+        The signal is stored in `d_signal` if expanded is False, or in `e_d_signal` if
+        expanded is True.
 
         The d_signal/e_d_signal, fmt, gain, and baseline fields must all be
         valid.
@@ -697,8 +693,7 @@ class SignalMixin:
             return p_signal
 
     def calc_adc_gain_baseline(self, ch, minvals, maxvals):
-        """
-        Compute adc_gain and baseline parameters for a given channel.
+        """Compute adc_gain and baseline parameters for a given channel.
 
         Parameters
         ----------
@@ -798,9 +793,9 @@ class SignalMixin:
         return adc_gain, baseline
 
     def calc_adc_params(self):
-        """
-        Compute appropriate adc_gain and baseline parameters for adc
-        conversion, given the physical signal and the fmts.
+        """Compute adc_gain and baseline parameters for adc conversion.
+
+        The parameters are computed from the physical signal and the fmts.
 
         Parameters
         ----------
@@ -854,8 +849,7 @@ class SignalMixin:
         return (adc_gains, baselines)
 
     def convert_dtype(self, physical, return_res, smooth_frames):
-        """
-        Convert the dtype of the signal.
+        """Convert the dtype of the signal.
 
         Parameters
         ----------
@@ -921,8 +915,7 @@ class SignalMixin:
         return
 
     def calc_checksum(self, expanded=False):
-        """
-        Calculate the checksum(s) of the input signal.
+        """Calculate the checksum(s) of the input signal.
 
         Parameters
         ----------
@@ -944,8 +937,7 @@ class SignalMixin:
         return cs
 
     def wr_dat_files(self, expanded=False, write_dir=""):
-        """
-        Write each of the specified dat files.
+        """Write each of the specified dat files.
 
         Parameters
         ----------
@@ -1001,9 +993,7 @@ class SignalMixin:
                 )
 
     def smooth_frames(self, sigtype="physical"):
-        """
-        Convert expanded signals with different samples/frame into
-        a uniform numpy array.
+        """Convert expanded signals with varying samples/frame to a uniform array.
 
         Parameters
         ----------
@@ -1105,9 +1095,7 @@ def _rd_segment(
     sig_data=None,
     return_res=64,
 ):
-    """
-    Read the digital samples from a single segment record's associated
-    dat file(s).
+    """Read the digital samples from a single segment record's associated dat file(s).
 
     Parameters
     ----------
@@ -1275,8 +1263,7 @@ def _rd_dat_signals(
     no_file=False,
     sig_data=None,
 ):
-    """
-    Read all signals from a WFDB dat file.
+    """Read all signals from a WFDB dat file.
 
     Parameters
     ----------
@@ -1468,9 +1455,9 @@ def _rd_dat_signals(
 def _dat_read_params(
     fmt, sig_len, byte_offset, skew, tsamps_per_frame, sampfrom, sampto
 ):
-    """
-    Calculate the parameters used to read and process a dat file, given
-    its layout, and the desired sample range.
+    """Calculate the parameters to read and process a dat file.
+
+    The parameters depend on the file layout and the desired sample range.
 
     Parameters
     ----------
@@ -1566,9 +1553,9 @@ def _dat_read_params(
 
 
 def _required_byte_num(mode, fmt, n_samp):
-    """
-    Determine how many signal bytes are needed to read or write a
-    number of desired samples from a dat file.
+    """Determine how many signal bytes to read or write for some samples.
+
+    This applies to a dat file.
 
     Parameters
     ----------
@@ -1615,9 +1602,7 @@ def _required_byte_num(mode, fmt, n_samp):
 
 
 def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
-    """
-    Read data from a dat file, either local or remote, into a 1d numpy
-    array.
+    """Read data from a dat file, either local or remote, into a 1d numpy array.
 
     This is the lowest level dat reading function (along with
     `_stream_dat` which this function may call), and is called by
@@ -1697,8 +1682,7 @@ def _rd_dat_file(file_name, dir_name, pn_dir, fmt, start_byte, n_samp):
 
 
 def _blocks_to_samples(sig_data, n_samp, fmt):
-    """
-    Convert uint8 blocks into signal samples for unaligned dat formats.
+    """Convert uint8 blocks into signal samples for unaligned dat formats.
 
     Parameters
     ----------
@@ -1823,8 +1807,7 @@ def _rd_compressed_file(
     start_frame,
     end_frame,
 ):
-    """
-    Read data from a compressed file into a 1D numpy array.
+    """Read data from a compressed file into a 1D numpy array.
 
     Parameters
     ----------
@@ -1986,8 +1969,7 @@ def _rd_compressed_file(
 
 
 def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None):
-    """
-    Skew the signal, insert nans, and shave off end of array if needed.
+    """Skew the signal, insert nans, and shave off end of array if needed.
 
     Parameters
     ----------
@@ -2053,8 +2035,7 @@ def _skew_sig(sig, skew, n_sig, read_len, fmt, nan_replace, samps_per_frame=None
 
 
 def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
-    """
-    Integrity check of a signal's shape after reading.
+    """Integrity check of a signal's shape after reading.
 
     Parameters
     ----------
@@ -2088,8 +2069,7 @@ def _check_sig_dims(sig, read_len, n_sig, samps_per_frame):
 
 
 def _digi_bounds(fmt):
-    """
-    Return min and max digital values for each format type.
+    """Return min and max digital values for each format type.
 
     Parmeters
     ---------
@@ -2108,8 +2088,7 @@ def _digi_bounds(fmt):
 
 
 def _digi_nan(fmt):
-    """
-    Return the WFDB digital value used to store NAN for the format type.
+    """Return the WFDB digital value used to store NAN for the format type.
 
     Parmeters
     ---------
@@ -2128,9 +2107,9 @@ def _digi_nan(fmt):
 
 
 def est_res(signals):
-    """
-    Estimate the resolution of each signal in a multi-channel signal in
-    bits. Maximum of 32 bits.
+    """Estimate the resolution of each signal in a multi-channel signal in bits.
+
+    Maximum of 32 bits.
 
     Parameters
     ----------
@@ -2184,9 +2163,7 @@ def est_res(signals):
 
 
 def _wfdb_fmt(bit_res, single_fmt=True):
-    """
-    Return the most suitable WFDB format(s) to use given signal
-    resolutions.
+    """Return the most suitable WFDB format(s) to use given signal resolutions.
 
     Parameters
     ----------
@@ -2221,9 +2198,9 @@ def _wfdb_fmt(bit_res, single_fmt=True):
 
 
 def _fmt_res(fmt, max_res=False):
-    """
-    Return the resolution of the WFDB dat format(s). Uses the BIT_RES
-    dictionary, but accepts lists and other options.
+    """Return the resolution of the WFDB dat format(s).
+
+    Uses the BIT_RES dictionary, but accepts lists and other options.
 
     Parameters
     ----------
@@ -2252,9 +2229,7 @@ def _fmt_res(fmt, max_res=False):
 
 
 def _np_dtype(bit_res, discrete):
-    """
-    Given the bit resolution of a signal, return the minimum numpy dtype
-    used to store it.
+    """Return the minimum numpy dtype that can store a bit resolution.
 
     Parameters
     ----------
@@ -2293,9 +2268,7 @@ def wr_dat_file(
     samps_per_frame=None,
     write_dir="",
 ):
-    """
-    Write a dat file. All bytes are written one at a time to avoid
-    endianness issues.
+    """Write a dat file. All bytes are written one at a time to avoid endianness issues.
 
     Parameters
     ----------
@@ -2523,8 +2496,7 @@ def wr_dat_file(
 
 
 def describe_list_indices(full_list):
-    """
-    Describe the indices of the given list.
+    """Describe the indices of the given list.
 
     Parameters
     ----------
@@ -2559,8 +2531,7 @@ def describe_list_indices(full_list):
 def _infer_sig_len(
     file_name, fmt, tsamps_per_frame, byte_offset, dir_name, pn_dir=None
 ):
-    """
-    Infer the length of a signal from a dat file.
+    """Infer the length of a signal from a dat file.
 
     Parameters
     ----------

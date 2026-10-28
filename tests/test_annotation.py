@@ -8,16 +8,15 @@ import wfdb
 
 
 class TestAnnotation:
-    """
-    Testing read and write of WFDB annotations, including Physionet
-    streaming.
+    """Testing read and write of WFDB annotations, including Physionet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
     """
 
     def test_1(self, source, temp_path):
-        """
+        """Read a standard annotation file.
+
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-1
         """
@@ -101,8 +100,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_2(self, source, temp_path):
-        """
-        Annotation file with many aux_note strings.
+        """Annotation file with many aux_note strings.
 
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-2
@@ -177,8 +175,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_3(self, source, temp_path):
-        """
-        Annotation file with custom annotation types
+        """Annotation file with custom annotation types
 
         Target file created with:
             rdann -r sample-data/1003 -a atr > ann-3
@@ -254,8 +251,7 @@ class TestAnnotation:
         assert annotation.__eq__(write_annotation)
 
     def test_4(self, temp_path):
-        """
-        Read and write annotations with large time skips
+        """Read and write annotations with large time skips
 
         Annotation file created by:
             echo "xxxxxxxxx 10000000000 N 0 0 0" | wrann -r huge -a qrs
@@ -269,9 +265,7 @@ class TestAnnotation:
         assert annotation1 == annotation2
 
     def test_5(self, temp_path):
-        """
-        Write and read annotations with custom labels.
-        """
+        """Write and read annotations with custom labels."""
         ann_idx = np.array([1, 1000, 2000, 3000])
         ann_chan = np.array([3, 1, 2, 3])
         # write custom labels

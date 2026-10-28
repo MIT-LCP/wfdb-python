@@ -17,9 +17,9 @@ def wfdb_to_wav(
     output_filename="",
     write_header=False,
 ):
-    """
-    This program converts a WFDB record into .wav format (format 16, multiplexed
-    signals, with embedded header information).
+    """Convert a WFDB record to .wav format.
+
+    The .wav file has format 16, multiplexed signals, and embedded header information.
 
     Parameters
     ----------
@@ -140,10 +140,11 @@ def wfdb_to_wav(
 
 
 def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
-    """
-    Convert .wav (format 16, multiplexed signals, with embedded header
-    information) formatted files to WFDB format. See here for more details about
-    the formatting of a .wav file: http://soundfile.sapp.org/doc/WaveFormat/.
+    """Convert a .wav file to WFDB format.
+
+    The .wav file has format 16, multiplexed signals, and embedded header information.
+    See here for more details about the formatting of a .wav file:
+    http://soundfile.sapp.org/doc/WaveFormat/.
 
     This process may not work with some .wav files that are encoded using
     variants of the original .wav format that are not WFDB-compatible. In

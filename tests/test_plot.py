@@ -6,8 +6,7 @@ from wfdb.plot import plot
 
 
 def assert_axes_match_signal(axes, signal, t_divisor=1):
-    """
-    Check that axis limits are reasonable for plotting a signal array.
+    """Check that axis limits are reasonable for plotting a signal array.
 
     Parameters
     ----------
@@ -44,14 +43,10 @@ def assert_axes_match_signal(axes, signal, t_divisor=1):
 
 
 class TestPlotWfdb:
-    """
-    Tests for the wfdb.plot_wfdb function
-    """
+    """Tests for the wfdb.plot_wfdb function"""
 
     def test_physical_smooth(self):
-        """
-        Plot a record with physical, single-frequency data
-        """
+        """Plot a record with physical, single-frequency data"""
         record = wfdb.rdrecord(
             "sample-data/100",
             sampto=1000,
@@ -76,9 +71,7 @@ class TestPlotWfdb:
             assert_axes_match_signal(fig.axes[ch], record.p_signal[:, ch])
 
     def test_digital_smooth(self):
-        """
-        Plot a record with digital, single-frequency data
-        """
+        """Plot a record with digital, single-frequency data"""
         record = wfdb.rdrecord(
             "sample-data/drive02",
             sampto=1000,
@@ -95,9 +88,7 @@ class TestPlotWfdb:
             assert_axes_match_signal(fig.axes[ch], record.d_signal[:, ch], record.fs)
 
     def test_physical_multifrequency(self):
-        """
-        Plot a record with physical, multi-frequency data
-        """
+        """Plot a record with physical, multi-frequency data"""
         record = wfdb.rdrecord(
             "sample-data/wave_4",
             sampto=10,
@@ -118,9 +109,7 @@ class TestPlotWfdb:
             )
 
     def test_digital_multifrequency(self):
-        """
-        Plot a record with digital, multi-frequency data
-        """
+        """Plot a record with digital, multi-frequency data"""
         record = wfdb.rdrecord(
             "sample-data/multi-segment/041s/041s",
             sampto=1000,
@@ -142,9 +131,7 @@ class TestPlotWfdb:
 
 
 class TestPlotInternal:
-    """
-    Unit tests for internal wfdb.plot.plot functions
-    """
+    """Unit tests for internal wfdb.plot.plot functions"""
 
     def test_get_plot_dims(self):
         sampfrom = 0

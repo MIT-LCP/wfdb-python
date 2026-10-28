@@ -2,9 +2,7 @@ import wfdb
 
 
 class TestMultiRecordRanges:
-    """
-    Test logic that deduces relevant segments/ranges for given signals.
-    """
+    """Test logic that deduces relevant segments/ranges for given signals."""
 
     def test_contained_ranges_simple_cases(self):
         record = wfdb.MultiRecord(

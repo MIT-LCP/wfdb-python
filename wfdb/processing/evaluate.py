@@ -8,9 +8,9 @@ from wfdb.io.record import rdsamp
 
 
 class Comparitor:
-    """
-    The class to implement and hold comparisons between two sets of
-    annotations. See methods `compare`, `print_summary` and `plot`.
+    """The class to implement and hold comparisons between two sets of annotations.
+
+    See methods `compare`, `print_summary` and `plot`.
 
     Attributes
     ----------
@@ -65,9 +65,7 @@ class Comparitor:
         # TODO: rdann return annotations.where
 
     def _calc_stats(self):
-        """
-        Calculate performance statistics after the two sets of annotations
-        are compared.
+        """Calculate performance statistics after the annotation sets are compared.
 
         Parameters
         ----------
@@ -124,9 +122,9 @@ class Comparitor:
         self.positive_predictivity = float(self.tp) / self.n_test
 
     def compare(self):
-        """
-        Main comparison function. Note: Make sure to be able to handle
-        these ref/test scenarios:
+        """Main comparison function.
+
+        Note: Make sure to be able to handle these ref/test scenarios:
 
         Parameters
         ----------
@@ -224,9 +222,9 @@ class Comparitor:
         self._calc_stats()
 
     def _get_closest_samp_num(self, ref_samp_num, start_test_samp_num):
-        """
-        Return the closest testing sample number for the given reference
-        sample number. Limit the search from start_test_samp_num.
+        """Return the closest test sample number for a reference sample number.
+
+        Limit the search from start_test_samp_num.
 
         Parameters
         ----------
@@ -274,8 +272,7 @@ class Comparitor:
         return closest_samp_num, smallest_samp_diff
 
     def print_summary(self):
-        """
-        Print summary metrics of the annotation comparisons.
+        """Print summary metrics of the annotation comparisons.
 
         Parameters
         ----------
@@ -304,9 +301,7 @@ class Comparitor:
         )
 
     def plot(self, sig_style="", title=None, figsize=None, return_fig=False):
-        """
-        Plot the comparison of two sets of annotations, possibly
-        overlaid on their original signal.
+        """Plot the comparison of two annotation sets, possibly overlaid on the signal.
 
         Parameters
         ----------
@@ -399,10 +394,9 @@ class Comparitor:
 
 
 def compare_annotations(ref_sample, test_sample, window_width, signal=None):
-    """
-    Compare a set of reference annotation locations against a set of
-    test annotation locations. See the Comparitor class  docstring
-    for more information.
+    """Compare reference annotation locations against test locations.
+
+    See the Comparitor class docstring for more information.
 
     Parameters
     ----------
@@ -452,8 +446,7 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
 
 
 def benchmark_mitdb(detector, verbose=False, print_results=False):
-    """
-    Benchmark a QRS detector against mitdb's records.
+    """Benchmark a QRS detector against mitdb's records.
 
     Parameters
     ----------
@@ -522,8 +515,7 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
 
 
 def benchmark_mitdb_record(rec, detector, verbose):
-    """
-    Benchmark a single mitdb record.
+    """Benchmark a single mitdb record.
 
     Parameters
     ----------

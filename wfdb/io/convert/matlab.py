@@ -8,14 +8,14 @@ from wfdb.io.record import rdrecord
 
 
 def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None):
-    """
-    This program converts the signals of any PhysioNet record (or one in any
-    compatible format) into a .mat file that can be read directly using any version
-    of Matlab, and a short text file containing information about the signals
-    (names, gains, baselines, units, sampling frequency, and start time/date if
-    known). If the input record name is REC, the output files are RECm.mat and
-    RECm.hea. The output files can also be read by any WFDB application as record
-    RECm.
+    """Convert a PhysioNet record to a Matlab .mat file.
+
+    This program converts the signals of any PhysioNet record (or one in any compatible
+    format) into a .mat file that can be read directly using any version of Matlab, and
+    a short text file containing information about the signals (names, gains, baselines,
+    units, sampling frequency, and start time/date if known). If the input record name
+    is REC, the output files are RECm.mat and RECm.hea. The output files can also be
+    read by any WFDB application as record RECm.
 
     This program does not convert annotation files; for that task, 'rdann' is
     recommended.

@@ -6,8 +6,7 @@ from wfdb.io.annotation import Annotation
 
 
 def resample_ann(ann_sample, fs, fs_target):
-    """
-    Compute the new annotation indices.
+    """Compute the new annotation indices.
 
     Parameters
     ----------
@@ -29,8 +28,7 @@ def resample_ann(ann_sample, fs, fs_target):
 
 
 def resample_sig(x, fs, fs_target):
-    """
-    Resample a signal to a different frequency.
+    """Resample a signal to a different frequency.
 
     Parameters
     ----------
@@ -66,8 +64,7 @@ def resample_sig(x, fs, fs_target):
 
 
 def resample_singlechan(x, ann, fs, fs_target):
-    """
-    Resample a single-channel signal with its annotations.
+    """Resample a single-channel signal with its annotations.
 
     Parameters
     ----------
@@ -107,8 +104,7 @@ def resample_singlechan(x, ann, fs, fs_target):
 
 
 def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
-    """
-    Resample multiple channels with their annotations.
+    """Resample multiple channels with their annotations.
 
     Parameters
     ----------
@@ -156,8 +152,7 @@ def resample_multichan(xs, ann, fs, fs_target, resamp_ann_chan=0):
 
 
 def normalize_bound(sig, lb=0, ub=1):
-    """
-    Normalize a signal between the lower and upper bound.
+    """Normalize a signal between the lower and upper bound.
 
     Parameters
     ----------
@@ -183,8 +178,7 @@ def normalize_bound(sig, lb=0, ub=1):
 
 
 def smooth(sig, window_size):
-    """
-    Apply a uniform moving average filter to a signal.
+    """Apply a uniform moving average filter to a signal.
 
     Parameters
     ----------
@@ -204,9 +198,7 @@ def smooth(sig, window_size):
 
 
 def get_filter_gain(b, a, f_gain, fs):
-    """
-    Given filter coefficients, return the gain at a particular
-    frequency.
+    """Given filter coefficients, return the gain at a particular frequency.
 
     Parameters
     ----------
@@ -236,8 +228,7 @@ def get_filter_gain(b, a, f_gain, fs):
 
 
 def normalize(X):
-    """
-    Scale input vector to unit norm (vector length).
+    """Scale input vector to unit norm (vector length).
 
     Parameters
     ----------

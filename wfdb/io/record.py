@@ -153,8 +153,7 @@ SIG_UNITS = {
 
 
 class BaseRecord:
-    """
-    The base WFDB class extended by the Record and MultiRecord classes.
+    """The base WFDB class extended by the Record and MultiRecord classes.
 
     Attributes
     ----------
@@ -246,8 +245,7 @@ class BaseRecord:
             raise TypeError(f"invalid base_datetime value: {value!r}")
 
     def get_frame_number(self, time_value):
-        """
-        Convert a time value to a frame number.
+        """Convert a time value to a frame number.
 
         A time value may be specified as:
 
@@ -289,8 +287,7 @@ class BaseRecord:
         raise TypeError(f"invalid time value: {time_value!r}")
 
     def get_elapsed_time(self, time_value):
-        """
-        Convert a time value to an elapsed time in seconds.
+        """Convert a time value to an elapsed time in seconds.
 
         A time value may be specified as:
 
@@ -316,8 +313,7 @@ class BaseRecord:
         return datetime.timedelta(seconds=time_value / self.fs)
 
     def get_absolute_time(self, time_value):
-        """
-        Convert a time value to an absolute date and time.
+        """Convert a time value to an absolute date and time.
 
         A time value may be specified as:
 
@@ -348,9 +344,9 @@ class BaseRecord:
         return time_value + self.base_datetime
 
     def check_field(self, field, required_channels="all"):
-        """
-        Check whether a single field is valid in its basic form. Does
-        not check compatibility with other fields.
+        """Check whether a single field is valid in its basic form.
+
+        Does not check compatibility with other fields.
 
         Parameters
         ----------
@@ -550,9 +546,7 @@ class BaseRecord:
     def check_read_inputs(
         self, sampfrom, sampto, channels, physical, smooth_frames, return_res
     ):
-        """
-        Ensure that input read parameters (from rdsamp) are valid for
-        the record.
+        """Ensure that input read parameters (from rdsamp) are valid for the record.
 
         Parameters
         ----------
@@ -623,8 +617,7 @@ class BaseRecord:
             )
 
     def _adjust_datetime(self, sampfrom: int):
-        """
-        Adjust date and time fields to reflect user input if possible.
+        """Adjust date and time fields to reflect user input if possible.
 
         Helper function for the `_arrange_fields` of both Record and
         MultiRecord objects.
@@ -655,8 +648,7 @@ class BaseRecord:
 
 
 class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
-    """
-    The class representing single segment WFDB records.
+    """The class representing single segment WFDB records.
 
     Record objects can be created using the initializer, by reading a WFDB
     header with `rdheader`, or a WFDB record (header and associated dat files)
@@ -828,8 +820,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other, verbose=False):
-        """
-        Equal comparison operator for objects of this type.
+        """Equal comparison operator for objects of this type.
 
         Parameters
         ----------
@@ -880,9 +871,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         return True
 
     def wrsamp(self, expanded=False, write_dir=""):
-        """
-        Write a WFDB header file and any associated dat files from this
-        object.
+        """Write a WFDB header file and any associated dat files from this object.
 
         Parameters
         ----------
@@ -916,9 +905,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.wr_dats(expanded=expanded, write_dir=write_dir)
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
-        """
-        Arrange/edit object fields to reflect user channel and/or signal
-        range input.
+        """Arrange/edit object fields to reflect user channel and/or signal range input.
 
         Parameters
         ----------
@@ -974,8 +961,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self._adjust_datetime(sampfrom=sampfrom)
 
     def to_dataframe(self) -> pd.DataFrame:
-        """
-        Create a dataframe containing the data from this record.
+        """Create a dataframe containing the data from this record.
 
 
         Returns
@@ -1011,8 +997,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
 
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
-    """
-    The class representing multi-segment WFDB records.
+    """The class representing multi-segment WFDB records.
 
     MultiRecord objects can be created using the initializer, or by reading a
     multi-segment WFDB record using 'rdrecord' with the `m2s` (multi to single)
@@ -1136,9 +1121,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 self.seg_len = [segment.sig_len for segment in segments]
 
     def wrsamp(self, expanded=False, write_dir=""):
-        """
-        Write a multi-segment header, along with headers and dat files
-        for all segments, from this object.
+        """Write a multi-segment header and the headers and dat files of its segments.
 
         Parameters
         ----------
@@ -1163,9 +1146,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             seg.wrsamp(expanded=expanded, write_dir=write_dir)
 
     def _check_segment_cohesion(self):
-        """
-        Check the cohesion of the segments field with other fields used
-        to write the record.
+        """Check the cohesion of the segments field with the other fields.
 
         Parameters
         ----------
@@ -1206,9 +1187,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # Already effectively done it when checking sum(seg_len) against sig_len
 
     def _required_segments(self, sampfrom, sampto):
-        """
-        Determine the segments and the samples within each segment in a
-        multi-segment record, that lie within a sample range.
+        """Determine the segments and samples of a sample range in a record.
+
+        The record is a multi-segment record.
 
         Parameters
         ----------
@@ -1270,9 +1251,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return (seg_numbers, readsamps)
 
     def _required_channels(self, seg_numbers, channels, dir_name, pn_dir):
-        """
-        Get the channel numbers to be read from each specified segment,
-        given the channel numbers specified for the entire record.
+        """Get the channel numbers to be read from each specified segment.
+
+        The channel numbers are specified for the entire record.
 
         Parameters
         ----------
@@ -1328,10 +1309,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def _arrange_fields(
         self, seg_numbers, seg_ranges, channels, sampfrom=0, force_channels=True
     ):
-        """
-        Arrange/edit object fields to reflect user channel and/or
-        signal range inputs. Updates layout specification header if
-        necessary.
+        """Arrange the fields to reflect user channel and/or signal range inputs.
+
+        Updates layout specification header if necessary.
 
         Parameters
         ----------
@@ -1421,11 +1401,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         self._adjust_datetime(sampfrom=sampfrom)
 
     def multi_to_single(self, physical, return_res=64, expanded=False):
-        """
-        Create a Record object from the MultiRecord object. All signal
-        segments will be combined into the new object's `p_signal` or
-        `d_signal` field. For digital format, the signals must have
-        the same storage format, baseline, and adc_gain in all segments.
+        """Create a Record object from the MultiRecord object.
+
+        All signal segments will be combined into the new object's `p_signal` or
+        `d_signal` field. For digital format, the signals must have the same storage
+        format, baseline, and adc_gain in all segments.
 
         Parameters
         ----------
@@ -1658,10 +1638,10 @@ LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + (
 def _check_item_type(
     item, field_name, allowed_types, expect_list=False, required_channels="all"
 ):
-    """
-    Check the item's type against a set of allowed types.
-    Vary the print message regarding whether the item can be None.
-    Helper to `BaseRecord.check_field`.
+    """Check the item's type against a set of allowed types.
+
+    Vary the print message regarding whether the item can be None. Helper to
+    `BaseRecord.check_field`.
 
     Parameters
     ----------
@@ -1719,9 +1699,7 @@ def _check_item_type(
 
 
 def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
-    """
-    Check a numpy array's shape and dtype against required
-    specifications.
+    """Check a numpy array's shape and dtype against required specifications.
 
     Parameters
     ----------
@@ -1764,9 +1742,9 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 
 
 def rdheader(record_name, pn_dir=None, rd_segments=False):
-    """
-    Read a WFDB header file and return a `Record` or `MultiRecord`
-    object with the record descriptors as attributes.
+    """Read a WFDB header file and return a `Record` or `MultiRecord`.
+
+    The record descriptors are the attributes of the returned object.
 
     Parameters
     ----------
@@ -1917,9 +1895,9 @@ def rdrecord(
     channel_names=None,
     warn_empty=False,
 ):
-    """
-    Read a WFDB record and return the signal and record descriptors as
-    attributes in a Record or MultiRecord object.
+    """Read a WFDB record and return a `Record` or `MultiRecord` object.
+
+    The signal and record descriptors are the attributes of the object.
 
     Parameters
     ----------
@@ -2240,9 +2218,9 @@ def rdsamp(
     warn_empty=False,
     return_res=64,
 ):
-    """
-    Read a WFDB record, and return the physical signals and a few important
-    descriptor fields.
+    """Read a WFDB record and return the physical signals and key fields.
+
+    The key fields are a few important descriptor fields.
 
     Parameters
     ----------
@@ -2362,9 +2340,7 @@ def rdsamp(
 
 
 def sampfreq(record_name, pn_dir=None):
-    """
-    Read a WFDB header file and return the sampling frequency of
-    each of the signals in the record.
+    """Read a WFDB header file and return the sampling frequency of each signal.
 
     Parameters
     ----------
@@ -2414,8 +2390,7 @@ def sampfreq(record_name, pn_dir=None):
 
 
 def signame(record_name, pn_dir=None, sig_nums=[]):
-    """
-    Read a WFDB record file and return the signal names.
+    """Read a WFDB record file and return the signal names.
 
     Parameters
     ----------
@@ -2474,9 +2449,7 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
 
 
 def wfdbdesc(record_name, pn_dir=None):
-    """
-    Reads specifications for the signals described in the header file for
-    a record.
+    """Reads specifications for the signals described in the header file for a record.
 
     Parameters
     ----------
@@ -2600,17 +2573,17 @@ def wfdbdesc(record_name, pn_dir=None):
 
 
 def wfdbtime(record_name, input_times, pn_dir=None):
-    """
-    Use the specified record as a reference for determining the length of a
-    sample interval and the absolute time represented by sample number 0. This
-    program accepts one or more time arguments (in WFDB standard time format)
-    and produces one line on the standard output for each such argument. In
-    each output line, the corresponding time is written as a sample number (in
-    the form sNNN), as an elapsed time interval in hours, minutes, and seconds
-    from the beginning of the record (in the form hh:mm:ss.sss), and as an
-    absolute time and date (in the form [hh:mm:ss.sss DD/MM/YYYY]). If the
-    base time for the record is undefined, the absolute time cannot be
-    calculated, and in this case the elapsed time appears twice instead.
+    """Convert times to sample numbers, elapsed times and absolute times.
+
+    Use the specified record as a reference for determining the length of a sample
+    interval and the absolute time represented by sample number 0. This program accepts
+    one or more time arguments (in WFDB standard time format) and produces one line on
+    the standard output for each such argument. In each output line, the corresponding
+    time is written as a sample number (in the form sNNN), as an elapsed time interval
+    in hours, minutes, and seconds from the beginning of the record (in the form
+    hh:mm:ss.sss), and as an absolute time and date (in the form [hh:mm:ss.sss
+    DD/MM/YYYY]). If the base time for the record is undefined, the absolute time cannot
+    be calculated, and in this case the elapsed time appears twice instead.
 
     Parameters
     ----------
@@ -2757,8 +2730,7 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
 
 def _get_date_from_time(start_time, hours, minutes, seconds, out_time):
-    """
-    Convert a starting time to a date using the elapsed time.
+    """Convert a starting time to a date using the elapsed time.
 
     Parameters
     ----------
@@ -2804,9 +2776,10 @@ def _get_date_from_time(start_time, hours, minutes, seconds, out_time):
 
 
 def _get_wanted_channels(wanted_sig_names, record_sig_names, pad=False):
-    """
-    Given some wanted signal names, and the signal names contained in a
-    record, return the indices of the record channels that intersect.
+    """Return the indices of the record channels that match wanted signals.
+
+    Given some wanted signal names, and the signal names contained in a record, return
+    the indices of the record channels that intersect.
 
     Parameters
     ----------
@@ -2858,9 +2831,7 @@ def wrsamp(
     base_datetime=None,
     write_dir="",
 ):
-    """
-    Write a single segment WFDB record, creating a WFDB header file and any
-    associated dat files.
+    """Write a single segment WFDB record with a header and any dat files.
 
     Parameters
     ----------
@@ -3053,10 +3024,10 @@ def dl_database(
     keep_subdirs=True,
     overwrite=False,
 ):
-    """
-    Download WFDB record (and optionally annotation) files from a
-    PhysioNet database. The database must contain a 'RECORDS' file in
-    its base directory which lists its WFDB records.
+    """Download WFDB record (and optionally annotation) files from a PhysioNet database.
+
+    The database must contain a 'RECORDS' file in its base directory which lists its
+    WFDB records.
 
     Parameters
     ----------

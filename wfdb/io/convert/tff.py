@@ -1,5 +1,4 @@
-"""
-Module for reading ME6000 .tff format files.
+"""Module for reading ME6000 .tff format files.
 
 http://www.biomation.com/kin/me6000.htm
 
@@ -13,8 +12,7 @@ import numpy as np
 
 
 def rdtff(file_name, cut_end=False):
-    """
-    Read values from a tff file.
+    """Read values from a tff file.
 
     Parameters
     ----------
@@ -62,8 +60,7 @@ def rdtff(file_name, cut_end=False):
 
 
 def _rdheader(fp):
-    """
-    Read header info of the windaq file.
+    """Read header info of the windaq file.
 
     Parameters
     ----------
@@ -171,8 +168,7 @@ def _rdheader(fp):
 
 
 def _rdsignal(fp, file_size, header_size, n_sig, bit_width, is_signed, cut_end):
-    """
-    Read the signal.
+    """Read the signal.
 
     Parameters
     ----------
@@ -254,8 +250,7 @@ def _rdsignal(fp, file_size, header_size, n_sig, bit_width, is_signed, cut_end):
 
 
 def _get_sample(fp, chunk, n_sig, dtype, signal, markers, triggers, sample_num):
-    """
-    Get the total number of samples in the signal.
+    """Get the total number of samples in the signal.
 
     Parameters
     ----------

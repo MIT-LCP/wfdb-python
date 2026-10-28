@@ -10,13 +10,10 @@ import wfdb.io._url
 
 
 class TestNetFiles:
-    """
-    Test accessing remote files.
-    """
+    """Test accessing remote files."""
 
     def test_timeout(self, monkeypatch):
-        """
-        Test that a server that does not respond causes a timeout error.
+        """Test that a server that does not respond causes a timeout error.
 
         Without a timeout, the request would wait for the server forever.
         """
@@ -27,8 +24,7 @@ class TestNetFiles:
                     f.read()
 
     def test_requests(self):
-        """
-        Test reading a remote file using various APIs.
+        """Test reading a remote file using various APIs.
 
         This tests that we can create a file object using
         wfdb.io._url.openurl(), and tests that the object implements
@@ -74,8 +70,7 @@ class TestNetFiles:
                         self._test_binary(url, binary_data, buffering)
 
     def _test_text(self, url, content, buffering):
-        """
-        Test reading a URL using text-mode file APIs.
+        """Test reading a URL using text-mode file APIs.
 
         Parameters
         ----------
@@ -122,8 +117,7 @@ class TestNetFiles:
             assert result == content
 
     def _test_binary(self, url, content, buffering):
-        """
-        Test reading a URL using binary-mode file APIs.
+        """Test reading a URL using binary-mode file APIs.
 
         Parameters
         ----------
@@ -212,13 +206,10 @@ class TestNetFiles:
 
 
 class TestRemoteFLACFiles:
-    """
-    Test reading FLAC files over HTTP.
-    """
+    """Test reading FLAC files over HTTP."""
 
     def test_whole_file(self):
-        """
-        Test reading a complete FLAC file using local and HTTP APIs.
+        """Test reading a complete FLAC file using local and HTTP APIs.
 
         This tests that we can read the file 'sample-data/flacformats.d2'
         (a 24-bit FLAC stream) using the soundfile library, first by
@@ -268,8 +259,7 @@ class TestRemoteFLACFiles:
 
 
 class DummyHTTPServer(http.server.HTTPServer):
-    """
-    HTTPServer used to simulate a web server for testing.
+    """HTTPServer used to simulate a web server for testing.
 
     The server may be used as a context manager (using "with"); during
     execution of the "with" block, a background thread runs that
@@ -315,8 +305,7 @@ class DummyHTTPServer(http.server.HTTPServer):
         self.delay = delay
 
     def url(self, path="/"):
-        """
-        Generate a URL that points to a file on this server.
+        """Generate a URL that points to a file on this server.
 
         Parameters
         ----------
@@ -348,9 +337,7 @@ class DummyHTTPServer(http.server.HTTPServer):
 
 
 class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
-    """
-    HTTPRequestHandler used to simulate a web server for testing.
-    """
+    """HTTPRequestHandler used to simulate a web server for testing."""
 
     def do_HEAD(self):
         self.send_head()

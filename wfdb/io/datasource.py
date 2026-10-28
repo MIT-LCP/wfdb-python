@@ -47,18 +47,14 @@ _data_sources: dict[str, DataSource] = {"physionet": _PHYSIONET_DATA_SOURCE}
 
 
 def show_data_sources():
-    """
-    Displays all configured data sources
-    """
+    """Displays all configured data sources"""
     print("Data sources:")
     for _, ds in _data_sources.items():
         print(ds)
 
 
 def add_data_source(ds: DataSource):
-    """
-    Add a data source to the set of configured data sources
-    """
+    """Add a data source to the set of configured data sources"""
     if ds.name in _data_sources:
         raise ValueError(
             f"There is already a configured data source with name: {ds.name}"
@@ -68,15 +64,12 @@ def add_data_source(ds: DataSource):
 
 
 def remove_data_source(ds_name: str):
-    """
-    Remove a data source from the set of configured data sources
-    """
+    """Remove a data source from the set of configured data sources"""
     del _data_sources[ds_name]
 
 
 def reset_data_sources(keep_pn: bool = False):
-    """
-    Reset all configured data sources
+    """Reset all configured data sources
 
     Parameters
     ----------

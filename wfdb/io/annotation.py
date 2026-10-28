@@ -13,8 +13,7 @@ from wfdb.io._coreio import CLOUD_PROTOCOLS
 
 
 class Annotation:
-    """
-    The class representing WFDB annotations.
+    """The class representing WFDB annotations.
 
     Annotation objects can be created using the initializer, or by reading a
     WFDB annotation file with `rdann`.
@@ -191,8 +190,7 @@ class Annotation:
         # __label_map__: (storevalue, symbol, description) hidden attribute
 
     def __eq__(self, other):
-        """
-        Equal comparison operator for objects of this type.
+        """Equal comparison operator for objects of this type.
 
         Parameters
         ----------
@@ -236,9 +234,7 @@ class Annotation:
         return True
 
     def apply_range(self, sampfrom=0, sampto=None):
-        """
-        Filter the annotation attributes to keep only items between the
-        desired sample values.
+        """Keep only the annotation items between the desired sample values.
 
         Parameters
         ----------
@@ -262,8 +258,7 @@ class Annotation:
         self.ann_len = len(self.sample)
 
     def wrann(self, write_fs=False, write_dir=""):
-        """
-        Write a WFDB annotation file from this object.
+        """Write a WFDB annotation file from this object.
 
         Parameters
         ----------
@@ -321,8 +316,7 @@ class Annotation:
         return
 
     def get_label_fields(self):
-        """
-        Get the present label fields in the object.
+        """Get the present label fields in the object.
 
         Parameters
         ----------
@@ -342,8 +336,7 @@ class Annotation:
         return present_label_fields
 
     def check_fields(self):
-        """
-        Check the set fields of the annotation object.
+        """Check the set fields of the annotation object.
 
         Parameters
         ----------
@@ -362,8 +355,7 @@ class Annotation:
         return
 
     def check_field(self, field):
-        """
-        Check a particular annotation field.
+        """Check a particular annotation field.
 
         Parameters
         ----------
@@ -597,9 +589,7 @@ class Annotation:
         return
 
     def check_field_cohesion(self, present_label_fields):
-        """
-        Check that the content and structure of different fields are consistent
-        with one another.
+        """Check that the content and structure of the fields are consistent.
 
         Parameters
         ----------
@@ -652,9 +642,9 @@ class Annotation:
         return
 
     def standardize_custom_labels(self):
-        """
-        Set the custom_labels field of the object to a standardized format:
-        3 column pandas df with ann_label_fields as columns.
+        """Set the custom_labels field to a standardized format.
+
+        The format is a 3 column pandas df with ann_label_fields as columns.
 
         Does nothing if there are no custom labels defined.
         Does nothing if custom_labels is already a df with all 3 columns.
@@ -737,9 +727,7 @@ class Annotation:
         return
 
     def get_undefined_label_stores(self):
-        """
-        Get the label_store values not defined in the
-        standard WFDB annotation labels.
+        """Get the label_store values not defined in the standard WFDB labels.
 
         Parameters
         ----------
@@ -754,9 +742,7 @@ class Annotation:
         return list(set(range(50)) - set(ann_label_table["label_store"]))
 
     def get_available_label_stores(self, usefield="tryall"):
-        """
-        Get the label store values that may be used
-        for writing this annotation.
+        """Get the label store values that may be used for writing this annotation.
 
         Available store values include:
         - the undefined values in the standard WFDB labels
@@ -845,10 +831,10 @@ class Annotation:
             return available_label_stores
 
     def get_custom_label_attribute(self, attribute):
-        """
-        Get a list of the custom_labels attribute i.e. label_store,
-        symbol, or description. The custom_labels variable could be in
-        a number of formats.
+        """Get a list of one custom_labels attribute.
+
+        The attribute is label_store, symbol, or description. The custom_labels variable
+        could be in a number of formats.
 
         Parameters
         ----------
@@ -887,9 +873,9 @@ class Annotation:
         return a
 
     def create_label_map(self, inplace=True):
-        """
-        Creates mapping df based on ann_label_table and self.custom_labels. Table
-        composed of entire WFDB standard annotation table, overwritten/appended
+        """Creates mapping df based on ann_label_table and self.custom_labels.
+
+        Table composed of entire WFDB standard annotation table, overwritten/appended
         with custom_labels if any. Sets __label_map__ attribute, or returns value.
 
         Parameters
@@ -917,9 +903,7 @@ class Annotation:
             return label_map
 
     def wr_ann_file(self, write_fs, write_dir=""):
-        """
-        Calculate the bytes used to encode an annotation set and
-        write them to an annotation file.
+        """Calculate the bytes to encode the annotations and write them to the file.
 
         Parameters
         ----------
@@ -969,8 +953,7 @@ class Annotation:
         return
 
     def calc_fs_bytes(self):
-        """
-        Calculate the bytes written to the annotation file for the fs field.
+        """Calculate the bytes written to the annotation file for the fs field.
 
         Parameters
         ----------
@@ -1034,9 +1017,7 @@ class Annotation:
         return np.array(data_bytes).astype("u1")
 
     def calc_cl_bytes(self):
-        """
-        Calculate the bytes written to the annotation file for the
-        custom_labels field.
+        """Calculate the bytes written for the custom_labels field.
 
         Parameters
         ----------
@@ -1143,8 +1124,7 @@ class Annotation:
         return np.array(headbytes + custom_bytes + tailbytes).astype("u1")
 
     def calc_core_bytes(self):
-        """
-        Convert all used annotation fields into bytes to write.
+        """Convert all used annotation fields into bytes to write.
 
         Parameters
         ----------
@@ -1210,9 +1190,7 @@ class Annotation:
         return data_bytes
 
     def compact_fields(self):
-        """
-        Compact all of the object's fields so that the output
-        writing annotation file writes as few bytes as possible.
+        """Compact the fields to write as few bytes as possible.
 
         Parameters
         ----------
@@ -1258,8 +1236,7 @@ class Annotation:
                 self.aux_note = None
 
     def sym_to_aux(self):
-        """
-        Move non-encoded symbol elements into the aux_note field.
+        """Move non-encoded symbol elements into the aux_note field.
 
         Parameters
         ----------
@@ -1292,10 +1269,10 @@ class Annotation:
         return
 
     def get_contained_labels(self, inplace=True):
-        """
-        Get the set of unique labels contained in this annotation.
-        Returns a pandas dataframe or sets the contained_labels
-        attribute of the object. Requires the label_store field to be set.
+        """Get the set of unique labels contained in this annotation.
+
+        Returns a pandas dataframe or sets the contained_labels attribute of the object.
+        Requires the label_store field to be set.
 
         Function will try to use attributes contained in the order:
         1. label_store
@@ -1385,8 +1362,7 @@ class Annotation:
             return contained_labels
 
     def set_label_elements(self, wanted_label_elements):
-        """
-        Set one or more label elements based on at least one of the others.
+        """Set one or more label elements based on at least one of the others.
 
         Parameters
         ----------
@@ -1425,8 +1401,7 @@ class Annotation:
         return
 
     def rm_attributes(self, attributes):
-        """
-        Remove attributes from object.
+        """Remove attributes from object.
 
         Parameters
         ----------
@@ -1447,10 +1422,9 @@ class Annotation:
     def convert_label_attribute(
         self, source_field, target_field, inplace=True, overwrite=True
     ):
-        """
-        Convert one label attribute (label_store, symbol, or description) to
-        another. Creates mapping df on the fly based on ann_label_table and
-        self.custom_labels.
+        """Convert one label attribute (label_store, symbol, or description) to another.
+
+        Creates mapping df on the fly based on ann_label_table and self.custom_labels.
 
         Parameters
         ----------
@@ -1500,8 +1474,7 @@ class Annotation:
 
 
 def label_triplets_to_df(triplets):
-    """
-    Get a pd dataframe from a tuple triplets used to define annotation labels.
+    """Get a pd dataframe from a tuple triplets used to define annotation labels.
 
     Parameters
     ----------
@@ -1529,9 +1502,9 @@ def label_triplets_to_df(triplets):
 
 
 def custom_triplet_bytes(custom_triplet):
-    """
-    Convert triplet of [label_store, symbol, description] into bytes
-    for defining custom labels in the annotation file.
+    """Convert a [label_store, symbol, description] triplet into bytes.
+
+    The bytes define custom labels in the annotation file.
 
     Parameters
     ----------
@@ -1563,8 +1536,7 @@ def custom_triplet_bytes(custom_triplet):
 
 
 def isblank(x):
-    """
-    Tests whether the item is blank.
+    """Tests whether the item is blank.
 
     Parameters
     ----------
@@ -1586,9 +1558,10 @@ def isblank(x):
 
 
 def compact_carry_field(full_field):
-    """
-    Return the compact list version of a list/array of an annotation
-    field that has previous values carried over (chan or num).
+    """Return the compact list version of an annotation field (chan or num).
+
+    The field has previous values carried over.
+
     - The first sample is 0 by default. Only set otherwise if necessary.
     - Only set fields if they are different from their prev field.
 
@@ -1627,8 +1600,7 @@ def compact_carry_field(full_field):
 
 
 def field2bytes(field, value, typecodes):
-    """
-    Convert an annotation field into bytes to write.
+    """Convert an annotation field into bytes to write.
 
     Parameters
     ----------
@@ -1720,8 +1692,7 @@ def wrann(
     custom_labels=None,
     write_dir="",
 ):
-    """
-    Write a WFDB annotation file.
+    """Write a WFDB annotation file.
 
     Specify at least the following:
 
@@ -1847,8 +1818,7 @@ def wrann(
 
 
 def show_ann_labels():
-    """
-    Display the standard WFDB annotation label mapping.
+    """Display the standard WFDB annotation label mapping.
 
     Parameters
     ----------
@@ -1867,8 +1837,7 @@ def show_ann_labels():
 
 
 def show_ann_classes():
-    """
-    Display the standard WFDB annotation classes.
+    """Display the standard WFDB annotation classes.
 
     Parameters
     ----------
@@ -1897,9 +1866,7 @@ def rdann(
     return_label_elements=["symbol"],
     summarize_labels=False,
 ):
-    """
-    Read a WFDB annotation file record_name.extension and return an
-    Annotation object.
+    """Read the annotation file record_name.extension as an Annotation.
 
     Parameters
     ----------
@@ -2037,8 +2004,7 @@ def rdann(
 
 
 def check_read_inputs(sampfrom, sampto, return_label_elements):
-    """
-    Check if all the read inputs are valid.
+    """Check if all the read inputs are valid.
 
     Parameters
     ----------
@@ -2079,8 +2045,7 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
 
 
 def load_byte_pairs(record_name, extension, pn_dir):
-    """
-    Load the annotation file 1 byte at a time and arrange in pairs.
+    """Load the annotation file 1 byte at a time and arrange in pairs.
 
     Parameters
     ----------
@@ -2116,8 +2081,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
 
 
 def proc_ann_bytes(filebytes, sampto):
-    """
-    Get regular annotation fields from the annotation bytes.
+    """Get regular annotation fields from the annotation bytes.
 
     Parameters
     ----------
@@ -2209,8 +2173,7 @@ def proc_ann_bytes(filebytes, sampto):
 
 
 def proc_core_fields(filebytes, bpi):
-    """
-    Get the sample difference and store fields of the current annotation.
+    """Get the sample difference and store fields of the current annotation.
 
     Parameters
     ----------
@@ -2261,9 +2224,9 @@ def proc_core_fields(filebytes, bpi):
 
 
 def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, update):
-    """
-    Process extra fields belonging to the current annotation. Potential
-    updated fields: subtype, chan, num, aux_note.
+    """Process extra fields belonging to the current annotation.
+
+    Potential updated fields: subtype, chan, num, aux_note.
 
     Parameters
     ----------
@@ -2348,9 +2311,7 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
 
 
 def update_extra_fields(subtype, chan, num, aux_note, update):
-    """
-    Update the field if the current annotation did not
-    provide a value.
+    """Update the field if the current annotation did not provide a value.
 
     - aux_note and sub are set to default values if missing.
     - chan and num copy over previous value if missing.
@@ -2413,9 +2374,10 @@ rx_custom_label = re.compile(
 
 
 def get_special_inds(sample, label_store, aux_note):
-    """
-    Get the indices of annotations that hold definition information about
-    the entire annotation file, and other empty annotations to be removed.
+    """Get the indices of annotations to be removed from the annotation file.
+
+    These are annotations that hold definition information about the entire annotation
+    file, and other empty annotations.
 
     Note: There is no need to deal with SKIP annotations (label_store=59)
           which were already dealt with in proc_core_fields and hence not
@@ -2458,9 +2420,10 @@ def get_special_inds(sample, label_store, aux_note):
 
 
 def interpret_defintion_annotations(potential_definition_inds, aux_note):
-    """
-    Try to extract annotation definition information from annotation notes.
+    """Try to extract annotation definition information from annotation notes.
+
     Information that may be contained:
+
     - fs - sample=0, label_state=22, aux_note='## time resolution: XXX'.
     - custom annotation label definitions.
 
@@ -2519,8 +2482,7 @@ def interpret_defintion_annotations(potential_definition_inds, aux_note):
 
 
 def rm_empty_indices(*args):
-    """
-    Remove unwanted list indices.
+    """Remove unwanted list indices.
 
     Parameters
     ----------
@@ -2545,8 +2507,7 @@ def rm_empty_indices(*args):
 
 
 def lists_to_int_arrays(*args):
-    """
-    Convert lists to numpy int arrays.
+    """Convert lists to numpy int arrays.
 
     Parameters
     ----------
@@ -2563,8 +2524,7 @@ def lists_to_int_arrays(*args):
 
 
 def rm_last(*args):
-    """
-    Remove the last index from each list.
+    """Remove the last index from each list.
 
     Parameters
     ----------
@@ -2596,20 +2556,20 @@ def mrgann(
     record_only=True,
     verbose=False,
 ):
-    """
-    This function reads a pair of annotation files (specified by `ann_file1`
-    and `ann_file2`) for the specified record and writes a third annotation
-    file (specified by `out_file_name`) for the same record. The header (.hea)
-    file should be included in the same directory as each annotation file so
-    that the sampling rate can be read. Typical applications of `mrgann`
-    include combining annotation files that apply to different signals within
-    a multi-signal record, and replacing a segment of an annotation file with
-    annotations from another file. For example, setting 'merge_method' to
-    'combine' will simply blindly merge the annotation files for the specified
-    'start_ann' and 'end_ann' range while setting 'merge_method' to 'replace1'
-    will replace the contents of the first file with the second in that
-    specified range. Setting 'merge_method' to 'replace2' will replace the
-    contents of the second file with the first in that specified range.
+    """Merge two annotation files of a record into a third annotation file.
+
+    This function reads a pair of annotation files (specified by `ann_file1` and
+    `ann_file2`) for the specified record and writes a third annotation file (specified
+    by `out_file_name`) for the same record. The header (.hea) file should be included
+    in the same directory as each annotation file so that the sampling rate can be read.
+    Typical applications of `mrgann` include combining annotation files that apply to
+    different signals within a multi-signal record, and replacing a segment of an
+    annotation file with annotations from another file. For example, setting
+    'merge_method' to 'combine' will simply blindly merge the annotation files for the
+    specified 'start_ann' and 'end_ann' range while setting 'merge_method' to 'replace1'
+    will replace the contents of the first file with the second in that specified range.
+    Setting 'merge_method' to 'replace2' will replace the contents of the second file
+    with the first in that specified range.
 
     Parameters
     ----------
@@ -2912,7 +2872,8 @@ def mrgann(
 
 
 def format_ann_from_df(df_in):
-    """
+    """Convert a dataframe of onsets, durations and descriptions to annotations.
+
     Parameters
     ----------
     df_in : Pandas dataframe
@@ -3002,8 +2963,7 @@ ann_label_fields = ("label_store", "symbol", "description")
 
 
 class AnnotationClass:
-    """
-    Describes the annotations.
+    """Describes the annotations.
 
     Attributes
     ----------
@@ -3055,8 +3015,7 @@ ann_class_table = ann_class_table[["extension", "description", "human_reviewed"]
 
 # Individual annotation labels
 class AnnotationLabel:
-    """
-    Describes the individual annotation labels.
+    """Describes the individual annotation labels.
 
     Attributes
     ----------

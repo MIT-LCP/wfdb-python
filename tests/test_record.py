@@ -9,9 +9,7 @@ import wfdb
 
 
 class TestRecord:
-    """
-    Test read and write of single segment WFDB records, including
-    PhysioNet streaming.
+    """Test read and write of single segment WFDB records, including streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
@@ -40,8 +38,7 @@ class TestRecord:
     # ------------------------ 1. Basic Tests ------------------------ #
 
     def test_1a(self, source, temp_path):
-        """
-        Format 16, entire signal, digital.
+        """Format 16, entire signal, digital.
 
         Target file created with:
             rdsamp -r sample-data/test01_00s | cut -f 2- > record-1a
@@ -74,9 +71,7 @@ class TestRecord:
         assert record_2.__eq__(record_write)
 
     def test_1b(self, source):
-        """
-        Format 16, byte offset, selected duration, selected channels,
-        physical.
+        """Format 16, byte offset, selected duration, selected channels, physical.
 
         Target file created with:
             rdsamp -r sample-data/a103l -f 50 -t 160 -s 2 0 -P | cut -f 2- > record-1b
@@ -111,9 +106,7 @@ class TestRecord:
         assert np.array_equal(sig, sig_named) and fields == fields_named
 
     def test_1c(self, source, temp_path):
-        """
-        Format 16, byte offset, selected duration, selected channels,
-        digital, expanded format.
+        """Format 16, byte offset, selected duration and channels, digital, expanded.
 
         Target file created with:
             rdsamp -r sample-data/a103l -f 80 -s 0 1 | cut -f 2- > record-1c
@@ -157,8 +150,7 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_1d(self, source):
-        """
-        Format 80, selected duration, selected channels, physical
+        """Format 80, selected duration, selected channels, physical
 
         Target file created with:
             rdsamp -r sample-data/3000003_0003 -f 1 -t 8 -s 1 -P | cut -f 2- > record-1d
@@ -185,8 +177,7 @@ class TestRecord:
             assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
     def test_1e(self, source, temp_path):
-        """
-        Format 24, entire signal, digital.
+        """Format 24, entire signal, digital.
 
         Target file created with:
             rdsamp -r sample-data/n8_evoked_raw_95_F1_R9 | cut -f 2- |
@@ -217,8 +208,7 @@ class TestRecord:
         assert record_2.__eq__(record_write)
 
     def test_1f(self, temp_path):
-        """
-        All binary formats, multiple signal files in one record.
+        """All binary formats, multiple signal files in one record.
 
         Target file created with:
             rdsamp -r sample-data/binformats | cut -f 2- |
@@ -270,8 +260,7 @@ class TestRecord:
         assert partial_record == converted_record
 
     def test_read_write_flac(self, temp_path):
-        """
-        All FLAC formats, multiple signal files in one record.
+        """All FLAC formats, multiple signal files in one record.
 
         Target file created with:
             rdsamp -r sample-data/flacformats | cut -f 2- |
@@ -309,9 +298,7 @@ class TestRecord:
         assert record == record_write
 
     def test_read_write_flac_multifrequency(self, temp_path):
-        """
-        Format 516 with multiple signal files and variable samples per frame.
-        """
+        """Format 516 with multiple signal files and variable samples per frame."""
         # Check that we can read a record and write it out again
         record = wfdb.rdrecord(
             "sample-data/mixedsignals",
@@ -329,10 +316,10 @@ class TestRecord:
         assert record == record_write
 
     def test_unique_samps_per_frame_e_p_signal(self, temp_path):
-        """
-        Test writing an e_p_signal with wfdb.io.wrsamp where the signals have different
-        samples per frame. All other parameters which overlap between a Record object
-        and wfdb.io.wrsamp are also checked.
+        """Test writing an e_p_signal with wfdb.io.wrsamp.
+
+        The signals have different samples per frame. All other parameters which overlap
+        between a Record object and wfdb.io.wrsamp are also checked.
         """
         # Read in a record with different samples per frame
         record = wfdb.rdrecord(
@@ -408,10 +395,10 @@ class TestRecord:
         assert record_filtered == record_write_filtered
 
     def test_unique_samps_per_frame_e_d_signal(self, temp_path):
-        """
-        Test writing an e_d_signal with wfdb.io.wrsamp where the signals have different
-        samples per frame. All other parameters which overlap between a Record object
-        and wfdb.io.wrsamp are also checked.
+        """Test writing an e_d_signal with wfdb.io.wrsamp.
+
+        The signals have different samples per frame. All other parameters which overlap
+        between a Record object and wfdb.io.wrsamp are also checked.
         """
         # Read in a record with different samples per frame
         record = wfdb.rdrecord(
@@ -491,9 +478,7 @@ class TestRecord:
         assert record_filtered == record_write_filtered
 
     def test_read_write_flac_many_channels(self, temp_path):
-        """
-        Check we can read and write to format 516 with more than 8 channels.
-        """
+        """Check we can read and write to format 516 with more than 8 channels."""
         # Read in a signal with 12 channels in format 16
         record = wfdb.rdrecord("sample-data/s0010_re", physical=False)
 
@@ -518,8 +503,7 @@ class TestRecord:
         assert (record.d_signal == record_fmt516.d_signal).all()
 
     def test_read_flac_longduration(self):
-        """
-        Three signals multiplexed in a FLAC file, over 2**24 samples.
+        """Three signals multiplexed in a FLAC file, over 2**24 samples.
 
         Input file created with:
             yes 25 50 75 | head -5600000 |
@@ -542,8 +526,7 @@ class TestRecord:
     # ------------------ 2. Special format records ------------------- #
 
     def test_2a(self, source):
-        """
-        Format 212, entire signal, physical.
+        """Format 212, entire signal, physical.
 
         Target file created with:
             rdsamp -r sample-data/100 -P | cut -f 2- > record-2a
@@ -564,8 +547,7 @@ class TestRecord:
             assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
     def test_2b(self, source, temp_path):
-        """
-        Format 212, selected duration, selected channel, digital.
+        """Format 212, selected duration, selected channel, digital.
 
         Target file created with:
             rdsamp -r sample-data/100 -f 0.002 -t 30 -s 1 | cut -f 2- > record-2b
@@ -619,8 +601,7 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_2c(self, temp_path):
-        """
-        Format 212, entire signal, physical, odd sampled record.
+        """Format 212, entire signal, physical, odd sampled record.
 
         Target file created with:
             rdsamp -r sample-data/100_3chan -P | cut -f 2- > record-2c
@@ -639,8 +620,8 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_2d(self):
-        """
-        Format 310, selected duration, digital
+        """Format 310, selected duration, digital.
+
         Target file created with:
             rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 | cut -f 2-
                 | wrsamp -o 310derive -O 310
@@ -652,8 +633,7 @@ class TestRecord:
         assert np.array_equal(sig, sig_target)
 
     def test_2e(self):
-        """
-        Format 311, selected duration, physical.
+        """Format 311, selected duration, physical.
 
         Target file created with:
             rdsamp -r sample-data/3000003_0003 -f 0 -t 8.21 -s 1 | cut -f 2-
@@ -669,8 +649,8 @@ class TestRecord:
     # --------------------- 3. Multi-dat records --------------------- #
 
     def test_3a(self, source, temp_path):
-        """
-        Multi-dat, entire signal, digital
+        """Multi-dat, entire signal, digital.
+
         Target file created with:
             rdsamp -r sample-data/s0010_re | cut -f 2- > record-3a
         """
@@ -697,8 +677,7 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_3b(self, source):
-        """
-        Multi-dat, selected duration, selected channels, physical.
+        """Multi-dat, selected duration, selected channels, physical.
 
         Target file created with:
             rdsamp -r sample-data/s0010_re -f 5 -t 38 -P -s 13 0 4 8 3 | cut -f 2-
@@ -730,8 +709,7 @@ class TestRecord:
     # -------------- 4. Skew and multiple samples/frame -------------- #
 
     def test_4a(self, temp_path):
-        """
-        Format 16, multi-samples per frame, skew, digital.
+        """Format 16, multi-samples per frame, skew, digital.
 
         Target file created with:
             rdsamp -r sample-data/test01_00s_skewframe | cut -f 2- > record-4a
@@ -764,8 +742,7 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_4b(self, source, temp_path):
-        """
-        Format 12, multi-samples per frame, skew, entire signal, digital.
+        """Format 12, multi-samples per frame, skew, entire signal, digital.
 
         Target file created with:
             rdsamp -r sample-data/03700181 | cut -f 2- > record-4b
@@ -804,9 +781,7 @@ class TestRecord:
         assert record.__eq__(record_write)
 
     def test_4c(self, source, temp_path):
-        """
-        Format 12, multi-samples per frame, skew, selected suration,
-        selected channels, physical.
+        """Format 12, multi-samples/frame, skew, selected duration/channels, physical.
 
         Target file created with:
             rdsamp -r sample-data/03700181 -f 8 -t 128 -s 0 2 -P | cut -f 2- > record-4c
@@ -850,8 +825,7 @@ class TestRecord:
         assert np.array_equal(sig, writesig) and fields == writefields
 
     def test_4d(self):
-        """
-        Format 16, multi-samples per frame, skew, read expanded signals
+        """Format 16, multi-samples per frame, skew, read expanded signals
 
         Target file created with:
             rdsamp -r sample-data/test01_00s_skewframe -P -H | cut -f 2- > record-4d
@@ -870,9 +844,7 @@ class TestRecord:
         assert np.array_equal(sig_round, sig_target)
 
     def test_write_smoothed(self, temp_path):
-        """
-        Test writing a record after reading with smooth_frames
-        """
+        """Test writing a record after reading with smooth_frames"""
         record = wfdb.rdrecord(
             "sample-data/drive02",
             physical=False,
@@ -898,9 +870,7 @@ class TestRecord:
         assert np.array_equal(record.p_signal, df.values)
 
     def test_header_with_non_utf8(self):
-        """
-        Ignores non-utf8 characters in the header part.
-        """
+        """Ignores non-utf8 characters in the header part."""
         record = wfdb.rdrecord("sample-data/test_generator_2")
         sig_units_target = [
             "uV",
@@ -920,9 +890,7 @@ class TestRecord:
 
 
 class TestMultiRecord:
-    """
-    Test read and write of multi segment WFDB records, including
-    PhysioNet streaming.
+    """Test read and write of multi segment WFDB records, including PhysioNet streaming.
 
     Target files created using the original WFDB Software Package
     version 10.5.24
@@ -930,8 +898,7 @@ class TestMultiRecord:
     """
 
     def test_multi_fixed_a(self):
-        """
-        Multi-segment, fixed layout, read entire signal.
+        """Multi-segment, fixed layout, read entire signal.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/fixed1/v102s -P | cut -f 2-
@@ -944,9 +911,7 @@ class TestMultiRecord:
         np.testing.assert_equal(sig_round, sig_target)
 
     def test_multi_fixed_b(self):
-        """
-        Multi-segment, fixed layout, selected duration, samples read
-        from one segment.
+        """Multi-segment, fixed layout, selected duration, samples from one segment.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/fixed1/v102s -t s75000 -P | cut -f 2-
@@ -959,9 +924,7 @@ class TestMultiRecord:
         np.testing.assert_equal(sig_round, sig_target)
 
     def test_multi_fixed_c(self):
-        """
-        Multi-segment, fixed layout, selected duration and channels,
-        samples read from multiple segments
+        """Multi-segment, fixed layout, selected duration and channels, many segments.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/fixed1/v102s -f s70000 -t s80000
@@ -988,8 +951,7 @@ class TestMultiRecord:
         assert record.__eq__(record_named)
 
     def test_multi_fixed_d(self):
-        """
-        Multi-segment, fixed layout, multi-frequency, selected channels
+        """Multi-segment, fixed layout, multi-frequency, selected channels
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/041s/ -s 3 2 1 -H |
@@ -1023,9 +985,7 @@ class TestMultiRecord:
         assert record == record_named
 
     def test_multi_variable_a(self):
-        """
-        Multi-segment, variable layout, selected duration, samples read
-        from one segment only.
+        """Multi-segment, variable layout, selected duration, samples from one segment.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31
@@ -1042,9 +1002,7 @@ class TestMultiRecord:
         np.testing.assert_equal(sig_round, sig_target)
 
     def test_multi_variable_b(self):
-        """
-        Multi-segment, variable layout, selected duration, samples read
-        from several segments.
+        """Multi-segment, variable layout, selected duration, several segments.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/s00001/s00001-2896-10-10-00-31
@@ -1061,8 +1019,7 @@ class TestMultiRecord:
         np.testing.assert_equal(sig_round, sig_target)
 
     def test_multi_variable_c(self):
-        """
-        Multi-segment, variable layout, entire signal, physical, expanded
+        """Multi-segment, variable layout, entire signal, physical, expanded
 
         The reference signal creation cannot be made with rdsamp
         directly because the WFDB c package (10.5.24) applies the single
@@ -1114,10 +1071,10 @@ class TestMultiRecord:
         np.testing.assert_equal(sig_round, sig_target)
 
     def test_multi_variable_d(self, source):
-        """
-        Multi-segment, variable layout, selected duration, selected
-        channels, digital. There are two channels: PLETH, and II. Their
-        fmt, adc_gain, and baseline do not change between the segments.
+        """Multi-segment, variable layout, selected duration and channels, digital.
+
+        There are two channels: PLETH, and II. Their fmt, adc_gain, and baseline do not
+        change between the segments.
 
         Target file created with:
             rdsamp -r sample-data/multi-segment/p000878/p000878-2137-10-26-16-57
@@ -1162,13 +1119,10 @@ class TestMultiRecord:
 
 
 class TestTimeConversion:
-    """
-    Test cases for time conversion
-    """
+    """Test cases for time conversion"""
 
     def test_single(self):
-        """
-        Time conversion for a single-segment record
+        """Time conversion for a single-segment record
 
         This checks the get_frame_number, get_elapsed_time, and
         get_absolute_time methods for a Record object.  The example record
@@ -1198,8 +1152,7 @@ class TestTimeConversion:
             header.get_absolute_time(t)
 
     def test_multisegment_with_date(self):
-        """
-        Time conversion for a multi-segment record with base date
+        """Time conversion for a multi-segment record with base date
 
         This checks the get_frame_number, get_elapsed_time, and
         get_absolute_time methods for a MultiRecord object.  The example
@@ -1227,14 +1180,11 @@ class TestTimeConversion:
 
 
 class TestSignal:
-    """
-    For lower level signal tests
-
-    """
+    """For lower level signal tests"""
 
     def test_infer_sig_len(self):
-        """
-        Infer the signal length of a record without the sig_len header
+        """Infer the signal length of a record without the sig_len header.
+
         Read two headers. The records should be the same.
         """
 
@@ -1332,11 +1282,12 @@ class TestSignal:
                 )
 
     def test_adc_gain_max_boundary(self, temp_path):
-        """
-        Exercise the MAX_I32 clamp path: use a tiny range around a huge negative signal
-        so the computed baseline would exceed MAX_I32. Verify we hit that branch and
-        that a write/read round-trip preserves the physical signal within expected
-        quantization and the formula produces the expected result.
+        """Exercise the MAX_I32 clamp path.
+
+        Use a tiny range around a huge negative signal so the computed baseline would
+        exceed MAX_I32. Verify we hit that branch and that a write/read round-trip
+        preserves the physical signal within expected quantization and the formula
+        produces the expected result.
         """
         # Tiny range around a large negative value forces baseline > MAX_I32
         base_value = -1e10
@@ -1382,11 +1333,12 @@ class TestSignal:
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
 
     def test_adc_gain_min_boundary(self, temp_path):
-        """
-        Exercise the MIN_I32 clamp path: use a tiny range around a huge positive signal
-        so the computed baseline would drop below MIN_I32. Verify we hit that branch and
-        that a write/read round-trip preserves the physical signal within expected
-        quantization and the formula produces the expected result..
+        """Exercise the MIN_I32 clamp path.
+
+        Use a tiny range around a huge positive signal so the computed baseline would
+        drop below MIN_I32. Verify we hit that branch and that a write/read round-trip
+        preserves the physical signal within expected quantization and the formula
+        produces the expected result.
         """
         # Tiny range around a large positive value forces baseline < MIN_I32
         base_value = 1e10

@@ -1,6 +1,4 @@
-"""
-A module for general utility functions
-"""
+"""A module for general utility functions"""
 
 import io
 import math
@@ -11,8 +9,7 @@ import numpy as np
 
 
 def lines_to_file(file_name: str, write_dir: str, lines: Sequence[str]):
-    """
-    Write each line in a list of strings to a text file.
+    """Write each line in a list of strings to a text file.
 
     Parameters
     ----------
@@ -34,9 +31,9 @@ def lines_to_file(file_name: str, write_dir: str, lines: Sequence[str]):
 
 
 def is_monotonic(items: Sequence) -> bool:
-    """
-    Determine whether elements in a list are monotonic. ie. unique
-    elements are clustered together.
+    """Determine whether the elements in a list are monotonic.
+
+    That is, unique elements are clustered together.
 
     ie. [5,5,3,4] is, [5,3,5] is not.
 
@@ -65,8 +62,7 @@ def is_monotonic(items: Sequence) -> bool:
 
 
 def downround(x, base):
-    """
-    Round <x> down to nearest <base>.
+    """Round <x> down to nearest <base>.
 
     Parameters
     ---------
@@ -85,8 +81,7 @@ def downround(x, base):
 
 
 def upround(x, base):
-    """
-    Round <x> up to nearest <base>.
+    """Round <x> up to nearest <base>.
 
     Parameters
     ---------
@@ -108,9 +103,9 @@ def overlapping_ranges(
     ranges_1: Sequence[tuple[int, int]],
     ranges_2: Sequence[tuple[int, int]],
 ) -> list[tuple[int, int]]:
-    """
-    Given two collections of integer ranges, return a list of ranges
-    in which both input inputs overlap.
+    """Return the ranges in which two collections of ranges overlap.
+
+    Both collections consist of integer ranges.
 
     From: https://stackoverflow.com/q/40367461
 
@@ -126,10 +121,10 @@ def overlapping_ranges(
 
 
 def fromfile(fileobj, dtype, count=-1):
-    """
-    Read binary data from a file-like object into a NumPy array, using `np.fromfile`
-    when possible. Falls back to manual reading for file-like objects that are not
-    compatible with np.fromfile.
+    """Read binary data from a file-like object into a NumPy array.
+
+    Uses `np.fromfile` when possible. Falls back to manual reading for file-like objects
+    that are not compatible with np.fromfile.
 
     Parameters
     ----------

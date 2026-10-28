@@ -21,8 +21,7 @@ def read_edf(
     rdedfann_flag=False,
     encoding="iso8859-1",
 ):
-    """
-    Read a EDF format file into a WFDB Record.
+    """Read a EDF format file into a WFDB Record.
 
     Many EDF files contain signals at widely varying sampling frequencies.
     `read_edf` handles these properly, but the default behavior of most WFDB
@@ -476,10 +475,11 @@ def wfdb_to_edf(
     output_filename="",
     edf_plus=False,
 ):
-    """
-    These programs convert EDF (European Data Format) files into
-    WFDB-compatible files (as used in PhysioNet) and vice versa. European
-    Data Format (EDF) was originally designed for storage of polysomnograms.
+    """Convert a WFDB record to an EDF file.
+
+    These programs convert EDF (European Data Format) files into WFDB-compatible files
+    (as used in PhysioNet) and vice versa. European Data Format (EDF) was originally
+    designed for storage of polysomnograms.
 
     Note that WFDB format does not include a standard way to specify the
     transducer type or the prefiltering specification; these parameters are
@@ -981,10 +981,10 @@ def rdedfann(
     verbose=False,
     encoding="iso8859-1",
 ):
-    """
-    This program returns the annotation information from an EDF+ file
-    containing annotations (with the signal name given as 'EDF Annotations').
-    The information that is returned if `info_only` is set to True is::
+    """Return the annotation information from an EDF+ file.
+
+    The file contains annotations (with the signal name given as 'EDF Annotations'). The
+    information that is returned if `info_only` is set to True is::
 
         {
             'onset_time': list of %H:%M:%S.fff strings denoting the annotation
