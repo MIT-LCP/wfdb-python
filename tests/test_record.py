@@ -240,7 +240,7 @@ class TestRecord:
 
         # Test writing all supported formats.  (Currently not all signal
         # formats are supported for output; keep this list in sync with
-        # 'wr_dat_file' in wfdb/io/_signal.py.)
+        # 'wr_dat_file' in src/wfdb/io/_signal.py.)
         OUTPUT_FMTS = ["80", "212", "16", "24", "32"]
         channels = []
         for i, fmt in enumerate(record.fmt):

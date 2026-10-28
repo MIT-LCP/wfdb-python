@@ -75,6 +75,3 @@ addopts = "-r s"
 markers = [
     "network: requires access to PhysioNet (skipped if it cannot be reached)",
 ]
-
-[tool.uv.build-backend]
-module-root = ""
