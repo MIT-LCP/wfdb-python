@@ -16,7 +16,7 @@ class TestAnnotation:
     version 10.5.24
     """
 
-    def test_1(self, temp_path):
+    def test_1(self, source, temp_path):
         """
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-1
@@ -75,14 +75,15 @@ class TestAnnotation:
         ]
 
         # Test file streaming
-        pn_annotation = wfdb.rdann(
-            "100",
-            "atr",
-            pn_dir="mitdb",
-            return_label_elements=["label_store", "symbol"],
-        )
-        pn_annotation.aux_note[0] = "(N"
-        pn_annotation.create_label_map()
+        if source == "physionet":
+            pn_annotation = wfdb.rdann(
+                "100",
+                "atr",
+                pn_dir="mitdb",
+                return_label_elements=["label_store", "symbol"],
+            )
+            pn_annotation.aux_note[0] = "(N"
+            pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True, write_dir=temp_path)
@@ -94,10 +95,11 @@ class TestAnnotation:
         write_annotation.create_label_map()
 
         assert comp == [True] * 6
-        assert annotation.__eq__(pn_annotation)
+        if source == "physionet":
+            assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
-    def test_2(self, temp_path):
+    def test_2(self, source, temp_path):
         """
         Annotation file with many aux_note strings.
 
@@ -150,13 +152,14 @@ class TestAnnotation:
             annotation.aux_note == target_aux_note,
         ]
         # Test file streaming
-        pn_annotation = wfdb.rdann(
-            "12726",
-            "anI",
-            pn_dir="prcp",
-            return_label_elements=["label_store", "symbol"],
-        )
-        pn_annotation.create_label_map()
+        if source == "physionet":
+            pn_annotation = wfdb.rdann(
+                "12726",
+                "anI",
+                pn_dir="prcp",
+                return_label_elements=["label_store", "symbol"],
+            )
+            pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True, write_dir=temp_path)
@@ -168,10 +171,11 @@ class TestAnnotation:
         write_annotation.create_label_map()
 
         assert comp == [True] * 6
-        assert annotation.__eq__(pn_annotation)
+        if source == "physionet":
+            assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
-    def test_3(self, temp_path):
+    def test_3(self, source, temp_path):
         """
         Annotation file with custom annotation types
 
@@ -225,13 +229,14 @@ class TestAnnotation:
         ]
 
         # Test file streaming
-        pn_annotation = wfdb.rdann(
-            "1003",
-            "atr",
-            pn_dir="challenge-2014/set-p2",
-            return_label_elements=["label_store", "symbol"],
-        )
-        pn_annotation.create_label_map()
+        if source == "physionet":
+            pn_annotation = wfdb.rdann(
+                "1003",
+                "atr",
+                pn_dir="challenge-2014/set-p2",
+                return_label_elements=["label_store", "symbol"],
+            )
+            pn_annotation.create_label_map()
 
         # Test file writing
         annotation.wrann(write_fs=True, write_dir=temp_path)
@@ -243,7 +248,8 @@ class TestAnnotation:
         write_annotation.create_label_map()
 
         assert comp == [True] * 6
-        assert annotation.__eq__(pn_annotation)
+        if source == "physionet":
+            assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
     def test_4(self, temp_path):

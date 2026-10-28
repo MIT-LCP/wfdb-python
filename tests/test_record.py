@@ -39,7 +39,7 @@ class TestRecord:
 
     # ----------------------- 1. Basic Tests -----------------------#
 
-    def test_1a(self, temp_path):
+    def test_1a(self, source, temp_path):
         """
         Format 16, entire signal, digital.
 
@@ -51,9 +51,10 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-1a")
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord(
-            "test01_00s", pn_dir="macecgdb", physical=False, return_res=16
-        )
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "test01_00s", pn_dir="macecgdb", physical=False, return_res=16
+            )
 
         # Test file writing
         record_2 = wfdb.rdrecord(
@@ -68,10 +69,11 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
-    def test_1b(self):
+    def test_1b(self, source):
         """
         Format 16, byte offset, selected duration, selected channels,
         physical.
@@ -86,13 +88,14 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-1b")
 
         # Compare data streaming from Physionet
-        sig_pn, fields_pn = wfdb.rdsamp(
-            "a103l",
-            pn_dir="challenge-2015/training",
-            sampfrom=12500,
-            sampto=40000,
-            channels=[2, 0],
-        )
+        if source == "physionet":
+            sig_pn, fields_pn = wfdb.rdsamp(
+                "a103l",
+                pn_dir="challenge-2015/training",
+                sampfrom=12500,
+                sampto=40000,
+                channels=[2, 0],
+            )
 
         # Option of selecting channels by name
         sig_named, fields_named = wfdb.rdsamp(
@@ -103,10 +106,11 @@ class TestRecord:
         )
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pn) and fields == fields_pn
+        if source == "physionet":
+            assert np.array_equal(sig, sig_pn) and fields == fields_pn
         assert np.array_equal(sig, sig_named) and fields == fields_named
 
-    def test_1c(self, temp_path):
+    def test_1c(self, source, temp_path):
         """
         Format 16, byte offset, selected duration, selected channels,
         digital, expanded format.
@@ -129,14 +133,15 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-1c")
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord(
-            "a103l",
-            pn_dir="challenge-2015/training",
-            sampfrom=20000,
-            channels=[0, 1],
-            physical=False,
-            smooth_frames=False,
-        )
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "a103l",
+                pn_dir="challenge-2015/training",
+                sampfrom=20000,
+                channels=[0, 1],
+                physical=False,
+                smooth_frames=False,
+            )
 
         # Test file writing
         record.wrsamp(write_dir=temp_path, expanded=True)
@@ -147,10 +152,11 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
-    def test_1d(self):
+    def test_1d(self, source):
         """
         Format 80, selected duration, selected channels, physical
 
@@ -165,18 +171,20 @@ class TestRecord:
         sig_target = sig_target.reshape(len(sig_target), 1)
 
         # Compare data streaming from Physionet
-        sig_pn, fields_pn = wfdb.rdsamp(
-            "3000003_0003",
-            pn_dir="mimic3wdb/30/3000003/",
-            sampfrom=125,
-            sampto=1000,
-            channels=[1],
-        )
+        if source == "physionet":
+            sig_pn, fields_pn = wfdb.rdsamp(
+                "3000003_0003",
+                pn_dir="mimic3wdb/30/3000003/",
+                sampfrom=125,
+                sampto=1000,
+                channels=[1],
+            )
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pn) and fields == fields_pn
+        if source == "physionet":
+            assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
-    def test_1e(self, temp_path):
+    def test_1e(self, source, temp_path):
         """
         Format 24, entire signal, digital.
 
@@ -190,9 +198,10 @@ class TestRecord:
         sig_target[sig_target == -32768] = -(2**23)
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord(
-            "n8_evoked_raw_95_F1_R9", physical=False, pn_dir="earndb/raw/N8"
-        )
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "n8_evoked_raw_95_F1_R9", physical=False, pn_dir="earndb/raw/N8"
+            )
 
         # Test file writing
         record_2 = wfdb.rdrecord("sample-data/n8_evoked_raw_95_F1_R9", physical=False)
@@ -203,7 +212,8 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
     def test_1f(self, temp_path):
@@ -529,7 +539,7 @@ class TestRecord:
 
     # ------------------ 2. Special format records ------------------ #
 
-    def test_2a(self):
+    def test_2a(self, source):
         """
         Format 212, entire signal, physical.
 
@@ -541,15 +551,17 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-2a")
 
         # Compare data streaming from Physionet
-        sig_pn, fields_pn = wfdb.rdsamp("100", pn_dir="mitdb")
+        if source == "physionet":
+            sig_pn, fields_pn = wfdb.rdsamp("100", pn_dir="mitdb")
         # This comment line was manually added and is not present in the
         # original PhysioNet record
         del fields["comments"][0]
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pn) and fields == fields_pn
+        if source == "physionet":
+            assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
-    def test_2b(self, temp_path):
+    def test_2b(self, source, temp_path):
         """
         Format 212, selected duration, selected channel, digital.
 
@@ -568,14 +580,15 @@ class TestRecord:
         sig_target = sig_target.reshape(len(sig_target), 1)
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord(
-            "100",
-            sampfrom=1,
-            sampto=10800,
-            channels=[1],
-            physical=False,
-            pn_dir="mitdb",
-        )
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "100",
+                sampfrom=1,
+                sampto=10800,
+                channels=[1],
+                physical=False,
+                pn_dir="mitdb",
+            )
         # This comment line was manually added and is not present in the
         # original PhysioNet record
         del record.comments[0]
@@ -598,7 +611,8 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
@@ -650,7 +664,7 @@ class TestRecord:
 
     # --------------------- 3. Multi-dat records --------------------- #
 
-    def test_3a(self, temp_path):
+    def test_3a(self, source, temp_path):
         """
         Multi-dat, entire signal, digital
         Target file created with:
@@ -661,7 +675,10 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-3a")
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord("s0010_re", physical=False, pn_dir="ptbdb/patient001")
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "s0010_re", physical=False, pn_dir="ptbdb/patient001"
+            )
 
         # Test file writing
         record.wrsamp(write_dir=temp_path)
@@ -671,10 +688,11 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
-    def test_3b(self):
+    def test_3b(self, source):
         """
         Multi-dat, selected duration, selected channels, physical.
 
@@ -691,16 +709,18 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-3b")
 
         # Compare data streaming from Physionet
-        sig_pn, fields_pn = wfdb.rdsamp(
-            "s0010_re",
-            sampfrom=5000,
-            pn_dir="ptbdb/patient001",
-            sampto=38000,
-            channels=[13, 0, 4, 8, 3],
-        )
+        if source == "physionet":
+            sig_pn, fields_pn = wfdb.rdsamp(
+                "s0010_re",
+                sampfrom=5000,
+                pn_dir="ptbdb/patient001",
+                sampto=38000,
+                channels=[13, 0, 4, 8, 3],
+            )
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pn) and fields == fields_pn
+        if source == "physionet":
+            assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
     # -------------- 4. Skew and multiple samples/frame -------------- #
 
@@ -738,7 +758,7 @@ class TestRecord:
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_write)
 
-    def test_4b(self, temp_path):
+    def test_4b(self, source, temp_path):
         """
         Format 12, multi-samples per frame, skew, entire signal, digital.
 
@@ -755,7 +775,8 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-4b")
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord("03700181", physical=False, pn_dir="mimicdb/037")
+        if source == "physionet":
+            record_pn = wfdb.rdrecord("03700181", physical=False, pn_dir="mimicdb/037")
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
@@ -773,10 +794,11 @@ class TestRecord:
         )
 
         assert np.array_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
-    def test_4c(self, temp_path):
+    def test_4c(self, source, temp_path):
         """
         Format 12, multi-samples per frame, skew, selected suration,
         selected channels, physical.
@@ -791,13 +813,14 @@ class TestRecord:
         sig_target = np.genfromtxt("tests/target-output/record-4c")
 
         # Compare data streaming from Physionet
-        sig_pn, fields_pn = wfdb.rdsamp(
-            "03700181",
-            pn_dir="mimicdb/037",
-            channels=[0, 2],
-            sampfrom=1000,
-            sampto=16000,
-        )
+        if source == "physionet":
+            sig_pn, fields_pn = wfdb.rdsamp(
+                "03700181",
+                pn_dir="mimicdb/037",
+                channels=[0, 2],
+                sampfrom=1000,
+                sampto=16000,
+            )
 
         # Test file writing. Multiple samples per frame and skew.
         # Have to read all the samples in the record, ignoring skew
@@ -817,7 +840,8 @@ class TestRecord:
         )
 
         assert np.array_equal(sig_round, sig_target)
-        assert np.array_equal(sig, sig_pn) and fields == fields_pn
+        if source == "physionet":
+            assert np.array_equal(sig, sig_pn) and fields == fields_pn
         assert np.array_equal(sig, writesig) and fields == writefields
 
     def test_4d(self):
@@ -1078,7 +1102,7 @@ class TestMultiRecord:
 
         np.testing.assert_equal(sig_round, sig_target)
 
-    def test_multi_variable_d(self):
+    def test_multi_variable_d(self, source):
         """
         Multi-segment, variable layout, selected duration, selected
         channels, digital. There are two channels: PLETH, and II. Their
@@ -1098,14 +1122,15 @@ class TestMultiRecord:
         sig = record.d_signal
 
         # Compare data streaming from Physionet
-        record_pn = wfdb.rdrecord(
-            "p000878-2137-10-26-16-57",
-            pn_dir="mimic3wdb/matched/p00/p000878/",
-            sampfrom=3550,
-            sampto=7500,
-            channels=[0, 1],
-            physical=False,
-        )
+        if source == "physionet":
+            record_pn = wfdb.rdrecord(
+                "p000878-2137-10-26-16-57",
+                pn_dir="mimic3wdb/matched/p00/p000878/",
+                sampfrom=3550,
+                sampto=7500,
+                channels=[0, 1],
+                physical=False,
+            )
         sig_target = np.genfromtxt("tests/target-output/record-multi-variable-d")
 
         # Option of selecting channels by name
@@ -1118,7 +1143,8 @@ class TestMultiRecord:
         )
 
         np.testing.assert_equal(sig, sig_target)
-        assert record.__eq__(record_pn)
+        if source == "physionet":
+            assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
 
 
@@ -1396,9 +1422,11 @@ class TestSignal:
 class TestDownload:
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
+    @pytest.mark.network
     def test_dl_database_no_dat_file(self, temp_path):
         wfdb.dl_database("afdb", temp_path, ["00735"])
 
     # Test that we can download records that *do* have a "dat" file.
+    @pytest.mark.network
     def test_dl_database_with_dat_file(self, temp_path):
         wfdb.dl_database("afdb", temp_path, ["04015"])

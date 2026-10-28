@@ -82,3 +82,9 @@ pytest
 # https://github.com/pytest-dev/pytest-xdist
 pytest -n auto
 ```
+
+Tests that stream or download data from PhysioNet are marked with `network`. Most of them also exist as a local variant (for example, `test_1a[local]` and `test_1a[physionet]`), so a slow or unreachable PhysioNet only affects the `physionet` variants. If PhysioNet cannot be reached, these tests are skipped instead of failing. To run only the tests that work offline:
+
+```sh
+pytest -m "not network"
+```
