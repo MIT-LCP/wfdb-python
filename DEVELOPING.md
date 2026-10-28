@@ -4,7 +4,7 @@
 
 We welcome community contributions in the form of pull requests. When contributing code, please ensure:
 
-- Documentation is provided. New functions and classes should have numpy/scipy style [docstrings](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt).
+- Documentation is provided. New functions and classes should have numpy/scipy style [docstrings](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt). Start the docstring on the line of the opening quotes, with a summary that fits on a single line (the documentation build fails on warnings, so check it with `uv run --only-group docs make -C docs html SPHINXOPTS="-W --keep-going"`).
 - Unit tests are written for new features that are not covered by [existing tests](https://github.com/MIT-LCP/wfdb-python/tree/main/tests).
 - The code style is consistent with the project's formating standards.
 
