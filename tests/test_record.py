@@ -1,15 +1,14 @@
 import datetime
 import os
-import tempfile
-import unittest
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import wfdb
 
 
-class TestRecord(unittest.TestCase):
+class TestRecord:
     """
     Test read and write of single segment WFDB records, including
     PhysioNet streaming.
@@ -40,7 +39,7 @@ class TestRecord(unittest.TestCase):
 
     # ----------------------- 1. Basic Tests -----------------------#
 
-    def test_1a(self):
+    def test_1a(self, temp_path):
         """
         Format 16, entire signal, digital.
 
@@ -61,9 +60,9 @@ class TestRecord(unittest.TestCase):
             "sample-data/test01_00s", physical=False, return_res=16
         )
         record_2.sig_name = ["ECG_1", "ECG_2", "ECG_3", "ECG_4"]
-        record_2.wrsamp(write_dir=self.temp_path)
+        record_2.wrsamp(write_dir=temp_path)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "test01_00s"),
+            os.path.join(temp_path, "test01_00s"),
             physical=False,
             return_res=16,
         )
@@ -107,7 +106,7 @@ class TestRecord(unittest.TestCase):
         assert np.array_equal(sig, sig_pn) and fields == fields_pn
         assert np.array_equal(sig, sig_named) and fields == fields_named
 
-    def test_1c(self):
+    def test_1c(self, temp_path):
         """
         Format 16, byte offset, selected duration, selected channels,
         digital, expanded format.
@@ -140,9 +139,9 @@ class TestRecord(unittest.TestCase):
         )
 
         # Test file writing
-        record.wrsamp(write_dir=self.temp_path, expanded=True)
+        record.wrsamp(write_dir=temp_path, expanded=True)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "a103l"),
+            os.path.join(temp_path, "a103l"),
             physical=False,
             smooth_frames=False,
         )
@@ -177,7 +176,7 @@ class TestRecord(unittest.TestCase):
         assert np.array_equal(sig_round, sig_target)
         assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
-    def test_1e(self):
+    def test_1e(self, temp_path):
         """
         Format 24, entire signal, digital.
 
@@ -197,9 +196,9 @@ class TestRecord(unittest.TestCase):
 
         # Test file writing
         record_2 = wfdb.rdrecord("sample-data/n8_evoked_raw_95_F1_R9", physical=False)
-        record_2.wrsamp(write_dir=self.temp_path)
+        record_2.wrsamp(write_dir=temp_path)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "n8_evoked_raw_95_F1_R9"),
+            os.path.join(temp_path, "n8_evoked_raw_95_F1_R9"),
             physical=False,
         )
 
@@ -207,7 +206,7 @@ class TestRecord(unittest.TestCase):
         assert record.__eq__(record_pn)
         assert record_2.__eq__(record_write)
 
-    def test_1f(self):
+    def test_1f(self, temp_path):
         """
         All binary formats, multiple signal files in one record.
 
@@ -253,14 +252,14 @@ class TestRecord(unittest.TestCase):
             physical=False,
             channels=channels,
         )
-        partial_record.wrsamp(write_dir=self.temp_path)
+        partial_record.wrsamp(write_dir=temp_path)
         converted_record = wfdb.rdrecord(
-            os.path.join(self.temp_path, "binformats"),
+            os.path.join(temp_path, "binformats"),
             physical=False,
         )
         assert partial_record == converted_record
 
-    def test_read_write_flac(self):
+    def test_read_write_flac(self, temp_path):
         """
         All FLAC formats, multiple signal files in one record.
 
@@ -292,14 +291,14 @@ class TestRecord(unittest.TestCase):
                     )
 
         # Test file writing
-        record.wrsamp(write_dir=self.temp_path)
+        record.wrsamp(write_dir=temp_path)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "flacformats"),
+            os.path.join(temp_path, "flacformats"),
             physical=False,
         )
         assert record == record_write
 
-    def test_read_write_flac_multifrequency(self):
+    def test_read_write_flac_multifrequency(self, temp_path):
         """
         Format 516 with multiple signal files and variable samples per frame.
         """
@@ -309,17 +308,17 @@ class TestRecord(unittest.TestCase):
             physical=False,
             smooth_frames=False,
         )
-        record.wrsamp(write_dir=self.temp_path, expanded=True)
+        record.wrsamp(write_dir=temp_path, expanded=True)
 
         # Check that result matches the original
         record = wfdb.rdrecord("sample-data/mixedsignals", smooth_frames=False)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "mixedsignals"),
+            os.path.join(temp_path, "mixedsignals"),
             smooth_frames=False,
         )
         assert record == record_write
 
-    def test_unique_samps_per_frame_e_p_signal(self):
+    def test_unique_samps_per_frame_e_p_signal(self, temp_path):
         """
         Test writing an e_p_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
         parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
@@ -347,14 +346,14 @@ class TestRecord(unittest.TestCase):
             baseline=record.baseline,
             adc_gain=record.adc_gain,
             fmt=record.fmt,
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Check that the written record matches the original
         # Read in the original and written records
         record = wfdb.rdrecord("sample-data/mixedsignals", smooth_frames=False)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "mixedsignals"),
+            os.path.join(temp_path, "mixedsignals"),
             smooth_frames=False,
         )
 
@@ -397,7 +396,7 @@ class TestRecord(unittest.TestCase):
         # Check that the arguments beyond the signals also match
         assert record_filtered == record_write_filtered
 
-    def test_unique_samps_per_frame_e_d_signal(self):
+    def test_unique_samps_per_frame_e_d_signal(self, temp_path):
         """
         Test writing an e_d_signal with wfdb.io.wrsamp where the signals have different samples per frame. All other
         parameters which overlap between a Record object and wfdb.io.wrsamp are also checked.
@@ -426,7 +425,7 @@ class TestRecord(unittest.TestCase):
             baseline=record.baseline,
             adc_gain=record.adc_gain,
             fmt=record.fmt,
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Check that the written record matches the original
@@ -435,7 +434,7 @@ class TestRecord(unittest.TestCase):
             "sample-data/mixedsignals", physical=False, smooth_frames=False
         )
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "mixedsignals"),
+            os.path.join(temp_path, "mixedsignals"),
             physical=False,
             smooth_frames=False,
         )
@@ -479,7 +478,7 @@ class TestRecord(unittest.TestCase):
         # Check that the arguments beyond the signals also match
         assert record_filtered == record_write_filtered
 
-    def test_read_write_flac_many_channels(self):
+    def test_read_write_flac_many_channels(self, temp_path):
         """
         Check we can read and write to format 516 with more than 8 channels.
         """
@@ -496,12 +495,12 @@ class TestRecord(unittest.TestCase):
             d_signal=record.d_signal,
             adc_gain=record.adc_gain,
             baseline=record.baseline,
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Check that signal matches the original
         record_fmt516 = wfdb.rdrecord(
-            os.path.join(self.temp_path, "s0010_re_fmt516"),
+            os.path.join(temp_path, "s0010_re_fmt516"),
             physical=False,
         )
         assert (record.d_signal == record_fmt516.d_signal).all()
@@ -550,7 +549,7 @@ class TestRecord(unittest.TestCase):
         assert np.array_equal(sig_round, sig_target)
         assert np.array_equal(sig, sig_pn) and fields == fields_pn
 
-    def test_2b(self):
+    def test_2b(self, temp_path):
         """
         Format 212, selected duration, selected channel, digital.
 
@@ -592,9 +591,9 @@ class TestRecord(unittest.TestCase):
         del record_named.comments[0]
 
         # Test file writing
-        record.wrsamp(write_dir=self.temp_path)
+        record.wrsamp(write_dir=temp_path)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "100"),
+            os.path.join(temp_path, "100"),
             physical=False,
         )
 
@@ -603,7 +602,7 @@ class TestRecord(unittest.TestCase):
         assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
-    def test_2c(self):
+    def test_2c(self, temp_path):
         """
         Format 212, entire signal, physical, odd sampled record.
 
@@ -616,8 +615,8 @@ class TestRecord(unittest.TestCase):
 
         # Test file writing
         record.d_signal = record.adc()
-        record.wrsamp(write_dir=self.temp_path)
-        record_write = wfdb.rdrecord(os.path.join(self.temp_path, "100_3chan"))
+        record.wrsamp(write_dir=temp_path)
+        record_write = wfdb.rdrecord(os.path.join(temp_path, "100_3chan"))
         record.d_signal = None
 
         assert np.array_equal(sig_round, sig_target)
@@ -651,7 +650,7 @@ class TestRecord(unittest.TestCase):
 
     # --------------------- 3. Multi-dat records --------------------- #
 
-    def test_3a(self):
+    def test_3a(self, temp_path):
         """
         Multi-dat, entire signal, digital
         Target file created with:
@@ -665,9 +664,9 @@ class TestRecord(unittest.TestCase):
         record_pn = wfdb.rdrecord("s0010_re", physical=False, pn_dir="ptbdb/patient001")
 
         # Test file writing
-        record.wrsamp(write_dir=self.temp_path)
+        record.wrsamp(write_dir=temp_path)
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "s0010_re"),
+            os.path.join(temp_path, "s0010_re"),
             physical=False,
         )
 
@@ -705,7 +704,7 @@ class TestRecord(unittest.TestCase):
 
     # -------------- 4. Skew and multiple samples/frame -------------- #
 
-    def test_4a(self):
+    def test_4a(self, temp_path):
         """
         Format 16, multi-samples per frame, skew, digital.
 
@@ -729,17 +728,17 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
+        record_no_skew.wrsamp(write_dir=temp_path, expanded=True)
         # Read the written record
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "test01_00s_skewframe"),
+            os.path.join(temp_path, "test01_00s_skewframe"),
             physical=False,
         )
 
         assert np.array_equal(sig, sig_target)
         assert record.__eq__(record_write)
 
-    def test_4b(self):
+    def test_4b(self, temp_path):
         """
         Format 12, multi-samples per frame, skew, entire signal, digital.
 
@@ -766,10 +765,10 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
+        record_no_skew.wrsamp(write_dir=temp_path, expanded=True)
         # Read the written record
         record_write = wfdb.rdrecord(
-            os.path.join(self.temp_path, "03700181"),
+            os.path.join(temp_path, "03700181"),
             physical=False,
         )
 
@@ -777,7 +776,7 @@ class TestRecord(unittest.TestCase):
         assert record.__eq__(record_pn)
         assert record.__eq__(record_write)
 
-    def test_4c(self):
+    def test_4c(self, temp_path):
         """
         Format 12, multi-samples per frame, skew, selected suration,
         selected channels, physical.
@@ -808,10 +807,10 @@ class TestRecord(unittest.TestCase):
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(write_dir=self.temp_path, expanded=True)
+        record_no_skew.wrsamp(write_dir=temp_path, expanded=True)
         # Read the written record
         writesig, writefields = wfdb.rdsamp(
-            os.path.join(self.temp_path, "03700181"),
+            os.path.join(temp_path, "03700181"),
             channels=[0, 2],
             sampfrom=1000,
             sampto=16000,
@@ -841,7 +840,7 @@ class TestRecord(unittest.TestCase):
 
         assert np.array_equal(sig_round, sig_target)
 
-    def test_write_smoothed(self):
+    def test_write_smoothed(self, temp_path):
         """
         Test writing a record after reading with smooth_frames
         """
@@ -850,9 +849,9 @@ class TestRecord(unittest.TestCase):
             physical=False,
             smooth_frames=True,
         )
-        record.wrsamp(write_dir=self.temp_path)
+        record.wrsamp(write_dir=temp_path)
         record2 = wfdb.rdrecord(
-            os.path.join(self.temp_path, "drive02"),
+            os.path.join(temp_path, "drive02"),
             physical=False,
         )
         np.testing.assert_array_equal(record.d_signal, record2.d_signal)
@@ -861,12 +860,11 @@ class TestRecord(unittest.TestCase):
         record = wfdb.rdrecord("sample-data/test01_00s")
         df = record.to_dataframe()
 
-        self.assertEqual(record.sig_name, list(df.columns))
-        self.assertEqual(len(df), record.sig_len)
-        self.assertEqual(df.index[0], pd.Timedelta(0))
-        self.assertEqual(
-            df.index[-1],
-            pd.Timedelta(seconds=1 / record.fs * (record.sig_len - 1)),
+        assert record.sig_name == list(df.columns)
+        assert len(df) == record.sig_len
+        assert df.index[0] == pd.Timedelta(0)
+        assert df.index[-1] == pd.Timedelta(
+            seconds=1 / record.fs * (record.sig_len - 1)
         )
         assert np.array_equal(record.p_signal, df.values)
 
@@ -891,17 +889,8 @@ class TestRecord(unittest.TestCase):
         ]
         assert record.units.__eq__(sig_units_target)
 
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_directory = tempfile.TemporaryDirectory()
-        cls.temp_path = cls.temp_directory.name
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_directory.cleanup()
-
-
-class TestMultiRecord(unittest.TestCase):
+class TestMultiRecord:
     """
     Test read and write of multi segment WFDB records, including
     PhysioNet streaming.
@@ -999,7 +988,7 @@ class TestMultiRecord(unittest.TestCase):
         # Sample values should match the output of rdsamp -H
         np.testing.assert_array_equal(sig, sig_target)
         # channel_names=[...] should give the same result as channels=[...]
-        self.assertEqual(record, record_named)
+        assert record == record_named
 
     def test_multi_variable_a(self):
         """
@@ -1133,7 +1122,7 @@ class TestMultiRecord(unittest.TestCase):
         assert record.__eq__(record_named)
 
 
-class TestTimeConversion(unittest.TestCase):
+class TestTimeConversion:
     """
     Test cases for time conversion
     """
@@ -1153,18 +1142,21 @@ class TestTimeConversion(unittest.TestCase):
         # these time values should be equivalent
         n = 123 * header.fs
         t = datetime.timedelta(seconds=123)
-        self.assertEqual(header.get_frame_number(n), n)
-        self.assertEqual(header.get_frame_number(t), n)
-        self.assertEqual(header.get_elapsed_time(n), t)
-        self.assertEqual(header.get_elapsed_time(t), t)
+        assert header.get_frame_number(n) == n
+        assert header.get_frame_number(t) == n
+        assert header.get_elapsed_time(n) == t
+        assert header.get_elapsed_time(t) == t
 
         # record test01_00s has no base date, so absolute time conversions
         # should fail
-        self.assertIsNone(header.base_date)
+        assert header.base_date is None
         d = datetime.datetime(2001, 1, 1, 12, 0, 0)
-        self.assertRaises(ValueError, header.get_frame_number, d)
-        self.assertRaises(ValueError, header.get_absolute_time, n)
-        self.assertRaises(ValueError, header.get_absolute_time, t)
+        with pytest.raises(ValueError):
+            header.get_frame_number(d)
+        with pytest.raises(ValueError):
+            header.get_absolute_time(n)
+        with pytest.raises(ValueError):
+            header.get_absolute_time(t)
 
     def test_multisegment_with_date(self):
         """
@@ -1184,18 +1176,18 @@ class TestTimeConversion(unittest.TestCase):
         n = 123 * header.fs
         t = datetime.timedelta(seconds=123)
         d = t + header.base_datetime
-        self.assertEqual(header.get_frame_number(n), n)
-        self.assertEqual(header.get_frame_number(t), n)
-        self.assertEqual(header.get_frame_number(d), n)
-        self.assertEqual(header.get_elapsed_time(n), t)
-        self.assertEqual(header.get_elapsed_time(t), t)
-        self.assertEqual(header.get_elapsed_time(d), t)
-        self.assertEqual(header.get_absolute_time(n), d)
-        self.assertEqual(header.get_absolute_time(t), d)
-        self.assertEqual(header.get_absolute_time(d), d)
+        assert header.get_frame_number(n) == n
+        assert header.get_frame_number(t) == n
+        assert header.get_frame_number(d) == n
+        assert header.get_elapsed_time(n) == t
+        assert header.get_elapsed_time(t) == t
+        assert header.get_elapsed_time(d) == t
+        assert header.get_absolute_time(n) == d
+        assert header.get_absolute_time(t) == d
+        assert header.get_absolute_time(d) == d
 
 
-class TestSignal(unittest.TestCase):
+class TestSignal:
     """
     For lower level signal tests
 
@@ -1219,7 +1211,7 @@ class TestSignal(unittest.TestCase):
 
         assert record_2.__eq__(record)
 
-    def test_physical_conversion(self):
+    def test_physical_conversion(self, temp_path):
         n_sig = 3
         adc_gain = [1.0, 1234.567, 765.4321]
         baseline = [10, 20, -30]
@@ -1260,12 +1252,12 @@ class TestSignal(unittest.TestCase):
             )
 
             e_d_signal_converted = record.adc(expanded=True, inplace=False)
-            self.assertEqual(len(e_d_signal_converted), n_sig)
+            assert len(e_d_signal_converted) == n_sig
             for x, y in zip(e_d_signal_converted, e_d_signal):
                 np.testing.assert_array_equal(x, y)
 
             record.adc(expanded=True, inplace=True)
-            self.assertEqual(len(record.e_d_signal), n_sig)
+            assert len(record.e_d_signal) == n_sig
             for x, y in zip(record.e_d_signal, e_d_signal):
                 np.testing.assert_array_equal(x, y)
 
@@ -1280,16 +1272,16 @@ class TestSignal(unittest.TestCase):
                 adc_gain=adc_gain,
                 baseline=baseline,
                 fmt=fmt,
-                write_dir=self.temp_path,
+                write_dir=temp_path,
             )
             record = wfdb.rdrecord(
-                os.path.join(self.temp_path, "test_physical_conversion"),
+                os.path.join(temp_path, "test_physical_conversion"),
                 physical=False,
             )
             np.testing.assert_array_equal(record.d_signal, d_signal)
 
             record = wfdb.rdrecord(
-                os.path.join(self.temp_path, "test_physical_conversion"),
+                os.path.join(temp_path, "test_physical_conversion"),
                 physical=True,
             )
             for ch, gain in enumerate(adc_gain):
@@ -1300,7 +1292,7 @@ class TestSignal(unittest.TestCase):
                     atol=(0.05 / gain),
                 )
 
-    def test_adc_gain_max_boundary(self):
+    def test_adc_gain_max_boundary(self, temp_path):
         """
         Exercise the MAX_I32 clamp path: use a tiny range around a huge negative signal
         so the computed baseline would exceed MAX_I32. Verify we hit that branch and
@@ -1326,12 +1318,12 @@ class TestSignal(unittest.TestCase):
             units=["mV"],
             p_signal=p_signal,
             fmt=["16"],
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Read it back
         record = wfdb.rdrecord(
-            os.path.join(self.temp_path, "test_negative_signal"),
+            os.path.join(temp_path, "test_negative_signal"),
             physical=True,
         )
 
@@ -1344,13 +1336,13 @@ class TestSignal(unittest.TestCase):
         )
 
         # Verify baseline was clamped to MAX_I32
-        self.assertEqual(record.baseline[0], 2147483647)  # MAX_I32
+        assert record.baseline[0] == 2147483647  # MAX_I32
 
         # Confirm the formula is correct
         expected_gain = (2147483647 - (-32768)) / abs(base_value)
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
 
-    def test_adc_gain_min_boundary(self):
+    def test_adc_gain_min_boundary(self, temp_path):
         """
         Exercise the MIN_I32 clamp path: use a tiny range around a huge positive signal
         so the computed baseline would drop below MIN_I32. Verify we hit that branch and
@@ -1376,12 +1368,12 @@ class TestSignal(unittest.TestCase):
             units=["mV"],
             p_signal=p_signal,
             fmt=["16"],
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Read it back
         record = wfdb.rdrecord(
-            os.path.join(self.temp_path, "test_positive_signal"),
+            os.path.join(temp_path, "test_positive_signal"),
             physical=True,
         )
 
@@ -1394,42 +1386,19 @@ class TestSignal(unittest.TestCase):
         )
 
         # Verify baseline was clamped to MIN_I32
-        self.assertEqual(record.baseline[0], -2147483648)
+        assert record.baseline[0] == -2147483648
 
         # Confirm the formula is correct
         expected_gain = (32767 - (-2147483648)) / (base_value + 1.5)
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
 
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_directory = tempfile.TemporaryDirectory()
-        cls.temp_path = cls.temp_directory.name
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_directory.cleanup()
-
-
-class TestDownload(unittest.TestCase):
+class TestDownload:
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
-    def test_dl_database_no_dat_file(self):
-        wfdb.dl_database("afdb", self.temp_path, ["00735"])
+    def test_dl_database_no_dat_file(self, temp_path):
+        wfdb.dl_database("afdb", temp_path, ["00735"])
 
     # Test that we can download records that *do* have a "dat" file.
-    def test_dl_database_with_dat_file(self):
-        wfdb.dl_database("afdb", self.temp_path, ["04015"])
-
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_directory = tempfile.TemporaryDirectory()
-        cls.temp_path = cls.temp_directory.name
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_directory.cleanup()
-
-
-if __name__ == "__main__":
-    unittest.main()
-    print("Everything passed!")
+    def test_dl_database_with_dat_file(self, temp_path):
+        wfdb.dl_database("afdb", temp_path, ["04015"])

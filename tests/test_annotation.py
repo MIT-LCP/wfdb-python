@@ -1,7 +1,5 @@
 import os
 import re
-import tempfile
-import unittest
 
 import numpy as np
 import pandas as pd
@@ -9,7 +7,7 @@ import pandas as pd
 import wfdb
 
 
-class TestAnnotation(unittest.TestCase):
+class TestAnnotation:
     """
     Testing read and write of WFDB annotations, including Physionet
     streaming.
@@ -18,7 +16,7 @@ class TestAnnotation(unittest.TestCase):
     version 10.5.24
     """
 
-    def test_1(self):
+    def test_1(self, temp_path):
         """
         Target file created with:
             rdann -r sample-data/100 -a atr > ann-1
@@ -87,9 +85,9 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True, write_dir=self.temp_path)
+        annotation.wrann(write_fs=True, write_dir=temp_path)
         write_annotation = wfdb.rdann(
-            os.path.join(self.temp_path, "100"),
+            os.path.join(temp_path, "100"),
             "atr",
             return_label_elements=["label_store", "symbol"],
         )
@@ -99,7 +97,7 @@ class TestAnnotation(unittest.TestCase):
         assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
-    def test_2(self):
+    def test_2(self, temp_path):
         """
         Annotation file with many aux_note strings.
 
@@ -161,9 +159,9 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True, write_dir=self.temp_path)
+        annotation.wrann(write_fs=True, write_dir=temp_path)
         write_annotation = wfdb.rdann(
-            os.path.join(self.temp_path, "12726"),
+            os.path.join(temp_path, "12726"),
             "anI",
             return_label_elements=["label_store", "symbol"],
         )
@@ -173,7 +171,7 @@ class TestAnnotation(unittest.TestCase):
         assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
-    def test_3(self):
+    def test_3(self, temp_path):
         """
         Annotation file with custom annotation types
 
@@ -236,9 +234,9 @@ class TestAnnotation(unittest.TestCase):
         pn_annotation.create_label_map()
 
         # Test file writing
-        annotation.wrann(write_fs=True, write_dir=self.temp_path)
+        annotation.wrann(write_fs=True, write_dir=temp_path)
         write_annotation = wfdb.rdann(
-            os.path.join(self.temp_path, "1003"),
+            os.path.join(temp_path, "1003"),
             "atr",
             return_label_elements=["label_store", "symbol"],
         )
@@ -248,7 +246,7 @@ class TestAnnotation(unittest.TestCase):
         assert annotation.__eq__(pn_annotation)
         assert annotation.__eq__(write_annotation)
 
-    def test_4(self):
+    def test_4(self, temp_path):
         """
         Read and write annotations with large time skips
 
@@ -256,14 +254,14 @@ class TestAnnotation(unittest.TestCase):
             echo "xxxxxxxxx 10000000000 N 0 0 0" | wrann -r huge -a qrs
         """
         annotation = wfdb.rdann("sample-data/huge", "qrs")
-        self.assertEqual(annotation.sample[0], 10000000000)
-        annotation.wrann(write_dir=self.temp_path)
+        assert annotation.sample[0] == 10000000000
+        annotation.wrann(write_dir=temp_path)
 
         annotation1 = wfdb.rdann("sample-data/huge", "qrs")
-        annotation2 = wfdb.rdann(os.path.join(self.temp_path, "huge"), "qrs")
-        self.assertEqual(annotation1, annotation2)
+        annotation2 = wfdb.rdann(os.path.join(temp_path, "huge"), "qrs")
+        assert annotation1 == annotation2
 
-    def test_5(self):
+    def test_5(self, temp_path):
         """
         Write and read annotations with custom labels.
         """
@@ -284,20 +282,7 @@ class TestAnnotation(unittest.TestCase):
             chan=ann_chan,
             custom_labels=ann_custom_labels,
             label_store=ann_label_store,
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
-        ann = wfdb.rdann(os.path.join(self.temp_path, "CustomLabel"), "atr")
-        self.assertEqual(ann.symbol, ["z", "l", "v", "r"])
-
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_directory = tempfile.TemporaryDirectory()
-        cls.temp_path = cls.temp_directory.name
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_directory.cleanup()
-
-
-if __name__ == "__main__":
-    unittest.main()
+        ann = wfdb.rdann(os.path.join(temp_path, "CustomLabel"), "atr")
+        assert ann.symbol == ["z", "l", "v", "r"]

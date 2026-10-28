@@ -1,12 +1,11 @@
 import gzip
 import http.server
 import threading
-import unittest
 
 import wfdb.io._url
 
 
-class TestNetFiles(unittest.TestCase):
+class TestNetFiles:
     """
     Test accessing remote files.
     """
@@ -78,10 +77,10 @@ class TestNetFiles(unittest.TestCase):
         """
         # read(-1), readable(), seekable()
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
-            self.assertTrue(tf.readable())
-            self.assertTrue(tf.seekable())
-            self.assertEqual(tf.read(), content)
-            self.assertEqual(tf.read(), "")
+            assert tf.readable()
+            assert tf.seekable()
+            assert tf.read() == content
+            assert tf.read() == ""
 
         # read(10)
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
@@ -91,7 +90,7 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) < 10:
                     break
-            self.assertEqual(result, content)
+            assert result == content
 
         # readline(), seek(), tell()
         with wfdb.io._url.openurl(url, "r", buffering=buffering) as tf:
@@ -104,7 +103,7 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
+            assert result == content
 
     def _test_binary(self, url, content, buffering):
         """
@@ -126,11 +125,11 @@ class TestNetFiles(unittest.TestCase):
         """
         # read(-1), readable(), seekable()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
-            self.assertTrue(bf.readable())
-            self.assertTrue(bf.seekable())
-            self.assertEqual(bf.read(), content)
-            self.assertEqual(bf.read(), b"")
-            self.assertEqual(bf.tell(), len(content))
+            assert bf.readable()
+            assert bf.seekable()
+            assert bf.read() == content
+            assert bf.read() == b""
+            assert bf.tell() == len(content)
 
         # read(10)
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -140,8 +139,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) < 10:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readline()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -151,13 +150,13 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # read1(10), seek(), tell()
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
             bf.seek(0, 2)
-            self.assertEqual(bf.tell(), len(content))
+            assert bf.tell() == len(content)
             bf.seek(0)
             result = b""
             while True:
@@ -168,8 +167,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk
                 if len(chunk) == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readinto(bytearray(10))
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -180,8 +179,8 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk[:count]
                 if count < 10:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
         # readinto1(bytearray(10))
         with wfdb.io._url.openurl(url, "rb", buffering=buffering) as bf:
@@ -192,11 +191,11 @@ class TestNetFiles(unittest.TestCase):
                 result += chunk[:count]
                 if count == 0:
                     break
-            self.assertEqual(result, content)
-            self.assertEqual(bf.tell(), len(content))
+            assert result == content
+            assert bf.tell() == len(content)
 
 
-class TestRemoteFLACFiles(unittest.TestCase):
+class TestRemoteFLACFiles:
     """
     Test reading FLAC files over HTTP.
     """
@@ -233,8 +232,8 @@ class TestRemoteFLACFiles(unittest.TestCase):
 
         # Read the file using standard file I/O
         sf1 = soundfile.SoundFile(data_file_path)
-        self.assertEqual(sf1.format, expected_format)
-        self.assertEqual(sf1.subtype, expected_subtype)
+        assert sf1.format == expected_format
+        assert sf1.subtype == expected_subtype
         data1 = sf1.read()
 
         # Read the file using HTTP
@@ -244,8 +243,8 @@ class TestRemoteFLACFiles(unittest.TestCase):
             url = server.url("/foo.dat")
             file2 = wfdb.io._url.openurl(url, "rb")
             sf2 = soundfile.SoundFile(file2)
-            self.assertEqual(sf2.format, expected_format)
-            self.assertEqual(sf2.subtype, expected_subtype)
+            assert sf2.format == expected_format
+            assert sf2.subtype == expected_subtype
             data2 = sf2.read()
 
         # Check that results are equal
@@ -387,7 +386,3 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header(h, v)
         self.end_headers()
         return content
-
-
-if __name__ == "__main__":
-    unittest.main()
