@@ -21,6 +21,13 @@ def record_files(record_name):
     return files
 
 
+def zip_files(file_paths, archive_path):
+    """Put files into a zip file the way other software might, without any checks."""
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        for path in file_paths:
+            zf.write(path, arcname=os.path.basename(path))
+
+
 def archive_sample_record(record_name, tmp_path):
     """Put a record from sample-data into a .wfdb archive and return its path."""
     archive_path = os.fspath(tmp_path / (os.path.basename(record_name) + ".wfdb"))
@@ -131,17 +138,19 @@ def test_read_replaced_archive(tmp_path):
     archive_path = archive_sample_record("sample-data/100", tmp_path)
     assert wfdb.rdrecord(archive_path).sig_name == ["MLII", "V5"]
 
-    create_archive(record_files("sample-data/test01_00s"), archive_path)
+    wfdb.wrsamp("100", wfdb_archive=archive_path, **write_kwargs())
 
-    record = wfdb.rdrecord(archive_path)
-    expected = wfdb.rdrecord("sample-data/test01_00s")
-    assert_records_equal(record, expected)
+    assert wfdb.rdrecord(archive_path).sig_name == ["I", "II"]
 
 
 def test_read_archive_header_named_differently(tmp_path):
-    """A single header can be read even if it isn't named after the archive."""
+    """A single header can be read even if it isn't named after the archive.
+
+    wfdb doesn't write such archives, but other software might, or an archive might be
+    renamed.
+    """
     archive_path = os.fspath(tmp_path / "renamed.wfdb")
-    create_archive(record_files("sample-data/100"), archive_path)
+    zip_files(record_files("sample-data/100"), archive_path)
 
     record = wfdb.rdrecord(archive_path, sampto=100)
 
@@ -285,8 +294,10 @@ def test_create_archive_compression(tmp_path):
 
 
 def test_create_archive_replaces_existing(tmp_path):
-    archive_path = os.fspath(tmp_path / "record.wfdb")
-    create_archive(record_files("sample-data/test01_00s"), archive_path)
+    archive_path = os.fspath(tmp_path / "100.wfdb")
+    create_archive(
+        record_files("sample-data/100") + ["sample-data/100.atr"], archive_path
+    )
 
     create_archive(record_files("sample-data/100"), archive_path)
 
@@ -329,6 +340,30 @@ def test_archive_mode_checks(tmp_path):
 
     with pytest.raises(ValueError, match="mode"):
         WFDBArchive(archive_path, mode="a")
+
+
+def test_archive_header_named_after_archive(tmp_path):
+    """The record's header must be named after the archive.
+
+    The archive is not saved otherwise.
+    """
+    with pytest.raises(ValueError, match="must be named after the archive"):
+        wfdb.wrsamp("rec", wfdb_archive=tmp_path / "other.wfdb", **write_kwargs())
+    with pytest.raises(ValueError, match="must be named after the archive"):
+        create_archive(record_files("sample-data/100"), tmp_path / "other.wfdb")
+
+    assert os.listdir(tmp_path) == []
+
+
+@pytest.mark.parametrize(
+    "file_name", ["sub/100.dat", "../100.dat", ".100.dat", "100 a.dat", "é.dat", ""]
+)
+def test_archive_file_names(tmp_path, file_name):
+    """Files are at the top level, with ASCII names that follow the WFDB rules."""
+    with WFDBArchive(tmp_path / "100.wfdb", mode="w") as archive:
+        with pytest.raises(ValueError, match="at the top level"):
+            archive.write(file_name, b"x")
+        archive.write("100_1.dat", b"x")
 
 
 def test_archive_holds_one_record(tmp_path):
@@ -559,10 +594,7 @@ def test_rdann_archive(tmp_path):
 def test_rdann_archive_header_named_differently(tmp_path):
     """Annotation files are named after the record's header, not the archive."""
     archive_path = os.fspath(tmp_path / "renamed.wfdb")
-    create_archive(
-        record_files("sample-data/100") + ["sample-data/100.atr"],
-        archive_path,
-    )
+    zip_files(record_files("sample-data/100") + ["sample-data/100.atr"], archive_path)
 
     ann = wfdb.rdann(archive_path, "atr")
 
@@ -654,14 +686,18 @@ def test_wrsamp_archive_write_dir(tmp_path, monkeypatch):
         "rec", write_dir=os.fspath(write_dir), wfdb_archive="rec.wfdb", **write_kwargs()
     )
     record = wfdb.rdrecord(os.fspath(write_dir / "rec.wfdb"), physical=False)
-    record.wrsamp(write_dir=os.fspath(write_dir), wfdb_archive="copy.wfdb")
     record.wrsamp(
-        write_dir=os.fspath(write_dir), wfdb_archive=os.fspath(tmp_path / "abs.wfdb")
+        write_dir=os.fspath(write_dir), wfdb_archive=os.path.join("copy", "rec.wfdb")
+    )
+    record.wrsamp(
+        write_dir=os.fspath(write_dir),
+        wfdb_archive=os.fspath(tmp_path / "abs" / "rec.wfdb"),
     )
 
     assert os.listdir(cwd) == []
-    assert sorted(os.listdir(write_dir)) == ["copy.wfdb", "rec.wfdb"]
-    assert os.path.exists(tmp_path / "abs.wfdb")
+    assert sorted(os.listdir(write_dir)) == ["copy", "rec.wfdb"]
+    assert os.listdir(write_dir / "copy") == ["rec.wfdb"]
+    assert os.listdir(tmp_path / "abs") == ["rec.wfdb"]
 
 
 def test_archive_extension_case(tmp_path):

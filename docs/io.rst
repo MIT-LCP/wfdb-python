@@ -39,7 +39,9 @@ WFDB Archives
 
 A ``.wfdb`` archive is a ZIP file containing the files of a single
 record: its header file, the signal files listed in the header, and
-optionally annotation files.
+optionally annotation files. The files are at the top level of the
+archive, and the header file is named after the archive (for example,
+``100.wfdb`` contains ``100.hea``).
 Files are stored without compression, so that part of a signal can be
 read without decompressing the whole file. Archives made by other tools
 may compress their files, and can still be read.

@@ -25,9 +25,12 @@ ARCHIVE_EXTENSION = ".wfdb"
 # small, so anything bigger is treated as a damaged or malicious file.
 MAX_HEADER_SIZE = 1024 * 1024
 
-# A header file at the top level of an archive, named after a record (record names
-# are made of letters, digits, hyphens and underscores)
-_HEADER_NAME = re.compile(r"[-\w]+\.hea")
+# The name of a file at the top level of an archive: an ASCII WFDB name made of
+# letters, digits, hyphens and underscores, with an extension
+_FILE_NAME = re.compile(r"[-\w]+(\.[-\w]+)*", re.ASCII)
+
+# The name of a header file at the top level of an archive
+_HEADER_NAME = re.compile(r"[-\w]+\.hea", re.ASCII)
 
 
 class WFDBArchive:
@@ -41,8 +44,11 @@ class WFDBArchive:
     the default permissions for new files.
 
     An archive holds a single record, so only one header file can be
-    written to it. Annotation files and other files can be added
-    alongside the record's header and signal files.
+    written to it, and it must be named after the archive (for example
+    'record.hea' in 'record.wfdb'). Annotation files and other files can
+    be added alongside the record's header and signal files. All files
+    are at the top level of the archive, and their names are made of
+    ASCII letters, digits, hyphens and underscores, with an extension.
 
     Use the object as a context manager so that it is always closed. An
     archive in write mode that is discarded without being closed is not
@@ -236,6 +242,12 @@ class WFDBArchive:
         """
         if self._zipfile is None:
             return
+        if self.mode == "w":
+            try:
+                self._check_header_name()
+            except BaseException:
+                self.abort()
+                raise
         self._finalizer.detach()
         try:
             self._zipfile.close()
@@ -279,9 +291,15 @@ class WFDBArchive:
     def _check_new_file(self, file_name):
         """Check that a file can be added to an archive opened for writing."""
         self._require_mode("w")
+        if not _FILE_NAME.fullmatch(file_name):
+            raise ValueError(
+                f"Cannot add '{file_name}' to '{self.path}': files in an archive "
+                "are at the top level, and their names are made of ASCII letters, "
+                "digits, hyphens and underscores, with an extension"
+            )
         if self.exists(file_name):
             raise ValueError(f"'{file_name}' was already written to the archive")
-        if file_name.endswith(".hea"):
+        if _HEADER_NAME.fullmatch(file_name):
             headers = self._header_names()
             if headers:
                 raise ValueError(
@@ -289,6 +307,17 @@ class WFDBArchive:
                     f"holds a single record, and it already contains the "
                     f"header '{headers[0]}'"
                 )
+
+    def _check_header_name(self):
+        """Check that the record's header file is named after the archive."""
+        expected = self.record_name + ".hea"
+        headers = self._header_names()
+        if headers and headers != [expected]:
+            raise ValueError(
+                f"Cannot save '{self.path}': the header file of the record in an "
+                f"archive must be named after the archive ('{expected}'), but it "
+                f"is '{headers[0]}'"
+            )
 
     def _header_names(self):
         """Return the names of the header files in the archive.
@@ -359,8 +388,8 @@ def create_archive(file_paths, archive_path):
         The paths of the files to add: the header file and its signal
         files. Each file is stored under its base name.
     archive_path : str or os.PathLike
-        The path of the archive to create. An existing archive at this
-        path is replaced.
+        The path of the archive to create, which must be named after the
+        record. An existing archive at this path is replaced.
 
     Examples
     --------
