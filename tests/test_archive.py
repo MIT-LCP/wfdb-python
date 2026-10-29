@@ -638,3 +638,31 @@ def test_archive_extension_case(tmp_path):
     with WFDBArchive(archive_path) as archive:
         assert archive.record_name == "100"
         assert archive.path == archive_path
+
+
+def test_archive_write_bytes_like(tmp_path, monkeypatch):
+    """`write` streams any bytes-like object, with the same entries as `writestr`.
+
+    ZIP64 is used for large files: the limit is lowered so that a small file needs it.
+    """
+    signal = np.arange(1000, dtype=np.int16)
+    archive_path = os.fspath(tmp_path / "rec.wfdb")
+    with WFDBArchive(archive_path, mode="w") as archive:
+        archive.write("rec.hea", b"rec 1 250 1000\n")
+        archive.write("array.dat", signal)
+        archive.write("view.dat", memoryview(signal.tobytes()))
+        archive.write("bytearray.dat", bytearray(b"abc"))
+        monkeypatch.setattr(zipfile, "ZIP64_LIMIT", 100)
+        archive.write("zip64.dat", signal)
+        monkeypatch.undo()
+
+    with zipfile.ZipFile(archive_path) as zf:
+        assert zf.read("array.dat") == signal.tobytes()
+        assert zf.read("view.dat") == signal.tobytes()
+        assert zf.read("bytearray.dat") == b"abc"
+        assert zf.read("zip64.dat") == signal.tobytes()
+        for info in zf.infolist():
+            assert info.date_time[0] >= 2020
+            assert info.external_attr == 0o600 << 16
+        assert zf.getinfo("rec.hea").compress_type == zipfile.ZIP_DEFLATED
+        assert zf.getinfo("array.dat").compress_type == zipfile.ZIP_STORED

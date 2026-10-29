@@ -12,6 +12,7 @@ import contextlib
 import os
 import secrets
 import stat
+import time
 import weakref
 import zipfile
 from contextlib import contextmanager
@@ -185,16 +186,29 @@ class WFDBArchive:
     def write(self, file_name, data):
         """Add a file to an archive opened for writing.
 
+        The data is streamed into the archive, so a large signal is not copied in
+        memory.
+
         Parameters
         ----------
         file_name : str
             The name of the file in the archive.
-        data : bytes
-            The content of the file.
+        data : bytes-like object
+            The content of the file, such as `bytes`, or a `memoryview` of a
+            contiguous array.
 
         """
         self._check_new_file(file_name)
-        self._zipfile.writestr(file_name, data, compress_type=_compress_type(file_name))
+        data = memoryview(data).cast("B")
+        # The same file information that ZipFile.writestr uses
+        info = zipfile.ZipInfo(file_name, date_time=time.localtime()[:6])
+        info.compress_type = _compress_type(file_name)
+        info.external_attr = 0o600 << 16
+        # ZIP64 is needed for files of 2 GiB or more, and has to be chosen up front
+        with self._zipfile.open(
+            info, mode="w", force_zip64=data.nbytes >= zipfile.ZIP64_LIMIT
+        ) as f:
+            f.write(data)
 
     def add_file(self, path):
         """Copy a file from disk into an archive opened for writing.

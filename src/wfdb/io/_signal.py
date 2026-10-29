@@ -2485,7 +2485,7 @@ def wr_dat_file(
         with sf:
             sf.write(d_signal)
         if wfdb_archive is not None:
-            wfdb_archive.write(file_name, target.getvalue())
+            wfdb_archive.write(file_name, target.getbuffer())
         return
 
     else:
@@ -2507,7 +2507,7 @@ def wr_dat_file(
 
     # Write the bytes to the file
     if wfdb_archive is not None:
-        wfdb_archive.write(file_name, b_write.tobytes())
+        wfdb_archive.write(file_name, np.ascontiguousarray(b_write))
     else:
         with open(file_path, "wb") as f:
             b_write.tofile(f)
