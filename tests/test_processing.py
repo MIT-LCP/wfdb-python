@@ -1,13 +1,13 @@
+from unittest import mock
+
 import numpy as np
 
 import wfdb
 from wfdb import processing
 
 
-class test_processing:
-    """
-    Test processing functions
-    """
+class TestProcessing:
+    """Test processing functions"""
 
     def test_resample_single(self):
         sig, fields = wfdb.rdsamp("sample-data/100")
@@ -16,9 +16,7 @@ class test_processing:
         fs = fields["fs"]
         fs_target = 50
 
-        new_sig, new_ann = processing.resample_singlechan(
-            sig[:, 0], ann, fs, fs_target
-        )
+        new_sig, new_ann = processing.resample_singlechan(sig[:, 0], ann, fs, fs_target)
 
         expected_length = int(sig.shape[0] * fs_target / fs)
 
@@ -31,9 +29,7 @@ class test_processing:
         fs = fields["fs"]
         fs_target = 50
 
-        new_sig, new_ann = processing.resample_multichan(
-            sig, ann, fs, fs_target
-        )
+        new_sig, new_ann = processing.resample_multichan(sig, ann, fs, fs_target)
 
         expected_length = int(sig.shape[0] * fs_target / fs)
 
@@ -178,15 +174,11 @@ class test_processing:
         assert np.array_equal(yz, expected_peaks)
 
 
-class test_qrs:
-    """
-    Testing QRS detectors
-    """
+class TestQrs:
+    """Testing QRS detectors"""
 
     def test_xqrs(self):
-        """
-        Run XQRS detector on record 100 and compare to reference annotations
-        """
+        """Run XQRS detector on record 100 and compare to reference annotations"""
         sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
         ann_ref = wfdb.rdann("sample-data/100", "atr")
 
@@ -199,3 +191,23 @@ class test_qrs:
 
         assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
+
+
+class TestXQRSDetect:
+    """Tests for the xqrs_detect convenience wrapper."""
+
+    def test_xqrs_detect_forwards_learn(self):
+        """xqrs_detect forwards its learn argument to XQRS.detect (issue #473)."""
+        sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
+
+        def fake_detect(self, *args, **kwargs):
+            # Stand in for the real detector so xqrs_detect can return.
+            self.qrs_inds = np.array([], dtype=int)
+
+        with mock.patch.object(
+            processing.XQRS, "detect", autospec=True, side_effect=fake_detect
+        ) as mock_detect:
+            processing.xqrs_detect(sig=sig[:, 0], fs=fields["fs"], learn=False)
+
+        assert mock_detect.call_count == 1
+        assert mock_detect.call_args.kwargs["learn"] is False

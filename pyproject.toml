@@ -1,33 +1,25 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build >= 0.13.0, < 0.14"]
+build-backend = "uv_build"
 
 [project]
 name = "wfdb"
+version = "4.3.1"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = [{name = "The Laboratory for Computational Physiology", email = "contact@physionet.org"}]
-license = {text = "MIT License"}
+license = "MIT"
+license-files = ["LICENSE"]
 readme = "README.md"
-requires-python = ">= 3.9"
+requires-python = ">= 3.11"
 dependencies = [
     "numpy >= 1.26.4",
     "scipy >= 1.13.0",
     "pandas >= 2.2.3",
-    "soundfile >= 0.10.0",
-    "matplotlib >= 3.2.2",
-    "requests >= 2.8.1",
+    "soundfile >= 0.12.1",
+    "matplotlib >= 3.8.0",
+    "requests >= 2.31.0",
     "fsspec >= 2023.10.0",
     "aiohttp >= 3.10.11",
-]
-dynamic = ["version"]
-
-[project.optional-dependencies]
-dev = [
-    "pytest >= 7.1.1",
-    "pytest-xdist >= 2.5.0",
-    "pylint >= 2.13.7",
-    "black >= 22.3.0",
-    "sphinx >= 7.0.0",
 ]
 
 [project.urls]
@@ -35,17 +27,51 @@ homepage = "https://github.com/MIT-LCP/wfdb-python/"
 repository = "https://github.com/MIT-LCP/wfdb-python/"
 documentation = "https://wfdb.readthedocs.io/"
 
-[tool.black]
-line-length = 80
-target-version = ["py39"]
-
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "/tests",
-    "/sample-data",
-    "/demo-img.png",
-    "/demo.ipynb",
+[dependency-groups]
+dev = [
+    "pytest >= 8.0.0",
+    "pytest-xdist >= 3.5.0",
+    "ruff == 0.17.3",
+]
+# Heavy dependencies are mocked in docs/conf.py, so the project itself is not needed
+docs = [
+    "fsspec >= 2023.10.0",
+    "numpydoc == 1.7.0",
+    "sphinx == 7.2.6",
 ]
 
-[tool.hatch.version]
-path = "wfdb/version.py"
+[tool.ruff]
+target-version = "py311"
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+# Existing violations (other than E501), to be cleaned up separately
+ignore = [
+    "E501",  # handled by the formatter
+    "E711",
+    "E721",
+    "E722",
+    "E741",
+    "F841",
+    "UP031",
+    "B006",
+    "B007",
+    "B020",
+    "B904",
+    "B905",
+]
+
+[tool.ruff.lint.pycodestyle]
+# Wrap docstrings and comments at the same width as the code
+max-doc-length = 88
+
+[tool.ruff.lint.per-file-ignores]
+# Re-exports
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+addopts = "-r s"
+markers = [
+    "network: requires access to PhysioNet (skipped if it cannot be reached)",
+]

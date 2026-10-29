@@ -1,4 +1,5 @@
 import platform
+
 import pytest
 
 from wfdb.io import (
@@ -8,7 +9,6 @@ from wfdb.io import (
     remove_data_source,
     reset_data_sources,
 )
-
 from wfdb.io.datasource import _data_sources
 
 LOCAL_PATH = (

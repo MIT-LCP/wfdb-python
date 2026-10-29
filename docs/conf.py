@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # WFDB documentation build configuration file, created by
 # sphinx-quickstart on Tue Jan  2 13:19:02 2018.
@@ -19,8 +18,9 @@
 #
 import os
 import sys
+import tomllib
 
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("../src"))
 
 # For dependencies
 from unittest.mock import MagicMock
@@ -49,6 +49,10 @@ extensions = [
     "numpydoc",
 ]
 
+# The class members are documented by the autoclass directives, so don't link the
+# method tables to (non-existent) autosummary stubs.
+numpydoc_class_members_toctree = False
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -66,8 +70,8 @@ project = "wfdb"
 copyright = "2018, MIT Lab for Computational Physiology"
 author = "MIT Lab for Computational Physiology"
 
-with open("../wfdb/version.py") as f:
-    __version__ = f.read().split()[-1].strip("'")
+with open("../pyproject.toml", "rb") as f:
+    __version__ = tomllib.load(f)["project"]["version"]
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.

@@ -5,6 +5,39 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. _development repository: https://github.com/MIT-LCP/wfdb-python
 
+Unreleased
+----------
+
+**Drop support for Python 3.9 and 3.10**
+  The minimum supported Python version is now 3.11. The package is now also tested with Python 3.14 and 3.15.
+
+**Raise minimum versions of dependencies**
+  The minimum versions of ``soundfile`` (0.12.1), ``matplotlib`` (3.8.0) and ``requests`` (2.31.0) have been raised. The minimum versions of the other dependencies are unchanged.
+
+**Add timeouts to requests for remote files**
+  Requests for files on PhysioNet (and other web servers) now time out if the server does not respond (10 seconds to connect, and 60 seconds to wait for data), instead of waiting indefinitely. A ``requests.exceptions.Timeout`` (``ConnectTimeout`` or ``ReadTimeout``) is raised in this case.
+
+**Build with uv_build**
+  The package is now built with ``uv_build`` instead of ``hatchling``. The version number is specified in ``pyproject.toml`` only, and ``wfdb.__version__`` is read from the installed package metadata (it is ``"unknown"`` if the package is run from a source tree without being installed).
+
+**Use Ruff for formatting and linting**
+  The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
+
+Version 4.3.1 (Feb 2026)
+-----------------------------
+
+**Add fix for Pandas 3.0**
+  In Pandas 3.0, DataFrame.set_index() no longer accepts a raw numpy array as the keys argument. Adds fix by wrapping the index array in pd.Index().
+
+**Fix ADC formula**
+  Fixes [formula for ADC gain](https://github.com/MIT-LCP/wfdb-python/pull/551).
+
+**Allow multifrequency signals to be written with expanded argument**
+  Allow [expanded parameter in MultiRecord.wrsamp](https://github.com/MIT-LCP/wfdb-python/pull/555).
+
+**Date validation when saving multi-segment records**
+  Adds validation check for date and time fields in headers when saving  multi-segment records.
+
 Version 4.3.0 (Apr 2025)
 -----------------------------
 

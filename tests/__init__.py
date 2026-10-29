@@ -1,6 +1,5 @@
 import numpy as np
 
-
 _np_error_state = {}
 
 
