@@ -624,3 +624,17 @@ def test_wrsamp_archive_write_dir(tmp_path, monkeypatch):
     assert os.listdir(cwd) == []
     assert sorted(os.listdir(write_dir)) == ["copy.wfdb", "rec.wfdb"]
     assert os.path.exists(tmp_path / "abs.wfdb")
+
+
+def test_archive_extension_case(tmp_path):
+    """The .wfdb extension is recognized in any case."""
+    archive_path = os.fspath(tmp_path / "100.WFDB")
+    create_archive(record_files("sample-data/100"), archive_path)
+
+    assert os.listdir(tmp_path) == ["100.WFDB"]
+    record = wfdb.rdrecord(archive_path, sampto=100)
+    assert record.record_name == "100"
+    assert wfdb.rdheader(archive_path).sig_name == ["MLII", "V5"]
+    with WFDBArchive(archive_path) as archive:
+        assert archive.record_name == "100"
+        assert archive.path == archive_path

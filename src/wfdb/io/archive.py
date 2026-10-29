@@ -45,7 +45,7 @@ class WFDBArchive:
     ----------
     path : str or os.PathLike
         The path of the archive. The .wfdb extension is added if it is
-        missing.
+        missing (the extension is not case-sensitive).
     mode : str, optional
         'r' to read an existing archive (default), or 'w' to write a new
         one.
@@ -63,7 +63,7 @@ class WFDBArchive:
             raise ValueError("mode must be 'r' or 'w'")
 
         path = os.fspath(path)
-        if not path.endswith(ARCHIVE_EXTENSION):
+        if not is_archive_path(path):
             path += ARCHIVE_EXTENSION
         self.path = path
         self.mode = mode
@@ -356,8 +356,11 @@ def create_archive(file_paths, archive_path):
 
 
 def is_archive_path(record_name):
-    """Check whether a record name refers to a .wfdb archive."""
-    return os.fspath(record_name).endswith(ARCHIVE_EXTENSION)
+    """Check whether a record name refers to a .wfdb archive.
+
+    The extension is not case-sensitive, so 'record.WFDB' is an archive too.
+    """
+    return os.fspath(record_name).lower().endswith(ARCHIVE_EXTENSION)
 
 
 @contextmanager
