@@ -289,7 +289,9 @@ class WFDBArchive:
 
     def _header_names(self):
         """Return the names of the header files in the archive."""
-        return [n for n in self.namelist() if n.endswith(".hea")]
+        # Only files at the top level belong to the record. macOS, for example,
+        # adds '__MACOSX/._100.hea' when it zips '100.hea'.
+        return [n for n in self.namelist() if n.endswith(".hea") and "/" not in n]
 
     def _require_open(self):
         if self._zipfile is None:
