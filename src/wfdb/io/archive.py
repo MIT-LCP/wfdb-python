@@ -116,7 +116,12 @@ class WFDBArchive:
 
     def exists(self, file_name):
         """Check whether a file is in the archive."""
-        return file_name in self.namelist()
+        self._require_open()
+        try:
+            self._zipfile.getinfo(file_name)
+        except KeyError:
+            return False
+        return True
 
     def file_size(self, file_name):
         """Return the uncompressed size of a file in the archive, in bytes."""
@@ -143,7 +148,7 @@ class WFDBArchive:
         """
         file_name = self.record_name + ".hea"
         if not self.exists(file_name):
-            headers = [n for n in self.namelist() if n.endswith(".hea")]
+            headers = self._header_names()
             if len(headers) != 1:
                 raise FileNotFoundError(
                     f"Could not find '{file_name}' in archive '{self.path}'"
@@ -168,13 +173,9 @@ class WFDBArchive:
 
         """
         file_name = self.header_file_name()
-        if self.file_size(file_name) > MAX_HEADER_SIZE:
-            raise ValueError(
-                f"Header file '{file_name}' in archive '{self.path}' is "
-                f"larger than {MAX_HEADER_SIZE} bytes"
-            )
         with self.open(file_name) as f:
-            # Don't trust the size stored in the archive
+            # Read at most one byte more than allowed, whatever size the archive
+            # declares, so that a damaged or malicious header isn't read in full
             content = f.read(MAX_HEADER_SIZE + 1)
         if len(content) > MAX_HEADER_SIZE:
             raise ValueError(
@@ -278,13 +279,17 @@ class WFDBArchive:
         if self.exists(file_name):
             raise ValueError(f"'{file_name}' was already written to the archive")
         if file_name.endswith(".hea"):
-            headers = [n for n in self.namelist() if n.endswith(".hea")]
+            headers = self._header_names()
             if headers:
                 raise ValueError(
                     f"Cannot add '{file_name}' to '{self.path}': an archive "
                     f"holds a single record, and it already contains the "
                     f"header '{headers[0]}'"
                 )
+
+    def _header_names(self):
+        """Return the names of the header files in the archive."""
+        return [n for n in self.namelist() if n.endswith(".hea")]
 
     def _require_open(self):
         if self._zipfile is None:
