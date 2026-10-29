@@ -35,9 +35,11 @@ def csv_to_wfdb(
     verbose=False,
     write_dir="",
 ):
-    """Read a CSV file and return a `Record` object or write a record.
+    """Read a CSV file and write a WFDB record or return a `Record` object.
 
-    A record and header file are written if `write_dir` is set.
+    By default, a header file ('.hea') and a signal file ('.dat') are written to
+    `write_dir`, which is the current working directory unless set otherwise. If
+    `record_only` is True, no files are written and the `Record` is returned instead.
 
     Parameters
     ----------
@@ -223,7 +225,8 @@ def csv_to_wfdb(
         the same block size.
     record_only : bool, optional
         Whether to only return the record information (True) or not (False).
-        If false, this function will generate both a .dat and .hea file.
+        If False, this function will write both a .dat and .hea file and
+        return None.
     header : bool, optional
         Whether to assume the CSV has a first line header (True) or not (False)
         which defines the signal names. If false, this function will generate
@@ -237,15 +240,16 @@ def csv_to_wfdb(
         Whether to print all the information read about the file (True) or
         not (False).
     write_dir : str, optional
-        The directory where the output files will be saved. If write_dir is not
-        provided, the output files will be saved in the same directory as the
-        input file.
+        The directory where the output files will be saved. If `write_dir` is
+        empty (the default), the output files will be saved in the current
+        working directory, not the directory of the input file. This is ignored
+        if `record_only` is True.
 
     Returns
     -------
-    record : Record or MultiRecord, optional
-        The WFDB Record or MultiRecord object representing the contents
-        of the CSV file read.
+    record : Record, optional
+        The WFDB Record object representing the contents of the CSV file read.
+        This is only returned if `record_only` is True, otherwise None.
 
     Notes
     -----
