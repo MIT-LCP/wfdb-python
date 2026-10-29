@@ -1183,10 +1183,12 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # field
             if segment.sig_len != self.seg_len[seg_num]:
                 raise ValueError(
-                    f"The signal length of segment {seg_num} does not match the corresponding segment length"
+                    f"The signal length of segment {seg_num} does not match the "
+                    f"corresponding segment length"
                 )
 
-            # If segment has expanded signals, validate samps_per_frame and signal lengths
+            # If segment has expanded signals, validate samps_per_frame and signal
+            # lengths
             if segment.e_d_signal is not None or segment.e_p_signal is not None:
                 expanded_signal = (
                     segment.e_d_signal
