@@ -10,6 +10,7 @@ decompressing the whole file.
 
 import contextlib
 import os
+import re
 import secrets
 import stat
 import time
@@ -22,6 +23,10 @@ ARCHIVE_EXTENSION = ".wfdb"
 # Largest header file that will be read from an archive. Headers are
 # small, so anything bigger is treated as a damaged or malicious file.
 MAX_HEADER_SIZE = 1024 * 1024
+
+# A header file at the top level of an archive, named after a record (record names
+# are made of letters, digits, hyphens and underscores)
+_HEADER_NAME = re.compile(r"[-\w]+\.hea")
 
 
 class WFDBArchive:
@@ -288,10 +293,14 @@ class WFDBArchive:
                 )
 
     def _header_names(self):
-        """Return the names of the header files in the archive."""
-        # Only files at the top level belong to the record. macOS, for example,
-        # adds '__MACOSX/._100.hea' when it zips '100.hea'.
-        return [n for n in self.namelist() if n.endswith(".hea") and "/" not in n]
+        """Return the names of the header files in the archive.
+
+        Only files at the top level that are named after a valid record name count,
+        so metadata files that macOS adds, such as '__MACOSX/._100.hea' (added by
+        Finder when it zips '100.hea') or '._100.hea' (written next to '100.hea' on
+        some drives), are ignored.
+        """
+        return [n for n in self.namelist() if _HEADER_NAME.fullmatch(n)]
 
     def _require_open(self):
         if self._zipfile is None:

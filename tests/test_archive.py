@@ -163,18 +163,20 @@ def test_read_archive_several_headers(tmp_path):
         wfdb.rdrecord(archive_path)
 
 
-def test_read_archive_ignores_files_in_folders(tmp_path):
-    """Only header files at the top level of an archive are considered.
+@pytest.mark.parametrize("prefix", ["__MACOSX/._", "._"])
+def test_read_archive_ignores_macos_metadata(tmp_path, prefix):
+    """Metadata files that macOS adds next to the record's files are ignored.
 
-    macOS, for example, adds '__MACOSX/._100.hea' when it zips '100.hea', which
-    shouldn't count as a second header.
+    Finder adds '__MACOSX/._100.hea' when it zips '100.hea', and macOS writes
+    '._100.hea' next to '100.hea' on some drives. Neither counts as a second header,
+    as only files at the top level named after a valid record name do.
     """
     archive_path = os.fspath(tmp_path / "renamed.wfdb")
     with zipfile.ZipFile(archive_path, "w") as zf:
         for path in record_files("sample-data/100"):
             file_name = os.path.basename(path)
             zf.write(path, arcname=file_name)
-            zf.writestr(f"__MACOSX/._{file_name}", b"\x00\x05\x16\x07")
+            zf.writestr(prefix + file_name, b"\x00\x05\x16\x07")
 
     record = wfdb.rdrecord(archive_path, sampto=100)
 
