@@ -361,7 +361,7 @@ def is_archive_path(record_name):
 
 
 @contextmanager
-def archive_for_writing(wfdb_archive):
+def archive_for_writing(wfdb_archive, write_dir=""):
     """Get a WFDBArchive to write a record to.
 
     Parameters
@@ -370,6 +370,9 @@ def archive_for_writing(wfdb_archive):
         A path opens a new archive that is saved when the context exits,
         or discarded if an error occurs. A WFDBArchive opened in write
         mode is used as it is and left open. None gives None.
+    write_dir : str, optional
+        The directory that a relative path is relative to, as for the
+        files of a record written without an archive.
 
     """
     if wfdb_archive is None:
@@ -378,7 +381,8 @@ def archive_for_writing(wfdb_archive):
         wfdb_archive._require_mode("w")
         yield wfdb_archive
     elif isinstance(wfdb_archive, (str, os.PathLike)):
-        with WFDBArchive(wfdb_archive, mode="w") as archive:
+        path = os.path.join(write_dir, wfdb_archive)
+        with WFDBArchive(path, mode="w") as archive:
             yield archive
     else:
         raise TypeError(

@@ -885,8 +885,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         wfdb_archive : str, os.PathLike or WFDBArchive, optional
             Write the record into a .wfdb archive instead of writing separate
             files to `write_dir`. A path creates a new archive, replacing any
-            existing archive at that path. A WFDBArchive must be opened in
-            write mode, and is left open.
+            existing archive at that path. A relative path is relative to
+            `write_dir`. A WFDBArchive must be opened in write mode, and is left
+            open.
 
         Returns
         -------
@@ -903,7 +904,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                     checksums[ch] = old_val
             self.checksum = checksums
 
-        with archive_for_writing(wfdb_archive) as archive:
+        with archive_for_writing(wfdb_archive, write_dir) as archive:
             # Perform field validity and cohesion checks, and write the
             # header file.
             self.wrheader(write_dir=write_dir, expanded=expanded, wfdb_archive=archive)
@@ -3004,8 +3005,9 @@ def wrsamp(
     wfdb_archive : str, os.PathLike or WFDBArchive, optional
         Write the record into a .wfdb archive instead of writing separate
         files to `write_dir`. A path creates a new archive, replacing any
-        existing archive at that path. A WFDBArchive must be opened in
-        write mode, and is left open.
+        existing archive at that path. A relative path is relative to
+        `write_dir`. A WFDBArchive must be opened in write mode, and is left
+        open.
 
     Returns
     -------

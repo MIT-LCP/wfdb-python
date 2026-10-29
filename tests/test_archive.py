@@ -602,3 +602,25 @@ def test_closed_archive(tmp_path):
         archive.add_file("sample-data/100.hea")
     with pytest.raises(ValueError, match="is closed"):
         wfdb.wrsamp("rec", wfdb_archive=archive, **write_kwargs())
+
+
+def test_wrsamp_archive_write_dir(tmp_path, monkeypatch):
+    """A relative archive path is relative to `write_dir`; an absolute one isn't."""
+    write_dir = tmp_path / "write_dir"
+    write_dir.mkdir()
+    cwd = tmp_path / "cwd"
+    cwd.mkdir()
+    monkeypatch.chdir(cwd)
+
+    wfdb.wrsamp(
+        "rec", write_dir=os.fspath(write_dir), wfdb_archive="rec.wfdb", **write_kwargs()
+    )
+    record = wfdb.rdrecord(os.fspath(write_dir / "rec.wfdb"), physical=False)
+    record.wrsamp(write_dir=os.fspath(write_dir), wfdb_archive="copy.wfdb")
+    record.wrsamp(
+        write_dir=os.fspath(write_dir), wfdb_archive=os.fspath(tmp_path / "abs.wfdb")
+    )
+
+    assert os.listdir(cwd) == []
+    assert sorted(os.listdir(write_dir)) == ["copy.wfdb", "rec.wfdb"]
+    assert os.path.exists(tmp_path / "abs.wfdb")
