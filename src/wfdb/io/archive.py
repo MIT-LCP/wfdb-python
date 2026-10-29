@@ -110,11 +110,12 @@ class WFDBArchive:
 
     def namelist(self):
         """Return the names of the files in the archive."""
+        self._require_open()
         return self._zipfile.namelist()
 
     def exists(self, file_name):
         """Check whether a file is in the archive."""
-        return file_name in self._zipfile.namelist()
+        return file_name in self.namelist()
 
     def file_size(self, file_name):
         """Return the uncompressed size of a file in the archive, in bytes."""
@@ -249,6 +250,7 @@ class WFDBArchive:
         self._tmp_path = None
 
     def _getinfo(self, file_name):
+        self._require_open()
         try:
             return self._zipfile.getinfo(file_name)
         except KeyError:
@@ -270,7 +272,12 @@ class WFDBArchive:
                     f"header '{headers[0]}'"
                 )
 
+    def _require_open(self):
+        if self._zipfile is None:
+            raise ValueError(f"Archive '{self.path}' is closed")
+
     def _require_mode(self, mode):
+        self._require_open()
         if self.mode != mode:
             action = "read from" if mode == "r" else "written to"
             raise ValueError(

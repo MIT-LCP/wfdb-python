@@ -576,3 +576,29 @@ def test_archive_abort_removes_temporary_file(tmp_path):
         archive.abort()
 
     assert os.listdir(tmp_path) == []
+
+
+def test_closed_archive(tmp_path):
+    """Using a closed archive raises a clear error."""
+    archive_path = archive_sample_record("sample-data/100", tmp_path)
+
+    archive = WFDBArchive(archive_path, mode="r")
+    archive.close()
+    for call in [
+        archive.namelist,
+        lambda: archive.exists("100.hea"),
+        lambda: archive.file_size("100.hea"),
+        lambda: archive.open("100.hea"),
+        archive.read_header,
+    ]:
+        with pytest.raises(ValueError, match="is closed"):
+            call()
+
+    archive = WFDBArchive(os.fspath(tmp_path / "new.wfdb"), mode="w")
+    archive.close()
+    with pytest.raises(ValueError, match="is closed"):
+        archive.write("new.hea", b"new 0\n")
+    with pytest.raises(ValueError, match="is closed"):
+        archive.add_file("sample-data/100.hea")
+    with pytest.raises(ValueError, match="is closed"):
+        wfdb.wrsamp("rec", wfdb_archive=archive, **write_kwargs())
