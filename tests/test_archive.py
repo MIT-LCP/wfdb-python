@@ -163,6 +163,24 @@ def test_read_archive_several_headers(tmp_path):
         wfdb.rdrecord(archive_path)
 
 
+def test_read_archive_ignores_files_in_folders(tmp_path):
+    """Only header files at the top level of an archive are considered.
+
+    macOS, for example, adds '__MACOSX/._100.hea' when it zips '100.hea', which
+    shouldn't count as a second header.
+    """
+    archive_path = os.fspath(tmp_path / "renamed.wfdb")
+    with zipfile.ZipFile(archive_path, "w") as zf:
+        for path in record_files("sample-data/100"):
+            file_name = os.path.basename(path)
+            zf.write(path, arcname=file_name)
+            zf.writestr(f"__MACOSX/._{file_name}", b"\x00\x05\x16\x07")
+
+    record = wfdb.rdrecord(archive_path, sampto=100)
+
+    assert record.record_name == "100"
+
+
 def test_read_archive_missing_dat_file(tmp_path):
     """A dat file named in the header but missing from the archive is an error.
 
