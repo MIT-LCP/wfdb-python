@@ -40,9 +40,9 @@ WFDB Archives
 A ``.wfdb`` archive is a ZIP file containing the files of a single
 record: its header file, the signal files listed in the header, and
 optionally annotation files.
-Header files are compressed, while signal files are stored without
-compression so that part of a signal can be read without decompressing
-the whole file.
+Files are stored without compression, so that part of a signal can be
+read without decompressing the whole file. Archives made by other tools
+may compress their files, and can still be read.
 
 To read a record from an archive, pass the path of the archive,
 including the ``.wfdb`` extension, to ``rdrecord``, ``rdsamp`` or

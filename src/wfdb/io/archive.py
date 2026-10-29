@@ -3,9 +3,10 @@
 A .wfdb archive is a ZIP file containing the files of a single WFDB
 record: its header file, the signal files listed in the header, and
 optionally annotation files.
-Header files are compressed, while signal files are stored without
-compression so that a range of samples can be read without
-decompressing the whole file.
+Files are stored without compression, so that a range of samples can
+be read without decompressing the whole signal file, and so that
+reading an archive doesn't require a decompression library. Archives
+made by other tools may compress their files, and can still be read.
 """
 
 import contextlib
@@ -208,7 +209,6 @@ class WFDBArchive:
         data = memoryview(data).cast("B")
         # The same file information that ZipFile.writestr uses
         info = zipfile.ZipInfo(file_name, date_time=time.localtime()[:6])
-        info.compress_type = _compress_type(file_name)
         info.external_attr = 0o600 << 16
         # ZIP64 is needed for files of 2 GiB or more, and has to be chosen up front
         with self._zipfile.open(
@@ -227,9 +227,7 @@ class WFDBArchive:
         """
         file_name = os.path.basename(path)
         self._check_new_file(file_name)
-        self._zipfile.write(
-            path, arcname=file_name, compress_type=_compress_type(file_name)
-        )
+        self._zipfile.write(path, arcname=file_name)
 
     def close(self):
         """Close the archive.
@@ -350,17 +348,6 @@ def _create_temp_file(path):
         os.close(fd)
         return tmp_path
     raise FileExistsError(f"Could not create a temporary file next to '{path}'")
-
-
-def _compress_type(file_name):
-    """Return the compression type for a file in an archive.
-
-    Header files are compressed, but signal files are stored as they are, so that
-    reading part of a signal doesn't require decompressing all of it.
-    """
-    if file_name.endswith(".hea"):
-        return zipfile.ZIP_DEFLATED
-    return zipfile.ZIP_STORED
 
 
 def create_archive(file_paths, archive_path):

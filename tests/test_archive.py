@@ -183,6 +183,23 @@ def test_read_archive_ignores_macos_metadata(tmp_path, prefix):
     assert record.record_name == "100"
 
 
+def test_read_compressed_archive(tmp_path):
+    """An archive whose files are compressed, as other tools make them, can be read."""
+    archive_path = os.fspath(tmp_path / "100.wfdb")
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in record_files("sample-data/100") + ["sample-data/100.atr"]:
+            zf.write(path, arcname=os.path.basename(path))
+
+    record = wfdb.rdrecord(archive_path, sampfrom=1000, sampto=2000)
+    archive_annotation = wfdb.rdann(archive_path, "atr")
+
+    expected = wfdb.rdrecord("sample-data/100", sampfrom=1000, sampto=2000)
+    assert_records_equal(record, expected)
+    np.testing.assert_array_equal(
+        archive_annotation.sample, wfdb.rdann("sample-data/100", "atr").sample
+    )
+
+
 def test_read_archive_missing_dat_file(tmp_path):
     """A dat file named in the header but missing from the archive is an error.
 
@@ -251,9 +268,10 @@ def test_read_archive_unsupported_locations():
 
 
 def test_create_archive_compression(tmp_path):
-    """Headers are compressed, and signal files are stored uncompressed.
+    """Files are stored uncompressed.
 
-    This way, part of a signal file can be read without decompressing all of it.
+    This way, part of a signal file can be read without decompressing all of it, and
+    reading an archive doesn't require a decompression library.
     """
     archive_path = archive_sample_record("sample-data/100", tmp_path)
 
@@ -261,7 +279,7 @@ def test_create_archive_compression(tmp_path):
         compress_types = {info.filename: info.compress_type for info in zf.infolist()}
 
     assert compress_types == {
-        "100.hea": zipfile.ZIP_DEFLATED,
+        "100.hea": zipfile.ZIP_STORED,
         "100.dat": zipfile.ZIP_STORED,
     }
 
@@ -684,5 +702,5 @@ def test_archive_write_bytes_like(tmp_path, monkeypatch):
         for info in zf.infolist():
             assert info.date_time[0] >= 2020
             assert info.external_attr == 0o600 << 16
-        assert zf.getinfo("rec.hea").compress_type == zipfile.ZIP_DEFLATED
+        assert zf.getinfo("rec.hea").compress_type == zipfile.ZIP_STORED
         assert zf.getinfo("array.dat").compress_type == zipfile.ZIP_STORED
