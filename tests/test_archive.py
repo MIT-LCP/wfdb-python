@@ -554,3 +554,25 @@ def test_create_archive_old_file_dates(tmp_path):
     expected = wfdb.rdrecord("sample-data/100", sampto=100)
     record = wfdb.rdrecord(archive_path, sampto=100)
     np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
+
+def test_archive_abort_removes_temporary_file(tmp_path):
+    """The temporary file is removed even if closing the zip file fails."""
+    archive = WFDBArchive(os.fspath(tmp_path / "rec.wfdb"), mode="w")
+    archive.write("rec.hea", b"rec 0\n")
+
+    zip_file = archive._zipfile
+    real_close = zip_file.close
+
+    def fail():
+        # Close the file, as when writing the end of the zip file fails
+        zip_file.close = real_close
+        real_close()
+        raise OSError("disk full")
+
+    zip_file.close = fail
+
+    with pytest.raises(OSError, match="disk full"):
+        archive.abort()
+
+    assert os.listdir(tmp_path) == []

@@ -8,6 +8,7 @@ compression so that a range of samples can be read without
 decompressing the whole file.
 """
 
+import contextlib
 import os
 import secrets
 import stat
@@ -279,11 +280,17 @@ class WFDBArchive:
 
 
 def _discard(zip_file, tmp_path):
-    """Close a zip file and remove its temporary file, if there is one."""
-    if zip_file is not None:
-        zip_file.close()
-    if tmp_path is not None and os.path.exists(tmp_path):
-        os.remove(tmp_path)
+    """Close a zip file and remove its temporary file, if there is one.
+
+    The temporary file is removed even if closing the zip file fails.
+    """
+    try:
+        if zip_file is not None:
+            zip_file.close()
+    finally:
+        if tmp_path is not None:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(tmp_path)
 
 
 def _create_temp_file(path):
