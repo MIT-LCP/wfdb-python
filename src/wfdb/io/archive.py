@@ -85,7 +85,11 @@ class WFDBArchive:
             )
             os.close(fd)
             try:
-                self._zipfile = zipfile.ZipFile(self._tmp_path, mode="w")
+                # Files dated before 1980 (which ZIP can't represent) get the
+                # earliest possible date instead of raising an error
+                self._zipfile = zipfile.ZipFile(
+                    self._tmp_path, mode="w", strict_timestamps=False
+                )
             except BaseException:
                 os.remove(self._tmp_path)
                 raise

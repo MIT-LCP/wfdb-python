@@ -1,5 +1,6 @@
 import gc
 import os
+import shutil
 import zipfile
 
 import numpy as np
@@ -527,3 +528,18 @@ def test_rdann_archive_errors(tmp_path):
         wfdb.rdann(archive_path, "atr")
     with pytest.raises(ValueError, match="pn_dir"):
         wfdb.rdann(archive_path, "atr", pn_dir="mitdb")
+
+
+def test_create_archive_old_file_dates(tmp_path):
+    """Files dated before 1980, which ZIP can't represent, can be archived."""
+    for path in record_files("sample-data/100"):
+        copy = tmp_path / os.path.basename(path)
+        shutil.copyfile(path, copy)
+        os.utime(copy, (0, 0))
+    archive_path = os.fspath(tmp_path / "archive" / "100.wfdb")
+
+    create_archive([tmp_path / "100.hea", tmp_path / "100.dat"], archive_path)
+
+    expected = wfdb.rdrecord("sample-data/100", sampto=100)
+    record = wfdb.rdrecord(archive_path, sampto=100)
+    np.testing.assert_array_equal(record.p_signal, expected.p_signal)
