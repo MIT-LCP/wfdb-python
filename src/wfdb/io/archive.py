@@ -9,8 +9,8 @@ decompressing the whole file.
 """
 
 import os
+import secrets
 import stat
-import tempfile
 import weakref
 import zipfile
 from contextlib import contextmanager
@@ -76,14 +76,7 @@ class WFDBArchive:
             except zipfile.BadZipFile as e:
                 raise ValueError(f"Not a valid WFDB archive: {path}") from e
         else:
-            directory = os.path.dirname(os.path.abspath(path))
-            os.makedirs(directory, exist_ok=True)
-            fd, self._tmp_path = tempfile.mkstemp(
-                dir=directory,
-                prefix=f".{os.path.basename(path)}.",
-                suffix=".tmp",
-            )
-            os.close(fd)
+            self._tmp_path = _create_temp_file(path)
             try:
                 # Files dated before 1980 (which ZIP can't represent) get the
                 # earliest possible date instead of raising an error
@@ -227,7 +220,14 @@ class WFDBArchive:
         try:
             self._zipfile.close()
             if self._tmp_path is not None:
-                os.chmod(self._tmp_path, _new_file_mode(self.path))
+                # A new archive has the default permissions for new files. A
+                # replaced archive keeps its permissions.
+                try:
+                    mode = stat.S_IMODE(os.stat(self.path).st_mode)
+                except FileNotFoundError:
+                    pass
+                else:
+                    os.chmod(self._tmp_path, mode)
                 os.replace(self._tmp_path, self.path)
         except BaseException:
             _discard(None, self._tmp_path)
@@ -286,19 +286,26 @@ def _discard(zip_file, tmp_path):
         os.remove(tmp_path)
 
 
-def _new_file_mode(path):
-    """Return the permissions for a new file at `path`.
+def _create_temp_file(path):
+    """Create an empty temporary file next to `path`, and return its path.
 
-    These are the permissions of the existing file, or the default for new files (based
-    on the umask).
+    The file is named after `path`, with a random part. It is created with the default
+    permissions for new files (the umask is applied by the operating system), unlike
+    `tempfile.mkstemp`, which makes files readable only by their owner.
     """
-    try:
-        return stat.S_IMODE(os.stat(path).st_mode)
-    except FileNotFoundError:
-        # The umask can only be read by setting it
-        umask = os.umask(0)
-        os.umask(umask)
-        return 0o666 & ~umask
+    directory = os.path.dirname(os.path.abspath(path))
+    os.makedirs(directory, exist_ok=True)
+    for _ in range(100):
+        tmp_path = os.path.join(
+            directory, f".{os.path.basename(path)}.{secrets.token_hex(4)}.tmp"
+        )
+        try:
+            fd = os.open(tmp_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
+        except FileExistsError:
+            continue
+        os.close(fd)
+        return tmp_path
+    raise FileExistsError(f"Could not create a temporary file next to '{path}'")
 
 
 def _compress_type(file_name):

@@ -437,16 +437,27 @@ def test_wrsamp_archive_invalid_argument(tmp_path):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
-def test_archive_permissions(tmp_path):
+@pytest.mark.parametrize("umask", [0o022, 0o027])
+def test_archive_permissions(umask, tmp_path, monkeypatch):
     """A new archive gets the same permissions as other new files.
 
-    A replaced archive keeps its permissions.
+    A replaced archive keeps its permissions. The umask is never changed, since that
+    would affect files created by other threads at the same time.
     """
     archive_path = tmp_path / "rec.wfdb"
     other_path = tmp_path / "other.txt"
-    other_path.write_text("")
+    old_umask = os.umask(umask)
+    try:
+        other_path.write_text("")
 
-    wfdb.wrsamp("rec", wfdb_archive=os.fspath(archive_path), **write_kwargs())
+        def fail(mask):
+            raise AssertionError("the umask was changed")
+
+        monkeypatch.setattr(os, "umask", fail)
+        wfdb.wrsamp("rec", wfdb_archive=os.fspath(archive_path), **write_kwargs())
+    finally:
+        monkeypatch.undo()
+        os.umask(old_umask)
     assert archive_path.stat().st_mode == other_path.stat().st_mode
 
     archive_path.chmod(0o640)
