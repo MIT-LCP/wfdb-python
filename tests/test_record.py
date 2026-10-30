@@ -901,9 +901,7 @@ class TestRecord:
         previously triggered overflow with fmt='32'.
         """
         # Load the test data (float32 format)
-        test_data = np.genfromtxt(
-            "sample-data/float32_test_signal.csv", delimiter=","
-        )
+        test_data = np.genfromtxt("sample-data/float32_test_signal.csv", delimiter=",")
         # Ensure it's float32 (this is the key to reproducing the bug)
         test_data = test_data.astype("float32")
 
@@ -912,7 +910,7 @@ class TestRecord:
             record_name="float32_test",
             fs=250,
             units=["mV"] * 12,
-            sig_name=[f"CH{i+1}" for i in range(12)],
+            sig_name=[f"CH{i + 1}" for i in range(12)],
             p_signal=test_data,
             fmt=["32"] * 12,
             write_dir=self.temp_path,
@@ -929,9 +927,7 @@ class TestRecord:
         assert np.all(record.d_signal <= dmax), "Digital values above maximum"
 
         # Verify the physical signal can be read back correctly
-        record_phys = wfdb.rdrecord(
-            os.path.join(self.temp_path, "float32_test")
-        )
+        record_phys = wfdb.rdrecord(os.path.join(self.temp_path, "float32_test"))
 
         # Values should be close (some precision loss is expected from ADC/DAC)
         np.testing.assert_allclose(
