@@ -569,7 +569,7 @@ class SignalMixin:
                 e_d_signal = []
                 for ch, ch_p_signal in enumerate(self.e_p_signal):
                     ch_d_signal = adc_inplace(
-                        ch_p_signal.copy(),
+                        ch_p_signal.astype("float64"),
                         self.adc_gain[ch],
                         self.baseline[ch],
                         d_nans[ch],
@@ -579,7 +579,7 @@ class SignalMixin:
 
             else:
                 return adc_inplace(
-                    self.p_signal.copy(),
+                    self.p_signal.astype("float64"),
                     self.adc_gain,
                     self.baseline,
                     d_nans,
@@ -819,14 +819,10 @@ class SignalMixin:
             if np.where(np.isinf(self.p_signal))[0].size:
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
-            # Convert to float64 for precise arithmetic to avoid precision loss
-            # that can occur with float32 input when computing gain and baseline
-            p_signal = self.p_signal.astype("float64", copy=False)
-
             # min and max ignoring nans, unless whole channel is NAN.
-            # Should suppress warning message.
-            minvals = np.nanmin(p_signal, axis=0)
-            maxvals = np.nanmax(p_signal, axis=0)
+            # copy as 64-bit float to avoid precision loss
+            minvals = np.nanmin(self.p_signal, axis=0).astype("float64")
+            maxvals = np.nanmax(self.p_signal, axis=0).astype("float64")
 
             for ch in range(np.shape(self.p_signal)[1]):
                 adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
@@ -837,10 +833,9 @@ class SignalMixin:
             minvals = []
             maxvals = []
             for ch in self.e_p_signal:
-                # Convert to float64 for precise arithmetic
-                ch_f64 = ch.astype("float64", copy=False)
-                minvals.append(np.nanmin(ch_f64))
-                maxvals.append(np.nanmax(ch_f64))
+                # Copy as float for precise arithmetic
+                minvals.append(float(np.nanmin(ch)))
+                maxvals.append(float(np.nanmax(ch)))
 
             if any(x == math.inf for x in minvals) or any(
                 x == math.inf for x in maxvals
