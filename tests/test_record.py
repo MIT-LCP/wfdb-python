@@ -888,7 +888,7 @@ class TestRecord:
         ]
         assert record.units.__eq__(sig_units_target)
 
-    def test_wrsamp_float32_precision(self):
+    def test_wrsamp_float32_precision(self, temp_path):
         """
         Test that wrsamp correctly handles float32 input without overflow.
 
@@ -913,13 +913,11 @@ class TestRecord:
             sig_name=[f"CH{i + 1}" for i in range(12)],
             p_signal=test_data,
             fmt=["32"] * 12,
-            write_dir=self.temp_path,
+            write_dir=temp_path,
         )
 
         # Verify we can read it back without errors
-        record = wfdb.rdrecord(
-            os.path.join(self.temp_path, "float32_test"), physical=False
-        )
+        record = wfdb.rdrecord(os.path.join(temp_path, "float32_test"), physical=False)
 
         # Verify no digital values are out of bounds for fmt='32'
         dmin, dmax = -2147483648, 2147483647
@@ -927,7 +925,7 @@ class TestRecord:
         assert np.all(record.d_signal <= dmax), "Digital values above maximum"
 
         # Verify the physical signal can be read back correctly
-        record_phys = wfdb.rdrecord(os.path.join(self.temp_path, "float32_test"))
+        record_phys = wfdb.rdrecord(os.path.join(temp_path, "float32_test"))
 
         # Values should be close (some precision loss is expected from ADC/DAC)
         np.testing.assert_allclose(
@@ -937,15 +935,6 @@ class TestRecord:
             atol=1e-6,
             err_msg="Physical signal mismatch after round-trip",
         )
-
-    @classmethod
-    def setUpClass(cls):
-        cls.temp_directory = tempfile.TemporaryDirectory()
-        cls.temp_path = cls.temp_directory.name
-
-    @classmethod
-    def tearDownClass(cls):
-        cls.temp_directory.cleanup()
 
 
 class TestMultiRecord:
