@@ -2320,23 +2320,14 @@ def wr_dat_file(
                 d_signal[:, expand_ch] = e_d_signal[ch][framenum::spf]
                 expand_ch = expand_ch + 1
     else:
-        # Create a copy to prevent overwrite
-        d_signal = d_signal.copy()
-
         # Non-expanded format always has 1 sample per frame
         n_sig = d_signal.shape[1]
         samps_per_frame = [1] * n_sig
 
-    # Total number of samples per frame (equal to number of signals if
-    # expanded=False, but may be greater for expanded=True)
-    tsamps_per_frame = d_signal.shape[1]
-
     if fmt == "80":
-        # convert to 8 bit offset binary form
-        d_signal += 128
-
-        # Convert to unsigned 8 bit dtype to write (and flatten if necessary)
-        b_write = d_signal.astype("uint8").reshape(-1)
+        # Convert to 8 bit offset binary form, and to unsigned 8 bit dtype to
+        # write (and flatten if necessary)
+        b_write = (d_signal + 128).astype("uint8").reshape(-1)
 
     elif fmt == "212":
         # Each sample is represented by a 12 bit two's complement
@@ -2348,8 +2339,8 @@ def wr_dat_file(
         # the remaining 8 bits of the second sample). The process is
         # repeated for each successive pair of samples.
 
-        # convert to 12 bit two's complement
-        d_signal[d_signal < 0] += 4096
+        # convert to 12 bit two's complement (as a copy, to keep the input)
+        d_signal = np.where(d_signal < 0, d_signal + 4096, d_signal)
 
         # Concatenate into 1D
         d_signal = d_signal.reshape(-1)
@@ -2382,53 +2373,17 @@ def wr_dat_file(
             b_write = b_write[:-1]
 
     elif fmt == "16":
-        # convert to 16 bit two's complement
-        d_signal = d_signal.astype(np.uint16)
+        # Little-endian 16 bit two's complement, written byte by byte
+        b_write = d_signal.astype("<i2").reshape(-1).view("u1")
 
-        # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * tsamps_per_frame
-        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
-        # Interweave the bytes so that the same samples' bytes are consecutive
-        b1 = b1.reshape((-1, 1))
-        b2 = b2.reshape((-1, 1))
-        b_write = np.concatenate((b1, b2), axis=1)
-        b_write = b_write.reshape((1, -1))[0]
-        # Convert to un_signed 8 bit dtype to write
-        b_write = b_write.astype("uint8")
     elif fmt == "24":
-        # convert to 32 bit two's complement (as int24 not an option)
-        d_signal = d_signal.astype(np.uint32)
-        # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * tsamps_per_frame
-        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
-        b3 = (d_signal & [16711680] * tsamps_per_frame) >> 16
-        # Interweave the bytes so that the same samples' bytes are consecutive
-        b1 = b1.reshape((-1, 1))
-        b2 = b2.reshape((-1, 1))
-        b3 = b3.reshape((-1, 1))
-        b_write = np.concatenate((b1, b2, b3), axis=1)
-        b_write = b_write.reshape((1, -1))[0]
-        # Convert to un_signed 8 bit dtype to write
-        b_write = b_write.astype("uint8")
+        # Little-endian 32 bit two's complement (as int24 is not an option),
+        # without the most significant byte of each sample
+        b_write = d_signal.astype("<i4").reshape(-1, 1).view("u1")[:, :3].reshape(-1)
 
     elif fmt == "32":
-        # convert to 32 bit two's complement
-        d_signal = d_signal.astype(np.uint32)
-
-        # Split samples into separate bytes using binary masks
-        b1 = d_signal & [255] * tsamps_per_frame
-        b2 = (d_signal & [65280] * tsamps_per_frame) >> 8
-        b3 = (d_signal & [16711680] * tsamps_per_frame) >> 16
-        b4 = (d_signal & [4278190080] * tsamps_per_frame) >> 24
-        # Interweave the bytes so that the same samples' bytes are consecutive
-        b1 = b1.reshape((-1, 1))
-        b2 = b2.reshape((-1, 1))
-        b3 = b3.reshape((-1, 1))
-        b4 = b4.reshape((-1, 1))
-        b_write = np.concatenate((b1, b2, b3, b4), axis=1)
-        b_write = b_write.reshape((1, -1))[0]
-        # Convert to un_signed 8 bit dtype to write
-        b_write = b_write.astype("uint8")
+        # Little-endian 32 bit two's complement, written byte by byte
+        b_write = d_signal.astype("<i4").reshape(-1).view("u1")
 
     elif fmt in ("508", "516", "524"):
         import soundfile
