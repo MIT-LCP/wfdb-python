@@ -210,6 +210,17 @@ class TestProcessing:
             sig, np.array([27]), search_radius=5, smooth_window_size=9, peak_dir="up"
         ).tolist() == [29]
 
+    @pytest.mark.parametrize("peak", [0, 1, 4, 6])
+    @pytest.mark.parametrize("peak_dir", ["up", "down"])
+    def test_correct_peaks_near_start(self, peak, peak_dir):
+        """Peaks closer to the start than search_radius aren't shifted below 0."""
+        sig = np.zeros(30)
+        sig[peak] = 5 if peak_dir == "up" else -5
+
+        assert processing.correct_peaks(
+            sig, np.array([2]), search_radius=5, smooth_window_size=9, peak_dir=peak_dir
+        ).tolist() == [peak]
+
 
 class TestComputeHr:
     """Tests for compute_hr."""
