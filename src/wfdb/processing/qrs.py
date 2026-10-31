@@ -610,9 +610,10 @@ class XQRS:
 
         """
         if self.last_qrs_peak_num is not None:
-            # Skip peaks a previous backsearch already rejected. Their result
-            # can only change after a QRS update, which moves
-            # last_qrs_peak_num past them.
+            # Skip peaks a previous backsearch already rejected. A backsearch result
+            # depends only on qrs_thr and last_qrs_ind, which change only in
+            # _update_qrs, and _update_qrs moves last_qrs_peak_num to the current
+            # peak. If either of these stops being true, remove this skip.
             start = max(self.last_qrs_peak_num, self._backsearch_peak_num) + 1
             for peak_num in range(start, self.peak_num + 1):
                 if self._is_qrs(peak_num=peak_num, backsearch=True):
