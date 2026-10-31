@@ -68,6 +68,9 @@ Unreleased
 **Reject aux notes that can't be written in wrann**
   ``wrann`` now raises a ``ValueError`` if an ``aux_note`` is longer than 255 characters or contains characters outside Latin-1, instead of writing a corrupt annotation file. A longer note used to be read back as many extra annotations, and other characters were silently replaced.
 
+**Allow None for annotations without notes in wrann**
+  ``wrann`` now accepts ``None`` in ``aux_note`` for annotations without a note, as the docstring says, and writes it the same way as an empty string. It used to raise a ``TypeError``.
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
