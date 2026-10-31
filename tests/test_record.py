@@ -857,6 +857,22 @@ class TestRecord:
         )
         np.testing.assert_array_equal(record.d_signal, record2.d_signal)
 
+    def test_smooth_frames_invalid_sample(self, temp_path):
+        """A frame with an invalid sample is invalid after smoothing."""
+        # Two samples per frame. -32768 is the invalid sample value for fmt 16.
+        raw = np.array([2, 4, -32768, 100, 6, 8], dtype="<i2")
+        raw.tofile(os.path.join(temp_path, "invalid.dat"))
+        with open(os.path.join(temp_path, "invalid.hea"), "w") as f:
+            f.write("invalid 1 100 3\n")
+            f.write("invalid.dat 16x2 200/mV 16 0 0 0 0 sig\n")
+        record_name = os.path.join(temp_path, "invalid")
+
+        record = wfdb.rdrecord(record_name, physical=False)
+        np.testing.assert_array_equal(record.d_signal[:, 0], [3, -32768, 7])
+
+        record = wfdb.rdrecord(record_name)
+        np.testing.assert_allclose(record.p_signal[:, 0], [0.015, np.nan, 0.035])
+
     def test_to_dataframe(self):
         record = wfdb.rdrecord("sample-data/test01_00s")
         df = record.to_dataframe()

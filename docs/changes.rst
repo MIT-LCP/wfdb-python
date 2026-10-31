@@ -17,6 +17,9 @@ Unreleased
 **Add timeouts to requests for remote files**
   Requests for files on PhysioNet (and other web servers) now time out if the server does not respond (10 seconds to connect, and 60 seconds to wait for data), instead of waiting indefinitely. A ``requests.exceptions.Timeout`` (``ConnectTimeout`` or ``ReadTimeout``) is raised in this case.
 
+**Fix smoothing of frames with invalid samples**
+  When a signal with more than one sample per frame is read with ``smooth_frames=True`` (the default), a frame that contains an invalid sample now gives an invalid value (NaN in physical units), as in the WFDB library. The invalid sample value used to be averaged with the other samples, which gave a large but valid-looking value.
+
 **Build with uv_build**
   The package is now built with ``uv_build`` instead of ``hatchling``. The version number is specified in ``pyproject.toml`` only, and ``wfdb.__version__`` is read from the installed package metadata (it is ``"unknown"`` if the package is run from a source tree without being installed).
 
