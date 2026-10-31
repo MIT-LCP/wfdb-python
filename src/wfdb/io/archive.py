@@ -429,8 +429,12 @@ def _main_header(headers):
     """
     if len(headers) == 1:
         return next(iter(headers))
+    names = set(headers)
     for name, content in headers.items():
-        if set(headers) - {name} <= _segment_header_names(content):
+        segments = _segment_header_names(content)
+        # Most headers list no segments, so skip them without building a set of
+        # the other names (which would make this quadratic in the number of headers)
+        if len(segments) >= len(names) - 1 and names - {name} <= segments:
             return name
     return None
 

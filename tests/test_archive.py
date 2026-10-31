@@ -360,6 +360,18 @@ def test_multi_segment_archive_with_other_header(tmp_path):
     assert os.listdir(tmp_path) == []
 
 
+def test_multi_segment_archive_main_header_last(tmp_path):
+    """The main header is found whatever order the headers were added in."""
+    record_name = "sample-data/multi-segment/s00001/s00001-2896-10-10-00-31"
+    archive_path = os.fspath(tmp_path / "s00001-2896-10-10-00-31.wfdb")
+
+    create_archive(list(reversed(multi_record_files(record_name))), archive_path)
+
+    record = wfdb.rdrecord(archive_path, sampfrom=14428364, sampto=14428375)
+    expected = wfdb.rdrecord(record_name, sampfrom=14428364, sampto=14428375)
+    np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
+
 def test_read_archive_unsupported_locations():
     with pytest.raises(ValueError, match="pn_dir"):
         wfdb.rdrecord("100.wfdb", pn_dir="mitdb")
