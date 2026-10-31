@@ -3,7 +3,7 @@ import posixpath
 import numpy as np
 
 from wfdb.io import download
-from wfdb.io.annotation import rdann, wrann
+from wfdb.io.annotation import is_qrs, rdann, wrann
 
 
 def compute_hr(sig_len, qrs_inds, fs):
@@ -177,8 +177,13 @@ def ann2rr(
     stop_time=None,
     format=None,
     as_array=True,
+    all_annotations=False,
 ):
     """Obtain RR interval series from ECG annotation files.
+
+    By default, only QRS (beat) annotations are used. The first interval
+    is measured from the beginning of the record to the first selected
+    annotation.
 
     Parameters
     ----------
@@ -201,20 +206,27 @@ def ann2rr(
         printed in units of sample intervals. Other formats include
         's' (seconds), 'm' (minutes), 'h' (hours). Set to 'None' for samples.
     as_array : bool, optional
-        If True, return an an 'ndarray', else print the output.
+        If True, return an 'ndarray', else print the output.
+    all_annotations : bool, optional
+        If True, include all annotation types, rather than only QRS
+        annotations. This retains the behavior of earlier versions and
+        corresponds to the WFDB ann2rr application's -A option.
 
     Returns
     -------
-    N/A
+    out_interval : ndarray or None
+        The intervals in the requested units, or None when printing.
+        An empty array is returned if no annotations are selected.
 
     Examples
     --------
-    >>> wfdb.ann2rr('sample-data/100', 'atr', as_array=False)
-    >>> 18
-    >>> 59
-    >>> ...
-    >>> 250
-    >>> 257
+    >>> from wfdb import processing
+    >>> processing.ann2rr('sample-data/100', 'atr', as_array=False)
+    77
+    293
+    ...
+    250
+    257
 
     """
     if (pn_dir is not None) and ("." not in pn_dir):
@@ -223,10 +235,17 @@ def ann2rr(
             dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
         )
 
-    ann = rdann(record_name, extension, pn_dir=pn_dir)
+    ann = rdann(
+        record_name, extension, pn_dir=pn_dir, return_label_elements=["label_store"]
+    )
 
-    rr_interval = calc_rr(ann.sample, fs=ann.fs)
-    rr_interval = np.insert(rr_interval, 0, ann.sample[0])
+    samples = ann.sample
+    if not all_annotations:
+        samples = samples[np.isin(ann.label_store, np.flatnonzero(is_qrs))]
+
+    rr_interval = calc_rr(samples, fs=ann.fs)
+    if samples.size:
+        rr_interval = np.insert(rr_interval, 0, samples[0])
 
     time_interval = rr_interval / ann.fs
     if start_time is not None:
@@ -265,7 +284,8 @@ def rr2ann(rr_array, record_name, extension, fs=250, as_time=False):
         the shape of the input array is '(n_annot,2)', then treat the second
         column as the annotation mnemonic ('N', 'V', etc.). If a second column
         is not specified, then the default annotation will the '"' which
-        specifies a comment.
+        specifies a comment. Use ``ann2rr(..., all_annotations=True)`` to
+        include these comment annotations when extracting intervals.
     record_name : str
         The record name of the WFDB annotation file. ie. for file '100.atr',
         record_name='100'.
