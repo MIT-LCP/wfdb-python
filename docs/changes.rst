@@ -35,6 +35,9 @@ Unreleased
 **Check that QRS indices are increasing in compute_hr**
   ``compute_hr`` now raises a ``ValueError`` if ``qrs_inds`` is not strictly increasing. Repeated beats used to give a ``ZeroDivisionError`` (or ``inf`` for NumPy arrays), and beats out of order gave a negative heart rate.
 
+**Fix rr2ann with times and with a symbol column**
+  ``rr2ann`` with ``as_time=True`` now rounds times to the nearest sample instead of truncating them, so (for example) 0.29 seconds at 100 Hz gives sample 29 instead of 28. Intervals in samples with a second column of symbols no longer raise an error, and fractional intervals are summed before rounding.
+
 **Use Ruff for formatting and linting**
   The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
 
@@ -43,9 +46,6 @@ Unreleased
 
 **Reject aux notes that can't be written in wrann**
   ``wrann`` now raises a ``ValueError`` if an ``aux_note`` is longer than 255 characters or contains characters outside Latin-1, instead of writing a corrupt annotation file. A longer note used to be read back as many extra annotations, and other characters were silently replaced.
-
-**Fix rr2ann with times and with a symbol column**
-  ``rr2ann`` with ``as_time=True`` now rounds times to the nearest sample instead of truncating them, so (for example) 0.29 seconds at 100 Hz gives sample 29 instead of 28. Intervals in samples with a second column of symbols no longer raise an error.
 
 Version 4.3.1 (Feb 2026)
 -----------------------------

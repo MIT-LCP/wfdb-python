@@ -376,3 +376,13 @@ class TestRr2Ann:
         ann = wfdb.rdann("t", "atr")
         np.testing.assert_array_equal(ann.sample, [20, 60, 130])
         assert ann.symbol == ["V", "N", "V"]
+
+    def test_fractional_intervals(self, tmp_path, monkeypatch):
+        """Fractional intervals are summed before rounding, so they don't drift."""
+        monkeypatch.chdir(tmp_path)
+        processing.hr.rr2ann(np.array([4.5, 4.5, 4.5]), "t", "atr")
+        np.testing.assert_array_equal(wfdb.rdann("t", "atr").sample, [4, 9, 14])
+
+        rr_array = np.array([[4.5, 4.5, 4.5], ["V", "N", "V"]]).T
+        processing.hr.rr2ann(rr_array, "t", "atr")
+        np.testing.assert_array_equal(wfdb.rdann("t", "atr").sample, [4, 9, 14])

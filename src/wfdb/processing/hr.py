@@ -309,7 +309,8 @@ def rr2ann(rr_array, record_name, extension, fs=250, as_time=False):
     if as_time:
         ann_sample = np.round(fs * ann_sample.astype(np.float64)).astype(np.int64)
     else:
-        ann_sample = np.cumsum(ann_sample.astype(np.int64))
+        # Sum as floats and round once, so fractional intervals don't drift.
+        ann_sample = np.round(np.cumsum(ann_sample.astype(np.float64))).astype(np.int64)
 
     try:
         ann_symbol = rr_array[:, 1].tolist()
