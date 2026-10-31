@@ -372,3 +372,46 @@ class TestXQRSDetect:
 
         assert mock_detect.call_count == 1
         assert mock_detect.call_args.kwargs["learn"] is False
+
+
+class TestRr2Ann:
+    """Tests for rr2ann."""
+
+    def test_times_are_rounded(self, tmp_path, monkeypatch):
+        """Times are rounded to the nearest sample, not truncated."""
+        monkeypatch.chdir(tmp_path)
+        times = np.array([0.29, 0.57, 1.13])
+        processing.hr.rr2ann(times, "t", "atr", fs=100, as_time=True)
+
+        ann = wfdb.rdann("t", "atr")
+        np.testing.assert_array_equal(ann.sample, [29, 57, 113])
+
+    def test_intervals_with_symbols(self, tmp_path, monkeypatch):
+        """Intervals with a column of symbols are summed into samples."""
+        monkeypatch.chdir(tmp_path)
+        rr_array = np.array([[4, 17, 18], ["V", "N", "V"]]).T
+        processing.hr.rr2ann(rr_array, "t", "atr")
+
+        ann = wfdb.rdann("t", "atr")
+        np.testing.assert_array_equal(ann.sample, [4, 21, 39])
+        assert ann.symbol == ["V", "N", "V"]
+
+    def test_times_with_symbols(self, tmp_path, monkeypatch):
+        """Times with a column of symbols, as in the docstring example."""
+        monkeypatch.chdir(tmp_path)
+        rr_array = np.array([[0.2, 0.6, 1.3], ["V", "N", "V"]]).T
+        processing.hr.rr2ann(rr_array, "t", "atr", fs=100, as_time=True)
+
+        ann = wfdb.rdann("t", "atr")
+        np.testing.assert_array_equal(ann.sample, [20, 60, 130])
+        assert ann.symbol == ["V", "N", "V"]
+
+    def test_fractional_intervals(self, tmp_path, monkeypatch):
+        """Fractional intervals are summed before rounding, so they don't drift."""
+        monkeypatch.chdir(tmp_path)
+        processing.hr.rr2ann(np.array([4.5, 4.5, 4.5]), "t", "atr")
+        np.testing.assert_array_equal(wfdb.rdann("t", "atr").sample, [4, 9, 14])
+
+        rr_array = np.array([[4.5, 4.5, 4.5], ["V", "N", "V"]]).T
+        processing.hr.rr2ann(rr_array, "t", "atr")
+        np.testing.assert_array_equal(wfdb.rdann("t", "atr").sample, [4, 9, 14])
