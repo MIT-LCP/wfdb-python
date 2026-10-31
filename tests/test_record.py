@@ -1384,6 +1384,57 @@ class TestSignal:
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
 
 
+class TestSigCohesion:
+    """Tests for the digital range check in check_sig_cohesion."""
+
+    @staticmethod
+    def _record(d_signal=None, e_d_signal=None, samps_per_frame=(1, 1)):
+        sig_len = len(d_signal) if d_signal is not None else len(e_d_signal[1])
+        return wfdb.Record(
+            record_name="x",
+            n_sig=2,
+            fs=100,
+            sig_len=sig_len,
+            fmt=["16", "80"],
+            adc_gain=[200, 200],
+            baseline=[0, 0],
+            units=["mV", "mV"],
+            sig_name=["a", "b"],
+            samps_per_frame=list(samps_per_frame),
+            d_signal=d_signal,
+            e_d_signal=e_d_signal,
+        )
+
+    @pytest.mark.parametrize("value", [-32769, 32768])
+    def test_out_of_range(self, value):
+        """A value outside the format's range is rejected, even at the end."""
+        d_signal = np.zeros((5, 2), dtype="int64")
+        d_signal[-1, 0] = value
+        record = self._record(d_signal=d_signal)
+
+        with pytest.raises(IndexError, match="Channel 0 contain values outside"):
+            record.check_sig_cohesion([], expanded=False)
+
+    @pytest.mark.parametrize("value", [-129, 128])
+    def test_out_of_range_expanded(self, value):
+        """Expanded signals are checked channel by channel."""
+        e_d_signal = [np.zeros(10, dtype="int64"), np.zeros(5, dtype="int64")]
+        e_d_signal[1][-1] = value
+        record = self._record(e_d_signal=e_d_signal, samps_per_frame=(2, 1))
+
+        with pytest.raises(IndexError, match="Channel 1 contain values outside"):
+            record.check_sig_cohesion([], expanded=True)
+
+    def test_limits_allowed(self):
+        """The smallest and largest values of each format are allowed."""
+        d_signal = np.array([[-32768, -128], [32767, 127]])
+        self._record(d_signal=d_signal).check_sig_cohesion([], expanded=False)
+
+        e_d_signal = [np.array([-32768, 0, 0, 32767]), np.array([-128, 127])]
+        record = self._record(e_d_signal=e_d_signal, samps_per_frame=(2, 1))
+        record.check_sig_cohesion([], expanded=True)
+
+
 class TestDownload:
     # Test that we can download records with no "dat" file
     # Regression test for https://github.com/MIT-LCP/wfdb-python/issues/118
