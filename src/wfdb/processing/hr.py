@@ -31,15 +31,15 @@ def compute_hr(sig_len, qrs_inds, fs):
     if len(qrs_inds) < 2:
         return heart_rate
 
-    for i in range(0, len(qrs_inds) - 2):
+    # The rate from each RR interval holds from just after its second beat up
+    # to the next beat, or to the end of the signal after the last one.
+    for i in range(0, len(qrs_inds) - 1):
         a = qrs_inds[i]
         b = qrs_inds[i + 1]
-        c = qrs_inds[i + 2]
+        end = qrs_inds[i + 2] + 1 if i + 2 < len(qrs_inds) else sig_len
         rr = (b - a) * (1.0 / fs) * 1000
         hr = 60000.0 / rr
-        heart_rate[b + 1 : c + 1] = hr
-
-    heart_rate[qrs_inds[-1] :] = heart_rate[qrs_inds[-1]]
+        heart_rate[b + 1 : end] = hr
 
     return heart_rate
 
