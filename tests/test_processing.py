@@ -36,6 +36,27 @@ class TestProcessing:
         assert new_sig.shape[0] == expected_length
         assert new_sig.shape[1] == sig.shape[1]
 
+    def test_resample_leading_nan(self):
+        """Leading NaN values take the first valid value before resampling."""
+        x = np.array([np.nan, np.nan, 1.0, 2.0, 3.0, 4.0])
+        filled = np.array([1.0, 1.0, 1.0, 2.0, 3.0, 4.0])
+
+        new_x, _ = processing.resample_sig(x, fs=2, fs_target=4)
+        expected, _ = processing.resample_sig(filled, fs=2, fs_target=4)
+
+        assert np.isfinite(new_x).all()
+        np.testing.assert_allclose(new_x, expected)
+
+    def test_resample_trailing_and_inner_nan(self):
+        """Inner NaN values are interpolated, and trailing ones take the last."""
+        x = np.array([1.0, np.nan, 3.0, 4.0, np.nan, np.nan])
+        filled = np.array([1.0, 2.0, 3.0, 4.0, 4.0, 4.0])
+
+        new_x, _ = processing.resample_sig(x, fs=2, fs_target=4)
+        expected, _ = processing.resample_sig(filled, fs=2, fs_target=4)
+
+        np.testing.assert_allclose(new_x, expected)
+
     def test_normalize_bound(self):
         sig, _ = wfdb.rdsamp("sample-data/100")
         lb = -5

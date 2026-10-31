@@ -53,9 +53,10 @@ def resample_sig(x, fs, fs_target):
         return x, t
 
     new_length = int(x.shape[0] * fs_target / fs)
-    # Resample the array if NaN values are present
+    # Fill NaN values before resampling. Leading and trailing NaN values take
+    # the nearest valid value, since interpolate() leaves leading ones as NaN.
     if np.isnan(x).any():
-        x = pd.Series(x.reshape((-1,))).interpolate().values
+        x = pd.Series(x.reshape((-1,))).interpolate(limit_direction="both").values
     resampled_x, resampled_t = signal.resample(x, num=new_length, t=t)
     assert resampled_x.shape == resampled_t.shape and resampled_x.shape[0] == new_length
     assert np.all(np.diff(resampled_t) > 0)
