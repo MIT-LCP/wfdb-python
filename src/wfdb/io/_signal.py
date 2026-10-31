@@ -531,6 +531,9 @@ class SignalMixin:
         # the input array is modified!
         def adc_inplace(p_signal, adc_gain, baseline, d_nan):
             nanlocs = np.isnan(p_signal)
+            # Convert to float64 for precise arithmetic to avoid precision loss
+            # that can occur with float32 input at digital value boundaries
+            p_signal = p_signal.astype("float64", copy=False)
             np.multiply(p_signal, adc_gain, p_signal)
             np.add(p_signal, baseline, p_signal)
             np.round(p_signal, 0, p_signal)
@@ -566,7 +569,7 @@ class SignalMixin:
                 e_d_signal = []
                 for ch, ch_p_signal in enumerate(self.e_p_signal):
                     ch_d_signal = adc_inplace(
-                        ch_p_signal.copy(),
+                        ch_p_signal.astype("float64"),
                         self.adc_gain[ch],
                         self.baseline[ch],
                         d_nans[ch],
@@ -576,7 +579,7 @@ class SignalMixin:
 
             else:
                 return adc_inplace(
-                    self.p_signal.copy(),
+                    self.p_signal.astype("float64"),
                     self.adc_gain,
                     self.baseline,
                     d_nans,
@@ -817,9 +820,9 @@ class SignalMixin:
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             # min and max ignoring nans, unless whole channel is NAN.
-            # Should suppress warning message.
-            minvals = np.nanmin(self.p_signal, axis=0)
-            maxvals = np.nanmax(self.p_signal, axis=0)
+            # copy as 64-bit float to avoid precision loss
+            minvals = np.nanmin(self.p_signal, axis=0).astype("float64")
+            maxvals = np.nanmax(self.p_signal, axis=0).astype("float64")
 
             for ch in range(np.shape(self.p_signal)[1]):
                 adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
@@ -830,8 +833,9 @@ class SignalMixin:
             minvals = []
             maxvals = []
             for ch in self.e_p_signal:
-                minvals.append(np.nanmin(ch))
-                maxvals.append(np.nanmax(ch))
+                # Copy as float for precise arithmetic
+                minvals.append(float(np.nanmin(ch)))
+                maxvals.append(float(np.nanmax(ch)))
 
             if any(x == math.inf for x in minvals) or any(
                 x == math.inf for x in maxvals
