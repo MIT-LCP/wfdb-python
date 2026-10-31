@@ -1,10 +1,12 @@
+import numbers
 import os
+import warnings
 
 import numpy as np
 import pandas as pd
 
 from wfdb.io.annotation import Annotation, format_ann_from_df, wrann
-from wfdb.io.record import Record, wrsamp
+from wfdb.io.record import Record
 
 
 def csv_to_wfdb(
@@ -44,185 +46,66 @@ def csv_to_wfdb(
     Parameters
     ----------
     file_name : str
-        The name of the WFDB record to be read, without any file
-        extensions. If the argument contains any path delimiter
-        characters, the argument will be interpreted as PATH/BASE_RECORD.
-        Both relative and absolute paths are accepted. If the `pn_dir`
-        parameter is set, this parameter should contain just the base
-        record name, and the files fill be searched for remotely.
-        Otherwise, the data files will be searched for in the local path.
+        The path to the CSV file, including the '.csv' extension. Both relative
+        and absolute paths are accepted. The file name without its directory
+        and extension is used as the record name.
     fs : float
-        This number can be expressed in any format legal for a Python input of
-        floating point numbers (thus '360', '360.', '360.0', and '3.6e2' are
-        all legal and equivalent). The sampling frequency must be greater than 0;
-        if it is missing, a value of 250 is assumed.
-    units : list, str
-        This will be applied as the passed list unless a single str is passed
-        instead - in which case the str will be assigned for all channels.
-        This field can be present only if the ADC gain is also present. It
-        follows the baseline field if that field is present, or the gain field
-        if the baseline field is absent. The units field is a list of character
-        strings that specifies the type of physical unit. If the units field is
-        absent, the physical unit may be assumed to be 1 mV.
-    fmt : list, str, optional
-        This will be applied as the passed list unless a single str is passed
-        instead - in which case the str will be assigned for all
-        channels. A list of strings giving the WFDB format of each file used to
-        store each channel. Accepted formats are: '80','212','16','24', and
-        '32'. There are other WFDB formats as specified by:
-        https://www.physionet.org/physiotools/wag/signal-5.htm
-        but this library will not write (though it will read) those file types.
-        Each field is an integer that specifies the storage format of the signal.
-        All signals in a given group are stored in the same format. The most
-        common format is format `16` (sixteen-bit amplitudes). The parameters
-        `samps_per_frame`, `skew`, and `byte_offset` are optional fields, and
-        if present, are bound to the format field. In other words, they may be
-        considered as format modifiers, since they further describe the encoding
-        of samples within the signal file.
-    adc_gain : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        This field is a list of numbers that specifies the difference in
-        sample values that would be observed if a step of one physical unit
-        occurred in the original analog signal. For ECGs, the gain is usually
-        roughly equal to the R-wave amplitude in a lead that is roughly parallel
-        to the mean cardiac electrical axis. If the gain is zero or missing, this
-        indicates that the signal amplitude is uncalibrated; in such cases, a
-        value of 200 ADC units per physical unit may be assumed.
-    baseline : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels. This
-        field can be present only if the ADC gain is also present. It is not
-        separated by whitespace from the ADC gain field; rather, it is
-        surrounded by parentheses, which delimit it. The baseline is an integer
-        that specifies the sample value corresponding to 0 physical units. If
-        absent, the baseline is taken to be equal to the ADC zero. Note that
-        the baseline need not be a value within the ADC range; for example,
-        if the ADC input range corresponds to 200-300 degrees Kelvin, the
-        baseline is the (extended precision) value that would map to 0 degrees
-        Kelvin.
-    samps_per_frame : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        Normally, all signals in a given record are sampled at the (base)
-        sampling frequency as specified by `fs`; in this case, the number of
-        samples per frame is 1 for all signals, and this field is conventionally
-        omitted. If the signal was sampled at some integer multiple, n, of the
-        base sampling frequency, however, each frame contains n samples of the
-        signal, and the value specified in this field is also n. (Note that
-        non-integer multiples of the base sampling frequency are not supported).
+        The sampling frequency of the signals in Hz (one CSV row per sample).
+    units : str or list of str
+        The physical units of each signal. A single string is used for all
+        signals.
+    fmt : str or list of str, optional
+        The WFDB storage format of each signal, such as '16', '212', '80', '24'
+        or '32'. A single string is used for all signals. The default is '16'.
+    adc_gain : float or list of float, optional
+        The number of digital units per physical unit for each signal. A single
+        number is used for all signals. The default is 200.
+    baseline : int or list of int, optional
+        The digital value corresponding to 0 physical units for each signal. A
+        single number is used for all signals. The default is `adc_zero`.
+    samps_per_frame : optional
+        Deprecated and ignored. Each CSV row is one frame with one sample per
+        signal.
     counter_freq : float, optional
-        This field (a floating-point number, in the same format as `fs`) can be
-        present only if `fs` is also present. Typically, the counter frequency
-        may be derived from an analog tape counter, or from page numbers in a
-        chart recording. If the counter frequency is absent or not positive,
-        it is assumed to be equal to `fs`.
+        The counter frequency in ticks per second, written to the header.
     base_counter : float, optional
-        This field can be present only if the counter frequency is also present.
-        The base counter value is a floating-point number that specifies the counter
-        value corresponding to sample 0. If absent, the base counter value is
-        taken to be 0.
+        The counter value corresponding to sample 0, written to the header.
+        Only used if `counter_freq` is set.
     base_time : datetime.time, optional
-        This field can be present only if the number of samples is also present.
-        It gives the time of day that corresponds to the beginning of the
-        record.
+        The time of day at the beginning of the record.
     base_date : datetime.date, optional
-        This field can be present only if the base time is also present. It contains
-        the date that corresponds to the beginning of the record.
-    comments : list, optional
-        A list of string comments to be written to the header file. Each string
-        entry represents a new line to be appended to the bottom of the header
-        file ('.hea').
-    sig_name : list, optional
-        A list of strings giving the signal name of each signal channel. This
-        will be used for plotting the signal both in this package and
-        LightWave. Note, this value will be used in preference to the CSV
-        header, if applicable, to define custom signal names.
-    dat_file_name : str, optional
-        The name of the file in which samples of the signal are kept. Although the
-        record name is usually part of the signal file name, this convention is
-        not a requirement. Note that several signals can share the same file
-        (i.e., they can belong to the same signal group); all entries for signals
-        that share a given file must be consecutive, however. Note, the default
-        behavior is to save the files in the current working directory, not the
-        directory of the file being read.
-    skew : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        Ideally, within a given record, samples of different signals with the
-        same sample number are simultaneous (within one sampling interval).
-        If this is not the case (as, for example, when a multitrack analog
-        tape recording is digitized and the azimuth of the playback head does
-        not match that of the recording head), the skew between signals can
-        sometimes be determined (for example, by locating recorded waveform
-        features with known time relationships, such as calibration signals).
-        If this has been done, the skew field may be inserted into the header
-        file to indicate the (positive) number of samples of the signal that
-        are considered to precede sample 0. These samples, if any, are included
-        in the checksum. (Note the checksum need not be changed if the skew field
-        is inserted or modified).
-    byte_offset : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        Normally, signal files include only sample data. If a signal file
-        includes a preamble, however, this field specifies the offset in bytes
-        from the beginning of the signal file to sample 0 (i.e., the length
-        of the preamble). Data within the preamble is not included in the signal
-        checksum. Note that the byte offset must be the same for all signals
-        within a given group (use the skew field to correct for intersignal
-        skew). This feature is provided only to simplify the task of reading
-        signal files not generated using the WFDB library; the WFDB library
-        does not support any means of writing such files, and byte offsets must
-        be inserted into header files manually.
-    adc_res: list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        This field can be present only if the ADC gain is also present. It
-        specifies the resolution of the analog-to-digital converter used to
-        digitize the signal. Typical ADCs have resolutions between 8 and 16
-        bits. If this field is missing or zero, the default value is 12 bits
-        for amplitude-format signals, or 10 bits for difference-format signals
-        (unless a lower value is specified by the format field).
-    adc_zero: list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        This field can be present only if the ADC resolution is also present.
-        It is an integer that represents the amplitude (sample value) that
-        would be observed if the analog signal present at the ADC inputs had
-        a level that fell exactly in the middle of the input range of the ADC.
-        For a bipolar ADC, this value is usually zero, but a unipolar (offset
-        binary) ADC usually produces a non-zero value in the middle of its
-        range. Together with the ADC resolution, the contents of this field
-        can be used to determine the range of possible sample values. If this
-        field is missing, a value of 0 is assumed.
-    init_value : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        This field can be present only if the ADC zero is also present. It
-        specifies the value of sample 0 in the signal, but is used only if the
-        signal is stored in difference format. If this field is missing, a
-        value equal to the ADC zero is assumed.
-    checksum : list, optional
-        This field can be present only if the initial value is also present. It
-        is a 16-bit signed checksum of all samples in the signal. (Thus the
-        checksum is independent of the storage format.) If the entire record
-        is read without skipping samples, and the header’s record line specifies
-        the correct number of samples per signal, this field is compared against
-        a computed checksum to verify that the signal file has not been corrupted.
-        A value of zero may be used as a field placeholder if the number of
-        samples is unspecified.
-    block_size : list, int, optional
-        This will be applied as the passed list unless a single int is passed
-        instead - in which case the int will be assigned for all channels.
-        This field can be present only if the checksum is present. This field
-        is an integer and is usually 0. If the signal is stored in a file
-        that must be read in blocks of a specific size, however, this field
-        specifies the block size in bytes. (On UNIX systems, this is the case
-        only for character special files, corresponding to certain tape and
-        raw disk files. If necessary, the block size may be given as a negative
-        number to indicate that the associated file lacks I/O driver support for
-        some operations.) All signals belonging to the same signal group have
-        the same block size.
+        The date at the beginning of the record. Only used if `base_time` is
+        set.
+    comments : list of str, optional
+        Comments to write to the header file, one line per string.
+    sig_name : list of str, optional
+        The name of each signal. If given, these are used instead of the names
+        in the CSV header.
+    dat_file_name : str or list of str, optional
+        The name of the signal file to write (without a directory). The default
+        is the record name with the '.dat' extension.
+    skew : int or list of int, optional
+        The number of samples of each signal that precede sample 0, written to
+        the header. A single number is used for all signals. The default is 0.
+    byte_offset : int or list of int, optional
+        The number of bytes before the first sample in the signal file. The
+        signal file is written with this many empty leading bytes. A single
+        number is used for all signals. The default is 0.
+    adc_res : int or list of int, optional
+        The resolution of the ADC in bits for each signal. A single number is
+        used for all signals. The default is the resolution of `fmt`.
+    adc_zero : int or list of int, optional
+        The digital value in the middle of the ADC input range for each signal.
+        A single number is used for all signals. The default is 0.
+    init_value : optional
+        Deprecated and ignored. The initial value of each signal is computed
+        from the samples.
+    checksum : optional
+        Deprecated and ignored. The checksum of each signal is computed from
+        the samples.
+    block_size : int or list of int, optional
+        The block size of each signal file in bytes, written to the header. A
+        single number is used for all signals. The default is 0.
     record_only : bool, optional
         Whether to only return the record information (True) or not (False).
         If False, this function will write both a .dat and .hea file and
@@ -230,7 +113,7 @@ def csv_to_wfdb(
     header : bool, optional
         Whether to assume the CSV has a first line header (True) or not (False)
         which defines the signal names. If false, this function will generate
-        either the signal names provided by `sig_name` or set `[ch_1, ch_2, ...]`
+        either the signal names provided by `sig_name` or set `[ch_0, ch_1, ...]`
         as the default.
     delimiter : str, optional
         What to use as the delimiter for the file to separate data. The default
@@ -332,145 +215,105 @@ def csv_to_wfdb(
     if verbose:
         print(f"Record name: {record_name}.hea")
 
-    # Replace the CSV file tag with DAT
-    dat_file_name = record_name + ".dat"
-    dat_file_name = [dat_file_name] * n_sig
+    if dat_file_name is None:
+        dat_file_name = record_name + ".dat"
+    dat_file_name = _per_channel(dat_file_name, n_sig)
     if verbose:
         print(f"Output record: {dat_file_name[0]}")
 
-    # Convert `units` from string to list if necessary
-    units = [units] * n_sig if type(units) is str else units
+    # These follow from the CSV samples, so they can't be chosen freely
+    ignored = {
+        "samps_per_frame": samps_per_frame,
+        "init_value": init_value,
+        "checksum": checksum,
+    }
+    ignored = [name for name, value in ignored.items() if value is not None]
+    if ignored:
+        warnings.warn(
+            f"The {', '.join(ignored)} argument(s) of csv_to_wfdb are deprecated "
+            "and ignored. Each CSV row is one frame with one sample per signal, "
+            "and the initial value and checksum are computed from the samples.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
-    # Set the default `fmt` if none exists
-    if not fmt:
-        fmt = ["16"] * n_sig
-    fmt = [fmt] * n_sig if type(fmt) is str else fmt
-    if verbose:
-        print(f"Signal format: {fmt}")
+    # Fill in defaults and use one value per channel. Only None means missing,
+    # so explicit zeros are kept.
+    if fmt is None:
+        fmt = "16"
+    if adc_gain is None:
+        adc_gain = 200
+    if adc_zero is None:
+        adc_zero = 0
+    adc_zero = _per_channel(adc_zero, n_sig)
+    if baseline is None:
+        baseline = adc_zero
+    if block_size is None:
+        block_size = 0
 
-    # Set the default `adc_gain` if none exists
-    if not adc_gain:
-        adc_gain = [200] * n_sig
-    adc_gain = [adc_gain] * n_sig if type(adc_gain) is int else adc_gain
-    if verbose:
-        print(f"Signal ADC gain: {adc_gain}")
-
-    # Set the default `baseline` if none exists
-    if not baseline:
-        if adc_zero:
-            baseline = [adc_zero] * n_sig
-        else:
-            baseline = [0] * n_sig
-    baseline = [baseline] * n_sig if type(baseline) is int else baseline
-    if verbose:
-        print(f"Signal baseline: {baseline}")
-
-    # Convert `samps_per_frame` from int to list if necessary
-    samps_per_frame = (
-        [samps_per_frame] * n_sig if type(samps_per_frame) is int else samps_per_frame
+    record = Record(
+        record_name=record_name,
+        n_sig=n_sig,
+        fs=fs,
+        counter_freq=counter_freq,
+        base_counter=base_counter,
+        sig_len=sig_len,
+        base_time=base_time,
+        base_date=base_date,
+        comments=comments,
+        sig_name=sig_name,
+        p_signal=p_signal.astype("float64"),
+        file_name=dat_file_name,
+        fmt=_per_channel(fmt, n_sig),
+        skew=_per_channel(skew, n_sig),
+        byte_offset=_per_channel(byte_offset, n_sig),
+        adc_gain=_per_channel(adc_gain, n_sig),
+        baseline=_per_channel(baseline, n_sig),
+        units=_per_channel(units, n_sig),
+        adc_res=_per_channel(adc_res, n_sig),
+        adc_zero=adc_zero,
+        block_size=_per_channel(block_size, n_sig),
     )
 
-    # Convert `skew` from int to list if necessary
-    skew = [skew] * n_sig if type(skew) is int else skew
-
-    # Convert `byte_offset` from int to list if necessary
-    byte_offset = [byte_offset] * n_sig if type(byte_offset) is int else byte_offset
-
-    # Set the default `adc_res` if none exists
-    if not adc_res:
-        adc_res = [12] * n_sig
-    adc_res = [adc_res] * n_sig if type(adc_res) is int else adc_res
+    # The initial value and checksum describe the digital samples
+    record.d_signal = record.adc()
+    record.init_value = [int(v) for v in record.d_signal[0, :]] if sig_len else None
+    record.checksum = record.calc_checksum()
+    # Fill in the remaining fields as wrsamp does (e.g. adc_res from fmt)
+    record.set_defaults()
     if verbose:
-        print(f"Signal ADC resolution: {adc_res}")
+        print(f"Signal format: {record.fmt}")
+        print(f"Signal ADC gain: {record.adc_gain}")
+        print(f"Signal baseline: {record.baseline}")
+        print(f"Signal ADC resolution: {record.adc_res}")
+        print(f"Signal ADC zero: {record.adc_zero}")
+        print(f"Signal initial value: {record.init_value}")
+        print(f"Signal checksum: {record.checksum}")
+        print(f"Signal block size: {record.block_size}")
 
-    # Set the default `adc_zero` if none exists
-    if not adc_zero:
-        adc_zero = [0] * n_sig
-    adc_zero = [adc_zero] * n_sig if type(adc_zero) is int else adc_zero
-    if verbose:
-        print(f"Signal ADC zero: {adc_zero}")
-
-    # Set the default `init_value`
-    # NOTE: Initial value (and subsequently the digital signal) won't be correct
-    # unless the correct `baseline` and `adc_gain` are provided... this is just
-    # the best approximation
-    if not init_value:
-        init_value = p_signal[0, :]
-        init_value = baseline + (np.array(adc_gain) * init_value)
-        init_value = [int(i) for i in init_value.tolist()]
-    if verbose:
-        print(f"Signal initial value: {init_value}")
-
-    # Set the default `checksum`
-    if not checksum:
-        checksum = [int(np.sum(v) % 65536) for v in np.transpose(p_signal)]
-    if verbose:
-        print(f"Signal checksum: {checksum}")
-
-    # Set the default `block_size`
-    if not block_size:
-        block_size = [0] * n_sig
-    block_size = [block_size] * n_sig if type(block_size) is int else block_size
-    if verbose:
-        print(f"Signal block size: {block_size}")
-
-    # Convert array to floating point
-    p_signal = p_signal.astype("float64")
-
-    # Either return the record or generate the record and header files
-    # if requested
     if record_only:
-        # Create the record from the input and generated values
-        record = Record(
-            record_name=record_name,
-            n_sig=n_sig,
-            fs=fs,
-            samps_per_frame=samps_per_frame,
-            counter_freq=counter_freq,
-            base_counter=base_counter,
-            sig_len=sig_len,
-            base_time=base_time,
-            base_date=base_date,
-            comments=comments,
-            sig_name=sig_name,
-            p_signal=p_signal,
-            d_signal=None,
-            e_p_signal=None,
-            e_d_signal=None,
-            file_name=dat_file_name,
-            fmt=fmt,
-            skew=skew,
-            byte_offset=byte_offset,
-            adc_gain=adc_gain,
-            baseline=baseline,
-            units=units,
-            adc_res=adc_res,
-            adc_zero=adc_zero,
-            init_value=init_value,
-            checksum=checksum,
-            block_size=block_size,
-        )
+        record.d_signal = None
         if verbose:
             print("Record generated successfully")
         return record
-    else:
-        # Write the information to a record and header file
-        wrsamp(
-            record_name=record_name,
-            fs=fs,
-            units=units,
-            sig_name=sig_name,
-            p_signal=p_signal,
-            fmt=fmt,
-            adc_gain=adc_gain,
-            baseline=baseline,
-            comments=comments,
-            base_time=base_time,
-            base_date=base_date,
-            write_dir=write_dir,
-        )
-        if verbose:
-            print("File generated successfully")
+
+    record.wrsamp(write_dir=write_dir)
+    if verbose:
+        print("File generated successfully")
+
+
+def _per_channel(value, n_sig):
+    """Return `value` as a list with one entry per channel.
+
+    A single value (str, int, float or NumPy scalar) is repeated for all
+    channels, None is returned unchanged and anything else is converted to a list.
+
+    """
+    if value is None:
+        return None
+    if isinstance(value, (str, numbers.Number, np.generic)):
+        return [value] * n_sig
+    return list(value)
 
 
 def csv2ann(

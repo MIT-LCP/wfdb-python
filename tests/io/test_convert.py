@@ -1,11 +1,12 @@
 import os
 
 import numpy as np
+import pytest
 
 from wfdb.io.annotation import rdann
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import read_edf
-from wfdb.io.record import rdrecord
+from wfdb.io.record import rdheader, rdrecord
 
 
 class TestEdfToWfdb:
@@ -146,6 +147,105 @@ class TestCsvToWfdb:
         assert record_write.sig_name == record_100_dat.sig_name
         assert record_write.p_signal.size == 1300000
         assert record_write.p_signal.size == record_100_dat.p_signal.size
+
+    @staticmethod
+    def _write_csv(path):
+        path.write_text("I,II\n0.1,-0.25\n0.5,0.75\n-1.0,0.0\n")
+        return str(path)
+
+    def test_record_matches_written_header(self, tmp_path):
+        """record_only returns the same fields that are written (#593)."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        record = csv_to_wfdb(csv_file, fs=100, units="mV", record_only=True)
+        csv_to_wfdb(csv_file, fs=100, units="mV", write_dir=str(tmp_path))
+        header = rdheader(str(tmp_path / "rec"))
+
+        # Initial values and checksums of the digital samples (gain 200)
+        assert record.init_value == [20, -50]
+        assert record.checksum == [(20 + 100 - 200) % 65536, 100]
+        for field in ["fmt", "adc_gain", "baseline", "adc_res", "adc_zero"]:
+            assert getattr(record, field) == getattr(header, field), field
+        assert record.init_value == header.init_value
+        assert record.checksum == header.checksum
+
+    def test_scalars_broadcast(self, tmp_path):
+        """Floats and NumPy scalars are used for all channels (#593)."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        record = csv_to_wfdb(
+            csv_file,
+            fs=100,
+            units="mV",
+            adc_gain=200.5,
+            baseline=np.int64(3),
+            record_only=True,
+        )
+
+        assert record.adc_gain == [200.5, 200.5]
+        assert record.baseline == [3, 3]
+
+    def test_zero_and_list_defaults(self, tmp_path):
+        """An explicit 0 is kept, and baseline defaults to adc_zero (#593)."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        record = csv_to_wfdb(
+            csv_file, fs=100, units="mV", baseline=0, adc_zero=1024, record_only=True
+        )
+        assert record.baseline == [0, 0]
+        assert record.adc_zero == [1024, 1024]
+
+        record = csv_to_wfdb(
+            csv_file, fs=100, units="mV", adc_zero=[1, 2], record_only=True
+        )
+        assert record.baseline == [1, 2]
+
+    def test_parameters_are_written(self, tmp_path):
+        """Header parameters reach the written files (#592)."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        csv_to_wfdb(
+            csv_file,
+            fs=100,
+            units="mV",
+            counter_freq=10,
+            base_counter=5,
+            dat_file_name="signals.dat",
+            skew=[0, 1],
+            byte_offset=4,
+            adc_res=15,
+            adc_zero=[3, 4],
+            block_size=0,
+            write_dir=str(tmp_path),
+        )
+        header = rdheader(str(tmp_path / "rec"))
+
+        assert header.counter_freq == 10
+        assert header.base_counter == 5
+        assert header.file_name == ["signals.dat", "signals.dat"]
+        assert header.skew == [0, 1]
+        assert header.byte_offset == [4, 4]
+        assert header.adc_res == [15, 15]
+        assert header.adc_zero == [3, 4]
+        assert header.baseline == [3, 4]
+        assert (tmp_path / "signals.dat").stat().st_size == 4 + 3 * 2 * 2
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [{"checksum": [1, 2]}, {"init_value": 0}, {"samps_per_frame": 2}],
+    )
+    def test_deprecated_arguments(self, tmp_path, kwargs):
+        """Arguments that follow from the samples are ignored with a warning."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        with pytest.warns(DeprecationWarning):
+            record = csv_to_wfdb(
+                csv_file, fs=100, units="mV", record_only=True, **kwargs
+            )
+
+        assert record.checksum == [(20 + 100 - 200) % 65536, 100]
+        assert record.init_value == [20, -50]
+        assert record.samps_per_frame is None
 
 
 class TestCsv2Ann:
