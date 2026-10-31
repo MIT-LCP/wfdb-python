@@ -244,6 +244,35 @@ class TestComputeHr:
             processing.compute_hr(sig_len=20, qrs_inds=qrs_inds, fs=1)
 
 
+class TestCompareAnnotations:
+    """Tests for compare_annotations."""
+
+    def test_test_annotation_matched_once(self):
+        """A test annotation isn't matched to two reference annotations."""
+        comparitor = processing.compare_annotations(
+            np.array([0, 2, 4, 5]), np.array([1, 5]), window_width=6
+        )
+
+        assert comparitor.matching_sample_nums.tolist() == [0, -1, -1, 1]
+        assert (comparitor.tp, comparitor.fp, comparitor.fn) == (2, 0, 2)
+        assert comparitor.positive_predictivity == 1.0
+
+    def test_random_annotations(self):
+        """Matches are unique, in order and within the window."""
+        rng = np.random.default_rng(0)
+        for _ in range(2000):
+            ref = np.sort(rng.choice(40, rng.integers(1, 9), replace=False))
+            test = np.sort(rng.choice(40, rng.integers(1, 9), replace=False))
+            window_width = int(rng.integers(1, 10))
+            comparitor = processing.compare_annotations(ref, test, window_width)
+
+            matches = comparitor.matching_sample_nums
+            matched = matches[matches != -1]
+            assert np.all(np.diff(matched) > 0)
+            assert np.all(np.abs(ref[matches != -1] - test[matched]) < window_width)
+            assert 0 <= comparitor.fp <= len(test)
+
+
 class TestQrs:
     """Testing QRS detectors"""
 

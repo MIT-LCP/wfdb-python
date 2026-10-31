@@ -23,6 +23,9 @@ Unreleased
 **Speed up XQRS backsearch**
   ``XQRS`` no longer rechecks peaks that an earlier backsearch already rejected. Long stretches without QRS complexes (for example a disconnected lead) made detection take quadratic time, up to hours on long records. The detected QRS locations are unchanged.
 
+**Fix test annotations matched twice in compare_annotations**
+  ``compare_annotations`` (``Comparitor.compare``) could match one test annotation to two reference annotations, which gave a negative number of false positives and a positive predictivity above 1. Each test annotation is now matched at most once. Results are unchanged when no annotation was matched twice.
+
 **Fix record name and add write directory in csv2ann**
   ``csv2ann`` now takes the record name from the CSV file name without its directory and extension, as ``csv_to_wfdb`` does. Paths with a directory (such as ``data/x.csv``) used to fail when writing, and ``./x.csv`` gave an empty name. The annotation file is written to the new ``write_dir`` argument, which defaults to the current directory. ``csv2ann`` is now included in the API documentation.
 
