@@ -1395,3 +1395,77 @@ class TestDownload:
     @pytest.mark.network
     def test_dl_database_with_dat_file(self, temp_path):
         wfdb.dl_database("afdb", temp_path, ["04015"])
+
+
+def _pack_reference(fmt, samples):
+    """Pack samples (in file order) into bytes, one sample at a time."""
+    samples = [int(v) for v in samples]
+    if fmt == "80":
+        return bytes(v + 128 for v in samples)
+    if fmt == "212":
+        out = bytearray()
+        for i in range(0, len(samples), 2):
+            a = samples[i] & 0xFFF
+            b = samples[i + 1] & 0xFFF if i + 1 < len(samples) else 0
+            out += bytes([a & 0xFF, (a >> 8) | ((b >> 8) << 4), b & 0xFF])
+        if len(samples) % 2:
+            out = out[:-1]
+        return bytes(out)
+    size = {"16": 2, "24": 3, "32": 4}[fmt]
+    return b"".join(v.to_bytes(size, "little", signed=True) for v in samples)
+
+
+class TestWrDatFile:
+    """Tests for the bytes written by wr_dat_file."""
+
+    @pytest.mark.parametrize("fmt", ["80", "212", "16", "24", "32"])
+    @pytest.mark.parametrize("sig_len", [1, 2, 7])
+    def test_bytes(self, fmt, sig_len, tmp_path):
+        """Each format is written little-endian, sample by sample."""
+        dmin, dmax = wfdb.io._signal._digi_bounds(fmt)
+        rng = np.random.default_rng(0)
+        d_signal = rng.integers(dmin, dmax + 1, size=(sig_len, 3))
+        d_signal[0] = [dmin, dmax, -1]
+        original = d_signal.copy()
+
+        wfdb.io._signal.wr_dat_file(
+            "x.dat", fmt, d_signal, byte_offset=0, write_dir=str(tmp_path)
+        )
+
+        written = (tmp_path / "x.dat").read_bytes()
+        assert written == _pack_reference(fmt, d_signal.reshape(-1))
+        np.testing.assert_array_equal(d_signal, original)
+
+    @pytest.mark.parametrize("fmt", ["80", "212", "16", "24", "32"])
+    def test_non_contiguous_input(self, fmt, tmp_path):
+        """Fortran-ordered and sliced signals are written in sample order."""
+        dmin, dmax = wfdb.io._signal._digi_bounds(fmt)
+        rng = np.random.default_rng(1)
+        full = rng.integers(dmin, dmax + 1, size=(9, 4))
+        d_signal = np.asfortranarray(full[:, ::2])
+
+        wfdb.io._signal.wr_dat_file(
+            "x.dat", fmt, d_signal, byte_offset=0, write_dir=str(tmp_path)
+        )
+
+        written = (tmp_path / "x.dat").read_bytes()
+        assert written == _pack_reference(fmt, full[:, ::2].reshape(-1))
+
+    @pytest.mark.parametrize("fmt", ["80", "212", "16", "24", "32"])
+    def test_expanded(self, fmt, tmp_path):
+        """Multi-frequency signals are written frame by frame."""
+        e_d_signal = [np.array([1, -2, 3, -4]), np.array([5, -6])]
+
+        wfdb.io._signal.wr_dat_file(
+            "x.dat",
+            fmt,
+            None,
+            byte_offset=0,
+            expanded=True,
+            e_d_signal=e_d_signal,
+            samps_per_frame=[2, 1],
+            write_dir=str(tmp_path),
+        )
+
+        written = (tmp_path / "x.dat").read_bytes()
+        assert written == _pack_reference(fmt, [1, -2, 5, 3, -4, -6])
