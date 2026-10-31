@@ -112,6 +112,10 @@ class TestProcessing:
         x = np.array([0, 1, 3, 2, 10, 5, 1, 0], dtype=float)
         assert np.array_equal(processing.find_local_peaks(x, 2), [4])
 
+    def test_find_local_peaks_list(self):
+        """A list works as well as an array."""
+        assert processing.find_local_peaks([0, 1, 2, 3, 2, 1, 0], 1).tolist() == [3]
+
     def test_gqrs(self):
         record = wfdb.rdrecord(
             "sample-data/100",
