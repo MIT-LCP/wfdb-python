@@ -38,6 +38,9 @@ Unreleased
 **Use Ruff for formatting and linting**
   The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
 
+**Fix search window in correct_peaks**
+  ``correct_peaks`` now searches ``search_radius`` samples on both sides of each peak, including the last sample of the signal. It used to stop one sample short on the right, so a peak exactly ``search_radius`` samples after the original index, or on the last sample, could not be found.
+
 **Fix resample_sig for signals starting with NaN**
   ``resample_sig`` (and the functions that use it, such as ``resample_singlechan`` and ``resample_multichan``) returned only NaN values if the signal started with NaN. Leading NaN values now take the first valid value before resampling, as trailing ones already took the last.
 
