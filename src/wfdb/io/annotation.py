@@ -10,6 +10,7 @@ import pandas as pd
 
 from wfdb.io import _header, download, record, util
 from wfdb.io._coreio import CLOUD_PROTOCOLS
+from wfdb.io.archive import WFDBArchive, is_archive_path
 
 
 class Annotation:
@@ -1893,7 +1894,10 @@ def rdann(
     ----------
     record_name : str
         The record name of the WFDB annotation file. ie. for file '100.atr',
-        record_name='100'. The path to the file can be a cloud URL.
+        record_name='100'. The path to the file can be a cloud URL. To read
+        the annotation file from a local .wfdb archive, pass the path of
+        the archive including the .wfdb extension (for example
+        '100.wfdb' to read '100.atr' from the archive).
     extension : str
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
@@ -1935,8 +1939,13 @@ def rdann(
     Examples
     --------
     >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=300000)
+    >>> ann = wfdb.rdann('100.wfdb', 'atr')
 
     """
+    is_archive = is_archive_path(record_name)
+    if is_archive:
+        record._check_archive_read_args(record_name, pn_dir)
+
     if pn_dir is not None:
         # check to make sure a cloud path isn't being passed under pn_dir
         if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
@@ -1952,7 +1961,11 @@ def rdann(
     return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
 
     # Read the file in byte pairs
-    filebytes = load_byte_pairs(record_name, extension, pn_dir)
+    if is_archive:
+        filebytes, ann_record_name = _load_archive_byte_pairs(record_name, extension)
+    else:
+        filebytes = load_byte_pairs(record_name, extension, pn_dir)
+        ann_record_name = os.path.split(record_name)[1]
 
     # Get WFDB annotation fields from the file bytes
     sample, label_store, subtype, chan, num, aux_note = proc_ann_bytes(
@@ -1992,7 +2005,7 @@ def rdann(
 
     # Create the annotation object
     annotation = Annotation(
-        record_name=os.path.split(record_name)[1],
+        record_name=ann_record_name,
         extension=extension,
         sample=sample,
         label_store=label_store,
@@ -2099,6 +2112,33 @@ def load_byte_pairs(record_name, extension, pn_dir):
         ).reshape([-1, 2])
 
     return filebytes
+
+
+def _load_archive_byte_pairs(archive_path, extension):
+    """Load an annotation file from a .wfdb archive as pairs of bytes.
+
+    The annotation file is named after the record's header file in the archive.
+
+    Parameters
+    ----------
+    archive_path : str
+        The path of the .wfdb archive.
+    extension : str
+        The annotator extension of the annotation file.
+
+    Returns
+    -------
+    filebytes : ndarray
+        The annotation file converted to an Nx2 array of unsigned bytes.
+    record_name : str
+        The name of the record that the annotation file belongs to.
+
+    """
+    with WFDBArchive(archive_path, mode="r") as archive:
+        record_name = archive.header_file_name()[: -len(".hea")]
+        with archive.open(f"{record_name}.{extension}") as f:
+            filebytes = util.fromfile(f, "<u1").reshape([-1, 2])
+    return filebytes, record_name
 
 
 def proc_ann_bytes(filebytes, sampto):
