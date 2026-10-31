@@ -26,6 +26,9 @@ Unreleased
 **Fix record name and add write directory in csv2ann**
   ``csv2ann`` now takes the record name from the CSV file name without its directory and extension, as ``csv_to_wfdb`` does. Paths with a directory (such as ``data/x.csv``) used to fail when writing, and ``./x.csv`` gave an empty name. The annotation file is written to the new ``write_dir`` argument, which defaults to the current directory. ``csv2ann`` is now included in the API documentation.
 
+**Fix parameter handling in csv_to_wfdb**
+  ``csv_to_wfdb`` now builds the same ``Record`` whether it writes files or returns the record (``record_only=True``), so all header parameters (such as ``dat_file_name``, ``counter_freq``, ``base_counter``, ``skew``, ``byte_offset``, ``adc_res`` and ``adc_zero``) are written instead of being ignored. Single values of any numeric type (including NumPy scalars and floats) are used for all channels, and an explicit ``0`` is no longer replaced by the default. The initial value and checksum are computed from the digital samples, and the default ADC resolution now follows ``fmt`` in both modes. The ``samps_per_frame``, ``init_value`` and ``checksum`` arguments are deprecated and ignored. The parameter descriptions in the docstring have been corrected.
+
 **Use Ruff for formatting and linting**
   The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
 
