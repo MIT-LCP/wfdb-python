@@ -59,7 +59,9 @@ def find_local_peaks(sig, radius):
 
     A sample is a local peak if it is the largest value within the <radius> samples on
     its left and right. In cases where it shares the max value with nearby samples, the
-    middle sample is classified as the local peak.
+    first of these samples is classified as the local peak. The search then continues
+    <radius> samples later, so a flat top that is wider than <radius> samples gives a
+    peak every <radius> samples along it.
 
     Parameters
     ----------
@@ -75,28 +77,15 @@ def find_local_peaks(sig, radius):
 
     """
     # TODO: Fix flat mountain scenarios.
+    sig = np.asarray(sig)
     if np.min(sig) == np.max(sig):
         return np.empty(0)
 
     peak_inds = []
 
     i = 0
-    while i < radius + 1:
-        if sig[i] == max(sig[: i + radius]):
-            peak_inds.append(i)
-            i += radius
-        else:
-            i += 1
-
     while i < len(sig):
-        if sig[i] == max(sig[i - radius : i + radius]):
-            peak_inds.append(i)
-            i += radius
-        else:
-            i += 1
-
-    while i < len(sig):
-        if sig[i] == max(sig[i - radius :]):
+        if sig[i] == sig[max(0, i - radius) : i + radius + 1].max():
             peak_inds.append(i)
             i += radius
         else:

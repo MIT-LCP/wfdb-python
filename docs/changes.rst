@@ -80,6 +80,9 @@ Unreleased
 **Use only beat annotations in ann2rr**
   ``ann2rr`` now computes intervals between beat (QRS) annotations only, as the WFDB ``ann2rr`` program does, so rhythm changes, comments and other non-beat annotations no longer split an RR interval in two. The first interval is still measured from the start of the record. To include all annotations as before, pass ``all_annotations=True`` (the equivalent of ``ann2rr -A``).
 
+**Include the right edge of the window in find_local_peaks**
+  ``find_local_peaks`` now compares each sample with ``radius`` samples on both sides, as documented, and is about 3 times faster. The sample ``radius`` positions to the right, and the last sample of the signal, used to be left out. ``XQRS`` uses ``find_local_peaks`` to find candidate peaks, so its detections may change slightly.
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
