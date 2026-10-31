@@ -514,6 +514,9 @@ class Annotation:
         # The string fields
         elif field in ["symbol", "description", "aux_note"]:
             uniq_elements = set(item)
+            # None means no note, the same as an empty string
+            if field == "aux_note":
+                uniq_elements.discard(None)
 
             for e in uniq_elements:
                 if not isinstance(e, str_types):

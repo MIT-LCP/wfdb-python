@@ -322,3 +322,23 @@ def test_aux_note_rejected(temp_path, aux_note, match):
             write_dir=temp_path,
         )
     assert not os.path.exists(os.path.join(temp_path, "bad_aux.atr"))
+
+
+def test_aux_note_none(temp_path):
+    """None in aux_note means no note, as for an empty string."""
+    for name, aux_note in [("none", [None, "(VT", None]), ("empty", ["", "(VT", ""])]:
+        wfdb.wrann(
+            name,
+            "atr",
+            np.array([1, 5, 9]),
+            symbol=["N", "N", "V"],
+            aux_note=aux_note,
+            write_dir=temp_path,
+        )
+    ann = wfdb.rdann(os.path.join(temp_path, "none"), "atr")
+    assert ann.aux_note == ["", "(VT", ""]
+    with (
+        open(os.path.join(temp_path, "none.atr"), "rb") as f1,
+        open(os.path.join(temp_path, "empty.atr"), "rb") as f2,
+    ):
+        assert f1.read() == f2.read()
