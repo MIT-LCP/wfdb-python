@@ -236,10 +236,10 @@ class TestQrs:
         update_qrs = xqrs._update_qrs
 
         def noise_spy(peak_num):
-            qrs_thr = xqrs.qrs_thr
+            qrs_thr, last_qrs_ind = xqrs.qrs_thr, xqrs.last_qrs_ind
             update_noise(peak_num)
             # A noise update must not change the result of a backsearch
-            assert xqrs.qrs_thr == qrs_thr
+            assert (xqrs.qrs_thr, xqrs.last_qrs_ind) == (qrs_thr, last_qrs_ind)
 
         def qrs_spy(peak_num, backsearch=False):
             update_qrs(peak_num, backsearch=backsearch)
