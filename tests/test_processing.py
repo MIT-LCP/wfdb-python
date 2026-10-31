@@ -216,6 +216,12 @@ class TestComputeHr:
         with pytest.raises(ValueError, match=r"qrs_inds\[1\] = 8"):
             processing.compute_hr(sig_len=20, qrs_inds=np.array([2, 8, 8]), fs=1)
 
+    def test_rejects_unordered_unsigned(self):
+        """Decreasing unsigned indices are caught, although np.diff wraps."""
+        qrs_inds = np.array([2, 8, 5], dtype=np.uint32)
+        with pytest.raises(ValueError, match=r"qrs_inds\[1\] = 8"):
+            processing.compute_hr(sig_len=20, qrs_inds=qrs_inds, fs=1)
+
 
 class TestQrs:
     """Testing QRS detectors"""

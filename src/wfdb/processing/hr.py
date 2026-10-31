@@ -35,13 +35,14 @@ def compute_hr(sig_len, qrs_inds, fs):
         If `qrs_inds` is not strictly increasing.
 
     """
-    not_increasing = np.flatnonzero(np.diff(qrs_inds) <= 0)
+    # Compare neighbours directly, since np.diff wraps for unsigned integers.
+    q = np.asarray(qrs_inds)
+    not_increasing = np.flatnonzero(q[1:] <= q[:-1])
     if not_increasing.size:
         i = not_increasing[0]
         raise ValueError(
             "qrs_inds must be strictly increasing, but "
-            f"qrs_inds[{i}] = {qrs_inds[i]} is followed by "
-            f"qrs_inds[{i + 1}] = {qrs_inds[i + 1]}"
+            f"qrs_inds[{i}] = {q[i]} is followed by qrs_inds[{i + 1}] = {q[i + 1]}"
         )
 
     heart_rate = np.full(sig_len, np.nan, dtype="float32")
