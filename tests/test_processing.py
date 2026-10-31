@@ -1,6 +1,7 @@
 from unittest import mock
 
 import numpy as np
+import pytest
 
 import wfdb
 from wfdb import processing
@@ -203,6 +204,23 @@ class TestComputeHr:
         expected[3:7] = 60 * 60 / 2
         expected[7:] = 60 * 60 / 4
         np.testing.assert_allclose(hr, expected)
+
+    @pytest.mark.parametrize("qrs_inds", [[2, 8, 8, 15], [2, 8, 5, 15], [2, 8, 8]])
+    def test_rejects_unordered_indices(self, qrs_inds):
+        """Repeated or decreasing beats raise a ValueError."""
+        with pytest.raises(ValueError, match="strictly increasing"):
+            processing.compute_hr(sig_len=20, qrs_inds=qrs_inds, fs=1)
+
+    def test_rejects_unordered_array(self):
+        """The check also applies to NumPy arrays."""
+        with pytest.raises(ValueError, match=r"qrs_inds\[1\] = 8"):
+            processing.compute_hr(sig_len=20, qrs_inds=np.array([2, 8, 8]), fs=1)
+
+    def test_rejects_unordered_unsigned(self):
+        """Decreasing unsigned indices are caught, although np.diff wraps."""
+        qrs_inds = np.array([2, 8, 5], dtype=np.uint32)
+        with pytest.raises(ValueError, match=r"qrs_inds\[1\] = 8"):
+            processing.compute_hr(sig_len=20, qrs_inds=qrs_inds, fs=1)
 
 
 class TestQrs:

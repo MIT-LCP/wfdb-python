@@ -32,6 +32,9 @@ Unreleased
 **Use the last RR interval in compute_hr**
   ``compute_hr`` now uses the interval between the last two beats for the heart rate after the last beat, instead of repeating the previous rate. With exactly two beats it now returns their rate after the second beat instead of only NaN.
 
+**Check that QRS indices are increasing in compute_hr**
+  ``compute_hr`` now raises a ``ValueError`` if ``qrs_inds`` is not strictly increasing. Repeated beats used to give a ``ZeroDivisionError`` (or ``inf`` for NumPy arrays), and beats out of order gave a negative heart rate.
+
 **Use Ruff for formatting and linting**
   The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
 

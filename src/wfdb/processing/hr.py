@@ -18,7 +18,7 @@ def compute_hr(sig_len, qrs_inds, fs):
     sig_len : int
         The length of the corresponding signal.
     qrs_inds : ndarray
-        The QRS index locations.
+        The QRS index locations, in strictly increasing order.
     fs : int, float
         The corresponding signal's sampling frequency.
 
@@ -29,7 +29,22 @@ def compute_hr(sig_len, qrs_inds, fs):
         corresponding signal. Contains numpy.nan where heart rate could
         not be computed.
 
+    Raises
+    ------
+    ValueError
+        If `qrs_inds` is not strictly increasing.
+
     """
+    # Compare neighbours directly, since np.diff wraps for unsigned integers.
+    q = np.asarray(qrs_inds)
+    not_increasing = np.flatnonzero(q[1:] <= q[:-1])
+    if not_increasing.size:
+        i = not_increasing[0]
+        raise ValueError(
+            "qrs_inds must be strictly increasing, but "
+            f"qrs_inds[{i}] = {q[i]} is followed by qrs_inds[{i + 1}] = {q[i + 1]}"
+        )
+
     heart_rate = np.full(sig_len, np.nan, dtype="float32")
 
     if len(qrs_inds) < 2:
