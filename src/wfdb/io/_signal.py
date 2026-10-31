@@ -201,8 +201,8 @@ class SignalMixin:
                 fmt = self.fmt[ch]
                 dmin, dmax = _digi_bounds(self.fmt[ch])
 
-                chmin = min(self.e_d_signal[ch])
-                chmax = max(self.e_d_signal[ch])
+                chmin = np.min(self.e_d_signal[ch])
+                chmax = np.max(self.e_d_signal[ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError(
                         "Channel "
@@ -256,8 +256,8 @@ class SignalMixin:
                 fmt = self.fmt[ch]
                 dmin, dmax = _digi_bounds(self.fmt[ch])
 
-                chmin = min(self.d_signal[:, ch])
-                chmax = max(self.d_signal[:, ch])
+                chmin = np.min(self.d_signal[:, ch])
+                chmax = np.max(self.d_signal[:, ch])
                 if (chmin < dmin) or (chmax > dmax):
                     raise IndexError(
                         "Channel "
