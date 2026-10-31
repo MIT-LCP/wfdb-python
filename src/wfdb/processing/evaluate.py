@@ -155,6 +155,9 @@ class Comparitor:
         """
         test_samp_num = 0
         ref_samp_num = 0
+        # The last test annotation that was matched. Test annotations are
+        # matched in increasing order, so none up to this one can be reused.
+        last_matched_test_num = -1
 
         # Iterate through the reference sample numbers
         while ref_samp_num < self.n_ref and test_samp_num < self.n_test:
@@ -186,11 +189,7 @@ class Comparitor:
                 # if not already assigned to a previous sample.
                 # It will be the previous testing sample number in any
                 # possible case (scenario D below), or nothing.
-                if closest_samp_num and (
-                    not ref_samp_num
-                    or closest_samp_num - 1
-                    != self.matching_sample_nums[ref_samp_num - 1]
-                ):
+                if closest_samp_num - 1 > last_matched_test_num:
                     # The previous test annotation is inspected
                     closest_samp_num = closest_samp_num - 1
                     smallest_samp_diff = abs(
@@ -200,6 +199,7 @@ class Comparitor:
                     # Assign the reference-test pair if close enough
                     if smallest_samp_diff < self.window_width:
                         self.matching_sample_nums[ref_samp_num] = closest_samp_num
+                        last_matched_test_num = closest_samp_num
                     # Set the starting test sample number to inspect
                     # for the next reference sample.
                     test_samp_num = closest_samp_num + 1
@@ -213,6 +213,7 @@ class Comparitor:
                 # Assign the reference-test pair if close enough
                 if smallest_samp_diff < self.window_width:
                     self.matching_sample_nums[ref_samp_num] = closest_samp_num
+                    last_matched_test_num = closest_samp_num
                 # Increment the starting test sample number to inspect
                 # for the next reference sample.
                 test_samp_num = closest_samp_num + 1
