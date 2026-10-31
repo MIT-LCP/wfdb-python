@@ -195,6 +195,21 @@ class TestProcessing:
 
         assert np.array_equal(yz, expected_peaks)
 
+    def test_correct_peaks_window_edges(self):
+        """Peaks at the edge of the search radius or the signal are found."""
+        sig = np.zeros(30)
+        sig[13] = 5
+        sig[29] = 5
+
+        # Peak exactly search_radius samples after the guess
+        assert processing.correct_peaks(
+            sig, np.array([10]), search_radius=3, smooth_window_size=9, peak_dir="up"
+        ).tolist() == [13]
+        # Peak on the last sample of the signal
+        assert processing.correct_peaks(
+            sig, np.array([27]), search_radius=5, smooth_window_size=9, peak_dir="up"
+        ).tolist() == [29]
+
 
 class TestComputeHr:
     """Tests for compute_hr."""

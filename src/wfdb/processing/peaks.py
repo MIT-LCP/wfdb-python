@@ -225,7 +225,7 @@ def shift_peaks(sig, peak_inds, search_radius, peak_up):
     for i in range(n_peaks):
         ind = peak_inds[i]
         local_sig = sig[
-            max(0, ind - search_radius) : min(ind + search_radius, sig_len - 1)
+            max(0, ind - search_radius) : min(ind + search_radius + 1, sig_len)
         ]
 
         if peak_up:
