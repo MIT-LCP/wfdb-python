@@ -189,6 +189,8 @@ def csv_to_wfdb(
     p_signal = df_CSV.values
     # The dataframe should be in (`sig_len`, `n_sig`) dimensions
     sig_len = p_signal.shape[0]
+    if sig_len == 0:
+        raise ValueError(f"The CSV file {file_name} contains no samples")
     if verbose:
         print(f"Signal length: {sig_len}")
     n_sig = p_signal.shape[1]
@@ -217,7 +219,7 @@ def csv_to_wfdb(
 
     if dat_file_name is None:
         dat_file_name = record_name + ".dat"
-    dat_file_name = _per_channel(dat_file_name, n_sig)
+    dat_file_name = _per_channel(dat_file_name, n_sig, "dat_file_name")
     if verbose:
         print(f"Output record: {dat_file_name[0]}")
 
@@ -233,7 +235,7 @@ def csv_to_wfdb(
             f"The {', '.join(ignored)} argument(s) of csv_to_wfdb are deprecated "
             "and ignored. Each CSV row is one frame with one sample per signal, "
             "and the initial value and checksum are computed from the samples.",
-            DeprecationWarning,
+            FutureWarning,
             stacklevel=2,
         )
 
@@ -245,7 +247,7 @@ def csv_to_wfdb(
         adc_gain = 200
     if adc_zero is None:
         adc_zero = 0
-    adc_zero = _per_channel(adc_zero, n_sig)
+    adc_zero = _per_channel(adc_zero, n_sig, "adc_zero")
     if baseline is None:
         baseline = adc_zero
     if block_size is None:
@@ -264,20 +266,20 @@ def csv_to_wfdb(
         sig_name=sig_name,
         p_signal=p_signal.astype("float64"),
         file_name=dat_file_name,
-        fmt=_per_channel(fmt, n_sig),
-        skew=_per_channel(skew, n_sig),
-        byte_offset=_per_channel(byte_offset, n_sig),
-        adc_gain=_per_channel(adc_gain, n_sig),
-        baseline=_per_channel(baseline, n_sig),
-        units=_per_channel(units, n_sig),
-        adc_res=_per_channel(adc_res, n_sig),
+        fmt=_per_channel(fmt, n_sig, "fmt"),
+        skew=_per_channel(skew, n_sig, "skew"),
+        byte_offset=_per_channel(byte_offset, n_sig, "byte_offset"),
+        adc_gain=_per_channel(adc_gain, n_sig, "adc_gain"),
+        baseline=_per_channel(baseline, n_sig, "baseline"),
+        units=_per_channel(units, n_sig, "units"),
+        adc_res=_per_channel(adc_res, n_sig, "adc_res"),
         adc_zero=adc_zero,
-        block_size=_per_channel(block_size, n_sig),
+        block_size=_per_channel(block_size, n_sig, "block_size"),
     )
 
     # The initial value and checksum describe the digital samples
     record.d_signal = record.adc()
-    record.init_value = [int(v) for v in record.d_signal[0, :]] if sig_len else None
+    record.init_value = [int(v) for v in record.d_signal[0, :]]
     record.checksum = record.calc_checksum()
     # Fill in the remaining fields as wrsamp does (e.g. adc_res from fmt)
     record.set_defaults()
@@ -302,15 +304,19 @@ def csv_to_wfdb(
         print("File generated successfully")
 
 
-def _per_channel(value, n_sig):
+def _per_channel(value, n_sig, name):
     """Return `value` as a list with one entry per channel.
 
     A single value (str, int, float or NumPy scalar) is repeated for all
     channels, None is returned unchanged and anything else is converted to a list.
+    `name` is the argument name used in the error for a bool.
 
     """
     if value is None:
         return None
+    # bool is a Number, but never a valid header field
+    if isinstance(value, (bool, np.bool_)):
+        raise TypeError(f"`{name}` must not be a bool")
     if isinstance(value, (str, numbers.Number, np.generic)):
         return [value] * n_sig
     return list(value)

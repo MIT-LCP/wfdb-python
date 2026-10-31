@@ -238,7 +238,7 @@ class TestCsvToWfdb:
         """Arguments that follow from the samples are ignored with a warning."""
         csv_file = self._write_csv(tmp_path / "rec.csv")
 
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(FutureWarning):
             record = csv_to_wfdb(
                 csv_file, fs=100, units="mV", record_only=True, **kwargs
             )
@@ -246,6 +246,33 @@ class TestCsvToWfdb:
         assert record.checksum == [(20 + 100 - 200) % 65536, 100]
         assert record.init_value == [20, -50]
         assert record.samps_per_frame is None
+
+    def test_bool_rejected(self, tmp_path):
+        """A bool is not accepted as a numeric header value."""
+        csv_file = self._write_csv(tmp_path / "rec.csv")
+
+        with pytest.raises(TypeError, match="adc_gain"):
+            csv_to_wfdb(csv_file, fs=100, units="mV", adc_gain=True)
+
+    def test_missing_values(self, tmp_path):
+        """Empty CSV fields are written as invalid samples and read back as NaN."""
+        csv_file = tmp_path / "rec.csv"
+        csv_file.write_text("I,II\n0.1,-0.25\n,0.75\n-1.0,0.0\n")
+
+        csv_to_wfdb(str(csv_file), fs=100, units="mV", write_dir=str(tmp_path))
+        record = rdrecord(str(tmp_path / "rec"))
+
+        expected = np.array([[0.1, -0.25], [np.nan, 0.75], [-1.0, 0.0]])
+        np.testing.assert_allclose(record.p_signal, expected)
+        assert record.init_value == [20, -50]
+
+    def test_no_rows(self, tmp_path):
+        """A CSV with a header but no samples gives a clear error."""
+        csv_file = tmp_path / "rec.csv"
+        csv_file.write_text("I,II\n")
+
+        with pytest.raises(ValueError, match="no samples"):
+            csv_to_wfdb(str(csv_file), fs=100, units="mV", write_dir=str(tmp_path))
 
 
 class TestCsv2Ann:
