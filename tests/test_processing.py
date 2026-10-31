@@ -221,6 +221,39 @@ class TestQrs:
         n_after = np.sum(xqrs.qrs_inds > 150 * fs)
         assert n_before > 30 and n_after > 30
 
+    def test_xqrs_backsearch_skip_assumptions(self):
+        """The backsearch skip relies on how XQRS updates its state (#597)."""
+        sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
+        fs = fields["fs"]
+        x = sig[:, 0]
+        rng = np.random.default_rng(0)
+        gap = 0.01 * rng.standard_normal(120 * fs)
+        # Scaled-down beats after the gap are only found by backsearch
+        y = np.concatenate([x[: 30 * fs], gap, 0.4 * x[30 * fs : 60 * fs]])
+
+        xqrs = processing.XQRS(sig=y, fs=fs)
+        update_noise = xqrs._update_noise
+        update_qrs = xqrs._update_qrs
+
+        def noise_spy(peak_num):
+            qrs_thr, last_qrs_ind = xqrs.qrs_thr, xqrs.last_qrs_ind
+            update_noise(peak_num)
+            # A noise update must not change the result of a backsearch
+            assert (xqrs.qrs_thr, xqrs.last_qrs_ind) == (qrs_thr, last_qrs_ind)
+
+        def qrs_spy(peak_num, backsearch=False):
+            update_qrs(peak_num, backsearch=backsearch)
+            # Peaks up to the current one count as already searched
+            assert xqrs.last_qrs_peak_num == xqrs.peak_num
+
+        with (
+            mock.patch.object(xqrs, "_update_noise", side_effect=noise_spy),
+            mock.patch.object(xqrs, "_update_qrs", side_effect=qrs_spy),
+        ):
+            xqrs.detect(verbose=False)
+
+        assert len(xqrs.backsearch_qrs_inds) > 0
+
 
 class TestXQRSDetect:
     """Tests for the xqrs_detect convenience wrapper."""
