@@ -195,6 +195,15 @@ class TestComputeHr:
         expected[7:] = 60 / 4
         np.testing.assert_allclose(hr, expected)
 
+    def test_last_beat_past_end(self):
+        """A last beat beyond the signal doesn't raise an IndexError."""
+        hr = processing.compute_hr(sig_len=8, qrs_inds=[0, 2, 6, 12], fs=60)
+
+        expected = np.full(8, np.nan)
+        expected[3:7] = 60 * 60 / 2
+        expected[7:] = 60 * 60 / 4
+        np.testing.assert_allclose(hr, expected)
+
 
 class TestQrs:
     """Testing QRS detectors"""

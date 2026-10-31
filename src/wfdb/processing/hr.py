@@ -9,6 +9,10 @@ from wfdb.io.annotation import rdann, wrann
 def compute_hr(sig_len, qrs_inds, fs):
     """Compute instantaneous heart rate from peak indices.
 
+    The rate from each RR interval is assigned to the samples after its second
+    beat, up to and including the next beat. After the last beat, the rate
+    from the last RR interval is used up to the end of the signal.
+
     Parameters
     ----------
     sig_len : int
