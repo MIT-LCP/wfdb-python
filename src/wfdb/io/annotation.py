@@ -544,6 +544,22 @@ class Annotation:
                             + " field must not contain tabs or newlines"
                         )
 
+            if field == "aux_note":
+                # Each note is stored as Latin-1 bytes after a one-byte length.
+                for e in uniq_elements:
+                    try:
+                        n_bytes = len(e.encode("latin-1"))
+                    except UnicodeEncodeError:
+                        raise ValueError(
+                            f"aux_note {e!r} contains characters that can't be "
+                            "written (only Latin-1 characters are supported)"
+                        ) from None
+                    if n_bytes > 255:
+                        raise ValueError(
+                            f"aux_note values must be at most 255 characters, "
+                            f"but one has {n_bytes}"
+                        )
+
         elif field == "sample":
             if len(self.sample) == 1:
                 sampdiffs = np.array([self.sample[0]])
@@ -1670,9 +1686,10 @@ def field2bytes(field, value, typecodes):
         # - First byte stores length of aux_note field
         # - Second byte stores 63*4 indicator
         # - Then store the aux_note string characters
-        data_bytes = [len(value), 252] + [ord(i) for i in value]
+        encoded = value.encode("latin-1")
+        data_bytes = [len(encoded), 252] + list(encoded)
         # Zero pad odd length aux_note strings
-        if len(value) % 2:
+        if len(encoded) % 2:
             data_bytes.append(0)
 
     return data_bytes
@@ -1727,7 +1744,8 @@ def wrann(
         annotation.
     aux_note : list, optional
         A list containing the auxiliary information string (or None for
-        annotations without notes) for each annotation.
+        annotations without notes) for each annotation. Each string can have
+        at most 255 characters, all in the Latin-1 character set.
     label_store : ndarray, optional
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be

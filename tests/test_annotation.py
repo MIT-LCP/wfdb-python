@@ -3,6 +3,7 @@ import re
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import wfdb
 
@@ -287,3 +288,37 @@ class TestAnnotation:
         )
         ann = wfdb.rdann(os.path.join(temp_path, "CustomLabel"), "atr")
         assert ann.symbol == ["z", "l", "v", "r"]
+
+
+def test_aux_note_round_trip(temp_path):
+    """Latin-1 aux notes up to 255 characters are read back unchanged."""
+    aux_note = ["x" * 255, "37°C, Müller", "(AFIB"]
+    wfdb.wrann(
+        "aux",
+        "atr",
+        np.array([1, 2, 3]),
+        symbol=["+", "N", "+"],
+        aux_note=aux_note,
+        write_dir=temp_path,
+    )
+    ann = wfdb.rdann(os.path.join(temp_path, "aux"), "atr")
+    assert ann.sample.tolist() == [1, 2, 3]
+    assert ann.aux_note == aux_note
+
+
+@pytest.mark.parametrize(
+    "aux_note, match",
+    [("x" * 256, "at most 255 characters"), ("(€)", "Latin-1")],
+)
+def test_aux_note_rejected(temp_path, aux_note, match):
+    """Aux notes that can't be stored raise an error instead of being corrupted."""
+    with pytest.raises(ValueError, match=match):
+        wfdb.wrann(
+            "bad_aux",
+            "atr",
+            np.array([1, 2]),
+            symbol=["+", "N"],
+            aux_note=[aux_note, ""],
+            write_dir=temp_path,
+        )
+    assert not os.path.exists(os.path.join(temp_path, "bad_aux.atr"))

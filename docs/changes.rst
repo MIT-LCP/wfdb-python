@@ -41,6 +41,9 @@ Unreleased
 **Fix resample_sig for signals starting with NaN**
   ``resample_sig`` (and the functions that use it, such as ``resample_singlechan`` and ``resample_multichan``) returned only NaN values if the signal started with NaN. Leading NaN values now take the first valid value before resampling, as trailing ones already took the last.
 
+**Reject aux notes that can't be written in wrann**
+  ``wrann`` now raises a ``ValueError`` if an ``aux_note`` is longer than 255 characters or contains characters outside Latin-1, instead of writing a corrupt annotation file. A longer note used to be read back as many extra annotations, and other characters were silently replaced.
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
