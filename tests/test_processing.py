@@ -38,25 +38,38 @@ class TestProcessing:
         assert new_sig.shape[1] == sig.shape[1]
 
     def test_resample_leading_nan(self):
-        """Leading NaN values take the first valid value before resampling."""
+        """Leading NaN values are filled before resampling, then marked as NaN."""
         x = np.array([np.nan, np.nan, 1.0, 2.0, 3.0, 4.0])
         filled = np.array([1.0, 1.0, 1.0, 2.0, 3.0, 4.0])
 
         new_x, _ = processing.resample_sig(x, fs=2, fs_target=4)
         expected, _ = processing.resample_sig(filled, fs=2, fs_target=4)
 
-        assert np.isfinite(new_x).all()
+        # Output positions 0 to 1.5 are next to a NaN input sample
+        expected[:4] = np.nan
         np.testing.assert_allclose(new_x, expected)
 
     def test_resample_trailing_and_inner_nan(self):
-        """Inner NaN values are interpolated, and trailing ones take the last."""
+        """Inner and trailing NaN values are filled, then marked as NaN."""
         x = np.array([1.0, np.nan, 3.0, 4.0, np.nan, np.nan])
         filled = np.array([1.0, 2.0, 3.0, 4.0, 4.0, 4.0])
 
         new_x, _ = processing.resample_sig(x, fs=2, fs_target=4)
         expected, _ = processing.resample_sig(filled, fs=2, fs_target=4)
 
+        # Positions 0.5 to 1.5 and 3.5 onwards are next to a NaN input sample
+        expected[[1, 2, 3]] = np.nan
+        expected[7:] = np.nan
         np.testing.assert_allclose(new_x, expected)
+
+    def test_resample_marks_nan(self):
+        """Output samples at or next to NaN input samples are NaN."""
+        x = np.arange(12.0)
+        x[6] = np.nan
+
+        new_x, new_t = processing.resample_sig(x, fs=4, fs_target=8)
+
+        assert np.isnan(new_x).tolist() == ((new_t > 5) & (new_t < 7)).tolist()
 
     def test_normalize_bound(self):
         sig, _ = wfdb.rdsamp("sample-data/100")

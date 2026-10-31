@@ -42,7 +42,8 @@ def resample_sig(x, fs, fs_target):
     Returns
     -------
     resampled_x : ndarray
-        Array of the resampled signal values.
+        Array of the resampled signal values. Samples at a NaN value in `x`,
+        or between a NaN value and its neighbour, are NaN.
     resampled_t : ndarray
         Array of the resampled signal locations.
 
@@ -55,11 +56,18 @@ def resample_sig(x, fs, fs_target):
     new_length = int(x.shape[0] * fs_target / fs)
     # Fill NaN values before resampling. Leading and trailing NaN values take
     # the nearest valid value, since interpolate() leaves leading ones as NaN.
-    if np.isnan(x).any():
+    nan_mask = np.isnan(x)
+    if nan_mask.any():
         x = pd.Series(x.reshape((-1,))).interpolate(limit_direction="both").values
     resampled_x, resampled_t = signal.resample(x, num=new_length, t=t)
     assert resampled_x.shape == resampled_t.shape and resampled_x.shape[0] == new_length
     assert np.all(np.diff(resampled_t) > 0)
+
+    # The filled values aren't real data, so mark output samples at or next to
+    # a NaN input sample as NaN again.
+    if nan_mask.any():
+        near_nan = np.interp(resampled_t, t, nan_mask.reshape((-1,)).astype(float))
+        resampled_x[near_nan > 0] = np.nan
 
     return resampled_x, resampled_t
 
