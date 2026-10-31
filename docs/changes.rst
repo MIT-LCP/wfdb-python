@@ -14,6 +14,9 @@ Unreleased
 **Raise minimum versions of dependencies**
   The minimum versions of ``soundfile`` (0.12.1), ``matplotlib`` (3.8.0) and ``requests`` (2.31.0) have been raised. The minimum versions of the other dependencies are unchanged.
 
+**Read units containing any non-whitespace characters**
+  Header files with units containing characters such as ``.`` or ``*`` (for example ``a.u.`` or ``uV*s``) are now read correctly. The units used to be cut off at the first such character, and the rest of the signal line (ADC resolution, ADC zero and so on) ended up in the signal name.
+
 **Add timeouts to requests for remote files**
   Requests for files on PhysioNet (and other web servers) now time out if the server does not respond (10 seconds to connect, and 60 seconds to wait for data), instead of waiting indefinitely. A ``requests.exceptions.Timeout`` (``ConnectTimeout`` or ``ReadTimeout``) is raised in this case.
 

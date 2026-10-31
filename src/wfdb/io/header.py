@@ -42,7 +42,7 @@ rx_signal = re.compile(
            \+?(?P<byte_offset>\d*)
     [ \t]* (?P<adc_gain>-?\d*\.?\d*e?[\+-]?\d*)
            \(?(?P<baseline>-?\d*)\)?
-           /?(?P<units>[\w\^\-\?%\/]*)
+           /?(?P<units>\S*)
     [ \t]* (?P<adc_res>\d*)
     [ \t]* (?P<adc_zero>-?\d*)
     [ \t]* (?P<init_value>-?\d*)

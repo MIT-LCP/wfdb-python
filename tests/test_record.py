@@ -888,6 +888,25 @@ class TestRecord:
         ]
         assert record.units.__eq__(sig_units_target)
 
+    @pytest.mark.parametrize("units", ["mV", "a.u.", "uV*s", "mmHg/s", "10^-3"])
+    def test_units_round_trip(self, units, temp_path):
+        """Units with any non-whitespace characters are read back unchanged."""
+        wfdb.wrsamp(
+            "units",
+            fs=100,
+            units=[units],
+            sig_name=["ECG II"],
+            d_signal=np.array([[1], [2]]),
+            fmt=["16"],
+            adc_gain=[1.5],
+            baseline=[0],
+            write_dir=temp_path,
+        )
+        header = wfdb.rdheader(os.path.join(temp_path, "units"))
+        assert header.units == [units]
+        assert header.sig_name == ["ECG II"]
+        assert header.adc_res == [16]
+
 
 class TestMultiRecord:
     """Test read and write of multi segment WFDB records, including PhysioNet streaming.
