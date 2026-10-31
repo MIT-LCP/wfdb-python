@@ -305,10 +305,11 @@ def rr2ann(rr_array, record_name, extension, fs=250, as_time=False):
     except IndexError:
         ann_sample = rr_array
 
+    # With a symbol column, the array holds strings, so convert the numbers.
     if as_time:
-        ann_sample = (fs * ann_sample.astype(np.float64)).astype(np.int64)
+        ann_sample = np.round(fs * ann_sample.astype(np.float64)).astype(np.int64)
     else:
-        ann_sample = np.cumsum(ann_sample).astype(np.int64)
+        ann_sample = np.cumsum(ann_sample.astype(np.int64))
 
     try:
         ann_symbol = rr_array[:, 1].tolist()
