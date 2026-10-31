@@ -36,7 +36,7 @@ dev = [
 # Heavy dependencies are mocked in docs/conf.py, so the project itself is not needed
 docs = [
     "fsspec >= 2023.10.0",
-    "numpydoc == 1.7.0",
+    "numpydoc==1.11.0",
     "sphinx==9.0.4",
 ]
 
