@@ -8,7 +8,7 @@ CSV
 ---
 
 .. automodule:: wfdb.io.convert.csv
-   :members: csv_to_wfdb
+   :members: csv_to_wfdb, csv2ann
 
 EDF
 ---

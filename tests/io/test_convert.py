@@ -2,7 +2,8 @@ import os
 
 import numpy as np
 
-from wfdb.io.convert.csv import csv_to_wfdb
+from wfdb.io.annotation import rdann
+from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import read_edf
 from wfdb.io.record import rdrecord
 
@@ -145,3 +146,52 @@ class TestCsvToWfdb:
         assert record_write.sig_name == record_100_dat.sig_name
         assert record_write.p_signal.size == 1300000
         assert record_write.p_signal.size == record_100_dat.p_signal.size
+
+
+class TestCsv2Ann:
+    """Tests for csv2ann."""
+
+    def test_time_onsets(self, tmp_path):
+        """Time onsets are converted to samples and written to write_dir."""
+        csv_file = tmp_path / "in" / "example.csv"
+        csv_file.parent.mkdir()
+        csv_file.write_text("onset,description\n0.2,p-wave\n0.8,qrs\n")
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        csv2ann(str(csv_file), fs=360, write_dir=str(out_dir))
+
+        ann = rdann(str(out_dir / "example"), "atr")
+        assert ann.sample.tolist() == [72, 288]
+        assert ann.symbol == ['"', '"']
+        assert ann.aux_note == ["p-wave", "qrs"]
+
+    def test_sample_onsets_no_header(self, tmp_path):
+        """Sample onsets are used as-is when time_onset is False."""
+        csv_file = tmp_path / "example.csv"
+        csv_file.write_text("5,p-wave\n13,qrs\n")
+
+        ann = csv2ann(
+            str(csv_file), fs=10, time_onset=False, header=False, record_only=True
+        )
+
+        assert ann.sample.tolist() == [5, 13]
+        assert ann.aux_note == ["p-wave", "qrs"]
+
+    def test_record_name_with_dots(self, tmp_path, monkeypatch):
+        """Dots in the directory or a ./ prefix don't truncate the name (#595)."""
+        data_dir = tmp_path / "data" / "v1.2"
+        data_dir.mkdir(parents=True)
+        (data_dir / "x.csv").write_text("onset,description\n0.5,qrs\n")
+        monkeypatch.chdir(data_dir)
+
+        ann = csv2ann("./x.csv", fs=100, record_only=True)
+        assert ann.record_name == "x"
+
+        ann = csv2ann(str(data_dir / "x.csv"), fs=100, record_only=True)
+        assert ann.record_name == "x"
+
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        csv2ann(str(data_dir / "x.csv"), fs=100, write_dir=str(out_dir))
+        assert (out_dir / "x.atr").exists()

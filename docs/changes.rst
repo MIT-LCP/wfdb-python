@@ -23,6 +23,9 @@ Unreleased
 **Speed up XQRS backsearch**
   ``XQRS`` no longer rechecks peaks that an earlier backsearch already rejected. Long stretches without QRS complexes (for example a disconnected lead) made detection take quadratic time, up to hours on long records. The detected QRS locations are unchanged.
 
+**Fix record name and add write directory in `csv2ann`**
+  ``csv2ann`` now takes the record name from the CSV file name without its directory and extension, as ``csv_to_wfdb`` does, so paths containing dots (such as ``./x.csv`` or ``data/v1.2/x.csv``) no longer give a wrong name. The annotation file is written to the new ``write_dir`` argument (the current directory by default) instead of next to the CSV file. ``csv2ann`` is now included in the API documentation.
+
 **Use Ruff for formatting and linting**
   The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
 

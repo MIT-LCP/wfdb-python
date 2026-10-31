@@ -482,6 +482,7 @@ def csv2ann(
     header=True,
     delimiter=",",
     verbose=False,
+    write_dir="",
 ):
     """Read a CSV file and return an `Annotation` object or write a file.
 
@@ -490,11 +491,10 @@ def csv2ann(
     Parameters
     ----------
     file_name : str
-        The name of the CSV file to be read, including the '.csv' file
-        extension. If the argument contains any path delimiter characters, the
-        argument will be interpreted as PATH/BASE_RECORD. Both relative and
-        absolute paths are accepted. The BASE_RECORD file name will be used to
-        name the annotation file with the desired extension.
+        The path to the CSV file to be read, including the '.csv' file
+        extension. Both relative and absolute paths are accepted. The file
+        name without its directory and extension is used as the record name
+        of the annotation file.
     extension : str, optional
         The string annotation file extension.
     fs : float, optional
@@ -522,6 +522,9 @@ def csv2ann(
     verbose : bool, optional
         Whether to print all the information read about the file (True) or
         not (False).
+    write_dir : str, optional
+        The directory in which to write the annotation file. The default is
+        the current working directory. Ignored if `record_only` is True.
 
     Returns
     -------
@@ -627,8 +630,7 @@ def csv2ann(
         raise Exception("""The number of columns in the CSV was not
                         recognized.""")
 
-    # Remove extension from input file name
-    file_name = file_name.split(".")[0]
+    record_name = os.path.splitext(os.path.basename(file_name))[0]
     if time_onset:
         if not fs:
             raise Exception("""`fs` must be provided if `time_onset` is True
@@ -652,7 +654,7 @@ def csv2ann(
         if verbose:
             print("Finished creating Annotation object")
         return Annotation(
-            record_name=file_name,
+            record_name=record_name,
             extension=extension,
             sample=sample,
             symbol=symbol,
@@ -664,7 +666,7 @@ def csv2ann(
         )
     else:
         wrann(
-            file_name,
+            record_name,
             extension,
             sample=sample,
             symbol=symbol,
@@ -673,6 +675,7 @@ def csv2ann(
             num=num,
             aux_note=aux_note,
             fs=fs,
+            write_dir=write_dir,
         )
         if verbose:
             print("Finished writing Annotation file")
