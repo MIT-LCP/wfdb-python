@@ -1060,15 +1060,20 @@ class SignalMixin:
             if spf[ch] == 1:
                 signal[:, ch] = expanded_signal[ch]
             else:
+                # As in the WFDB library, a frame with an invalid sample gives
+                # an invalid value. Physical samples are already NaN.
+                invalid = None
+                if sigtype == "digital" and self.fmt and self.fmt[ch]:
+                    invalid = _digi_nan(self.fmt[ch])
                 frames = expanded_signal[ch].reshape(-1, spf[ch])
                 for chunk_start in range(0, sig_len, CHUNK_SIZE):
                     chunk_end = chunk_start + CHUNK_SIZE
-                    signal_sum = np.sum(
-                        frames[chunk_start:chunk_end, :],
-                        axis=1,
-                        dtype=intermediate_dtype,
-                    )
+                    chunk = frames[chunk_start:chunk_end, :]
+                    signal_sum = np.sum(chunk, axis=1, dtype=intermediate_dtype)
                     signal[chunk_start:chunk_end, ch] = signal_sum / spf[ch]
+                    if invalid is not None:
+                        has_invalid = np.any(chunk == invalid, axis=1)
+                        signal[chunk_start:chunk_end, ch][has_invalid] = invalid
 
         return signal
 
