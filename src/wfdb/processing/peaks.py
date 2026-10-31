@@ -59,7 +59,9 @@ def find_local_peaks(sig, radius):
 
     A sample is a local peak if it is the largest value within the <radius> samples on
     its left and right. In cases where it shares the max value with nearby samples, the
-    middle sample is classified as the local peak.
+    first of these samples is classified as the local peak. The search then continues
+    <radius> samples later, so a flat top that is wider than <radius> samples gives a
+    peak every <radius> samples along it.
 
     Parameters
     ----------
