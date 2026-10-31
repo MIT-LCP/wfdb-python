@@ -42,8 +42,9 @@ def resample_sig(x, fs, fs_target):
     Returns
     -------
     resampled_x : ndarray
-        Array of the resampled signal values. Samples at a NaN value in `x`,
-        or between a NaN value and its neighbour, are NaN.
+        Array of the resampled signal values. Samples with a NaN value in
+        `x` within half an output sample spacing (or within one input
+        sample, when upsampling) are NaN.
     resampled_t : ndarray
         Array of the resampled signal locations.
 
@@ -63,11 +64,15 @@ def resample_sig(x, fs, fs_target):
     assert resampled_x.shape == resampled_t.shape and resampled_x.shape[0] == new_length
     assert np.all(np.diff(resampled_t) > 0)
 
-    # The filled values aren't real data, so mark output samples at or next to
-    # a NaN input sample as NaN again.
+    # The filled values aren't real data, so mark output samples with a NaN
+    # input sample within half an output spacing (and at least one input
+    # sample, so neighbours count when upsampling) as NaN again.
     if nan_mask.any():
-        near_nan = np.interp(resampled_t, t, nan_mask.reshape((-1,)).astype(float))
-        resampled_x[near_nan > 0] = np.nan
+        half = max(fs / fs_target / 2, 1)
+        n_nan = np.concatenate([[0], np.cumsum(nan_mask.reshape((-1,)))])
+        lo = np.clip(np.floor(resampled_t - half).astype(int) + 1, 0, len(t))
+        hi = np.clip(np.ceil(resampled_t + half).astype(int), 0, len(t))
+        resampled_x[n_nan[hi] - n_nan[lo] > 0] = np.nan
 
     return resampled_x, resampled_t
 

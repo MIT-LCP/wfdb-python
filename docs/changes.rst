@@ -42,7 +42,7 @@ Unreleased
   ``resample_sig`` (and the functions that use it, such as ``resample_singlechan`` and ``resample_multichan``) returned only NaN values if the signal started with NaN. Leading NaN values now take the first valid value before resampling, as trailing ones already took the last.
 
 **Keep missing values missing in resample_sig**
-  ``resample_sig`` (and ``resample_singlechan`` and ``resample_multichan``) now return NaN for output samples at or next to NaN values in the input. NaN values are still filled before resampling, so the rest of the signal is unaffected, but the filled values are no longer returned as if they were real data.
+  ``resample_sig`` (and ``resample_singlechan`` and ``resample_multichan``) now return NaN for output samples with a NaN input value within half an output sample spacing (or within one input sample, when upsampling). NaN values are still filled before resampling, so the rest of the signal is unaffected, but the filled values are no longer returned as if they were real data.
 
 **Reject aux notes that can't be written in wrann**
   ``wrann`` now raises a ``ValueError`` if an ``aux_note`` is longer than 255 characters or contains characters outside Latin-1, instead of writing a corrupt annotation file. A longer note used to be read back as many extra annotations, and other characters were silently replaced.

@@ -71,6 +71,18 @@ class TestProcessing:
 
         assert np.isnan(new_x).tolist() == ((new_t > 5) & (new_t < 7)).tolist()
 
+    @pytest.mark.parametrize(
+        "gap, expected", [([500], [50]), (list(range(501, 509)), [50, 51])]
+    )
+    def test_resample_marks_nan_downsampling(self, gap, expected):
+        """Gaps between two output samples are still marked when downsampling."""
+        x = np.sin(np.arange(1000) / 50)
+        x[gap] = np.nan
+
+        new_x, _ = processing.resample_sig(x, fs=1000, fs_target=100)
+
+        assert np.flatnonzero(np.isnan(new_x)).tolist() == expected
+
     def test_normalize_bound(self):
         sig, _ = wfdb.rdsamp("sample-data/100")
         lb = -5
