@@ -192,6 +192,35 @@ class TestQrs:
         assert comparitor.sensitivity > 0.99
         assert comparitor.positive_predictivity > 0.99
 
+    def test_xqrs_backsearch_checks_each_peak_once(self):
+        """Backsearch does not recheck rejected peaks in a gap (issue #352)."""
+        sig, fields = wfdb.rdsamp("sample-data/100", channels=[0])
+        fs = fields["fs"]
+        x = sig[:, 0]
+        # Beats, then low-amplitude noise (as from a disconnected lead), then beats
+        rng = np.random.default_rng(0)
+        gap = 0.01 * rng.standard_normal(120 * fs)
+        y = np.concatenate([x[: 30 * fs], gap, x[30 * fs : 60 * fs]])
+
+        xqrs = processing.XQRS(sig=y, fs=fs)
+        checked = []
+        is_qrs = xqrs._is_qrs
+
+        def spy(peak_num, backsearch=False):
+            if backsearch:
+                checked.append(peak_num)
+            return is_qrs(peak_num, backsearch=backsearch)
+
+        with mock.patch.object(xqrs, "_is_qrs", side_effect=spy):
+            xqrs.detect(verbose=False)
+
+        assert len(checked) > 0
+        assert len(checked) == len(set(checked))
+        # Beats on both sides of the gap are still found
+        n_before = np.sum(xqrs.qrs_inds < 30 * fs)
+        n_after = np.sum(xqrs.qrs_inds > 150 * fs)
+        assert n_before > 30 and n_after > 30
+
 
 class TestXQRSDetect:
     """Tests for the xqrs_detect convenience wrapper."""

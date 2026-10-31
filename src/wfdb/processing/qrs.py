@@ -610,11 +610,16 @@ class XQRS:
 
         """
         if self.last_qrs_peak_num is not None:
-            for peak_num in range(self.last_qrs_peak_num + 1, self.peak_num + 1):
+            # Skip peaks a previous backsearch already rejected. Their result
+            # can only change after a QRS update, which moves
+            # last_qrs_peak_num past them.
+            start = max(self.last_qrs_peak_num, self._backsearch_peak_num) + 1
+            for peak_num in range(start, self.peak_num + 1):
                 if self._is_qrs(peak_num=peak_num, backsearch=True):
                     self._update_qrs(peak_num=peak_num, backsearch=True)
                 # No need to update noise parameters if it was classified as
                 # noise. It would have already been updated.
+            self._backsearch_peak_num = self.peak_num
 
     def _run_detection(self):
         """Run the QRS detection after the signals and parameters have been set.
@@ -635,6 +640,8 @@ class XQRS:
         self.qrs_inds = []
         # QRS indices found via backsearch
         self.backsearch_qrs_inds = []
+        # Last peak number checked by a backsearch
+        self._backsearch_peak_num = -1
 
         # Iterate through MWI signal peak indices
         for self.peak_num in range(self.n_peaks_i):
