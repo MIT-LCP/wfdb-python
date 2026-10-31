@@ -908,6 +908,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         has_signal_files = self.n_sig > 0 and (
             self.file_name is None or any(f != "~" for f in self.file_name)
         )
+        if has_signal_files and self.file_name is not None and "~" in self.file_name:
+            raise ValueError(
+                "Writing a record with both null signals (file name '~') and "
+                "signals with samples is not supported"
+            )
 
         # Update the checksum field (except for channels that did not have
         # a checksum to begin with, or where the checksum was already
