@@ -1,5 +1,8 @@
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
+import pytest
 
 import wfdb
 from wfdb.plot import plot
@@ -128,6 +131,48 @@ class TestPlotWfdb:
                 record.e_d_signal[ch],
                 record.fs * record.samps_per_frame[ch],
             )
+
+
+def test_annotations_outside_signal():
+    """Plot annotations before and after the signal at zero"""
+    signal = np.arange(1, 101, dtype="float64")
+    with pytest.warns(UserWarning, match="shift_samps"):
+        fig = wfdb.plot_items(
+            signal,
+            ann_samp=[np.array([-5, 10, 99, 100, 250])],
+            ann_sym=[["a", "b", "c", "d", "e"]],
+            return_fig=True,
+        )
+    plt.close(fig)
+
+    y = fig.axes[0].lines[1].get_ydata()
+    np.testing.assert_array_equal(y, [0, 11, 100, 0, 0])
+
+
+def test_annotations_outside_signal_frequencies():
+    """Map annotations to the signal frequency before checking the bounds"""
+    signal = np.arange(1, 101, dtype="float64")
+    with pytest.warns(UserWarning, match="shift_samps"):
+        fig = wfdb.plot_items(
+            signal,
+            ann_samp=[np.array([-1, 0, 199, 200])],
+            sampling_freq=180,
+            ann_freq=360,
+            return_fig=True,
+        )
+    plt.close(fig)
+
+    y = fig.axes[0].lines[1].get_ydata()
+    np.testing.assert_array_equal(y, [0, 1, 100, 0])
+
+
+def test_annotations_inside_signal_no_warning():
+    """Do not warn when all annotations are inside the signal"""
+    signal = np.arange(1, 101, dtype="float64")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        fig = wfdb.plot_items(signal, ann_samp=[np.array([0, 50, 99])], return_fig=True)
+    plt.close(fig)
 
 
 class TestPlotInternal:
