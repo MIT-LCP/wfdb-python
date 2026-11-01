@@ -221,6 +221,11 @@ def ann2rr(
         The intervals in the requested units, or None when printing.
         An empty array is returned if no annotations are selected.
 
+    Raises
+    ------
+    ValueError
+        If `start_time` is after `stop_time`.
+
     Examples
     --------
     >>> from wfdb import processing
@@ -232,6 +237,9 @@ def ann2rr(
     257
 
     """
+    if start_time is not None and stop_time is not None and start_time > stop_time:
+        raise ValueError("start_time must not be after stop_time")
+
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
@@ -247,13 +255,14 @@ def ann2rr(
         samples = samples[np.isin(ann.label_store, np.flatnonzero(is_qrs))]
 
     # Select annotations by their time in the record, as WFDB's ann2rr -f
-    # and -t do, and measure the first interval from the start time.
+    # and -t do, and measure the first interval from the start time. Halves
+    # round up, as in the WFDB library.
     start = 0
     if start_time is not None:
-        start = round(start_time * ann.fs)
+        start = int(start_time * ann.fs + 0.5)
         samples = samples[samples >= start]
     if stop_time is not None:
-        samples = samples[samples <= round(stop_time * ann.fs)]
+        samples = samples[samples <= int(stop_time * ann.fs + 0.5)]
 
     rr_interval = calc_rr(samples, fs=ann.fs)
     if samples.size:

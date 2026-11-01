@@ -128,6 +128,8 @@ def test_ann2rr_sample_record():
         (1.5, 3.0, [50, 100]),
         (2.0, 3.0, [0, 100]),
         (3.5, None, []),
+        # Half a sample rounds up, as in WFDB.
+        (0.125, None, [87, 100, 100]),
     ],
 )
 def test_ann2rr_time_range(mixed_annotations, start_time, stop_time, expected):
@@ -136,3 +138,8 @@ def test_ann2rr_time_range(mixed_annotations, start_time, stop_time, expected):
         mixed_annotations, "atr", start_time=start_time, stop_time=stop_time
     )
     np.testing.assert_array_equal(intervals, expected)
+
+
+def test_ann2rr_start_after_stop(mixed_annotations):
+    with pytest.raises(ValueError, match="start_time"):
+        processing.ann2rr(mixed_annotations, "atr", start_time=2, stop_time=1)
