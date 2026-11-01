@@ -16,6 +16,11 @@ BUFFER_WHOLE_FILE = -2
 # Default buffer size for remote files.
 DEFAULT_BUFFER_SIZE = 32768
 
+# Largest buffer size for sequential reads. Each read that continues where
+# the buffer ends doubles the size of the next request, up to this limit,
+# so reading a file in small pieces doesn't take one request per piece.
+MAX_READAHEAD_SIZE = 8 * 1024 * 1024
+
 # Timeouts in seconds (connect, read) for requests. The read timeout is the
 # maximum time to wait for the server to send data (not the total time of a
 # transfer). Without a timeout, a server that accepts a connection but does
@@ -368,7 +373,9 @@ class NetFile(io.BufferedIOBase):
         request to the server.  If buffering = -2, the entire file is
         downloaded in a single request.  If buffering > 0, it
         specifies the minimum size of the internal buffer.  If
-        buffering = -1, the default buffer size is used.
+        buffering = -1, the default buffer size is used.  When
+        buffering is enabled, reads that continue where the previous
+        request ended use larger requests, up to MAX_READAHEAD_SIZE.
 
     """
 
@@ -381,6 +388,7 @@ class NetFile(io.BufferedIOBase):
         self._buffer = b""
         self._buffer_start = 0
         self._buffer_end = 0
+        self._readahead = 0
         self._current_url = self.url
 
     def _read_buffered_range(self, start, end):
@@ -459,6 +467,11 @@ class NetFile(io.BufferedIOBase):
             buffer_size = self.buffering
             if buffer_size < 0:
                 buffer_size = DEFAULT_BUFFER_SIZE
+            if self._buffer_end > self._buffer_start and start == self._buffer_end:
+                buffer_size = max(
+                    buffer_size, min(2 * self._readahead, MAX_READAHEAD_SIZE)
+                )
+            self._readahead = buffer_size
             req_start = start
             req_end = end
             if req_end < req_start + buffer_size:

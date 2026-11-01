@@ -204,6 +204,27 @@ class TestNetFiles:
             assert result == content
             assert bf.tell() == len(content)
 
+    def test_sequential_reads(self):
+        """Reading a file in small pieces doesn't take one request per piece."""
+        content = bytes(range(256)) * 8192
+        with DummyHTTPServer({"/foo.dat": content}, allow_gzip=False) as server:
+            with wfdb.io._url.openurl(server.url("/foo.dat"), "rb") as f:
+                pieces = iter(lambda: f.read(8192), b"")
+                assert b"".join(pieces) == content
+            # 2 MB in 8 KB pieces: 32 KB, 64 KB, ..., 1 MB, then the rest
+            assert len(server.ranges) <= 8
+
+    def test_readahead_reset(self):
+        """A read elsewhere in the file starts again with a small request."""
+        content = bytes(range(256)) * 8192
+        with DummyHTTPServer({"/foo.dat": content}, allow_gzip=False) as server:
+            with wfdb.io._url.openurl(server.url("/foo.dat"), "rb") as f:
+                for _ in range(100):
+                    f.read(8192)
+                f.seek(1500000)
+                assert f.read(100) == content[1500000:1500100]
+            assert server.ranges[-1] == "bytes=1500000-1532767"
+
 
 class TestRemoteFLACFiles:
     """Test reading FLAC files over HTTP."""
@@ -282,6 +303,8 @@ class DummyHTTPServer(http.server.HTTPServer):
     delay : float, optional
         Number of seconds that the server waits before it responds to a
         request (to simulate a server that does not respond).
+    ranges : list
+        The Range header (or None) of each GET request the server received.
     server_address : tuple (str, int), optional
         A tuple specifying the address and port number where the
         server should listen for connections.  If the port is 0, an
@@ -303,6 +326,7 @@ class DummyHTTPServer(http.server.HTTPServer):
         self.allow_gzip = allow_gzip
         self.allow_range = allow_range
         self.delay = delay
+        self.ranges = []
 
     def url(self, path="/"):
         """Generate a URL that points to a file on this server.
@@ -358,6 +382,8 @@ class DummyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
         headers = {"Content-Type": "text/plain"}
         status = 200
+        if self.command == "GET":
+            self.server.ranges.append(self.headers.get("Range"))
 
         if self.server.allow_gzip:
             headers["Vary"] = "Accept-Encoding"
