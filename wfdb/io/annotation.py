@@ -1346,12 +1346,12 @@ class Annotation(object):
             index_vals = set(self.symbol)
             # drop=False keeps the column in the output, matching the
             # behavior of the original array-index (pandas < 3) path
-            label_map.set_index("symbol", drop=False, inplace=True)
+            label_map = label_map.set_index("symbol", drop=False)
             reset_index = True
             counts = np.unique(self.symbol, return_counts=True)
         elif self.description is not None:
             index_vals = set(self.description)
-            label_map.set_index("description", drop=False, inplace=True)
+            label_map = label_map.set_index("description", drop=False)
             reset_index = True
             counts = np.unique(self.description, return_counts=True)
         else:
