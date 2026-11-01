@@ -1,0 +1,4 @@
+
+{% for section, _ in sections.items() %}{% for category, val in definitions.items() if category in sections[section] %}{% for text, values in sections[section][category].items() %}{{ text | replace("\n    ", "\n  ") }}
+
+{% endfor %}{% endfor %}{% endfor %}

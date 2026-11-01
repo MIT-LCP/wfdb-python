@@ -1209,6 +1209,100 @@ class TestMultiRecord:
             assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
 
+    def test_multi_variable_write(self, tmp_path):
+        """Write a variable layout multi-segment record and read it back.
+
+        This includes its layout header and empty segments.
+        """
+        record_name = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        multi_record = wfdb.rdrecord(record_name, m2s=False, physical=False)
+
+        multi_record.wrsamp(write_dir=str(tmp_path))
+        layout = wfdb.rdheader(str(tmp_path / "3234460_layout"))
+        record = wfdb.rdrecord(str(tmp_path / "s25047-2704-05-04-10-44"))
+
+        expected = wfdb.rdrecord(record_name)
+        assert layout.sig_len == 0
+        assert layout.file_name == ["~"] * 3
+        assert layout.fmt == ["0"] * 3
+        assert record.sig_name == expected.sig_name
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
+    def test_multi_variable_write_new_record(self, tmp_path):
+        """Write a variable layout record created from scratch, with null signals."""
+        layout = wfdb.Record(
+            record_name="v_layout",
+            n_sig=1,
+            fs=100,
+            sig_len=0,
+            sig_name=["II"],
+            units=["mV"],
+            fmt=["0"],
+            file_name=["~"],
+            adc_gain=[200.0],
+            baseline=[0],
+            init_value=[0],
+            checksum=[0],
+        )
+        segment = wfdb.Record(
+            record_name="v_0001",
+            n_sig=1,
+            fs=100,
+            sig_len=5,
+            sig_name=["II"],
+            units=["mV"],
+            fmt=["16"],
+            file_name=["v_0001.dat"],
+            adc_gain=[200.0],
+            baseline=[0],
+            init_value=[0],
+            checksum=[10],
+            d_signal=np.arange(5).reshape(-1, 1),
+        )
+        for record in (layout, segment):
+            record.set_defaults()
+        multi_record = wfdb.MultiRecord(
+            record_name="v",
+            n_sig=1,
+            fs=100,
+            sig_len=5,
+            seg_name=["v_layout", "v_0001"],
+            seg_len=[0, 5],
+            segments=[layout, segment],
+            layout="variable",
+            sig_name=["II"],
+        )
+
+        multi_record.wrsamp(write_dir=str(tmp_path))
+
+        # The WFDB library's default resolution for a format without one
+        assert wfdb.rdheader(str(tmp_path / "v_layout")).adc_res == [12]
+        record = wfdb.rdrecord(str(tmp_path / "v"), physical=False)
+        np.testing.assert_array_equal(record.d_signal[:, 0], np.arange(5))
+
+    def test_write_mixed_null_signals(self, tmp_path):
+        """A record with both null signals and signals with samples is rejected."""
+        record = wfdb.Record(
+            record_name="mix",
+            n_sig=2,
+            fs=100,
+            sig_len=5,
+            sig_name=["I", "II"],
+            units=["mV", "mV"],
+            fmt=["16", "0"],
+            file_name=["mix.dat", "~"],
+            adc_gain=[200.0, 200.0],
+            baseline=[0, 0],
+            init_value=[0, 0],
+            checksum=[0, 0],
+            d_signal=np.zeros((5, 2), dtype="int16"),
+        )
+        record.set_defaults()
+
+        with pytest.raises(ValueError, match="null signals"):
+            record.wrsamp(write_dir=str(tmp_path))
+        assert os.listdir(tmp_path) == []
+
 
 class TestTimeConversion:
     """Test cases for time conversion"""

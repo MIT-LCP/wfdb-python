@@ -451,9 +451,13 @@ class BaseRecord:
                         continue
 
                 if field == "file_name":
-                    # Check for file_name characters
+                    # Check for file_name characters. A null signal (format
+                    # 0), as in the layout header of a variable layout
+                    # multi-segment record, has no file and uses '~'.
                     accepted_string = re.match(r"[-\w]+\.?[\w]+", item[ch])
-                    if not accepted_string or accepted_string.string != item[ch]:
+                    if item[ch] == "~" and self.fmt[ch] == "0":
+                        pass
+                    elif not accepted_string or accepted_string.string != item[ch]:
                         raise ValueError(
                             "File names should only contain alphanumerics, hyphens, and an extension. eg. record-100.dat"
                         )
@@ -463,7 +467,11 @@ class BaseRecord:
                             "Signals in a record that share a given file must be consecutive."
                         )
                 elif field == "fmt":
-                    if item[ch] not in _signal.DAT_FMTS:
+                    # Format 0 is a null signal, which has no samples and
+                    # no file
+                    if item[ch] == "0" and self.file_name[ch] == "~":
+                        pass
+                    elif item[ch] not in _signal.DAT_FMTS:
                         raise ValueError(
                             "File formats must be valid WFDB dat formats:",
                             _signal.DAT_FMTS,
@@ -903,10 +911,26 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             converted = "e_d_signal"
 
         try:
+            # A record whose signals have no files, such as the layout header
+            # of a variable layout multi-segment record, has no samples:
+            # only its header is written.
+            has_signal_files = self.n_sig > 0 and (
+                self.file_name is None or any(f != "~" for f in self.file_name)
+            )
+            if (
+                has_signal_files
+                and self.file_name is not None
+                and "~" in self.file_name
+            ):
+                raise ValueError(
+                    "Writing a record with both null signals (file name '~') and "
+                    "signals with samples is not supported"
+                )
+
             # Update the checksum field (except for channels that did not have
             # a checksum to begin with, or where the checksum was already
             # valid.)
-            if self.checksum is not None:
+            if self.checksum is not None and has_signal_files:
                 checksums = self.calc_checksum(expanded=expanded)
                 for ch, old_val in enumerate(self.checksum):
                     if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
@@ -919,7 +943,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                 self.wrheader(
                     write_dir=write_dir, expanded=expanded, wfdb_archive=archive
                 )
-                if self.n_sig > 0:
+                if has_signal_files:
                     # Perform signal validity and cohesion checks, and write the
                     # associated dat files.
                     self.wr_dats(
@@ -1145,7 +1169,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             if not seg_len:
                 self.seg_len = [segment.sig_len for segment in segments]
 
-    def wrsamp(self, expanded=False, write_dir=""):
+    def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write a multi-segment header and the headers and dat files of its segments.
 
         Parameters
@@ -1156,19 +1180,31 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             through to each segment's `Record.wrsamp()` call.
         write_dir : str, optional
             The directory in which to write the files.
+        wfdb_archive : str, os.PathLike or WFDBArchive, optional
+            Write the record, including all its segments, into a .wfdb
+            archive instead of writing separate files to `write_dir`. A
+            path creates a new archive, replacing any existing archive at
+            that path. A WFDBArchive must be opened in write mode, and is
+            left open.
 
         Returns
         -------
         N/A
 
         """
-        # Perform field validity and cohesion checks, and write the
-        # header file.
-        self.wrheader(write_dir=write_dir)
-        # Perform record validity and cohesion checks, and write the
-        # associated segments.
-        for seg in self.segments:
-            seg.wrsamp(expanded=expanded, write_dir=write_dir)
+        with archive_for_writing(wfdb_archive) as archive:
+            # Perform field validity and cohesion checks, and write the
+            # header file.
+            self.wrheader(write_dir=write_dir, wfdb_archive=archive)
+            # Perform record validity and cohesion checks, and write the
+            # associated segments. Empty segments ('~') have no files.
+            for seg in self.segments:
+                if seg is not None:
+                    seg.wrsamp(
+                        expanded=expanded,
+                        write_dir=write_dir,
+                        wfdb_archive=archive,
+                    )
 
     def _check_segment_cohesion(self):
         """Check the cohesion of the segments field with the other fields.
@@ -1275,7 +1311,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return (seg_numbers, readsamps)
 
-    def _required_channels(self, seg_numbers, channels, dir_name, pn_dir):
+    def _required_channels(
+        self, seg_numbers, channels, dir_name, pn_dir, wfdb_archive=None
+    ):
         """Get the channel numbers to be read from each specified segment.
 
         The channel numbers are specified for the entire record.
@@ -1295,6 +1333,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             database directory from which to find the required record files.
             eg. For record '100' in 'http://physionet.org/content/mitdb'
             pn_dir='mitdb'.
+        wfdb_archive : WFDBArchive, optional
+            The open .wfdb archive to read the segment headers from,
+            instead of `dir_name` or `pn_dir`.
 
         Returns
         -------
@@ -1321,9 +1362,11 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                     required_channels.append([])
                 else:
                     # Get the signal names of the current segment
-                    s_sig_names = rdheader(
-                        os.path.join(dir_name, self.seg_name[seg_numbers[i]]),
-                        pn_dir=pn_dir,
+                    s_sig_names = _read_record_header(
+                        self.seg_name[seg_numbers[i]],
+                        dir_name,
+                        pn_dir,
+                        wfdb_archive,
                     ).sig_name
                     required_channels.append(
                         _get_wanted_channels(w_sig_names, s_sig_names)
@@ -1809,17 +1852,19 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     """
     dir_name, base_record_name = os.path.split(record_name)
     file_name = f"{base_record_name}.hea"
-    is_archive = is_archive_path(record_name)
 
-    # Read the header from a .wfdb archive
-    if is_archive:
+    # Read the header, and any segment headers, from a .wfdb archive
+    if is_archive_path(record_name):
         _check_archive_read_args(record_name, pn_dir)
         with WFDBArchive(record_name, mode="r") as archive:
-            header_content = archive.read_header()
+            record = _parse_header_content(archive.read_header())
+            if rd_segments:
+                _read_segment_headers(record, dir_name, pn_dir, archive)
+        return record
 
     # If this is a cloud path, use posixpath to construct the path and fsspec to open
     # file
-    elif any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
             header_content = f.read()
 
@@ -1854,24 +1899,57 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     record = _parse_header_content(header_content)
 
     # If specified, read the segment headers of a multi-segment record
-    if rd_segments and isinstance(record, MultiRecord):
-        if is_archive:
-            raise NotImplementedError(
-                "Multi-segment records in .wfdb archives are not supported"
-            )
-        record.segments = []
-        # Get the base record name (could be empty)
-        for s in record.seg_name:
-            if s == "~":
-                record.segments.append(None)
-            else:
-                record.segments.append(rdheader(os.path.join(dir_name, s), pn_dir))
-        # Fill in the sig_name attribute
-        record.sig_name = record.get_sig_name()
-        # Fill in the sig_segments attribute
-        record.sig_segments = record.get_sig_segments()
+    if rd_segments:
+        _read_segment_headers(record, dir_name, pn_dir, None)
 
     return record
+
+
+def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
+    """Read the header of a record that is stored with another record.
+
+    An example is a segment of a multi-segment record.
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the record, without a directory.
+    dir_name : str
+        The directory of the record files. Ignored if `pn_dir` or
+        `wfdb_archive` is set.
+    pn_dir : str
+        The PhysioNet directory of the record files, if they are on
+        PhysioNet.
+    wfdb_archive : WFDBArchive or None
+        The open .wfdb archive containing the record files, if any.
+
+    Returns
+    -------
+    record : Record or MultiRecord
+        The record described by the header.
+
+    """
+    if wfdb_archive is not None:
+        return _parse_header_content(wfdb_archive.read_header(record_name))
+    return rdheader(os.path.join(dir_name, record_name), pn_dir=pn_dir)
+
+
+def _read_segment_headers(record, dir_name, pn_dir, wfdb_archive):
+    """Read the segment headers of a multi-segment record into `segments`.
+
+    Single-segment records are left unchanged. See `_read_record_header` for the
+    parameters.
+    """
+    if not isinstance(record, MultiRecord):
+        return
+    record.segments = [
+        (None if s == "~" else _read_record_header(s, dir_name, pn_dir, wfdb_archive))
+        for s in record.seg_name
+    ]
+    # Fill in the sig_name attribute
+    record.sig_name = record.get_sig_name()
+    # Fill in the sig_segments attribute
+    record.sig_segments = record.get_sig_segments()
 
 
 def _parse_header_content(header_content):
@@ -1983,7 +2061,7 @@ def rdrecord(
         `azureml://`. Install the appropriate `fsspec` backend
         (e.g., `s3fs`, `gcsfs`, `adlfs`). To read a record from a local
         .wfdb archive, pass the path of the archive including the .wfdb
-        extension. Multi-segment records are not supported in archives.
+        extension.
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -2106,8 +2184,10 @@ def _rdrecord(
 
     See `rdrecord` for the parameters.
 
-    If `wfdb_archive` is set, it is the open WFDBArchive that
-    `record_name` refers to, and the signal files are read from it.
+    If `wfdb_archive` is set, the record is read from that open
+    WFDBArchive. `record_name` is then either the path of the archive,
+    to read the archive's record, or the name of a segment stored in the
+    archive.
 
     """
     dir_name, base_record_name = os.path.split(record_name)
@@ -2129,11 +2209,8 @@ def _rdrecord(
             )
 
     if wfdb_archive is not None:
-        record = _parse_header_content(wfdb_archive.read_header())
-        if isinstance(record, MultiRecord):
-            raise NotImplementedError(
-                "Multi-segment records in .wfdb archives are not supported"
-            )
+        segment_name = None if is_archive_path(record_name) else record_name
+        record = _parse_header_content(wfdb_archive.read_header(segment_name))
     else:
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
@@ -2175,14 +2252,14 @@ def _rdrecord(
                 # Find the first non-empty segment to get the signal
                 # names
                 first_seg_name = [n for n in record.seg_name if n != "~"][0]
-                reference_record = rdheader(
-                    os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+                reference_record = _read_record_header(
+                    first_seg_name, dir_name, pn_dir, wfdb_archive
                 )
             else:
                 # Use the layout specification header to get the signal
                 # names
-                reference_record = rdheader(
-                    os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+                reference_record = _read_record_header(
+                    record.seg_name[0], dir_name, pn_dir, wfdb_archive
                 )
 
         channels = _get_wanted_channels(
@@ -2284,15 +2361,15 @@ def _rdrecord(
 
         # Variable layout, read the layout specification header
         if record.layout == "variable":
-            record.segments[0] = rdheader(
-                os.path.join(dir_name, record.seg_name[0]), pn_dir=pn_dir
+            record.segments[0] = _read_record_header(
+                record.seg_name[0], dir_name, pn_dir, wfdb_archive
             )
 
         # The segment numbers and samples within each segment to read.
         seg_numbers, seg_ranges = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
         seg_channels = record._required_channels(
-            seg_numbers, channels, dir_name, pn_dir
+            seg_numbers, channels, dir_name, pn_dir, wfdb_archive
         )
 
         # Read the desired samples in the relevant segments
@@ -2301,6 +2378,24 @@ def _rdrecord(
             # Empty segment or segment with no relevant channels
             if record.seg_name[seg_num] == "~" or len(seg_channels[i]) == 0:
                 record.segments[seg_num] = None
+            elif wfdb_archive is not None:
+                # Read the segment from the same archive
+                record.segments[seg_num] = _rdrecord(
+                    record_name=record.seg_name[seg_num],
+                    sampfrom=seg_ranges[i][0],
+                    sampto=seg_ranges[i][1],
+                    channels=seg_channels[i],
+                    physical=physical,
+                    pn_dir=None,
+                    m2s=True,
+                    smooth_frames=smooth_frames,
+                    ignore_skew=False,
+                    return_res=return_res,
+                    force_channels=True,
+                    channel_names=None,
+                    warn_empty=False,
+                    wfdb_archive=wfdb_archive,
+                )
             else:
                 record.segments[seg_num] = rdrecord(
                     os.path.join(dir_name, record.seg_name[seg_num]),
