@@ -21,3 +21,5 @@ jobs:
         run: |
           uv run ruff format --check --diff .
           uv run ruff check .
+      - name: Check changelog entries
+        run: uv run towncrier build --draft > /dev/null

@@ -37,7 +37,7 @@ Ruff is pinned to an exact version because new releases can change formatting an
 
 1. Bump the version in [pyproject.toml](./pyproject.toml).
 
-2. Add a summary of the changes to [the changelog](https://github.com/MIT-LCP/wfdb-python/blob/main/docs/changes.rst). You may also need to update [the documentation](https://github.com/MIT-LCP/wfdb-python/tree/main/docs). For example, if function arguments have been updated, this change will need to be captured. Open a pull request to merge these changes to the main branch.
+2. Run `uv run towncrier build --date "Mon YYYY"` to collect the entries in [changelog.d](./changelog.d) into [the changelog](https://github.com/MIT-LCP/wfdb-python/blob/main/docs/changes.rst) (this also deletes the entries), and check the result. The version is taken from `pyproject.toml`, so bump it first. You may also need to update [the documentation](https://github.com/MIT-LCP/wfdb-python/tree/main/docs). For example, if function arguments have been updated, this change will need to be captured. Open a pull request to merge these changes to the main branch.
 
 3. After the pull requests above have been merged, go to https://github.com/MIT-LCP/wfdb-python/releases and click "Draft new release" to create a new tag/release of the package. Set the tag to the new version number and draft the release notes (or click "Generate release notes"!).
 

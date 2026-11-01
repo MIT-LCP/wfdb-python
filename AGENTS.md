@@ -7,6 +7,7 @@ WFDB-Python is a library for reading, writing and processing physiologic signals
 - `src/wfdb/`: the package (`io`, `plot`, `processing`)
 - `tests/`: pytest tests, which read sample files from `sample-data/` relative to the repository root, so run them from there
 - `docs/`: Sphinx documentation, including the changelog in `docs/changes.rst`
+- `changelog.d/`: changelog entries for the next release, one file per change
 
 ## Commands
 
@@ -27,6 +28,6 @@ uv run --only-group docs make -C docs html SPHINXOPTS="-W --keep-going"
 - Docstrings use the numpy style. Start the docstring directly after the opening quotes with a summary that fits on one line, followed by a blank line and the details (if any).
 - The docs build treats warnings as errors, so check it after changing a docstring.
 - Tests are plain pytest functions or classes (no `unittest`). Tests that need PhysioNet are marked `network` and are skipped if PhysioNet cannot be reached. Where possible, a test has a `local` variant and a `physionet` variant through the `source` fixture.
-- Add a changelog entry to `docs/changes.rst` for user-visible changes.
+- Add a changelog entry for user-visible changes as a new file in `changelog.d/` (see `changelog.d/README.rst`), not in `docs/changes.rst`.
 - The version is set in `pyproject.toml` only. Do not bump it as part of a feature or fix.
 - Commits that only reformat code are listed in `.git-blame-ignore-revs`.
