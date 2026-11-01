@@ -1,0 +1,2 @@
+**Reduce memory use when writing format 16, 24 and 32 signals**
+  ``wrsamp`` and ``wr_dat_file`` now convert signals in formats 16, 24 and 32 to bytes directly, instead of splitting every sample into separate byte arrays. For a 4-hour, 8-channel record at 500 Hz, the peak memory used to pack a format 16 signal drops from about 2 GB to 110 MB, and packing is about 13 times faster. The written files are unchanged.

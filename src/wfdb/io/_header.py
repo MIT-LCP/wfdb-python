@@ -251,6 +251,33 @@ class BaseHeaderMixin:
 
         return string_field
 
+    def _write_header_lines(self, header_lines, write_dir, wfdb_archive):
+        """Write the lines of this record's header file.
+
+        The file is written to `write_dir`, or into an open .wfdb archive.
+
+        Parameters
+        ----------
+        header_lines : list
+            The lines of the header file.
+        write_dir : str
+            The directory in which to write the header file.
+        wfdb_archive : WFDBArchive or None
+            The archive to write the header file to, instead of
+            `write_dir`.
+
+        Returns
+        -------
+        N/A
+
+        """
+        file_name = self.record_name + ".hea"
+        if wfdb_archive is not None:
+            content = "".join(f"{line}\n" for line in header_lines)
+            wfdb_archive.write(file_name, content.encode("utf-8"))
+        else:
+            util.lines_to_file(file_name, write_dir, header_lines)
+
 
 class HeaderMixin(BaseHeaderMixin):
     """Mixin class with single-segment header methods. Inherited by Record class.
@@ -580,11 +607,7 @@ class HeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        if wfdb_archive is not None:
-            content = "".join(f"{line}\n" for line in header_lines)
-            wfdb_archive.write(self.record_name + ".hea", content.encode("utf-8"))
-        else:
-            util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
+        self._write_header_lines(header_lines, write_dir, wfdb_archive)
 
 
 class MultiHeaderMixin(BaseHeaderMixin):
@@ -620,7 +643,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         for field in self.get_write_fields():
             self.set_default(field)
 
-    def wrheader(self, write_dir=""):
+    def wrheader(self, write_dir="", wfdb_archive=None):
         """Write a multi-segment WFDB header file.
 
         The signals or segments are not used. Before writing:
@@ -633,6 +656,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
         ----------
         write_dir : str, optional
             The output directory in which the header is written.
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the header file to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -655,7 +681,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
         self.check_field_cohesion()
 
         # Write the header file using the specified fields
-        self.wr_header_file(write_fields, write_dir)
+        self.wr_header_file(write_fields, write_dir, wfdb_archive)
 
     def get_write_fields(self):
         """Get the list of fields used to write the multi-segment header.
@@ -730,7 +756,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
                 "The sum of the 'seg_len' fields do not match the 'sig_len' field"
             )
 
-    def wr_header_file(self, write_fields, write_dir):
+    def wr_header_file(self, write_fields, write_dir, wfdb_archive=None):
         """Write a header file using the specified fields.
 
         Parameters
@@ -740,6 +766,9 @@ class MultiHeaderMixin(BaseHeaderMixin):
             and their dependencies.
         write_dir : str
             The output directory in which the header is written.
+        wfdb_archive : WFDBArchive, optional
+            An open .wfdb archive to write the header file to, instead of
+            `write_dir`.
 
         Returns
         -------
@@ -774,7 +803,7 @@ class MultiHeaderMixin(BaseHeaderMixin):
             comment_lines = ["# " + comment for comment in self.comments]
             header_lines += comment_lines
 
-        util.lines_to_file(self.record_name + ".hea", write_dir, header_lines)
+        self._write_header_lines(header_lines, write_dir, wfdb_archive)
 
     def get_sig_segments(self, sig_name=None):
         """Get the numbers of the segments that contain a signal.
