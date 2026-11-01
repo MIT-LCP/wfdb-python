@@ -152,7 +152,8 @@ def plot_items(
         If `signal` is defined, the annotation locations will be overlaid on
         the signals, with the list index corresponding to the signal channel.
         The length of `annotation` does not have to match the number of
-        channels of `signal`.
+        channels of `signal`. Annotations before the start or after the end
+        of the signal are plotted at zero.
     ann_sym: list, optional
         A list of annotation symbols to plot, with each list item
         corresponding to a different channel. List items should be lists of
@@ -584,20 +585,15 @@ def _plot_annotation(
         if ann_samp[ch] is not None and len(ann_samp[ch]):
             # Figure out the y values to plot on a channel basis
 
-            # 1 dimensional signals
-            try:
-                if n_sig > ch:
-                    if sfreq == afreq:
-                        index = ann_samp[ch]
-                    else:
-                        index = (sfreq / afreq * ann_samp[ch]).astype("int")
-                    y = signal[ch][index]
-                else:
-                    y = np.zeros(len(ann_samp[ch]))
-            except IndexError:
-                raise Exception(
-                    'IndexError: try setting shift_samps=True in the "rdann" function?'
-                )
+            # Annotations outside the signal are plotted at zero, like
+            # annotations for channels without a signal.
+            y = np.zeros(len(ann_samp[ch]))
+            if n_sig > ch:
+                index = np.asarray(ann_samp[ch])
+                if sfreq != afreq:
+                    index = (sfreq / afreq * index).astype("int")
+                inside = (index >= 0) & (index < len(signal[ch]))
+                y[inside] = signal[ch][index[inside]]
 
             axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch], zorder=4)
 

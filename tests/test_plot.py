@@ -130,6 +130,21 @@ class TestPlotWfdb:
             )
 
 
+def test_annotations_outside_signal():
+    """Plot annotations before and after the signal at zero"""
+    signal = np.arange(1, 101, dtype="float64")
+    fig = wfdb.plot_items(
+        signal,
+        ann_samp=[np.array([-5, 10, 99, 100, 250])],
+        ann_sym=[["a", "b", "c", "d", "e"]],
+        return_fig=True,
+    )
+    plt.close(fig)
+
+    y = fig.axes[0].lines[1].get_ydata()
+    np.testing.assert_array_equal(y, [0, 11, 100, 0, 0])
+
+
 class TestPlotInternal:
     """Unit tests for internal wfdb.plot.plot functions"""
 
