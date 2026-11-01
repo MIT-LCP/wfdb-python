@@ -1,0 +1,2 @@
+**Use only beat annotations in ann2rr**
+  ``ann2rr`` now computes intervals between beat (QRS) annotations only, as the WFDB ``ann2rr`` program does, so rhythm changes, comments and other non-beat annotations no longer split an RR interval in two. The first interval is still measured from the start of the record. To include all annotations as before, pass ``all_annotations=True`` (the equivalent of ``ann2rr -A``).

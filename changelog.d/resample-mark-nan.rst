@@ -1,0 +1,2 @@
+**Keep missing values missing in resample_sig**
+  ``resample_sig`` (and ``resample_singlechan`` and ``resample_multichan``) now return NaN for output samples with a NaN input value within half an output sample spacing (or within one input sample, when upsampling). NaN values are still filled before resampling, so the rest of the signal is unaffected, but the filled values are no longer returned as if they were real data.

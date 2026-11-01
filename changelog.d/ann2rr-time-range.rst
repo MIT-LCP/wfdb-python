@@ -1,0 +1,2 @@
+**Select intervals by time in the record in ann2rr**
+  The ``start_time`` and ``stop_time`` arguments of ``ann2rr`` now select intervals by when they end in the record, as the WFDB ``ann2rr`` program's ``-f`` and ``-t`` options do, and the first interval is measured from ``start_time``. They used to filter intervals by their length instead. A ``start_time`` after ``stop_time`` now raises a ``ValueError``.

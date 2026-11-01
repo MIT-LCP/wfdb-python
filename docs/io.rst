@@ -70,10 +70,12 @@ write a record into an archive, pass the path of the archive as the
     create_archive(["100.hea", "100.dat", "100.atr"], "100.wfdb")
     annotation = wfdb.rdann("100.wfdb", "atr")
 
-An archive holds a single record, so only one header file can be
-written to it. Annotation files can be added alongside the record.
-Multi-segment records, and archives in cloud storage or on PhysioNet,
-are not supported yet.
+An archive holds a single record. For a multi-segment record, the
+archive contains the main header together with the header and signal
+files of each segment, and ``MultiRecord.wrsamp`` writes them all when
+given ``wfdb_archive``. Annotation files can be added alongside the
+record. Archives in cloud storage or on PhysioNet are not supported
+yet.
 
 .. autofunction:: wfdb.io.archive.create_archive
 
