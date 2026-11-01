@@ -15,4 +15,4 @@ by an indented paragraph, as in ``docs/changes.rst``::
 
 To preview the next release's changelog, run::
 
-  uv run towncrier build --draft --version X.Y.Z
+  uv run towncrier build --draft

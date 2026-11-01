@@ -49,6 +49,8 @@ start_string = ".. towncrier release notes start\n"
 title_format = "Version {version} ({project_date})"
 underlines = ["-"]
 issue_format = ""
+# Fail on any other file, so that a misnamed entry is not silently skipped
+ignore = ["README.rst", "template.rst.jinja"]
 
 # A single unnamed category, so that fragments are plain .rst files
 [[tool.towncrier.type]]
