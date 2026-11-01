@@ -600,6 +600,61 @@ class TestRecord:
         assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
+    def test_wrsamp_physical_only_record(self, temp_path):
+        record = wfdb.rdrecord("sample-data/100", sampto=1000)
+        expected_d_signal = wfdb.rdrecord(
+            "sample-data/100", sampto=1000, physical=False
+        ).d_signal
+
+        assert record.d_signal is None
+
+        record.wrsamp(write_dir=temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(temp_path, "100"),
+            physical=False,
+        )
+
+        np.testing.assert_array_equal(record_write.d_signal, expected_d_signal)
+        assert record.d_signal is None
+
+    def test_wrsamp_physical_only_record_second_write(self, temp_path):
+        record = wfdb.rdrecord("sample-data/100", sampto=1000)
+        record.wrsamp(write_dir=temp_path)
+
+        assert record.d_signal is None
+
+        record.p_signal[:] = 0
+        record.wrsamp(write_dir=temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(temp_path, "100"),
+            physical=False,
+        )
+
+        expected_d_signal = np.tile(record.baseline, (record.sig_len, 1))
+        np.testing.assert_array_equal(record_write.d_signal, expected_d_signal)
+        assert record.d_signal is None
+
+    def test_wrsamp_expanded_physical_only_record(self, temp_path):
+        record = wfdb.rdrecord("sample-data/test01_00s_frame", smooth_frames=False)
+        expected_e_d_signal = wfdb.rdrecord(
+            "sample-data/test01_00s_frame",
+            smooth_frames=False,
+            physical=False,
+        ).e_d_signal
+
+        assert record.e_d_signal is None
+
+        record.wrsamp(write_dir=temp_path, expanded=True)
+        record_write = wfdb.rdrecord(
+            os.path.join(temp_path, "test01_00s_frame"),
+            smooth_frames=False,
+            physical=False,
+        )
+
+        for written, expected in zip(record_write.e_d_signal, expected_e_d_signal):
+            np.testing.assert_array_equal(written, expected)
+        assert record.e_d_signal is None
+
     def test_2c(self, temp_path):
         """Format 212, entire signal, physical, odd sampled record.
 
