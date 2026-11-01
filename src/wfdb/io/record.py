@@ -894,29 +894,40 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         N/A
 
         """
+        converted = None
         if not expanded and self.d_signal is None and self.p_signal is not None:
             self.d_signal = self.adc()
+            converted = "d_signal"
+        elif expanded and self.e_d_signal is None and self.e_p_signal is not None:
+            self.e_d_signal = self.adc(expanded=True)
+            converted = "e_d_signal"
 
-        # Update the checksum field (except for channels that did not have
-        # a checksum to begin with, or where the checksum was already
-        # valid.)
-        if self.checksum is not None:
-            checksums = self.calc_checksum(expanded=expanded)
-            for ch, old_val in enumerate(self.checksum):
-                if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
-                    checksums[ch] = old_val
-            self.checksum = checksums
+        try:
+            # Update the checksum field (except for channels that did not have
+            # a checksum to begin with, or where the checksum was already
+            # valid.)
+            if self.checksum is not None:
+                checksums = self.calc_checksum(expanded=expanded)
+                for ch, old_val in enumerate(self.checksum):
+                    if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
+                        checksums[ch] = old_val
+                self.checksum = checksums
 
-        with archive_for_writing(wfdb_archive, write_dir) as archive:
-            # Perform field validity and cohesion checks, and write the
-            # header file.
-            self.wrheader(write_dir=write_dir, expanded=expanded, wfdb_archive=archive)
-            if self.n_sig > 0:
-                # Perform signal validity and cohesion checks, and write the
-                # associated dat files.
-                self.wr_dats(
-                    expanded=expanded, write_dir=write_dir, wfdb_archive=archive
+            with archive_for_writing(wfdb_archive, write_dir) as archive:
+                # Perform field validity and cohesion checks, and write the
+                # header file.
+                self.wrheader(
+                    write_dir=write_dir, expanded=expanded, wfdb_archive=archive
                 )
+                if self.n_sig > 0:
+                    # Perform signal validity and cohesion checks, and write the
+                    # associated dat files.
+                    self.wr_dats(
+                        expanded=expanded, write_dir=write_dir, wfdb_archive=archive
+                    )
+        finally:
+            if converted:
+                setattr(self, converted, None)
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """Arrange/edit object fields to reflect user channel and/or signal range input.
