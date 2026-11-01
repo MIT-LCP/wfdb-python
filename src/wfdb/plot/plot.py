@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 
@@ -591,9 +592,17 @@ def _plot_annotation(
             if n_sig > ch:
                 index = np.asarray(ann_samp[ch])
                 if sfreq != afreq:
-                    index = (sfreq / afreq * index).astype("int")
+                    # floor, so negative samples stay outside the signal
+                    index = np.floor(sfreq / afreq * index).astype("int")
                 inside = (index >= 0) & (index < len(signal[ch]))
                 y[inside] = signal[ch][index[inside]]
+                if not inside.all():
+                    warnings.warn(
+                        "Some annotations are outside the signal and are plotted "
+                        'at zero. If the annotations were read with "sampfrom", '
+                        'try setting shift_samps=True in "rdann".',
+                        stacklevel=3,
+                    )
 
             axes[ch].plot(ann_samp[ch] / downsample_factor, y, ann_style[ch], zorder=4)
 
