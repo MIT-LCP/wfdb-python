@@ -117,3 +117,22 @@ def test_ann2rr_sample_record():
     intervals = processing.ann2rr("sample-data/100", "atr")
     np.testing.assert_array_equal(intervals[:3], [77, 293, 292])
     assert len(intervals) == 2273
+
+
+@pytest.mark.parametrize(
+    "start_time, stop_time, expected",
+    [
+        (None, None, [100, 100, 100]),
+        (1.5, None, [50, 100]),
+        (None, 2.5, [100, 100]),
+        (1.5, 3.0, [50, 100]),
+        (2.0, 3.0, [0, 100]),
+        (3.5, None, []),
+    ],
+)
+def test_ann2rr_time_range(mixed_annotations, start_time, stop_time, expected):
+    # Beats are at 1, 2 and 3 seconds into the record.
+    intervals = processing.ann2rr(
+        mixed_annotations, "atr", start_time=start_time, stop_time=stop_time
+    )
+    np.testing.assert_array_equal(intervals, expected)

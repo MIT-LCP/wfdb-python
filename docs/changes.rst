@@ -20,6 +20,9 @@ Unreleased
 **Add timeouts to requests for remote files**
   Requests for files on PhysioNet (and other web servers) now time out if the server does not respond (10 seconds to connect, and 60 seconds to wait for data), instead of waiting indefinitely. A ``requests.exceptions.Timeout`` (``ConnectTimeout`` or ``ReadTimeout``) is raised in this case.
 
+**Select intervals by time in the record in ann2rr**
+  The ``start_time`` and ``stop_time`` arguments of ``ann2rr`` now select intervals by when they end in the record, as the WFDB ``ann2rr`` program's ``-f`` and ``-t`` options do, and the first interval is measured from ``start_time``. They used to filter intervals by their length instead.
+
 **Fix smoothing of frames with invalid samples**
   When a signal with more than one sample per frame is read with ``smooth_frames=True`` (the default), a frame that contains an invalid sample now gives an invalid value (NaN in physical units), as in the WFDB library. The invalid sample value used to be averaged with the other samples, which gave a large but valid-looking value.
 

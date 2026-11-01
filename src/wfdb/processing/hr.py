@@ -198,9 +198,12 @@ def ann2rr(
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
     start_time : float, optional
-        The time to start the intervals in seconds.
+        The time in the record, in seconds, from which to start. Only
+        intervals ending at or after this time are returned, and the first
+        interval is measured from this time.
     stop_time : float, optional
-        The time to stop the intervals in seconds.
+        The time in the record, in seconds, at which to stop. Only
+        intervals ending at or before this time are returned.
     format : str, optional
         Print intervals in the specified format. By default, intervals are
         printed in units of sample intervals. Other formats include
@@ -243,15 +246,20 @@ def ann2rr(
     if not all_annotations:
         samples = samples[np.isin(ann.label_store, np.flatnonzero(is_qrs))]
 
+    # Select annotations by their time in the record, as WFDB's ann2rr -f
+    # and -t do, and measure the first interval from the start time.
+    start = 0
+    if start_time is not None:
+        start = round(start_time * ann.fs)
+        samples = samples[samples >= start]
+    if stop_time is not None:
+        samples = samples[samples <= round(stop_time * ann.fs)]
+
     rr_interval = calc_rr(samples, fs=ann.fs)
     if samples.size:
-        rr_interval = np.insert(rr_interval, 0, samples[0])
+        rr_interval = np.insert(rr_interval, 0, samples[0] - start)
 
     time_interval = rr_interval / ann.fs
-    if start_time is not None:
-        time_interval = time_interval[(time_interval > start_time).astype(bool)]
-    if stop_time is not None:
-        time_interval = time_interval[(time_interval < stop_time).astype(bool)]
 
     # Already given in seconds (format == 's')
     if format == "s":
