@@ -600,6 +600,20 @@ class TestRecord:
         assert record.__eq__(record_named)
         assert record.__eq__(record_write)
 
+    def test_wrsamp_physical_only_record(self, temp_path):
+        record = wfdb.rdrecord("sample-data/100", sampto=1000)
+        expected_d_signal = record.adc()
+
+        assert record.d_signal is None
+
+        record.wrsamp(write_dir=temp_path)
+        record_write = wfdb.rdrecord(
+            os.path.join(temp_path, "100"),
+            physical=False,
+        )
+
+        np.testing.assert_array_equal(record_write.d_signal, expected_d_signal)
+
     def test_2c(self, temp_path):
         """Format 212, entire signal, physical, odd sampled record.
 

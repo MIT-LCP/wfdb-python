@@ -8,6 +8,10 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 Unreleased
 ----------
 
+**Fix writing records with physical signals**
+  ``Record.wrsamp`` now converts ``p_signal`` to digital samples when ``d_signal`` is
+  not present, allowing physical-only records to be written.
+
 **Drop support for Python 3.9 and 3.10**
   The minimum supported Python version is now 3.11. The package is now also tested with Python 3.14 and 3.15.
 

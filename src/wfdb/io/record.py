@@ -894,6 +894,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         N/A
 
         """
+        if not expanded and self.d_signal is None and self.p_signal is not None:
+            self.d_signal = self.adc()
+
         # Update the checksum field (except for channels that did not have
         # a checksum to begin with, or where the checksum was already
         # valid.)
