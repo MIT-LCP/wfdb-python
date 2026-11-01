@@ -198,9 +198,12 @@ def ann2rr(
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
     start_time : float, optional
-        The time to start the intervals in seconds.
+        The time in the record, in seconds, from which to start. Only
+        intervals ending at or after this time are returned, and the first
+        interval is measured from this time.
     stop_time : float, optional
-        The time to stop the intervals in seconds.
+        The time in the record, in seconds, at which to stop. Only
+        intervals ending at or before this time are returned.
     format : str, optional
         Print intervals in the specified format. By default, intervals are
         printed in units of sample intervals. Other formats include
@@ -218,6 +221,11 @@ def ann2rr(
         The intervals in the requested units, or None when printing.
         An empty array is returned if no annotations are selected.
 
+    Raises
+    ------
+    ValueError
+        If `start_time` is after `stop_time`.
+
     Examples
     --------
     >>> from wfdb import processing
@@ -229,6 +237,9 @@ def ann2rr(
     257
 
     """
+    if start_time is not None and stop_time is not None and start_time > stop_time:
+        raise ValueError("start_time must not be after stop_time")
+
     if (pn_dir is not None) and ("." not in pn_dir):
         dir_list = pn_dir.split("/")
         pn_dir = posixpath.join(
@@ -243,15 +254,21 @@ def ann2rr(
     if not all_annotations:
         samples = samples[np.isin(ann.label_store, np.flatnonzero(is_qrs))]
 
+    # Select annotations by their time in the record, as WFDB's ann2rr -f
+    # and -t do, and measure the first interval from the start time. Halves
+    # round up, as in the WFDB library.
+    start = 0
+    if start_time is not None:
+        start = int(start_time * ann.fs + 0.5)
+        samples = samples[samples >= start]
+    if stop_time is not None:
+        samples = samples[samples <= int(stop_time * ann.fs + 0.5)]
+
     rr_interval = calc_rr(samples, fs=ann.fs)
     if samples.size:
-        rr_interval = np.insert(rr_interval, 0, samples[0])
+        rr_interval = np.insert(rr_interval, 0, samples[0] - start)
 
     time_interval = rr_interval / ann.fs
-    if start_time is not None:
-        time_interval = time_interval[(time_interval > start_time).astype(bool)]
-    if stop_time is not None:
-        time_interval = time_interval[(time_interval < stop_time).astype(bool)]
 
     # Already given in seconds (format == 's')
     if format == "s":
