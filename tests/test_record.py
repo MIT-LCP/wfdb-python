@@ -635,9 +635,7 @@ class TestRecord:
         assert record.d_signal is None
 
     def test_wrsamp_expanded_physical_only_record(self, temp_path):
-        record = wfdb.rdrecord(
-            "sample-data/test01_00s_frame", smooth_frames=False
-        )
+        record = wfdb.rdrecord("sample-data/test01_00s_frame", smooth_frames=False)
         expected_e_d_signal = wfdb.rdrecord(
             "sample-data/test01_00s_frame",
             smooth_frames=False,
