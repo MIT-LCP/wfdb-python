@@ -44,6 +44,9 @@ BYTES_PER_SAMPLE = {
 
 # The bit resolution of each WFDB dat format
 BIT_RES = {
+    # Null signal (no samples). 12 bits is the WFDB library's default resolution
+    # (WFDB_DEFRES) for formats without a natural one.
+    "0": 12,
     "8": 8,
     "16": 16,
     "24": 24,
