@@ -32,6 +32,7 @@ dev = [
     "pytest >= 8.0.0",
     "pytest-xdist >= 3.5.0",
     "ruff == 0.17.3",
+    "towncrier == 26.9.0",
 ]
 # Heavy dependencies are mocked in docs/conf.py, so the project itself is not needed
 docs = [
@@ -39,6 +40,21 @@ docs = [
     "numpydoc==1.11.0",
     "sphinx==9.0.4",
 ]
+
+[tool.towncrier]
+directory = "changelog.d"
+filename = "docs/changes.rst"
+template = "changelog.d/template.rst.jinja"
+start_string = ".. towncrier release notes start\n"
+title_format = "Version {version} ({project_date})"
+underlines = ["-"]
+issue_format = ""
+
+# A single unnamed category, so that fragments are plain .rst files
+[[tool.towncrier.type]]
+directory = "rst"
+name = ""
+showcontent = true
 
 [tool.ruff]
 target-version = "py311"
