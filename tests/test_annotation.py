@@ -342,3 +342,18 @@ def test_aux_note_none(temp_path):
         open(os.path.join(temp_path, "empty.atr"), "rb") as f2,
     ):
         assert f1.read() == f2.read()
+
+
+def test_contained_labels_from_symbols():
+    """Contained labels can be found from symbols alone"""
+    ann = wfdb.rdann("sample-data/100", "atr")
+    assert ann.label_store is None
+    labels = ann.get_contained_labels(inplace=False)
+    assert list(labels.columns) == [
+        "label_store",
+        "symbol",
+        "description",
+        "n_occurrences",
+    ]
+    assert labels.loc[1, "symbol"] == "N"
+    assert labels["n_occurrences"].sum() == len(ann.sample)
