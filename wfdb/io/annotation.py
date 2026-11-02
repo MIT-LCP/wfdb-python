@@ -725,9 +725,7 @@ class Annotation(object):
                 :n_custom_labels
             ]
 
-        custom_labels.set_index(
-            custom_labels["label_store"].values, inplace=True
-        )
+        custom_labels = custom_labels.set_index(custom_labels["label_store"].values)
         custom_labels = custom_labels[list(ann_label_fields)]
 
         self.custom_labels = custom_labels
@@ -1322,8 +1320,8 @@ class Annotation(object):
             custom_labels = label_triplets_to_df(self.custom_labels)
         elif isinstance(self.custom_labels, pd.DataFrame):
             # Set the index just in case it doesn't already match the label_store
-            self.custom_labels.set_index(
-                self.custom_labels["label_store"].values, inplace=True
+            self.custom_labels = self.custom_labels.set_index(
+                self.custom_labels["label_store"].values
             )
             custom_labels = self.custom_labels
         else:
@@ -1367,8 +1365,8 @@ class Annotation(object):
         )
 
         if reset_index:
-            contained_labels.set_index(
-                contained_labels["label_store"].values, inplace=True
+            contained_labels = contained_labels.set_index(
+                contained_labels["label_store"].values
             )
 
         if inplace:
@@ -1471,8 +1469,8 @@ class Annotation(object):
                 return
 
         label_map = self.create_label_map(inplace=False)
-        label_map.set_index(
-            keys=pd.Index(label_map[source_field].values), inplace=True
+        label_map = label_map.set_index(
+            keys=pd.Index(label_map[source_field].values)
         )
 
         try:
@@ -1517,7 +1515,7 @@ def label_triplets_to_df(triplets):
         }
     )
 
-    label_df.set_index(label_df["label_store"].values, inplace=True)
+    label_df = label_df.set_index(label_df["label_store"].values)
     label_df = label_df[list(ann_label_fields)]
 
     return label_df
@@ -3231,5 +3229,5 @@ ann_label_table = pd.DataFrame(
         "description": [al.description for al in ann_labels],
     }
 )
-ann_label_table.set_index(ann_label_table["label_store"].values, inplace=True)
+ann_label_table = ann_label_table.set_index(ann_label_table["label_store"].values)
 ann_label_table = ann_label_table[["label_store", "symbol", "description"]]
