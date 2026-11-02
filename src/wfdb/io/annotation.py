@@ -567,8 +567,12 @@ class Annotation:
         elif field == "sample":
             # Sample numbers may be stored as floats (for example, the
             # output of a detector), as long as they are whole numbers.
+            # NaN and infinity are rejected before rounding, so that no
+            # floating-point exception is raised for them.
             if np.issubdtype(self.sample.dtype, np.floating):
-                if not np.all(np.mod(self.sample, 1) == 0):
+                if not np.all(np.isfinite(self.sample)) or np.any(
+                    self.sample != np.round(self.sample)
+                ):
                     raise ValueError(
                         "The 'sample' field must only contain whole numbers"
                     )
