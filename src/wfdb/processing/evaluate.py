@@ -99,7 +99,7 @@ class Comparitor:
         ]
         # Test annotation indices that were unmatched to a reference annotation
         self.unmatched_test_inds = np.setdiff1d(
-            np.array(range(self.n_test)),
+            np.arange(self.n_test),
             self.matched_test_inds,
             assume_unique=True,
         )
@@ -118,8 +118,13 @@ class Comparitor:
         self.fn = self.n_ref - self.tp
         # No tn attribute
 
-        self.sensitivity = float(self.tp) / float(self.tp + self.fn)
-        self.positive_predictivity = float(self.tp) / self.n_test
+        denom_sens = self.tp + self.fn
+        self.sensitivity = (
+            float(self.tp) / denom_sens if denom_sens > 0 else float("nan")
+        )
+        self.positive_predictivity = (
+            float(self.tp) / self.n_test if self.n_test > 0 else float("nan")
+        )
 
     def compare(self):
         """Main comparison function.

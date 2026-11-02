@@ -1,3 +1,4 @@
+import math
 from unittest import mock
 
 import numpy as np
@@ -333,6 +334,28 @@ class TestCompareAnnotations:
             assert np.all(np.diff(matched) > 0)
             assert np.all(np.abs(ref[matches != -1] - test[matched]) < window_width)
             assert 0 <= comparitor.fp <= len(test)
+
+    def test_compare_annotations_empty_ref(self):
+        """When reference annotations are empty, sensitivity should be NaN."""
+        comparitor = processing.compare_annotations(
+            np.array([]), np.array([10, 20, 30]), 5
+        )
+        assert math.isnan(comparitor.sensitivity)
+        assert comparitor.positive_predictivity == 0.0
+
+    def test_compare_annotations_empty_test(self):
+        """When test annotations are empty, PPV should be NaN."""
+        comparitor = processing.compare_annotations(
+            np.array([10, 20, 30]), np.array([]), 5
+        )
+        assert comparitor.sensitivity == 0.0
+        assert math.isnan(comparitor.positive_predictivity)
+
+    def test_compare_annotations_both_empty(self):
+        """When both annotation arrays are empty, both metrics should be NaN."""
+        comparitor = processing.compare_annotations(np.array([]), np.array([]), 5)
+        assert math.isnan(comparitor.sensitivity)
+        assert math.isnan(comparitor.positive_predictivity)
 
 
 class TestQrs:
