@@ -357,3 +357,26 @@ def test_contained_labels_from_symbols():
     ]
     assert labels.loc[1, "symbol"] == "N"
     assert labels["n_occurrences"].sum() == len(ann.sample)
+
+
+def test_wrann_float_samples(temp_path):
+    """Sample numbers stored as whole-number floats are written as integers"""
+    sample = np.array([100, 2500, 70000])
+    symbol = ["N", "V", "N"]
+    wfdb.wrann("int", "atr", sample, symbol=symbol, fs=360, write_dir=temp_path)
+
+    float_sample = sample.astype("float64")
+    wfdb.wrann("float", "atr", float_sample, symbol=symbol, fs=360, write_dir=temp_path)
+    assert float_sample.dtype == np.float64
+
+    with (
+        open(os.path.join(temp_path, "int.atr"), "rb") as f1,
+        open(os.path.join(temp_path, "float.atr"), "rb") as f2,
+    ):
+        assert f1.read() == f2.read()
+
+
+@pytest.mark.parametrize("sample", [[10.0, 20.5], [10.0, np.nan], [10.0, np.inf]])
+def test_wrann_non_whole_samples(temp_path, sample):
+    with pytest.raises(ValueError, match="whole numbers"):
+        wfdb.wrann("x", "atr", np.array(sample), symbol=["N", "N"], write_dir=temp_path)
