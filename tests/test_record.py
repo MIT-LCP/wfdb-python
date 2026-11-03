@@ -959,7 +959,6 @@ class TestRecord:
         ]
         assert record.units.__eq__(sig_units_target)
 
-<<<<<<< HEAD
     @pytest.mark.parametrize("units", ["mV", "a.u.", "uV*s", "mmHg/s", "10^-3"])
     def test_units_round_trip(self, units, temp_path):
         """Units with any non-whitespace characters are read back unchanged."""
