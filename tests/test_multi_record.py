@@ -136,6 +136,17 @@ class TestMultiRecordWriting:
 
         assert list(tmp_path.iterdir()) == []
 
+    def test_short_seg_len_writes_no_files(self, tmp_path):
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        record.seg_len.pop()
+
+        with pytest.raises(
+            ValueError, match="Length of seg_len must match the 'n_seg' field"
+        ):
+            record.wrsamp(write_dir=str(tmp_path))
+
+        assert list(tmp_path.iterdir()) == []
+
     def test_outdated_expanded_signal_is_ignored_when_not_expanded(self, tmp_path):
         record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
         expected_signal = record.segments[0].d_signal.copy()

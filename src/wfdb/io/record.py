@@ -1224,6 +1224,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
+        if len(self.seg_len) != self.n_seg:
+            raise ValueError("Length of seg_len must match the 'n_seg' field")
+
         for seg_num, segment in enumerate(self.segments):
             # Empty segments ('~') have no Record to check
             if segment is None:
