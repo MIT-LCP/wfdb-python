@@ -1,5 +1,7 @@
 import os
 import re
+from decimal import Decimal
+from fractions import Fraction
 
 import numpy as np
 import pandas as pd
@@ -380,3 +382,34 @@ def test_wrann_float_samples(temp_path):
 def test_wrann_non_whole_samples(temp_path, sample):
     with pytest.raises(ValueError, match="whole numbers"):
         wfdb.wrann("x", "atr", np.array(sample), symbol=["N", "N"], write_dir=temp_path)
+
+
+@pytest.mark.parametrize(
+    "sample", [[10, 20], [10.0, 20.0], [np.float32(10), Fraction(20)]]
+)
+def test_wrann_object_samples(temp_path, sample):
+    """Whole numbers in an object array are written as integers"""
+    wfdb.wrann(
+        "x",
+        "atr",
+        np.array(sample, dtype=object),
+        symbol=["N", "N"],
+        write_dir=temp_path,
+    )
+    ann = wfdb.rdann(os.path.join(temp_path, "x"), "atr")
+    assert ann.sample.tolist() == [10, 20]
+
+
+@pytest.mark.parametrize(
+    "sample",
+    [[10.0, 20.5], [10, Fraction(41, 2)], [10, Decimal("20.5")], [10.0, np.nan]],
+)
+def test_wrann_non_whole_object_samples(temp_path, sample):
+    with pytest.raises(ValueError, match="whole numbers"):
+        wfdb.wrann(
+            "x",
+            "atr",
+            np.array(sample, dtype=object),
+            symbol=["N", "N"],
+            write_dir=temp_path,
+        )

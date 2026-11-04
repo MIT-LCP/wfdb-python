@@ -576,6 +576,19 @@ class Annotation:
                     raise ValueError(
                         "The 'sample' field must only contain whole numbers"
                     )
+            # Object arrays may hold any type of number. Check that
+            # converting them to integers does not change any value.
+            elif self.sample.dtype == object:
+                try:
+                    int_sample = self.sample.astype(np.int64)
+                except (TypeError, ValueError, OverflowError):
+                    raise ValueError(
+                        "The 'sample' field must only contain whole numbers"
+                    ) from None
+                if np.any(int_sample != self.sample):
+                    raise ValueError(
+                        "The 'sample' field must only contain whole numbers"
+                    )
             if len(self.sample) == 1:
                 sampdiffs = np.array([self.sample[0]])
             elif len(self.sample) > 1:
