@@ -565,6 +565,30 @@ class Annotation:
                         )
 
         elif field == "sample":
+            # Sample numbers may be stored as floats (for example, the
+            # output of a detector), as long as they are whole numbers.
+            # NaN and infinity are rejected before rounding, so that no
+            # floating-point exception is raised for them.
+            if np.issubdtype(self.sample.dtype, np.floating):
+                if not np.all(np.isfinite(self.sample)) or np.any(
+                    self.sample != np.round(self.sample)
+                ):
+                    raise ValueError(
+                        "The 'sample' field must only contain whole numbers"
+                    )
+            # Object arrays may hold any type of number. Check that
+            # converting them to integers does not change any value.
+            elif self.sample.dtype == object:
+                try:
+                    int_sample = self.sample.astype(np.int64)
+                except (TypeError, ValueError, OverflowError):
+                    raise ValueError(
+                        "The 'sample' field must only contain whole numbers"
+                    ) from None
+                if np.any(int_sample != self.sample):
+                    raise ValueError(
+                        "The 'sample' field must only contain whole numbers"
+                    )
             if len(self.sample) == 1:
                 sampdiffs = np.array([self.sample[0]])
             elif len(self.sample) > 1:
@@ -1156,11 +1180,13 @@ class Annotation:
             All of the bytes to be written to the annotation file.
 
         """
-        # The difference sample to write
-        if len(self.sample) == 1:
-            sampdiff = np.array([self.sample[0]])
+        # The difference sample to write. Sample numbers stored as floats
+        # have been checked to be whole numbers.
+        sample = self.sample.astype(np.int64)
+        if len(sample) == 1:
+            sampdiff = np.array([sample[0]])
         else:
-            sampdiff = np.concatenate(([self.sample[0]], np.diff(self.sample)))
+            sampdiff = np.concatenate(([sample[0]], np.diff(sample)))
 
         # Create a copy of the annotation object with a
         # compact version of fields to write
@@ -1734,7 +1760,8 @@ def wrann(
         The string annotation file extension.
     sample : ndarray
         A numpy array containing the annotation locations in samples relative to
-        the beginning of the record.
+        the beginning of the record. Floats are accepted if they are whole
+        numbers.
     symbol : list, numpy array, optional
         The symbols used to display the annotation labels. List or numpy array.
         If this field is present, `label_store` must not be present.
