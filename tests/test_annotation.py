@@ -1,4 +1,5 @@
 import os
+import pathlib
 import re
 
 import numpy as np
@@ -357,3 +358,12 @@ def test_contained_labels_from_symbols():
     ]
     assert labels.loc[1, "symbol"] == "N"
     assert labels["n_occurrences"].sum() == len(ann.sample)
+
+
+def test_rdann_path():
+    """rdann accepts a pathlib.Path as the record name"""
+    expected = wfdb.rdann("sample-data/100", "atr")
+    annotation = wfdb.rdann(pathlib.Path("sample-data/100"), "atr")
+    assert annotation.record_name == "100"
+    np.testing.assert_array_equal(annotation.sample, expected.sample)
+    assert annotation.symbol == expected.symbol
