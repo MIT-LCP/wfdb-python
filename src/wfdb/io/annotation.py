@@ -1919,7 +1919,7 @@ def rdann(
 
     Parameters
     ----------
-    record_name : str
+    record_name : str or os.PathLike
         The record name of the WFDB annotation file. ie. for file '100.atr',
         record_name='100'. The path to the file can be a cloud URL. To read
         the annotation file from a local .wfdb archive, pass the path of
@@ -1969,6 +1969,7 @@ def rdann(
     >>> ann = wfdb.rdann('100.wfdb', 'atr')
 
     """
+    record_name = os.fspath(record_name)
     is_archive = is_archive_path(record_name)
     if is_archive:
         record._check_archive_read_args(record_name, pn_dir)

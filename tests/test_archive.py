@@ -704,6 +704,22 @@ def test_rdann_archive(tmp_path):
     assert ann.aux_note == expected.aux_note
 
 
+def test_rdann_archive_path(tmp_path):
+    """rdann accepts a pathlib.Path to an archive."""
+    archive_path = tmp_path / "100.wfdb"
+    create_archive(
+        record_files("sample-data/100") + ["sample-data/100.atr"],
+        os.fspath(archive_path),
+    )
+
+    ann = wfdb.rdann(archive_path, "atr")
+
+    assert ann.record_name == "100"
+    np.testing.assert_array_equal(
+        ann.sample, wfdb.rdann("sample-data/100", "atr").sample
+    )
+
+
 def test_rdann_archive_header_named_differently(tmp_path):
     """Annotation files are named after the record's header, not the archive."""
     archive_path = os.fspath(tmp_path / "renamed.wfdb")

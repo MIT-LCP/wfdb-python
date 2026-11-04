@@ -1,4 +1,5 @@
 import os
+import pathlib
 import re
 from decimal import Decimal
 from fractions import Fraction
@@ -413,3 +414,12 @@ def test_wrann_non_whole_object_samples(temp_path, sample):
             symbol=["N", "N"],
             write_dir=temp_path,
         )
+
+
+def test_rdann_path():
+    """rdann accepts a pathlib.Path as the record name"""
+    expected = wfdb.rdann("sample-data/100", "atr")
+    annotation = wfdb.rdann(pathlib.Path("sample-data/100"), "atr")
+    assert annotation.record_name == "100"
+    np.testing.assert_array_equal(annotation.sample, expected.sample)
+    assert annotation.symbol == expected.symbol

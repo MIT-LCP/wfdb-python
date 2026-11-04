@@ -1192,6 +1192,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
+        # Validate segment cohesion before writing anything.
+        self._check_segment_cohesion()
+
         with archive_for_writing(wfdb_archive) as archive:
             # Perform field validity and cohesion checks, and write the
             # header file.
@@ -1221,7 +1224,14 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         if self.n_seg != len(self.segments):
             raise ValueError("Length of segments must match the 'n_seg' field")
 
+        if len(self.seg_len) != self.n_seg:
+            raise ValueError("Length of seg_len must match the 'n_seg' field")
+
         for seg_num, segment in enumerate(self.segments):
+            # Empty segments ('~') have no Record to check
+            if segment is None:
+                continue
+
             # If segment 0 is a layout specification record, check that its file names
             # are all == '~''
             if seg_num == 0 and self.seg_len[0] == 0:
@@ -1241,7 +1251,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             # field
             if segment.sig_len != self.seg_len[seg_num]:
                 raise ValueError(
-                    f"The signal length of segment {seg_num} does not match the corresponding segment length"
+                    f"The signal length of segment {seg_num} does not match the "
+                    f"corresponding segment length"
                 )
 
         # No need to check the sum of sig_lens from each segment object against sig_len
