@@ -22,18 +22,9 @@ import tomllib
 
 sys.path.insert(0, os.path.abspath("../src"))
 
-# For dependencies
-from unittest.mock import MagicMock
-
-
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        return MagicMock()
-
-
-MOCK_MODULES = ["numpy", "matplotlib", "matplotlib.pyplot", "pandas", "scipy"]
-sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
+# Heavy dependencies aren't installed for the docs build. Sphinx mocks them, and
+# shows mocked names in signatures (e.g. `pandas.DataFrame`).
+autodoc_mock_imports = ["numpy", "matplotlib", "pandas", "scipy"]
 
 # -- General configuration ------------------------------------------------
 
