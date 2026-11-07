@@ -423,3 +423,24 @@ def test_rdann_path():
     assert annotation.record_name == "100"
     np.testing.assert_array_equal(annotation.sample, expected.sample)
     assert annotation.symbol == expected.symbol
+
+
+def test_subtype_chan_num_round_trip(temp_path):
+    """Subtype (signed), chan and num values are read back unchanged."""
+    subtype = np.array([-128, -1, 0, 127])
+    chan = np.array([0, 255, 255, 3])
+    num = np.array([5, 5, 100, 127])
+    wfdb.wrann(
+        "fields",
+        "atr",
+        np.array([10, 20, 30, 40]),
+        symbol=["N", "V", "N", "A"],
+        subtype=subtype,
+        chan=chan,
+        num=num,
+        write_dir=temp_path,
+    )
+    ann = wfdb.rdann(os.path.join(temp_path, "fields"), "atr")
+    assert ann.subtype.tolist() == subtype.tolist()
+    assert ann.chan.tolist() == chan.tolist()
+    assert ann.num.tolist() == num.tolist()
