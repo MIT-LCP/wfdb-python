@@ -2209,6 +2209,8 @@ def proc_ann_bytes(filebytes, sampto):
     # Total number of sample from beginning of record. Annotation bytes
     # only store sample_diff
     sample_total = 0
+    # Python ints are much faster to index one at a time than NumPy scalars.
+    pairs = filebytes.tolist()
     # Byte pair index
     bpi = 0
 
@@ -2218,9 +2220,9 @@ def proc_ann_bytes(filebytes, sampto):
     # - samp + sym pair
     # - other pairs (if any)
     # The last byte pair of the file is 0 indicating eof.
-    while bpi < filebytes.shape[0] - 1:
+    while bpi < len(pairs) - 1:
         # Get the sample and label_store fields of the current annotation
-        sample_diff, current_label_store, bpi = proc_core_fields(filebytes, bpi)
+        sample_diff, current_label_store, bpi = proc_core_fields(pairs, bpi)
         sample_total = sample_total + sample_diff
         sample.append(sample_total)
         label_store.append(current_label_store)
@@ -2231,12 +2233,12 @@ def proc_ann_bytes(filebytes, sampto):
         update = {"subtype": True, "chan": True, "num": True, "aux_note": True}
         # Get the next label store value - it may indicate additional
         # fields for this annotation, or the values of the next annotation.
-        current_label_store = int(filebytes[bpi, 1]) >> 2
+        current_label_store = pairs[bpi][1] >> 2
 
         while current_label_store > 59:
             subtype, chan, num, aux_note, update, bpi = proc_extra_field(
                 current_label_store,
-                filebytes,
+                pairs,
                 bpi,
                 subtype,
                 chan,
@@ -2245,7 +2247,7 @@ def proc_ann_bytes(filebytes, sampto):
                 update,
             )
 
-            current_label_store = int(filebytes[bpi, 1]) >> 2
+            current_label_store = pairs[bpi][1] >> 2
 
         # Set defaults or carry over previous values if necessary
         subtype, chan, num, aux_note = update_extra_fields(
@@ -2261,13 +2263,18 @@ def proc_ann_bytes(filebytes, sampto):
     return sample, label_store, subtype, chan, num, aux_note
 
 
+def _to_signed_char(value):
+    """Interpret a byte value (0-255) as a signed char."""
+    return value - 256 if value > 127 else value
+
+
 def proc_core_fields(filebytes, bpi):
     """Get the sample difference and store fields of the current annotation.
 
     Parameters
     ----------
-    filebytes : ndarray
-        The input filestream converted to an Nx2 array of unsigned bytes.
+    filebytes : list
+        The input filestream as a list of N pairs of unsigned bytes.
     bpi : int
         The index to start the conversion.
 
@@ -2287,13 +2294,13 @@ def proc_core_fields(filebytes, bpi):
 
     # The current byte pair will contain either the actual d_sample + annotation store
     # value, or 0 + SKIP.
-    while int(filebytes[bpi, 1]) >> 2 == 59:
+    while filebytes[bpi][1] >> 2 == 59:
         # 4 bytes storing dt
         skip_diff = (
-            (int(filebytes[bpi + 1, 0]) << 16)
-            + (int(filebytes[bpi + 1, 1]) << 24)
-            + (int(filebytes[bpi + 2, 0]) << 0)
-            + (int(filebytes[bpi + 2, 1]) << 8)
+            (filebytes[bpi + 1][0] << 16)
+            + (filebytes[bpi + 1][1] << 24)
+            + filebytes[bpi + 2][0]
+            + (filebytes[bpi + 2][1] << 8)
         )
 
         # Data type is long integer (stored in two's complement).
@@ -2305,8 +2312,9 @@ def proc_core_fields(filebytes, bpi):
         bpi = bpi + 3
 
     # Not a skip - it is the actual sample number + annotation type store value
-    label_store = int(filebytes[bpi, 1]) >> 2
-    sample_diff += np.int64(filebytes[bpi, 0]) + 256 * (np.int64(filebytes[bpi, 1]) & 3)
+    byte0, byte1 = filebytes[bpi]
+    label_store = byte1 >> 2
+    sample_diff += byte0 + 256 * (byte1 & 3)
     bpi = bpi + 1
 
     return sample_diff, label_store, bpi
@@ -2323,8 +2331,8 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
         A numpy array containing the integer values used to store the
         annotation labels. If this field is present, `symbol` must not be
         present.
-    filebytes : str
-        The input filestream converted to bytes.
+    filebytes : list
+        The input filestream as a list of N pairs of unsigned bytes.
     bpi : int
         The index to start the conversion.
     subtype : ndarray
@@ -2366,35 +2374,34 @@ def proc_extra_field(label_store, filebytes, bpi, subtype, chan, num, aux_note, 
     # SUB
     if label_store == 61:
         # sub is interpreted as signed char.
-        subtype.append(filebytes[bpi, 0].astype("i1"))
+        subtype.append(_to_signed_char(filebytes[bpi][0]))
         update["subtype"] = False
         bpi = bpi + 1
     # CHAN
     elif label_store == 62:
         # chan is interpreted as un_signed char
-        chan.append(filebytes[bpi, 0])
+        chan.append(filebytes[bpi][0])
         update["chan"] = False
         bpi = bpi + 1
     # NUM
     elif label_store == 60:
         # num is interpreted as signed char
-        num.append(filebytes[bpi, 0].astype("i1"))
+        num.append(_to_signed_char(filebytes[bpi][0]))
         update["num"] = False
         bpi = bpi + 1
     # aux_note
     elif label_store == 63:
         # length of aux_note string. Max 256? No need to check other bits of
         # second byte?
-        aux_notelen = filebytes[bpi, 0]
-        aux_notebytes = filebytes[
-            bpi + 1 : bpi + 1 + int(np.ceil(aux_notelen / 2.0)), :
-        ].flatten()
-        if int(aux_notelen) & 1:
-            aux_notebytes = aux_notebytes[:-1]
-        # The aux_note string
-        aux_note.append("".join([chr(char) for char in aux_notebytes]))
+        aux_notelen = filebytes[bpi][0]
+        npairs = (aux_notelen + 1) // 2
+        aux_notebytes = bytes(
+            b for pair in filebytes[bpi + 1 : bpi + 1 + npairs] for b in pair
+        )
+        # The aux_note string, one character per byte
+        aux_note.append(aux_notebytes[:aux_notelen].decode("latin-1"))
         update["aux_note"] = False
-        bpi = bpi + 1 + int(np.ceil(aux_notelen / 2.0))
+        bpi = bpi + 1 + npairs
 
     return subtype, chan, num, aux_note, update, bpi
 
