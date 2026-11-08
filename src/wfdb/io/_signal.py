@@ -845,9 +845,7 @@ class SignalMixin:
                 minvals.append(float(np.nanmin(ch)))
                 maxvals.append(float(np.nanmax(ch)))
 
-            if any(x == math.inf for x in minvals) or any(
-                x == math.inf for x in maxvals
-            ):
+            if any(math.isinf(x) for x in minvals + maxvals):
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             for ch, _ in enumerate(self.e_p_signal):
