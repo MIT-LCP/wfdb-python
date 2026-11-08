@@ -1,7 +1,6 @@
 import io
 import math
 import os
-import posixpath
 import sys
 
 import fsspec
@@ -1711,7 +1710,7 @@ def _rd_dat_file(
 
     # Local or cloud dat file
     elif pn_dir is None:
-        with fsspec.open(os.path.join(dir_name, file_name), "rb") as fp:
+        with fsspec.open(_coreio._join_path(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
@@ -1916,7 +1915,7 @@ def _rd_compressed_file(
         open_file = wfdb_archive.open(file_name)
     else:
         if pn_dir is None:
-            file_name = os.path.join(dir_name, file_name)
+            file_name = _coreio._join_path(dir_name, file_name)
         open_file = _coreio._open_file(pn_dir, file_name, "rb")
 
     with open_file as fp:
@@ -2600,10 +2599,9 @@ def _infer_sig_len(
     if wfdb_archive is not None:
         file_size = wfdb_archive.file_size(file_name)
 
-    # If this is a cloud path, use posixpath to construct the path and fsspec to open
-    # file
+    # If this is a cloud path, use fsspec to open the file
     elif any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        with fsspec.open(posixpath.join(dir_name, file_name), mode="rb") as f:
+        with fsspec.open(_coreio._join_path(dir_name, file_name), mode="rb") as f:
             file_size = f.seek(0, os.SEEK_END)
 
     # If the PhysioNet database path is provided, construct the download path using the

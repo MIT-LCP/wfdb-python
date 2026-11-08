@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
-from wfdb.io._coreio import CLOUD_PROTOCOLS
+from wfdb.io._coreio import CLOUD_PROTOCOLS, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
@@ -169,8 +169,8 @@ class BaseRecord:
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : int, float, optional
@@ -700,8 +700,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : float, optional
@@ -1080,8 +1080,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     n_sig : int, optional
         Total number of signals.
     fs : int, float, optional
@@ -1837,10 +1837,10 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`). To read the header from a
-        local .wfdb archive, pass the path of the archive including the
-        .wfdb extension.
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        To read the header from a local .wfdb archive, pass the path of
+        the archive including the .wfdb extension.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -1861,7 +1861,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     >>> ecg_record = wfdb.rdheader('100', pn_dir='mitdb')
 
     """
-    dir_name, base_record_name = os.path.split(record_name)
+    dir_name, base_record_name = _split_path(record_name)
     file_name = f"{base_record_name}.hea"
 
     # Read the header, and any segment headers, from a .wfdb archive
@@ -1873,10 +1873,9 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
                 _read_segment_headers(record, dir_name, pn_dir, archive)
         return record
 
-    # If this is a cloud path, use posixpath to construct the path and fsspec to open
-    # file
+    # If this is a cloud path, use fsspec to open the file
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        with fsspec.open(posixpath.join(dir_name, file_name), mode="r") as f:
+        with fsspec.open(_join_path(dir_name, file_name), mode="r") as f:
             header_content = f.read()
 
     # If the PhysioNet database path is provided, construct the download path using the
@@ -1942,7 +1941,7 @@ def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
     """
     if wfdb_archive is not None:
         return _parse_header_content(wfdb_archive.read_header(record_name))
-    return rdheader(os.path.join(dir_name, record_name), pn_dir=pn_dir)
+    return rdheader(_join_path(dir_name, record_name), pn_dir=pn_dir)
 
 
 def _read_segment_headers(record, dir_name, pn_dir, wfdb_archive):
@@ -2069,10 +2068,10 @@ def rdrecord(
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`). To read a record from a local
-        .wfdb archive, pass the path of the archive including the .wfdb
-        extension.
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        To read a record from a local .wfdb archive, pass the path of
+        the archive including the .wfdb extension.
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -2201,7 +2200,7 @@ def _rdrecord(
     archive.
 
     """
-    dir_name, base_record_name = os.path.split(record_name)
+    dir_name, base_record_name = _split_path(record_name)
     # Update the dir_name using abspath unless it is a cloud path
     if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         dir_name = os.path.abspath(dir_name)
@@ -2409,7 +2408,7 @@ def _rdrecord(
                 )
             else:
                 record.segments[seg_num] = rdrecord(
-                    os.path.join(dir_name, record.seg_name[seg_num]),
+                    _join_path(dir_name, record.seg_name[seg_num]),
                     sampfrom=seg_ranges[i][0],
                     sampto=seg_ranges[i][1],
                     channels=seg_channels[i],
@@ -2470,8 +2469,8 @@ def rdsamp(
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     sampfrom : int, optional
         The starting sample number to read for all channels.
     sampto : int, 'end', optional
@@ -2590,8 +2589,8 @@ def sampfreq(record_name, pn_dir=None):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2640,8 +2639,8 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2699,8 +2698,8 @@ def wfdbdesc(record_name, pn_dir=None):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -2833,8 +2832,8 @@ def wfdbtime(record_name, input_times, pn_dir=None):
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
-        `azureml://`. Install the appropriate `fsspec` backend
-        (e.g., `s3fs`, `gcsfs`, `adlfs`).
+        `azureml://`, `memory://`. Other than for `memory://`, install the
+        appropriate `fsspec` backend (e.g., `s3fs`, `gcsfs`, `adlfs`).
     input_times : str, list
         The desired times (or samples) to be converted and displayed for the
         chosen record. This can either be a single string, or a list of

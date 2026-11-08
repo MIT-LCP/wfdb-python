@@ -136,6 +136,38 @@ handles credential discovery automatically.
     against the configured PhysioNet index URL.
 
 
+Reading From Memory
+-------------------
+
+Records and annotations can also be read from the in-memory filesystem of
+``fsspec``, for example when the files come from an upload form instead of
+from disk. Store all files of the record in the same directory, and pass a
+``memory://`` URI as the ``record_name`` argument:
+
+.. code-block:: python
+
+    import fsspec
+    import wfdb
+
+    fs = fsspec.filesystem("memory")
+    fs.pipe("/upload/100.hea", hea_bytes)
+    fs.pipe("/upload/100.dat", dat_bytes)
+    fs.pipe("/upload/100.atr", atr_bytes)
+
+    record = wfdb.rdrecord("memory://upload/100")
+    ann = wfdb.rdann("memory://upload/100", "atr")
+
+The files stay in memory until they are removed, for example with
+``fs.rm("/upload", recursive=True)``.
+
+.. warning::
+
+    The in-memory filesystem is shared by the whole process, and everything
+    that opens a file shares a single file position. Use a unique directory
+    for each upload, and do not read the same record from several threads at
+    once, as this can return wrong data without raising an error.
+
+
 Downloading
 -----------
 
