@@ -1,3 +1,4 @@
+import os
 import posixpath
 
 import fsspec
@@ -6,7 +7,57 @@ from wfdb.io import _url
 from wfdb.io.download import config
 
 # Cloud protocols
-CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://"]
+CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://", "memory://"]
+
+
+def _split_path(record_name):
+    """Split a local path or cloud URI into its directory and base name.
+
+    Unlike `os.path.split`, this keeps the protocol of a URI intact if the URI
+    has no directory, so that "memory://100" gives "memory://" and "100".
+
+    Parameters
+    ----------
+    record_name : str or os.PathLike
+        The local path or cloud URI.
+
+    Returns
+    -------
+    dir_name : str
+        The local directory or cloud URI of the directory.
+    base_name : str
+        The last component of the path.
+
+    """
+    path = os.fspath(record_name)
+    if any(path.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        protocol, separator, location = path.partition("://")
+        dir_name, base_name = posixpath.split(location)
+        return protocol + separator + dir_name, base_name
+    return os.path.split(path)
+
+
+def _join_path(dir_name, file_name):
+    """Join a local directory or cloud URI with a file name.
+
+    URIs always use forward slashes, regardless of the operating system.
+
+    Parameters
+    ----------
+    dir_name : str
+        The local directory or cloud URI.
+    file_name : str
+        The name of the file.
+
+    Returns
+    -------
+    str
+        The path or URI of the file.
+
+    """
+    if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        return posixpath.join(dir_name, file_name)
+    return os.path.join(dir_name, file_name)
 
 
 def _open_file(
