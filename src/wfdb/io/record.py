@@ -1012,24 +1012,22 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     def to_dataframe(self) -> pd.DataFrame:
         """Create a dataframe containing the data from this record.
 
-
         Returns
         -------
-        A dataframe, with sig_name in the columns. The index is a DatetimeIndex
-        if both base_date and base_time were set, otherwise a TimedeltaIndex.
+        pandas.DataFrame
+            A dataframe, with sig_name in the columns. The index is a
+            DatetimeIndex if both base_date and base_time were set,
+            otherwise a TimedeltaIndex. Each timestamp is rounded to the
+            nearest nanosecond.
+
         """
+        # Compute the time of each sample directly, rather than adding up a
+        # sample interval cut to whole nanoseconds, which drifts over
+        # long records.
+        offsets_ns = np.round(np.arange(self.sig_len) * (1e9 / self.fs))
+        index = pd.to_timedelta(offsets_ns.astype("int64"), unit="ns")
         if self.base_datetime is not None:
-            index = pd.date_range(
-                start=self.base_datetime,
-                periods=self.sig_len,
-                freq=pd.Timedelta(seconds=1 / self.fs),
-            )
-        else:
-            index = pd.timedelta_range(
-                start=pd.Timedelta(0),
-                periods=self.sig_len,
-                freq=pd.Timedelta(seconds=1 / self.fs),
-            )
+            index = pd.Timestamp(self.base_datetime) + index
 
         if self.p_signal is not None:
             data = self.p_signal
