@@ -1513,6 +1513,19 @@ class TestSignal:
                     atol=(0.05 / gain),
                 )
 
+    @pytest.mark.parametrize("value", [np.inf, -np.inf])
+    @pytest.mark.parametrize("expanded", [False, True])
+    def test_adc_params_inf(self, value, expanded):
+        """Reject signals containing positive or negative infinity."""
+        p_signal = np.array([[1.0, 0.5], [value, -0.25]])
+        if expanded:
+            record = wfdb.Record(e_p_signal=list(p_signal.T), fmt=["16", "16"])
+        else:
+            record = wfdb.Record(p_signal=p_signal, fmt=["16", "16"])
+
+        with pytest.raises(ValueError, match="Signal contains inf"):
+            record.calc_adc_params()
+
     def test_adc_gain_max_boundary(self, temp_path):
         """Exercise the MAX_I32 clamp path.
 
