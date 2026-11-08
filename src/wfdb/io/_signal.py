@@ -747,7 +747,7 @@ class SignalMixin:
         # Figure out digital samples used to store physical samples
 
         # If the entire signal is NAN, gain/baseline won't be used
-        if pmin == np.nan:
+        if np.isnan(pmin):
             adc_gain = 1
             baseline = 1
         # If the signal is just one value, store one digital value.
@@ -828,9 +828,10 @@ class SignalMixin:
                 raise ValueError("Signal contains inf. Cannot perform adc.")
 
             # min and max ignoring nans, unless whole channel is NAN.
-            # copy as 64-bit float to avoid precision loss
-            minvals = np.nanmin(self.p_signal, axis=0).astype("float64")
-            maxvals = np.nanmax(self.p_signal, axis=0).astype("float64")
+            # fmin/fmax behave like nanmin/nanmax without warning about
+            # all-NaN channels. Copy as 64-bit float to avoid precision loss.
+            minvals = np.fmin.reduce(self.p_signal, axis=0).astype("float64")
+            maxvals = np.fmax.reduce(self.p_signal, axis=0).astype("float64")
 
             for ch in range(np.shape(self.p_signal)[1]):
                 adc_gain, baseline = self.calc_adc_gain_baseline(ch, minvals, maxvals)
@@ -842,8 +843,8 @@ class SignalMixin:
             maxvals = []
             for ch in self.e_p_signal:
                 # Copy as float for precise arithmetic
-                minvals.append(float(np.nanmin(ch)))
-                maxvals.append(float(np.nanmax(ch)))
+                minvals.append(float(np.fmin.reduce(ch)))
+                maxvals.append(float(np.fmax.reduce(ch)))
 
             if any(x == math.inf for x in minvals) or any(
                 x == math.inf for x in maxvals
