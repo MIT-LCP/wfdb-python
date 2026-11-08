@@ -1615,6 +1615,40 @@ class TestSignal:
         expected_gain = (32767 - (-2147483648)) / (base_value + 1.5)
         np.testing.assert_allclose(record.adc_gain[0], expected_gain, rtol=1e-3)
 
+    @pytest.mark.filterwarnings("error::RuntimeWarning")
+    def test_all_nan_channel(self, temp_path):
+        """Write and read back a signal with a channel that is entirely NaN."""
+        p_signal = np.array(
+            [
+                [np.nan, 0.5],
+                [np.nan, -0.25],
+                [np.nan, np.nan],
+            ]
+        )
+
+        record = wfdb.Record(p_signal=p_signal, fmt=["16", "16"])
+        adc_gain, baseline = record.calc_adc_params()
+        assert adc_gain[0] == 1
+        assert baseline[0] == 1
+
+        record = wfdb.Record(e_p_signal=list(p_signal.transpose()), fmt=["16", "16"])
+        assert record.calc_adc_params() == (adc_gain, baseline)
+
+        wfdb.wrsamp(
+            "test_all_nan_channel",
+            fs=250,
+            sig_name=["I", "II"],
+            units=["mV", "mV"],
+            p_signal=p_signal,
+            fmt=["16", "16"],
+            write_dir=temp_path,
+        )
+        record = wfdb.rdrecord(os.path.join(temp_path, "test_all_nan_channel"))
+        assert np.isnan(record.p_signal[:, 0]).all()
+        np.testing.assert_allclose(
+            record.p_signal[:, 1], p_signal[:, 1], atol=1 / record.adc_gain[1]
+        )
+
 
 class TestSigCohesion:
     """Tests for the digital range check in check_sig_cohesion."""
