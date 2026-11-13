@@ -62,7 +62,7 @@ def wfdb_to_wav(
         pn_dir=pn_dir,
         sampfrom=sampfrom,
         sampto=sampto,
-        smooth_frames=False,
+        smooth_frames=True,
     )
     record_name_out = record_name.split(os.sep)[-1].replace("-", "_")
 
