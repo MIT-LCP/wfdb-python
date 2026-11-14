@@ -349,3 +349,16 @@ class TestWfdbToWav:
             frames = wav.readframes(record.sig_len)
         samples = np.frombuffer(frames, dtype="<i2").reshape(expected.shape)
         np.testing.assert_array_equal(samples, expected)
+
+    @pytest.mark.parametrize("record_name", ["100", "test01_00s_frame"])
+    def test_write_header(self, tmp_path, monkeypatch, record_name):
+        """The header written with write_header=True describes the .wav file."""
+        record_path = os.path.abspath(f"sample-data/{record_name}")
+        monkeypatch.chdir(tmp_path)
+        wfdb_to_wav(record_path, write_header=True)
+
+        # Read back as one sample per frame, with the same physical values
+        record = rdrecord(record_name)
+        expected = rdrecord(record_path)
+        assert record.samps_per_frame == [1] * expected.n_sig
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
