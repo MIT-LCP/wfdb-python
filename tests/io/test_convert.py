@@ -1,9 +1,11 @@
 import os
+import wave
 
 import numpy as np
 import pytest
 
 from wfdb.io.annotation import rdann
+from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import read_edf
 from wfdb.io.record import rdheader, rdrecord
@@ -322,3 +324,41 @@ class TestCsv2Ann:
         out_dir.mkdir()
         csv2ann(str(data_dir / "x.csv"), fs=100, write_dir=str(out_dir))
         assert (out_dir / "x.atr").exists()
+
+
+class TestWfdbToWav:
+    """Tests for wfdb_to_wav."""
+
+    # 11-bit samples, and a signal with two samples per frame
+    @pytest.mark.parametrize("record_name", ["100", "test01_00s_frame"])
+    def test_samples(self, tmp_path, record_name):
+        """One 16-bit sample per frame is written for each signal (#410)."""
+        wav_file = str(tmp_path / "out.wav")
+        wfdb_to_wav(f"sample-data/{record_name}", output_filename=wav_file)
+
+        # Samples are offset by the ADC zero and shifted to fill 16 bits
+        record = rdrecord(f"sample-data/{record_name}", physical=False)
+        shift = np.array([16 - res for res in record.adc_res])
+        expected = (record.d_signal - record.adc_zero) << shift
+
+        with wave.open(wav_file, "rb") as wav:
+            assert wav.getnchannels() == record.n_sig
+            assert wav.getsampwidth() == 2
+            assert wav.getframerate() == record.fs
+            assert wav.getnframes() == record.sig_len
+            frames = wav.readframes(record.sig_len)
+        samples = np.frombuffer(frames, dtype="<i2").reshape(expected.shape)
+        np.testing.assert_array_equal(samples, expected)
+
+    @pytest.mark.parametrize("record_name", ["100", "test01_00s_frame"])
+    def test_write_header(self, tmp_path, monkeypatch, record_name):
+        """The header written with write_header=True describes the .wav file."""
+        record_path = os.path.abspath(f"sample-data/{record_name}")
+        monkeypatch.chdir(tmp_path)
+        wfdb_to_wav(record_path, write_header=True)
+
+        # Read back as one sample per frame, with the same physical values
+        record = rdrecord(record_name)
+        expected = rdrecord(record_path)
+        assert record.samps_per_frame == [1] * expected.n_sig
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
