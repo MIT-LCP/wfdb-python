@@ -7,6 +7,171 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 4.4.0 (Nov 2026)
+------------------------
+
+**Fix writing channels that are entirely NaN**
+  ``wrsamp`` and ``calc_adc_params`` no longer fail with ``cannot convert float NaN to integer`` when a channel contains only NaN values, and no longer emit an "All-NaN slice encountered" warning for such channels.
+
+**Reject negative infinity in expanded signals**
+  ``calc_adc_params`` now raises "Signal contains inf" when ``e_p_signal`` contains ``-inf``, as it already did for ``p_signal``, instead of failing with ``cannot convert float NaN to integer``.
+
+**Return 0 from calc_mean_hr when all intervals are filtered out**
+  ``calc_mean_hr`` now returns 0 when ``min_rr`` or ``max_rr`` removes every R-R interval, as it does for empty input. It used to return ``nan`` with a "Mean of empty slice" warning.
+
+**Accept lists in calc_mean_hr with min_rr or max_rr**
+  ``calc_mean_hr`` now accepts R-R intervals as a list when ``min_rr`` or ``max_rr`` is given. It used to raise a ``TypeError``.
+
+**Allow empty annotations in compare_annotations**
+  ``compare_annotations`` (``Comparitor.compare``) no longer fails when the reference or test annotations are empty, for example when a detector finds no beats. The sensitivity or positive predictivity that cannot be computed is NaN.
+
+**Fix test annotations matched twice in compare_annotations**
+  ``compare_annotations`` (``Comparitor.compare``) could match one test annotation to two reference annotations, which gave a negative number of false positives and a positive predictivity above 1. Each test annotation is now matched at most once. Results are unchanged when no annotation was matched twice.
+
+**Check that QRS indices are increasing in compute_hr**
+  ``compute_hr`` now raises a ``ValueError`` if ``qrs_inds`` is not strictly increasing. Repeated beats used to give a ``ZeroDivisionError`` (or ``inf`` for NumPy arrays), and beats out of order gave a negative heart rate.
+
+**Use the last RR interval in compute_hr**
+  ``compute_hr`` now uses the interval between the last two beats for the heart rate after the last beat, instead of repeating the previous rate. With exactly two beats it now returns their rate after the second beat instead of only NaN.
+
+**Fix correct_peaks for peaks near the start of the signal**
+  ``correct_peaks`` no longer moves peaks within ``search_radius`` samples of the start of the signal to the wrong place, often before the start (for example ``-6`` instead of ``0``). The offset for these peaks was subtracted instead of added.
+
+**Fix search window in correct_peaks**
+  ``correct_peaks`` now searches ``search_radius`` samples on both sides of each peak, including the last sample of the signal. It used to stop one sample short on the right, so a peak exactly ``search_radius`` samples after the original index, or on the last sample, could not be found.
+
+**Fix parameter handling in csv_to_wfdb**
+  ``csv_to_wfdb`` now builds the same ``Record`` whether it writes files or returns the record (``record_only=True``), so all header parameters (such as ``dat_file_name``, ``counter_freq``, ``base_counter``, ``skew``, ``byte_offset``, ``adc_res`` and ``adc_zero``) are written instead of being ignored. Single values of any numeric type (including NumPy scalars and floats) are used for all channels, and an explicit ``0`` is no longer replaced by the default. The initial value and checksum are computed from the digital samples, and the default ADC resolution now follows ``fmt`` in both modes. The ``samps_per_frame``, ``init_value`` and ``checksum`` arguments are deprecated and ignored. The parameter descriptions in the docstring have been corrected.
+
+**Reduce memory use when writing format 16, 24 and 32 signals**
+  ``wrsamp`` and ``wr_dat_file`` now convert signals in formats 16, 24 and 32 to bytes directly, instead of splitting every sample into separate byte arrays. For a 4-hour, 8-channel record at 500 Hz, the peak memory used to pack a format 16 signal drops from about 2 GB to 110 MB, and packing is about 13 times faster. The written files are unchanged.
+
+**Drop support for Python 3.9 and 3.10**
+  The minimum supported Python version is now 3.11. The package is now also tested with Python 3.14 and 3.15.
+
+**Include the right edge of the window in find_local_peaks**
+  ``find_local_peaks`` now compares each sample with ``radius`` samples on both sides, as documented, and is about 3 times faster. The sample ``radius`` positions to the right, and the last sample of the signal, used to be left out. ``XQRS`` uses ``find_local_peaks`` to find candidate peaks, so its detections may change slightly.
+
+**Read units containing any non-whitespace characters**
+  Header files with units containing characters such as ``.`` or ``*`` (for example ``a.u.`` or ``uV*s``) are now read correctly. The units used to be cut off at the first such character, and the rest of the signal line (ADC resolution, ADC zero and so on) ended up in the signal name.
+
+**Read records from memory**
+  ``rdrecord``, ``rdsamp`` and ``rdheader`` now accept ``memory://`` URIs, which read from the in-memory filesystem of ``fsspec``, as ``rdann`` already did. This also makes cloud URIs work for signal files and multi-segment records on Windows, where the file paths used to be built with backslashes.
+
+**Raise minimum versions of dependencies**
+  The minimum versions of ``soundfile`` (0.12.1), ``matplotlib`` (3.8.0) and ``requests`` (2.31.0) have been raised. The minimum versions of the other dependencies are unchanged.
+
+**Write variable layout multi-segment records**
+  ``MultiRecord.wrsamp`` can now write variable layout multi-segment records, such as those read with ``rdrecord(..., m2s=False)``. Previously, writing the layout header failed because its signals have no samples (format ``0``, file name ``~``).
+
+**Validate multi-segment record writes**
+  ``MultiRecord.wrsamp`` now checks the segment lengths and sampling frequencies of all segments before writing any files, instead of writing a segment whose length does not match ``seg_len``.
+
+**Plot annotations outside the signal**
+  ``plot_items`` and ``plot_wfdb`` no longer fail with an ``IndexError`` when an annotation is after the end of the signal, and no longer draw annotations before the start of the signal at values from its end. These annotations are now drawn at zero, as for channels without a signal, with a warning suggesting ``shift_samps=True`` in ``rdann``.
+
+**Raise errors when rdann reads fs from the header**
+  When an annotation file doesn't store the sampling frequency, ``rdann`` reads it from the record's header. It used to ignore any error from that, for example when the header couldn't be downloaded from PhysioNet, and return the annotation with ``fs`` set to ``None``. Now only a missing header is ignored, and other errors are raised.
+
+**Accept pathlib.Path record names in rdann**
+  ``rdann`` now accepts a ``pathlib.Path`` (or other path-like object) as ``record_name``, as ``rdrecord``, ``rdsamp`` and ``rdheader`` already do. It used to fail with ``TypeError: unsupported operand type(s) for +``.
+
+**Speed up reading annotation files**
+  ``rdann`` now decodes annotation files using plain Python integers instead of indexing a NumPy array one byte at a time. Reading annotations is about 2 to 3 times faster (a 100,000-beat file now takes about 75 ms instead of 175). The annotations read are unchanged.
+
+**Fix rdedfann for EDF+ annotations**
+  ``rdedfann`` no longer passes obsolete options to ``read_edf`` and can read
+  EDF+ annotations again.
+
+**Read remote FLAC files with fewer requests**
+  Remote files read in small pieces, such as FLAC signal files on PhysioNet, now use larger requests as reading goes on (up to 8 MB) instead of one request for every 32 kB. Reading a 7.4 MB MIMIC-IV signal file now takes 8 requests instead of 229, which saves several minutes per file.
+
+**Add timeouts to requests for remote files**
+  Requests for files on PhysioNet (and other web servers) now time out if the server does not respond (10 seconds to connect, and 60 seconds to wait for data), instead of waiting indefinitely. A ``requests.exceptions.Timeout`` (``ConnectTimeout`` or ``ReadTimeout``) is raised in this case.
+
+**Fix resample_sig for signals starting with NaN**
+  ``resample_sig`` (and the functions that use it, such as ``resample_singlechan`` and ``resample_multichan``) returned only NaN values if the signal started with NaN. Leading NaN values now take the first valid value before resampling, as trailing ones already took the last.
+
+**Keep missing values missing in resample_sig**
+  ``resample_sig`` (and ``resample_singlechan`` and ``resample_multichan``) now return NaN for output samples with a NaN input value within half an output sample spacing (or within one input sample, when upsampling). NaN values are still filled before resampling, so the rest of the signal is unaffected, but the filled values are no longer returned as if they were real data.
+
+**Use Ruff for formatting and linting**
+  The ``dev`` extra now includes ``ruff`` instead of ``black`` and ``pylint``, and the code is formatted with a line length of 88 (the default).
+
+**Speed up the digital range check when writing records**
+  ``wrsamp`` now uses NumPy to check that digital samples are within the range of each format, instead of Python's built-in ``min`` and ``max``. Writing a 4-hour, 8-channel record at 500 Hz in format 16 now takes about 0.5 seconds instead of 3. The written files are unchanged.
+
+**Clarify smooth_frames behavior**
+  The ``rdrecord`` documentation now explains that ``smooth_frames`` controls
+  the output structure even when every channel has one sample per frame.
+
+**Fix smoothing of frames with invalid samples**
+  When a signal with more than one sample per frame is read with ``smooth_frames=True`` (the default), a frame that contains an invalid sample now gives an invalid value (NaN in physical units), as in the WFDB library. The invalid sample value used to be averaged with the other samples, which gave a large but valid-looking value.
+
+**Fix drifting timestamps in to_dataframe**
+  ``Record.to_dataframe`` now computes the timestamp of each sample directly. Previously the sample interval was truncated to whole nanoseconds and added up, so for sampling frequencies such as 360 Hz or 62.4725 Hz the timestamps drifted by up to about a millisecond over a long record. The index no longer has a ``freq`` attribute.
+
+**Build with uv_build**
+  The package is now built with ``uv_build`` instead of ``hatchling``. The version number is specified in ``pyproject.toml`` only, and ``wfdb.__version__`` is read from the installed package metadata (it is ``"unknown"`` if the package is run from a source tree without being installed).
+
+**Read and write .wfdb archive files**
+  A record can be stored in a single ``.wfdb`` archive file (a ZIP file containing the header and signal files). ``rdrecord``, ``rdsamp``, ``rdheader`` and ``rdann`` read a record or its annotations from an archive when given the path of the archive, and ``wrsamp`` writes a record into an archive with the new ``wfdb_archive`` argument. Multi-segment records are supported, with all their segments stored in the same archive.
+
+**Fix wfdb_to_mat encoding, slicing, and header metadata**
+  ``wfdb_to_mat`` now passes ``channels`` to ``rdrecord`` and computes output
+  length from the sliced record. It writes 8-bit (offset binary) and 32-bit
+  MAT files with proper data types and 8-byte MAT v5 padding, preserves missing
+  samples, clears already-applied channel skew, handles unset ``adc_res`` and
+  ``adc_zero`` fields, updates header checksums, and handles forward-slash
+  record paths across platforms.
+
+**Preserve shifted samples in wfdb_to_mat**
+  ``wfdb_to_mat`` now chooses a wider output type when samples shifted by
+  ``adc_zero`` do not fit the type suggested by the header. It raises an error
+  instead of silently wrapping samples that cannot fit in a 32-bit MAT file.
+
+**Fix channels and invalid samples in wfdb_to_wav**
+  ``wfdb_to_wav`` now writes only the signals selected with ``channels``, which it used to ignore. Invalid samples are written as -32768, the format 16 invalid value, so they are read back as missing. For a resolution below 12 bits, they used to overflow and become 0. The samples are now read as digital values, instead of being read as physical values and converted back.
+
+**Fix wfdb_to_wav failing for every record**
+  ``wfdb_to_wav`` now reads the record with ``smooth_frames=True``, since a .wav file holds one sample per frame for each signal. It used to read the expanded samples, and then failed with an ``AttributeError`` (a ``TypeError`` in older versions) because ``p_signal`` was not set. With ``write_header=True``, the header now gives one sample per frame for each signal, as in the .wav file, so a converted record with more than one sample per frame can be read back.
+
+**Reject aux notes that can't be written in wrann**
+  ``wrann`` now raises a ``ValueError`` if an ``aux_note`` is longer than 255 characters or contains characters outside Latin-1, instead of writing a corrupt annotation file. A longer note used to be read back as many extra annotations, and other characters were silently replaced.
+
+**Allow None for annotations without notes in wrann**
+  ``wrann`` now accepts ``None`` in ``aux_note`` for annotations without a note, as the docstring says, and writes it the same way as an empty string. It used to raise a ``TypeError``.
+
+**Accept sample numbers stored as floats in wrann**
+  ``wrann`` now accepts a ``sample`` array of floats if all the values are whole numbers (as from a detector that returns floats), and writes them as integers. Other floats, such as ``20.5`` or NaN, raise a ``ValueError``. Float arrays used to fail with ``TypeError: ufunc 'bitwise_and' not supported for the input types``.
+
+**Fix writing physical-only records**
+  ``Record.wrsamp`` now temporarily converts physical signals to digital samples
+  when the corresponding digital signals are missing, then restores the record.
+
+**Speed up XQRS backsearch**
+  ``XQRS`` no longer rechecks peaks that an earlier backsearch already rejected. Long stretches without QRS complexes (for example a disconnected lead) made detection take quadratic time, up to hours on long records. The detected QRS locations are unchanged.
+
+**Prevent ADC overflow with float32 signals**
+  ADC parameter calculation and conversion now use float64 arithmetic for
+  float32 physical signals. Samples near digital format limits no longer fail
+  validation because of a one-value rounding overflow.
+
+**Use only beat annotations in ann2rr**
+  ``ann2rr`` now computes intervals between beat (QRS) annotations only, as the WFDB ``ann2rr`` program does, so rhythm changes, comments and other non-beat annotations no longer split an RR interval in two. The first interval is still measured from the start of the record. To include all annotations as before, pass ``all_annotations=True`` (the equivalent of ``ann2rr -A``).
+
+**Select intervals by time in the record in ann2rr**
+  The ``start_time`` and ``stop_time`` arguments of ``ann2rr`` now select intervals by when they end in the record, as the WFDB ``ann2rr`` program's ``-f`` and ``-t`` options do, and the first interval is measured from ``start_time``. They used to filter intervals by their length instead. A ``start_time`` after ``stop_time`` now raises a ``ValueError``.
+
+**Fix get_contained_labels with pandas 3**
+  ``Annotation.get_contained_labels`` no longer raises a ``TypeError`` with pandas 3 for annotations without ``label_store`` values, such as those read with ``rdann`` by default.
+
+**Fix record name and add write directory in csv2ann**
+  ``csv2ann`` now takes the record name from the CSV file name without its directory and extension, as ``csv_to_wfdb`` does. Paths with a directory (such as ``data/x.csv``) used to fail when writing, and ``./x.csv`` gave an empty name. The annotation file is written to the new ``write_dir`` argument, which defaults to the current directory. ``csv2ann`` is now included in the API documentation.
+
+**Fix rr2ann with times and with a symbol column**
+  ``rr2ann`` with ``as_time=True`` now rounds times to the nearest sample instead of truncating them, so (for example) 0.29 seconds at 100 Hz gives sample 29 instead of 28. Intervals in samples with a second column of symbols no longer raise an error, and fractional intervals are summed before rounding.
+
 Version 4.3.1 (Feb 2026)
 -----------------------------
 
