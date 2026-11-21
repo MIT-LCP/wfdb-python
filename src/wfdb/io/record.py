@@ -1023,9 +1023,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         """
         # Compute the time of each sample directly, rather than adding up a
         # sample interval cut to whole nanoseconds, which drifts over
-        # long records.
-        offsets_ns = np.round(np.arange(self.sig_len) * (1e9 / self.fs))
-        index = pd.to_timedelta(offsets_ns.astype("int64"), unit="ns")
+        # long records. Work in place to avoid extra copies of the index.
+        offsets = np.arange(self.sig_len, dtype=np.float64)
+        offsets *= 1e9 / self.fs
+        offsets_ns = np.empty(self.sig_len, dtype=np.int64)
+        np.rint(offsets, out=offsets_ns, casting="unsafe")
+        del offsets
+        index = pd.to_timedelta(offsets_ns, unit="ns")
         if self.base_datetime is not None:
             index = pd.Timestamp(self.base_datetime) + index
 
