@@ -648,8 +648,8 @@ class TestWfdbToMat:
             wfdb_to_mat("too_large")
         assert not (tmp_path / "too_largem.mat").exists()
 
-    def test_missing_samples_and_skew_preserved(self, tmp_path, monkeypatch):
-        """Missing samples are preserved without overflow and skew is not doubled."""
+    def test_missing_samples_preserved(self, tmp_path, monkeypatch):
+        """Missing samples are preserved without overflow."""
         monkeypatch.chdir(tmp_path)
 
         # Missing samples with non-zero adc_zero (format 516)
@@ -661,7 +661,10 @@ class TestWfdbToMat:
             mixed_reloaded.p_signal, mixed_orig.p_signal, equal_nan=True
         )
 
-        # Skewed record should not be skewed a second time when read back
+    def test_skew_not_applied_twice(self, tmp_path, monkeypatch):
+        """Skewed record should not be skewed a second time when read back."""
+        monkeypatch.chdir(tmp_path)
+
         skew_src = str(self.SAMPLE_DATA / "100skew")
         wfdb_to_mat(skew_src, sampto=20)
         skew_orig = rdrecord(skew_src, sampto=20)
@@ -671,6 +674,8 @@ class TestWfdbToMat:
     def test_forward_slash_path(self, tmp_path, monkeypatch):
         """Forward-slash record paths work cross-platform and write into cwd."""
         monkeypatch.chdir(tmp_path)
+        # Only meaningful on Windows: elsewhere the old code handled this
+        # path already, so keep the test to guard the basename handling.
         src = (self.SAMPLE_DATA / "100").as_posix()
 
         wfdb_to_mat(src, sampto=8)
