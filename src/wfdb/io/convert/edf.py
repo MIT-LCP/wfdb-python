@@ -1009,8 +1009,8 @@ def rdedfann(
         eg. For record '100' in 'http://physionet.org/content/mitdb'
         pn_dir='mitdb'.
     delete_file : bool, optional
-        Whether to delete the saved EDF file (False) or not (True)
-        after being imported.
+        Whether to delete the EDF file downloaded from PhysioNet after
+        reading it. A local input file is never deleted.
     info_only : bool, optional
         Return, strictly, the information contained in the file as formatted
         by the original WFDB package. Must not be True if `record_only` is
@@ -1089,10 +1089,12 @@ def rdedfann(
     rec = read_edf(
         record_name,
         pn_dir=pn_dir,
-        delete_file=delete_file,
-        record_only=True,
+        verbose=verbose,
         rdedfann_flag=True,
+        encoding=encoding,
     )
+    if pn_dir is not None and delete_file:
+        os.remove(record_name)
 
     # Convert from array of integers to ASCII strings
     annotation_string = ""
