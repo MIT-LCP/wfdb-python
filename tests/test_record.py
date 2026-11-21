@@ -940,6 +940,35 @@ class TestRecord:
         )
         assert np.array_equal(record.p_signal, df.values)
 
+    @pytest.mark.parametrize(
+        "base_datetime", [None, datetime.datetime(2148, 8, 16, 9, 0, 17, 566000)]
+    )
+    def test_to_dataframe_no_drift(self, base_datetime):
+        """Timestamps do not drift when 1/fs is not a whole number of ns."""
+        fs = 62.4725
+        sig_len = 6661120
+        record = wfdb.Record(
+            p_signal=np.zeros((sig_len, 1)),
+            fs=fs,
+            sig_len=sig_len,
+            sig_name=["I"],
+            base_date=None if base_datetime is None else base_datetime.date(),
+            base_time=None if base_datetime is None else base_datetime.time(),
+        )
+
+        index = record.to_dataframe().index
+
+        start = (
+            pd.Timedelta(0) if base_datetime is None else pd.Timestamp(base_datetime)
+        )
+        expected_ns = np.arange(sig_len) * (1e9 / fs)
+        error_ns = (index - start).to_numpy().astype("int64") - expected_ns
+        assert np.abs(error_ns).max() <= 0.5
+        if base_datetime is None:
+            assert isinstance(index, pd.TimedeltaIndex)
+        else:
+            assert isinstance(index, pd.DatetimeIndex)
+
     def test_header_with_non_utf8(self):
         """Ignores non-utf8 characters in the header part."""
         record = wfdb.rdrecord("sample-data/test_generator_2")
