@@ -573,12 +573,12 @@ class BaseRecord:
             `p_signal` field (True), or digital units in the `d_signal`
             field (False).
         smooth_frames : bool
-            Used when reading records with signals having multiple samples
-            per frame. Specifies whether to smooth the samples in signals
-            with more than one sample per frame and return an (MxN) uniform
-            numpy array as the `d_signal` or `p_signal` field (True), or to
-            return a list of 1d numpy arrays containing every expanded
-            sample as the `e_d_signal` or `e_p_signal` field (False).
+            Whether to return an (MxN) uniform numpy array in `d_signal`
+            or `p_signal` (True), or a list of 1d arrays containing every
+            sample in `e_d_signal` or `e_p_signal` (False). In uniform mode,
+            samples within each frame are averaged when a channel has more
+            than one sample per frame. This option also determines the output
+            structure when every channel has one sample per frame.
         return_res : int
             The numpy array dtype of the returned signals. Options are: 64,
             32, 16, and 8, where the value represents the numpy int or float
@@ -2096,11 +2096,12 @@ def rdrecord(
         directly return a WFDB MultiRecord object (False), or to convert
         it into and return a WFDB Record object (True).
     smooth_frames : bool, optional
-        Specifies whether to smooth the samples in signals with more
-        than one sample per frame and return an (MxN) uniform numpy
-        array as the `d_signal` or `p_signal` field (True), or to
-        return a list of 1d numpy arrays containing every expanded
-        sample as the `e_d_signal` or `e_p_signal` field (False).
+        Whether to return an (MxN) uniform numpy array in `d_signal`
+        or `p_signal` (True), or a list of 1d arrays containing every
+        sample in `e_d_signal` or `e_p_signal` (False). In uniform mode,
+        samples within each frame are averaged when a channel has more
+        than one sample per frame. This option also determines the output
+        structure when every channel has one sample per frame.
     ignore_skew : bool, optional
         Used when reading records with at least one skewed signal.
         Specifies whether to apply the skew to align the signals in the
