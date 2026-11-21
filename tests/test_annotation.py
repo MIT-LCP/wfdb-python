@@ -444,3 +444,25 @@ def test_subtype_chan_num_round_trip(temp_path):
     assert ann.subtype.tolist() == subtype.tolist()
     assert ann.chan.tolist() == chan.tolist()
     assert ann.num.tolist() == num.tolist()
+
+
+def test_rdann_fs_without_header(tmp_path):
+    """fs is None if the annotation file has no fs and there is no header."""
+    wfdb.wrann(
+        "nohea", "atr", np.array([10, 20]), symbol=["N", "N"], write_dir=tmp_path
+    )
+    assert not (tmp_path / "nohea.hea").exists()
+    ann = wfdb.rdann(str(tmp_path / "nohea"), "atr")
+    assert ann.fs is None
+
+
+def test_rdann_fs_header_error(tmp_path, monkeypatch):
+    """Errors other than a missing header are raised, not ignored."""
+    wfdb.wrann("err", "atr", np.array([10, 20]), symbol=["N", "N"], write_dir=tmp_path)
+
+    def rdheader(*args, **kwargs):
+        raise wfdb.io._url.NetFileError("502 Error: Bad Gateway", status_code=502)
+
+    monkeypatch.setattr(wfdb.io.record, "rdheader", rdheader)
+    with pytest.raises(wfdb.io._url.NetFileError, match="Bad Gateway"):
+        wfdb.rdann(str(tmp_path / "err"), "atr")

@@ -2023,12 +2023,13 @@ def rdann(
     sample = np.array(sample, dtype="int64")
 
     # Try to get fs from the header file if it is not contained in the
-    # annotation file
+    # annotation file. A record does not need a header, but other errors (such
+    # as network errors) are raised rather than leaving fs unset.
     if fs is None:
         try:
             rec = record.rdheader(record_name, pn_dir)
             fs = rec.fs
-        except:
+        except FileNotFoundError:
             pass
 
     # Create the annotation object
