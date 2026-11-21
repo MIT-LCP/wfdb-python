@@ -1,12 +1,15 @@
 import os
+from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.io import loadmat
 
 from wfdb.io.annotation import rdann
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import read_edf
-from wfdb.io.record import rdheader, rdrecord
+from wfdb.io.convert.matlab import wfdb_to_mat
+from wfdb.io.record import rdheader, rdrecord, wrsamp
 
 
 class TestEdfToWfdb:
@@ -322,3 +325,129 @@ class TestCsv2Ann:
         out_dir.mkdir()
         csv2ann(str(data_dir / "x.csv"), fs=100, write_dir=str(out_dir))
         assert (out_dir / "x.atr").exists()
+
+
+class TestWfdbToMat:
+    """Tests for the io.convert.matlab module."""
+
+    SAMPLE_DATA = Path(__file__).resolve().parents[2] / "sample-data"
+
+    def test_basic_roundtrip_and_padding(self, tmp_path, monkeypatch):
+        """16-bit MAT-file output pads to 8-byte boundary and round-trips cleanly."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "100")
+
+        # 2 channels * 5 samples * 2 bytes = 20 bytes (requires 4 bytes padding)
+        wfdb_to_mat(src, sampto=5)
+
+        mat_path = tmp_path / "100m.mat"
+        assert mat_path.stat().st_size == 192 + 24
+
+        mat_val = loadmat(mat_path)["val"]
+        orig_d = rdrecord(src, sampto=5, physical=False)
+        orig_p = rdrecord(src, sampto=5)
+        expected_val = (orig_d.d_signal - np.asarray(orig_d.adc_zero)).T
+        assert mat_val.dtype == np.int16
+        np.testing.assert_array_equal(mat_val, expected_val)
+
+        reloaded = rdrecord(str(tmp_path / "100m"))
+        reloaded_d = rdrecord(str(tmp_path / "100m"), physical=False)
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    def test_channels_and_sampfrom_slice(self, tmp_path, monkeypatch):
+        """channels selection and sampfrom without sampto produce valid output."""
+        monkeypatch.chdir(tmp_path)
+        sig = np.arange(40, dtype=np.int16).reshape(20, 2)
+        wrsamp(
+            "tiny",
+            fs=100,
+            units=["mV", "mV"],
+            sig_name=["I", "II"],
+            d_signal=sig,
+            fmt=["16", "16"],
+            adc_gain=[100, 200],
+            baseline=[0, 0],
+            write_dir=str(tmp_path),
+        )
+
+        # sampfrom > sig_len / 2 used to make desired_length negative
+        wfdb_to_mat(str(tmp_path / "tiny"), sampfrom=12, channels=[1])
+
+        mat_val = loadmat(tmp_path / "tinym.mat")["val"]
+        assert mat_val.shape == (1, 8)
+        np.testing.assert_array_equal(mat_val[0], sig[12:, 1])
+
+        reloaded = rdrecord(str(tmp_path / "tinym"))
+        orig = rdrecord(str(tmp_path / "tiny"), sampfrom=12, channels=[1])
+        assert reloaded.n_sig == 1
+        assert reloaded.sig_name == ["II"]
+        np.testing.assert_allclose(reloaded.p_signal, orig.p_signal)
+
+    def test_format_80_uint8(self, tmp_path, monkeypatch):
+        """8-bit (format 80) records write offset-binary uint8 MAT-files."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "binformats")
+
+        wfdb_to_mat(src, sampto=10, channels=[3])
+
+        mat_val = loadmat(tmp_path / "binformatsm.mat")["val"]
+        orig_d = rdrecord(src, sampto=10, channels=[3], physical=False)
+        orig_p = rdrecord(src, sampto=10, channels=[3])
+        assert mat_val.dtype == np.uint8
+        np.testing.assert_array_equal(mat_val, (orig_d.d_signal + 128).T)
+
+        reloaded = rdrecord(str(tmp_path / "binformatsm"))
+        reloaded_d = rdrecord(str(tmp_path / "binformatsm"), physical=False)
+        assert reloaded.fmt == ["80"]
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    def test_format_32_int32_and_missing_adc_fields(self, tmp_path, monkeypatch):
+        """24/32-bit records and headers with unset adc_res/adc_zero write int32."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "n8_evoked_raw_95_F1_R9")
+
+        wfdb_to_mat(src, sampto=10)
+
+        mat_val = loadmat(tmp_path / "n8_evoked_raw_95_F1_R9m.mat")["val"]
+        orig_d = rdrecord(src, sampto=10, physical=False)
+        orig_p = rdrecord(src, sampto=10)
+        assert mat_val.dtype == np.int32
+        np.testing.assert_array_equal(mat_val, orig_d.d_signal.T)
+
+        reloaded = rdrecord(str(tmp_path / "n8_evoked_raw_95_F1_R9m"))
+        reloaded_d = rdrecord(str(tmp_path / "n8_evoked_raw_95_F1_R9m"), physical=False)
+        assert reloaded.fmt == ["32", "32"]
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    def test_missing_samples_and_skew_preserved(self, tmp_path, monkeypatch):
+        """Missing samples are preserved without overflow and skew is not doubled."""
+        monkeypatch.chdir(tmp_path)
+
+        # Missing samples with non-zero adc_zero (format 516)
+        mixed_src = str(self.SAMPLE_DATA / "mixedsignals")
+        wfdb_to_mat(mixed_src, sampto=20)
+        mixed_orig = rdrecord(mixed_src, sampto=20)
+        mixed_reloaded = rdrecord(str(tmp_path / "mixedsignalsm"))
+        np.testing.assert_allclose(
+            mixed_reloaded.p_signal, mixed_orig.p_signal, equal_nan=True
+        )
+
+        # Skewed record should not be skewed a second time when read back
+        skew_src = str(self.SAMPLE_DATA / "100skew")
+        wfdb_to_mat(skew_src, sampto=20)
+        skew_orig = rdrecord(skew_src, sampto=20)
+        skew_reloaded = rdrecord(str(tmp_path / "100skewm"))
+        np.testing.assert_allclose(skew_reloaded.p_signal, skew_orig.p_signal)
+
+    def test_forward_slash_path(self, tmp_path, monkeypatch):
+        """Forward-slash record paths work cross-platform and write into cwd."""
+        monkeypatch.chdir(tmp_path)
+        src = (self.SAMPLE_DATA / "100").as_posix()
+
+        wfdb_to_mat(src, sampto=8)
+
+        assert (tmp_path / "100m.mat").exists()
+        assert (tmp_path / "100m.hea").exists()
