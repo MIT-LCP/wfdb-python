@@ -124,15 +124,16 @@ def calc_rr(
 def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units="samples"):
     """Compute mean heart rate in beats per minute, from a set of R-R intervals.
 
-    Returns 0 if rr is empty.
+    Returns 0 if `rr` is empty, or if `min_rr` or `max_rr` excludes every
+    interval.
 
     Parameters
     ----------
-    rr : ndarray
+    rr : array_like
         Array of R-R intervals.
     fs : int, float
         The corresponding signal's sampling frequency. Required if
-        'input_time_units' == 'samples'.
+        `rr_units` is 'samples'.
     min_rr : float, optional
         The minimum allowed R-R interval. Values below this are excluded
         when calculating the heart rate. Units are in `rr_units`.
@@ -149,6 +150,8 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units="samples"):
         The mean heart rate in beats per minute.
 
     """
+    rr = np.asarray(rr)
+
     if min_rr is not None:
         rr = rr[rr > min_rr]
 
