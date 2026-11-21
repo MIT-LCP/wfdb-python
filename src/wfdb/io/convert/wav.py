@@ -5,6 +5,7 @@ import struct
 import numpy as np
 
 from wfdb.io import Record, _url, download
+from wfdb.io._signal import _digi_nan
 from wfdb.io.record import rdrecord
 
 
@@ -62,6 +63,8 @@ def wfdb_to_wav(
         pn_dir=pn_dir,
         sampfrom=sampfrom,
         sampto=sampto,
+        channels=channels,
+        physical=False,
         smooth_frames=True,
     )
     record_name_out = record_name.split(os.sep)[-1].replace("-", "_")
@@ -75,6 +78,16 @@ def wfdb_to_wav(
     bits_per_sample = max(record.adc_res)
     offset = record.adc_zero
     shift = [(16 - v) for v in record.adc_res]
+
+    # Offset the samples by the ADC zero and shift them to fill 16 bits.
+    # Invalid samples are written as the format 16 invalid value, since
+    # shifting them could overflow.
+    samples = np.left_shift(record.d_signal.astype(np.int64) - offset, shift)
+    for ch, fmt in enumerate(record.fmt):
+        invalid = _digi_nan(fmt)
+        if invalid is not None:
+            samples[record.d_signal[:, ch] == invalid, ch] = _digi_nan("16")
+    sig_data = samples.astype(np.int16).reshape((1, -1))
 
     # Start writing the file
     if output_filename != "":
@@ -109,17 +122,7 @@ def wfdb_to_wav(
         f.write(struct.pack(">4s", b"data"))
         # The number of bytes in the signal data chunk
         f.write(struct.pack("<I", chunk_bytes))
-        # Write the signal data... the closest I can get to the original implementation
-        # Mismatched elements: 723881 / 15400000 (4.7%)
-        # Max absolute difference: 2
-        # Max relative difference: 0.00444444
-        #  x: array([ -322,  3852, -9246, ...,     0,     0,     0], dtype=int16)
-        #  y: array([ -322,  3852, -9246, ...,     0,     0,     0], dtype=int16)
-        sig_data = (
-            np.left_shift(np.subtract(record.adc(), offset), shift)
-            .reshape((1, -1))
-            .astype(np.int16)
-        )
+        # Write the multiplexed signal data
         sig_data.tofile(f)
 
     # If asked to write the accompanying header file

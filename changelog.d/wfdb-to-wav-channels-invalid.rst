@@ -1,0 +1,2 @@
+**Fix channels and invalid samples in wfdb_to_wav**
+  ``wfdb_to_wav`` now writes only the signals selected with ``channels``, which it used to ignore. Invalid samples are written as -32768, the format 16 invalid value, so they are read back as missing. For a resolution below 12 bits, they used to overflow and become 0. The samples are now read as digital values, instead of being read as physical values and converted back.
