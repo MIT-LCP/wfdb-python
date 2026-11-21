@@ -143,3 +143,22 @@ def test_ann2rr_time_range(mixed_annotations, start_time, stop_time, expected):
 def test_ann2rr_start_after_stop(mixed_annotations):
     with pytest.raises(ValueError, match="start_time"):
         processing.ann2rr(mixed_annotations, "atr", start_time=2, stop_time=1)
+
+
+@pytest.mark.parametrize(
+    "rr, kwargs",
+    [
+        (np.array([]), {}),
+        (np.array([100.0, 120.0]), {"min_rr": 200}),
+        (np.array([100.0, 120.0]), {"max_rr": 50}),
+        (np.array([0.4, 0.5]), {"min_rr": 1, "rr_units": "seconds"}),
+    ],
+)
+def test_calc_mean_hr_no_intervals(rr, kwargs):
+    assert processing.calc_mean_hr(rr, fs=250, **kwargs) == 0
+
+
+def test_calc_mean_hr_filters():
+    rr = np.array([100.0, 150.0, 200.0, 400.0])
+    hr = processing.calc_mean_hr(rr, fs=250, min_rr=120, max_rr=300)
+    assert hr == pytest.approx(60 * 250 / 175)

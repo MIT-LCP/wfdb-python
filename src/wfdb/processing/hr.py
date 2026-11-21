@@ -149,14 +149,15 @@ def calc_mean_hr(rr, fs=None, min_rr=None, max_rr=None, rr_units="samples"):
         The mean heart rate in beats per minute.
 
     """
-    if not len(rr):
-        return 0
-
     if min_rr is not None:
         rr = rr[rr > min_rr]
 
     if max_rr is not None:
         rr = rr[rr < max_rr]
+
+    # Check after filtering, so that no intervals left also gives 0
+    if not len(rr):
+        return 0
 
     mean_rr = np.mean(rr)
 
