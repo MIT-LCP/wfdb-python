@@ -4,6 +4,7 @@ import struct
 
 import numpy as np
 
+from wfdb.io._signal import _digi_nan
 from wfdb.io.record import rdrecord
 
 
@@ -37,7 +38,8 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     little-endian format if the record contains any format 24 or format 32 signals,
     as 8-bit unsigned integers (mattype=50) if the record contains only format 80
     signals, or as 16-bit signed integers in little-endian format (mattype=30)
-    otherwise.
+    otherwise. A wider type is used when shifted samples do not fit the type
+    suggested by the header. Conversion fails if they cannot fit in 32 bits.
 
     The maximum size of the output variable is 2^31 bytes. `wfdb2mat` from versions
     10.5.24 and earlier of the original WFDB software package writes version 4 MAT-
@@ -91,8 +93,21 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     The output file name is 100m.mat and 100m.hea
 
     """
-    record = rdrecord(record_name, pn_dir=pn_dir, sampfrom=sampfrom, sampto=sampto)
-    record_name_out = record_name.split(os.sep)[-1].replace("-", "_") + "m"
+    record = rdrecord(
+        record_name,
+        pn_dir=pn_dir,
+        sampfrom=sampfrom,
+        sampto=sampto,
+        channels=channels,
+        physical=False,
+    )
+    record_name_out = os.path.basename(os.fspath(record_name)).replace("-", "_") + "m"
+
+    adc_res = [r if r is not None else 0 for r in record.adc_res]
+    adc_zero = [z if z is not None else 0 for z in record.adc_zero]
+    baseline = [
+        b if b is not None else adc_zero[i] for i, b in enumerate(record.baseline)
+    ]
 
     # Some variables describing the format of the .mat file
     field_version = 256  # 0x0100 or 256
@@ -107,17 +122,47 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     # are needed per sample
     bytes_per_element = 1
     for i in range(record.n_sig):
-        if record.adc_res[i] > 0:
-            if record.adc_res[i] > 16:
+        if adc_res[i] > 0:
+            if adc_res[i] > 16:
                 bytes_per_element = 4
-            elif (record.adc_res[i] > 8) and (bytes_per_element < 2):
+            elif (adc_res[i] > 8) and (bytes_per_element < 2):
                 bytes_per_element = 2
         else:
             # adc_res not specified.. try to guess from format
-            if (record.fmt[i] == "24") or (record.fmt[i] == "32"):
+            if record.fmt[i] in ("24", "32", "524"):
                 bytes_per_element = 4
-            elif (record.fmt[i] != "80") and (bytes_per_element < 2):
+            elif (record.fmt[i] not in ("80", "508")) and (bytes_per_element < 2):
                 bytes_per_element = 2
+
+    shifted_data = record.d_signal.astype(np.int64) - np.asarray(
+        adc_zero, dtype=np.int64
+    )
+    valid_min = valid_max = None
+    for i, fmt in enumerate(record.fmt):
+        channel = shifted_data[:, i]
+        orig_nan = _digi_nan(fmt)
+        if orig_nan is not None:
+            channel = channel[record.d_signal[:, i] != orig_nan]
+        if channel.size:
+            channel_min = int(channel.min())
+            channel_max = int(channel.max())
+            valid_min = (
+                channel_min if valid_min is None else min(valid_min, channel_min)
+            )
+            valid_max = (
+                channel_max if valid_max is None else max(valid_max, channel_max)
+            )
+
+    # The lowest digital value is reserved for missing samples in each format.
+    # Promote the output type if the shifted valid samples do not fit.
+    for width, max_valid in ((1, 127), (2, 32767), (4, 2147483647)):
+        if width >= bytes_per_element and (
+            valid_min is None or (valid_min >= -max_valid and valid_max <= max_valid)
+        ):
+            bytes_per_element = width
+            break
+    else:
+        raise ValueError("Shifted samples exceed the 32-bit WFDB range")
 
     if bytes_per_element == 1:
         sub4_type = 2  # MAT8
@@ -140,9 +185,7 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
 
     # Ensure the signal size does not exceed the 2^31 byte limit
     max_length = int((2**31) / bytes_per_element / record.n_sig)
-    if sampto is None:
-        sampto = record.p_signal.shape[0]
-    desired_length = sampto - sampfrom
+    desired_length = record.sig_len
     # Snip record
     if desired_length > max_length:
         raise Exception("Can't write .mat file: data size exceeds 2GB limit")
@@ -220,14 +263,18 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
         #     + 56 byte subelements (48 byte default + 8 byte name)
         #     = 192
 
-        # Copy the selected data into the .mat file
-        out_data = record.p_signal * record.adc_gain + record.baseline - record.adc_zero
-        # Cast the data to the correct type base on the bytes_per_element
-        out_data = np.around(out_data).astype(out_type)
-        # out_data should be [r1c1, r1c2, r2c1, r2c2, etc.]
-        out_data = out_data.flatten()
-        out_fmt = "<%sh" % len(out_data)
-        f.write(struct.pack(out_fmt, *out_data))
+        # Copy the selected data into the .mat file, preserving missing samples
+        out_nan = _digi_nan(wfdb_type)
+        for i, fmt in enumerate(record.fmt):
+            orig_nan = _digi_nan(fmt)
+            if orig_nan is not None:
+                shifted_data[record.d_signal[:, i] == orig_nan, i] = out_nan
+        # Cast the data to the correct type based on bytes_per_element
+        # out_data is C-contiguous: [r1c1, r1c2, r2c1, r2c2, etc.]
+        out_data = np.ascontiguousarray(shifted_data + offset, dtype=out_type)
+        f.write(out_data.tobytes())
+        if bytes_remain:
+            f.write(b"\x00" * (8 - bytes_remain))
 
     # Display some useful information
     if record.base_time is None:
@@ -254,23 +301,31 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     print(
         "{:<7}{:<20}{:<17}{:<10}{:<10}".format("Row", "Signal", "Gain", "Base", "Units")
     )
-    record.sig_name = [s.replace(" ", "_") for s in record.sig_name]
+    record.sig_name = [
+        s.replace(" ", "_") if s is not None else None for s in record.sig_name
+    ]
     for i in range(record.n_sig):
+        sig_name = record.sig_name[i] if record.sig_name[i] is not None else ""
+        unit = record.units[i] if record.units[i] is not None else ""
         print(
-            f"{i:<7}{record.sig_name[i]:<20}{record.adc_gain[i]:<17}{record.baseline[i] - record.adc_zero[i] + offset:<10}{record.units[i]:<10}"
+            f"{i:<7}{sig_name:<20}{record.adc_gain[i]:<17}{baseline[i] - adc_zero[i] + offset:<10}{unit:<10}"
         )
 
     # Modify the record file to reflect the new data
-    num_channels = record.n_sig if (channels is None) else len(channels)
+    num_channels = record.n_sig
     record.record_name = record_name_out
     record.n_sig = num_channels
     record.samps_per_frame = num_channels * [1]
+    record.skew = None
     record.file_name = num_channels * [output_file]
     record.fmt = num_channels * [wfdb_type]
     record.byte_offset = num_channels * [192]
-    record.baseline = [b - record.adc_zero[i] for i, b in enumerate(record.baseline)]
+    record.adc_res = adc_res
+    record.baseline = [baseline[i] - adc_zero[i] for i in range(num_channels)]
     record.adc_zero = num_channels * [0]
-    record.init_value = out_data[: record.n_sig].tolist()
+    record.block_size = num_channels * [0]
+    record.init_value = shifted_data[0].tolist()
+    record.checksum = [int(c) for c in np.sum(shifted_data, axis=0) % 65536]
 
     # Write the header file RECm.hea
     record.wrheader()

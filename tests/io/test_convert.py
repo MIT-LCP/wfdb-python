@@ -1,15 +1,18 @@
 import os
 import shutil
 import wave
+from pathlib import Path
 
 import numpy as np
 import pytest
+from scipy.io import loadmat
 
 from wfdb.io.annotation import rdann
 from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import rdedfann, read_edf
-from wfdb.io.record import rdheader, rdrecord, wrsamp
+from wfdb.io.convert.matlab import wfdb_to_mat
+from wfdb.io.record import Record, rdheader, rdrecord, wrsamp
 
 
 class TestEdfToWfdb:
@@ -459,3 +462,218 @@ class TestWfdbToWav:
         expected = rdrecord(record_path)
         np.testing.assert_array_equal(record.p_signal, expected.p_signal)
         assert np.isnan(record.p_signal[1, 0])
+
+
+class TestWfdbToMat:
+    """Tests for the io.convert.matlab module."""
+
+    SAMPLE_DATA = Path(__file__).resolve().parents[2] / "sample-data"
+
+    def test_basic_roundtrip_and_padding(self, tmp_path, monkeypatch):
+        """16-bit MAT-file output pads to 8-byte boundary and round-trips cleanly."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "100")
+
+        # 2 channels * 5 samples * 2 bytes = 20 bytes (requires 4 bytes padding)
+        wfdb_to_mat(src, sampto=5)
+
+        mat_path = tmp_path / "100m.mat"
+        assert mat_path.stat().st_size == 192 + 24
+
+        mat_val = loadmat(mat_path)["val"]
+        orig_d = rdrecord(src, sampto=5, physical=False)
+        orig_p = rdrecord(src, sampto=5)
+        expected_val = (orig_d.d_signal - np.asarray(orig_d.adc_zero)).T
+        assert mat_val.dtype == np.int16
+        np.testing.assert_array_equal(mat_val, expected_val)
+
+        reloaded = rdrecord(str(tmp_path / "100m"))
+        reloaded_d = rdrecord(str(tmp_path / "100m"), physical=False)
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    def test_channels_and_sampfrom_slice(self, tmp_path, monkeypatch):
+        """channels selection and sampfrom without sampto produce valid output."""
+        monkeypatch.chdir(tmp_path)
+        sig = np.arange(40, dtype=np.int16).reshape(20, 2)
+        wrsamp(
+            "tiny",
+            fs=100,
+            units=["mV", "mV"],
+            sig_name=["I", "II"],
+            d_signal=sig,
+            fmt=["16", "16"],
+            adc_gain=[100, 200],
+            baseline=[0, 0],
+            write_dir=str(tmp_path),
+        )
+
+        # sampfrom > sig_len / 2 used to make desired_length negative
+        wfdb_to_mat(str(tmp_path / "tiny"), sampfrom=12, channels=[1])
+
+        mat_val = loadmat(tmp_path / "tinym.mat")["val"]
+        assert mat_val.shape == (1, 8)
+        np.testing.assert_array_equal(mat_val[0], sig[12:, 1])
+
+        reloaded = rdrecord(str(tmp_path / "tinym"))
+        orig = rdrecord(str(tmp_path / "tiny"), sampfrom=12, channels=[1])
+        assert reloaded.n_sig == 1
+        assert reloaded.sig_name == ["II"]
+        np.testing.assert_allclose(reloaded.p_signal, orig.p_signal)
+
+    def test_format_80_uint8(self, tmp_path, monkeypatch):
+        """8-bit (format 80) records write offset-binary uint8 MAT-files."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "binformats")
+
+        wfdb_to_mat(src, sampto=10, channels=[3])
+
+        mat_val = loadmat(tmp_path / "binformatsm.mat")["val"]
+        orig_d = rdrecord(src, sampto=10, channels=[3], physical=False)
+        orig_p = rdrecord(src, sampto=10, channels=[3])
+        assert mat_val.dtype == np.uint8
+        np.testing.assert_array_equal(mat_val, (orig_d.d_signal + 128).T)
+
+        reloaded = rdrecord(str(tmp_path / "binformatsm"))
+        reloaded_d = rdrecord(str(tmp_path / "binformatsm"), physical=False)
+        assert reloaded.fmt == ["80"]
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    def test_format_32_int32_and_missing_adc_fields(self, tmp_path, monkeypatch):
+        """24/32-bit records and headers with unset adc_res/adc_zero write int32."""
+        monkeypatch.chdir(tmp_path)
+        src = str(self.SAMPLE_DATA / "n8_evoked_raw_95_F1_R9")
+
+        wfdb_to_mat(src, sampto=10)
+
+        mat_val = loadmat(tmp_path / "n8_evoked_raw_95_F1_R9m.mat")["val"]
+        orig_d = rdrecord(src, sampto=10, physical=False)
+        orig_p = rdrecord(src, sampto=10)
+        assert mat_val.dtype == np.int32
+        np.testing.assert_array_equal(mat_val, orig_d.d_signal.T)
+
+        reloaded = rdrecord(str(tmp_path / "n8_evoked_raw_95_F1_R9m"))
+        reloaded_d = rdrecord(str(tmp_path / "n8_evoked_raw_95_F1_R9m"), physical=False)
+        assert reloaded.fmt == ["32", "32"]
+        np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
+        assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    @pytest.mark.parametrize("adc_zero", [-1, 1])
+    def test_shifted_samples_promote_to_int32(self, tmp_path, monkeypatch, adc_zero):
+        """Do not wrap a valid shifted sample to the missing value."""
+        monkeypatch.chdir(tmp_path)
+        samples = np.array([[-32768], [-32767], [0], [32767]], dtype=np.int16)
+        Record(
+            record_name="shifted",
+            n_sig=1,
+            sig_len=len(samples),
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=samples,
+            file_name=["shifted.dat"],
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[16],
+            adc_zero=[adc_zero],
+            block_size=[0],
+            init_value=[int(samples[0, 0])],
+            checksum=[int(samples.sum() % 65536)],
+        ).wrsamp()
+
+        wfdb_to_mat("shifted")
+
+        mat_val = loadmat("shiftedm.mat")["val"]
+        assert mat_val.dtype == np.int32
+        expected = samples[:, 0].astype(np.int64) - adc_zero
+        expected[0] = -2147483648
+        np.testing.assert_array_equal(mat_val[0], expected)
+        output = rdrecord("shiftedm", physical=False)
+        np.testing.assert_array_equal(output.d_signal[:, 0], expected)
+
+    def test_adc_res_understates_sample_range(self, tmp_path, monkeypatch):
+        """Choose the MAT type from actual samples as well as adc_res."""
+        monkeypatch.chdir(tmp_path)
+        samples = np.array([[100], [300], [-300]], dtype=np.int16)
+        Record(
+            record_name="understated",
+            n_sig=1,
+            sig_len=len(samples),
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=samples,
+            file_name=["understated.dat"],
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[8],
+            adc_zero=[0],
+            block_size=[0],
+            init_value=[int(samples[0, 0])],
+            checksum=[int(samples.sum() % 65536)],
+        ).wrsamp()
+
+        wfdb_to_mat("understated")
+
+        mat_val = loadmat("understatedm.mat")["val"]
+        assert mat_val.dtype == np.int16
+        np.testing.assert_array_equal(mat_val[0], samples[:, 0])
+
+    def test_shifted_samples_exceed_int32(self, tmp_path, monkeypatch):
+        """Fail before writing when no supported type preserves valid samples."""
+        monkeypatch.chdir(tmp_path)
+        Record(
+            record_name="too_large",
+            n_sig=1,
+            sig_len=1,
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=np.array([[2147483647]], dtype=np.int32),
+            file_name=["too_large.dat"],
+            fmt=["32"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[32],
+            adc_zero=[-1],
+            block_size=[0],
+            init_value=[2147483647],
+            checksum=[65535],
+        ).wrsamp()
+
+        with pytest.raises(ValueError, match="Shifted samples exceed"):
+            wfdb_to_mat("too_large")
+        assert not (tmp_path / "too_largem.mat").exists()
+
+    def test_missing_samples_and_skew_preserved(self, tmp_path, monkeypatch):
+        """Missing samples are preserved without overflow and skew is not doubled."""
+        monkeypatch.chdir(tmp_path)
+
+        # Missing samples with non-zero adc_zero (format 516)
+        mixed_src = str(self.SAMPLE_DATA / "mixedsignals")
+        wfdb_to_mat(mixed_src, sampto=20)
+        mixed_orig = rdrecord(mixed_src, sampto=20)
+        mixed_reloaded = rdrecord(str(tmp_path / "mixedsignalsm"))
+        np.testing.assert_allclose(
+            mixed_reloaded.p_signal, mixed_orig.p_signal, equal_nan=True
+        )
+
+        # Skewed record should not be skewed a second time when read back
+        skew_src = str(self.SAMPLE_DATA / "100skew")
+        wfdb_to_mat(skew_src, sampto=20)
+        skew_orig = rdrecord(skew_src, sampto=20)
+        skew_reloaded = rdrecord(str(tmp_path / "100skewm"))
+        np.testing.assert_allclose(skew_reloaded.p_signal, skew_orig.p_signal)
+
+    def test_forward_slash_path(self, tmp_path, monkeypatch):
+        """Forward-slash record paths work cross-platform and write into cwd."""
+        monkeypatch.chdir(tmp_path)
+        src = (self.SAMPLE_DATA / "100").as_posix()
+
+        wfdb_to_mat(src, sampto=8)
+
+        assert (tmp_path / "100m.mat").exists()
+        assert (tmp_path / "100m.hea").exists()
