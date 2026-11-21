@@ -62,7 +62,7 @@ def wfdb_to_wav(
         pn_dir=pn_dir,
         sampfrom=sampfrom,
         sampto=sampto,
-        smooth_frames=False,
+        smooth_frames=True,
     )
     record_name_out = record_name.split(os.sep)[-1].replace("-", "_")
 
@@ -132,7 +132,7 @@ def wfdb_to_wav(
         record.file_name = record.n_sig * [record_name_out + ".wav"]
         record.block_size = record.n_sig * [0]
         record.fmt = record.n_sig * ["16"]
-        record.samps_per_fram = record.n_sig * [1]
+        record.samps_per_frame = record.n_sig * [1]
         record.init_value = sig_data[0][: record.n_sig].tolist()
         record.byte_offset = record.n_sig * [44]
         # Write the header file
