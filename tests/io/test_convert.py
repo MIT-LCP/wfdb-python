@@ -8,7 +8,7 @@ from wfdb.io.annotation import rdann
 from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import read_edf
-from wfdb.io.record import rdheader, rdrecord
+from wfdb.io.record import rdheader, rdrecord, wrsamp
 
 
 class TestEdfToWfdb:
@@ -362,3 +362,73 @@ class TestWfdbToWav:
         expected = rdrecord(record_path)
         assert record.samps_per_frame == [1] * expected.n_sig
         np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
+    @staticmethod
+    def read_wav(wav_file, n_sig):
+        """Read the samples of a .wav file as an array with one column per signal."""
+        with wave.open(wav_file, "rb") as wav:
+            assert wav.getnchannels() == n_sig
+            frames = wav.readframes(wav.getnframes())
+        return np.frombuffer(frames, dtype="<i2").reshape((-1, n_sig))
+
+    @staticmethod
+    def expected_samples(record):
+        """Shift the digital samples of a record to fill 16 bits."""
+        shift = np.array([16 - res for res in record.adc_res])
+        return (record.d_signal - record.adc_zero) << shift
+
+    def test_sampfrom_sampto(self, tmp_path, monkeypatch):
+        """Only the samples from sampfrom to sampto are written."""
+        record_path = os.path.abspath("sample-data/100")
+        monkeypatch.chdir(tmp_path)
+        wfdb_to_wav(record_path, sampfrom=100, sampto=600, write_header=True)
+
+        record = rdrecord(record_path, sampfrom=100, sampto=600, physical=False)
+        expected = self.expected_samples(record)
+        np.testing.assert_array_equal(self.read_wav("100.wav", 2), expected)
+        assert rdheader("100").init_value == expected[0].tolist()
+
+    def test_channels(self, tmp_path):
+        """Only the selected channels are written."""
+        wav_file = str(tmp_path / "out.wav")
+        wfdb_to_wav("sample-data/100", channels=[1], output_filename=wav_file)
+
+        record = rdrecord("sample-data/100", channels=[1], physical=False)
+        expected = self.expected_samples(record)
+        np.testing.assert_array_equal(self.read_wav(wav_file, 1), expected)
+
+    @pytest.mark.parametrize("adc_res", [11, 12])
+    def test_invalid_samples(self, tmp_path, monkeypatch, adc_res):
+        """Invalid samples are written as -32768, the format 16 invalid value."""
+        monkeypatch.chdir(tmp_path)
+        d_signal = np.array([[100], [-2048], [-200]])
+        wrsamp(
+            "invalid",
+            fs=100,
+            units=["mV"],
+            sig_name=["x"],
+            d_signal=d_signal,
+            fmt=["212"],
+            adc_gain=[200],
+            baseline=[0],
+        )
+        header = rdheader("invalid")
+        header.adc_res = [adc_res]
+        header.wrheader()
+
+        # Write the .wav file and its header in a separate directory
+        record_path = str(tmp_path / "invalid")
+        (tmp_path / "out").mkdir()
+        monkeypatch.chdir(tmp_path / "out")
+        wfdb_to_wav(record_path, write_header=True)
+
+        # -2048 is the format 212 invalid value
+        shift = 16 - adc_res
+        expected = [[100 << shift], [-32768], [-200 << shift]]
+        np.testing.assert_array_equal(self.read_wav("invalid.wav", 1), expected)
+
+        # Read back as missing
+        record = rdrecord("invalid")
+        expected = rdrecord(record_path)
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+        assert np.isnan(record.p_signal[1, 0])
