@@ -38,7 +38,8 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     little-endian format if the record contains any format 24 or format 32 signals,
     as 8-bit unsigned integers (mattype=50) if the record contains only format 80
     signals, or as 16-bit signed integers in little-endian format (mattype=30)
-    otherwise.
+    otherwise. A wider type is used when shifted samples do not fit the type
+    suggested by the header. Conversion fails if they cannot fit in 32 bits.
 
     The maximum size of the output variable is 2^31 bytes. `wfdb2mat` from versions
     10.5.24 and earlier of the original WFDB software package writes version 4 MAT-
@@ -132,6 +133,36 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
                 bytes_per_element = 4
             elif (record.fmt[i] not in ("80", "508")) and (bytes_per_element < 2):
                 bytes_per_element = 2
+
+    shifted_data = record.d_signal.astype(np.int64) - np.asarray(
+        adc_zero, dtype=np.int64
+    )
+    valid_min = valid_max = None
+    for i, fmt in enumerate(record.fmt):
+        channel = shifted_data[:, i]
+        orig_nan = _digi_nan(fmt)
+        if orig_nan is not None:
+            channel = channel[record.d_signal[:, i] != orig_nan]
+        if channel.size:
+            channel_min = int(channel.min())
+            channel_max = int(channel.max())
+            valid_min = (
+                channel_min if valid_min is None else min(valid_min, channel_min)
+            )
+            valid_max = (
+                channel_max if valid_max is None else max(valid_max, channel_max)
+            )
+
+    # The lowest digital value is reserved for missing samples in each format.
+    # Promote the output type if the shifted valid samples do not fit.
+    for width, max_valid in ((1, 127), (2, 32767), (4, 2147483647)):
+        if width >= bytes_per_element and (
+            valid_min is None or (valid_min >= -max_valid and valid_max <= max_valid)
+        ):
+            bytes_per_element = width
+            break
+    else:
+        raise ValueError("Shifted samples exceed the 32-bit WFDB range")
 
     if bytes_per_element == 1:
         sub4_type = 2  # MAT8
@@ -233,9 +264,6 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
         #     = 192
 
         # Copy the selected data into the .mat file, preserving missing samples
-        shifted_data = record.d_signal.astype(np.int64) - np.asarray(
-            adc_zero, dtype=np.int64
-        )
         out_nan = _digi_nan(wfdb_type)
         for i, fmt in enumerate(record.fmt):
             orig_nan = _digi_nan(fmt)

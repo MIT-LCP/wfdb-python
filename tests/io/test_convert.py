@@ -12,7 +12,7 @@ from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import rdedfann, read_edf
 from wfdb.io.convert.matlab import wfdb_to_mat
-from wfdb.io.record import rdheader, rdrecord, wrsamp
+from wfdb.io.record import Record, rdheader, rdrecord, wrsamp
 
 
 class TestEdfToWfdb:
@@ -462,6 +462,8 @@ class TestWfdbToWav:
         expected = rdrecord(record_path)
         np.testing.assert_array_equal(record.p_signal, expected.p_signal)
         assert np.isnan(record.p_signal[1, 0])
+
+
 class TestWfdbToMat:
     """Tests for the io.convert.matlab module."""
 
@@ -556,6 +558,95 @@ class TestWfdbToMat:
         assert reloaded.fmt == ["32", "32"]
         np.testing.assert_allclose(reloaded.p_signal, orig_p.p_signal)
         assert reloaded.checksum == reloaded_d.calc_checksum()
+
+    @pytest.mark.parametrize("adc_zero", [-1, 1])
+    def test_shifted_samples_promote_to_int32(self, tmp_path, monkeypatch, adc_zero):
+        """Do not wrap a valid shifted sample to the missing value."""
+        monkeypatch.chdir(tmp_path)
+        samples = np.array([[-32768], [-32767], [0], [32767]], dtype=np.int16)
+        Record(
+            record_name="shifted",
+            n_sig=1,
+            sig_len=len(samples),
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=samples,
+            file_name=["shifted.dat"],
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[16],
+            adc_zero=[adc_zero],
+            block_size=[0],
+            init_value=[int(samples[0, 0])],
+            checksum=[int(samples.sum() % 65536)],
+        ).wrsamp()
+
+        wfdb_to_mat("shifted")
+
+        mat_val = loadmat("shiftedm.mat")["val"]
+        assert mat_val.dtype == np.int32
+        expected = samples[:, 0].astype(np.int64) - adc_zero
+        expected[0] = -2147483648
+        np.testing.assert_array_equal(mat_val[0], expected)
+        output = rdrecord("shiftedm", physical=False)
+        np.testing.assert_array_equal(output.d_signal[:, 0], expected)
+
+    def test_adc_res_understates_sample_range(self, tmp_path, monkeypatch):
+        """Choose the MAT type from actual samples as well as adc_res."""
+        monkeypatch.chdir(tmp_path)
+        samples = np.array([[100], [300], [-300]], dtype=np.int16)
+        Record(
+            record_name="understated",
+            n_sig=1,
+            sig_len=len(samples),
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=samples,
+            file_name=["understated.dat"],
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[8],
+            adc_zero=[0],
+            block_size=[0],
+            init_value=[int(samples[0, 0])],
+            checksum=[int(samples.sum() % 65536)],
+        ).wrsamp()
+
+        wfdb_to_mat("understated")
+
+        mat_val = loadmat("understatedm.mat")["val"]
+        assert mat_val.dtype == np.int16
+        np.testing.assert_array_equal(mat_val[0], samples[:, 0])
+
+    def test_shifted_samples_exceed_int32(self, tmp_path, monkeypatch):
+        """Fail before writing when no supported type preserves valid samples."""
+        monkeypatch.chdir(tmp_path)
+        Record(
+            record_name="too_large",
+            n_sig=1,
+            sig_len=1,
+            fs=100,
+            units=["mV"],
+            sig_name=["I"],
+            d_signal=np.array([[2147483647]], dtype=np.int32),
+            file_name=["too_large.dat"],
+            fmt=["32"],
+            adc_gain=[200],
+            baseline=[0],
+            adc_res=[32],
+            adc_zero=[-1],
+            block_size=[0],
+            init_value=[2147483647],
+            checksum=[65535],
+        ).wrsamp()
+
+        with pytest.raises(ValueError, match="Shifted samples exceed"):
+            wfdb_to_mat("too_large")
+        assert not (tmp_path / "too_largem.mat").exists()
 
     def test_missing_samples_and_skew_preserved(self, tmp_path, monkeypatch):
         """Missing samples are preserved without overflow and skew is not doubled."""
