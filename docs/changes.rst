@@ -7,8 +7,13 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
-Version 4.4.0 (Nov 2026)
+Version 5.0.0 (Nov 2026)
 ------------------------
+
+This release adds ``.wfdb`` archive support and requires Python 3.11 or newer.
+``ann2rr`` now uses only beat annotations by default and selects intervals by
+their ending times in the record. Pass ``all_annotations=True`` to include
+non-beat annotations. See the entries below for details.
 
 **Fix writing channels that are entirely NaN**
   ``wrsamp`` and ``calc_adc_params`` no longer fail with ``cannot convert float NaN to integer`` when a channel contains only NaN values, and no longer emit an "All-NaN slice encountered" warning for such channels.
