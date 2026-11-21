@@ -162,3 +162,12 @@ def test_calc_mean_hr_filters():
     rr = np.array([100.0, 150.0, 200.0, 400.0])
     hr = processing.calc_mean_hr(rr, fs=250, min_rr=120, max_rr=300)
     assert hr == pytest.approx(60 * 250 / 175)
+
+
+@pytest.mark.parametrize("min_rr", [None, 120])
+def test_calc_mean_hr_list(min_rr):
+    """A list of intervals gives the same result as an array."""
+    rr = [100.0, 150.0, 200.0]
+    expected = processing.calc_mean_hr(np.array(rr), fs=250, min_rr=min_rr)
+    assert processing.calc_mean_hr(rr, fs=250, min_rr=min_rr) == expected
+    assert processing.calc_mean_hr([], fs=250, min_rr=min_rr) == 0
