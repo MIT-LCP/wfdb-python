@@ -1,4 +1,5 @@
 import os
+import shutil
 import wave
 
 import numpy as np
@@ -7,12 +8,38 @@ import pytest
 from wfdb.io.annotation import rdann
 from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
-from wfdb.io.convert.edf import read_edf
+from wfdb.io.convert.edf import rdedfann, read_edf
 from wfdb.io.record import rdheader, rdrecord, wrsamp
 
 
 class TestEdfToWfdb:
     """Tests for the io.convert.edf module."""
+
+    def test_rdedfann(self):
+        """Read EDF+ annotations without passing obsolete read_edf options."""
+        info = rdedfann("sample-data/test_edfann.edf")
+        assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
+
+    def test_rdedfann_keeps_local_file(self, tmp_path):
+        """The delete_file option does not remove a local EDF file."""
+        source = "sample-data/test_edfann.edf"
+        local_file = tmp_path / "test_edfann.edf"
+        shutil.copyfile(source, local_file)
+        rdedfann(str(local_file), delete_file=True)
+        assert local_file.exists()
+
+    def test_rdedfann_deletes_download(self, tmp_path, monkeypatch):
+        """Delete a downloaded EDF file when requested."""
+        local_file = tmp_path / "test_edfann.edf"
+        shutil.copyfile("sample-data/test_edfann.edf", local_file)
+
+        def read_local_file(record_name, **kwargs):
+            kwargs.pop("pn_dir")
+            return read_edf(record_name, **kwargs)
+
+        monkeypatch.setattr("wfdb.io.convert.edf.read_edf", read_local_file)
+        rdedfann(str(local_file), pn_dir="example")
+        assert not local_file.exists()
 
     def test_edf_uniform(self):
         """EDF format conversion to MIT for uniform sample rates."""
