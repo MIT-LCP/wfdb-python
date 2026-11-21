@@ -1649,6 +1649,18 @@ class TestSignal:
             record.p_signal[:, 1], p_signal[:, 1], atol=1 / record.adc_gain[1]
         )
 
+    def test_neg_inf_channel_raises_expanded(self):
+        """calc_adc_params must reject -inf the same way for p_signal and e_p_signal."""
+        p_signal = np.array([[-np.inf], [1.0], [2.0]])
+
+        record = wfdb.Record(p_signal=p_signal, fmt=["16"])
+        with pytest.raises(ValueError, match="Signal contains inf"):
+            record.calc_adc_params()
+
+        record = wfdb.Record(e_p_signal=list(p_signal.transpose()), fmt=["16"])
+        with pytest.raises(ValueError, match="Signal contains inf"):
+            record.calc_adc_params()
+
 
 class TestSigCohesion:
     """Tests for the digital range check in check_sig_cohesion."""
