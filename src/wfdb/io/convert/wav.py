@@ -5,7 +5,7 @@ import struct
 import numpy as np
 
 from wfdb.io import Record, download
-from wfdb.io._signal import _digi_nan
+from wfdb.io._signal import _checksums, _digi_nan
 from wfdb.io.record import rdrecord
 
 
@@ -312,9 +312,7 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     ).astype(np.int16)
 
     init_value = [int(s[0]) for s in np.transpose(sig_data)]
-    checksum = [
-        int(np.sum(v) % 65536) for v in np.transpose(sig_data)
-    ]  # not all values correct?
+    checksum = _checksums(sig_data)  # not all values correct?
 
     if pn_dir is not None and delete_file:
         os.remove(record_name)

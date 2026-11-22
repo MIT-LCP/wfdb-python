@@ -4,7 +4,7 @@ import struct
 
 import numpy as np
 
-from wfdb.io._signal import _checksum, _digi_nan
+from wfdb.io._signal import _checksums, _digi_nan
 from wfdb.io.record import rdrecord
 
 
@@ -322,7 +322,7 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
     record.adc_zero = record.n_sig * [0]
     record.block_size = record.n_sig * [0]
     record.init_value = shifted_data[0].tolist()
-    record.checksum = [_checksum(s) for s in shifted_data.T]
+    record.checksum = _checksums(shifted_data)
 
     # Write the header file RECm.hea
     record.wrheader()

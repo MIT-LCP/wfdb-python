@@ -13,24 +13,6 @@ MIN_I32 = -2147483648
 
 CHECKSUM_MODULUS = 65536
 
-
-def _checksum(values):
-    """Return the WFDB checksum of one channel of digital samples.
-
-    Parameters
-    ----------
-    values : array_like
-        The digital samples of a single channel.
-
-    Returns
-    -------
-    int
-        The sum of the samples modulo 65536.
-
-    """
-    return int(np.sum(values) % CHECKSUM_MODULUS)
-
-
 # Formats in which all samples align with integer (power-of-two) boundaries
 ALIGNED_FMTS = ["8", "16", "32", "61", "80", "160"]
 # Formats in which not all samples align with integer boundaries
@@ -129,6 +111,40 @@ INVALID_SAMPLE_VALUE = {
     "32": -(2**31),
     "8": None,
 }
+
+
+def _checksum(values):
+    """Return the WFDB checksum of one channel of digital samples.
+
+    Parameters
+    ----------
+    values : array_like
+        The digital samples of a single channel.
+
+    Returns
+    -------
+    int
+        The sum of the samples modulo 65536.
+
+    """
+    return int(np.sum(values) % CHECKSUM_MODULUS)
+
+
+def _checksums(signal):
+    """Return the WFDB checksum of each channel (column) of a 2-D signal array.
+
+    Parameters
+    ----------
+    signal : ndarray
+        A 2-D array of digital samples with one column per channel.
+
+    Returns
+    -------
+    list of int
+        The sum of each column modulo 65536.
+
+    """
+    return [int(c) for c in np.sum(signal, axis=0) % CHECKSUM_MODULUS]
 
 
 class SignalMixin:
@@ -962,7 +978,7 @@ class SignalMixin:
         if expanded:
             cs = [_checksum(s) for s in self.e_d_signal]
         else:
-            cs = [_checksum(s) for s in self.d_signal.T]
+            cs = _checksums(self.d_signal)
         return cs
 
     def wr_dat_files(self, expanded=False, write_dir="", wfdb_archive=None):

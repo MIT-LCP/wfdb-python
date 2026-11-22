@@ -936,7 +936,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             if self.checksum is not None and has_signal_files:
                 checksums = self.calc_checksum(expanded=expanded)
                 for ch, old_val in enumerate(self.checksum):
-                    if old_val is None or (checksums[ch] - old_val) % 65536 == 0:
+                    if (
+                        old_val is None
+                        or (checksums[ch] - old_val) % _signal.CHECKSUM_MODULUS == 0
+                    ):
                         checksums[ch] = old_val
                 self.checksum = checksums
 

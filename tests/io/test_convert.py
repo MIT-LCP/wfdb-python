@@ -674,8 +674,8 @@ class TestWfdbToMat:
     def test_forward_slash_path(self, tmp_path, monkeypatch):
         """Forward-slash record paths work cross-platform and write into cwd."""
         monkeypatch.chdir(tmp_path)
-        # Only meaningful on Windows: elsewhere the old code handled this
-        # path already, so keep the test to guard the basename handling.
+        # The bug this guards against only appeared on Windows; on other
+        # platforms this checks that the basename is still used.
         src = (self.SAMPLE_DATA / "100").as_posix()
 
         wfdb_to_mat(src, sampto=8)
