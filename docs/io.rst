@@ -9,7 +9,8 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, wrsamp
+    :members: rdrecord, rdheader, rdsamp, wrsamp, sampfreq, signame, wfdbdesc,
+              wfdbtime
 
 .. autoclass:: wfdb.io.Record
     :no-index:
@@ -27,7 +28,7 @@ WFDB Annotations
 
 .. automodule:: wfdb.io
     :no-index:
-    :members: rdann, wrann, show_ann_labels, show_ann_classes
+    :members: rdann, wrann, mrgann, show_ann_labels, show_ann_classes
 
 .. autoclass:: wfdb.io.Annotation
     :no-index:
