@@ -406,3 +406,35 @@ def test_dl_files_overwrite_with_a_missing_file(demo_database, tmp_path):
         wfdb.dl_files("demo", str(out), ["100.hea", "999.hea"], overwrite=True)
     assert (out / "100.hea").read_bytes() == b"saved before"
     assert demo_database == []
+
+
+@pytest.mark.parametrize(
+    ("files", "keep_subdirs", "saved"),
+    [
+        # Two files with one name, without their subdirectories
+        (["RECORDS", "sub/RECORDS"], False, "RECORDS"),
+        # Names that differ only in case, which are one file on macOS and Windows
+        (["100.hea", "sub/100.HEA"], False, "100.hea"),
+        # One file through a symbolic link
+        (["a/100.hea", "b/100.hea"], True, "b/100.hea"),
+    ],
+    ids=["same-name", "case", "symbolic-link"],
+)
+def test_dl_files_overwrite_with_two_files_saved_as_one(
+    demo_database, tmp_path, files, keep_subdirs, saved
+):
+    out = tmp_path / "out"
+    (out / "b").mkdir(parents=True)
+    try:
+        (out / "a").symlink_to(out / "b", target_is_directory=True)
+    except (OSError, NotImplementedError):
+        if "a/100.hea" in files:
+            pytest.skip("symbolic links are not available")
+    (out / saved).write_bytes(b"saved before")
+
+    with pytest.raises(ValueError, match="would both be saved as"):
+        wfdb.dl_files(
+            "demo", str(out), files, keep_subdirs=keep_subdirs, overwrite=True
+        )
+    assert (out / saved).read_bytes() == b"saved before"
+    assert demo_database == []

@@ -485,7 +485,7 @@ def _download_files(db_dir, dl_dir, files, keep_subdirs, overwrite):
     if overwrite:
         # Remove the saved files, so that they are downloaded again, but only
         # once every file is known to exist and to be saved inside dl_dir
-        local_files = _check_files_to_replace(db_dir, dl_dir, files, saved_as.values())
+        local_files = _check_files_to_replace(db_dir, dl_dir, files, saved_as)
         for local_file in local_files:
             if os.path.isfile(local_file):
                 os.remove(local_file)
@@ -513,8 +513,9 @@ def _check_files_to_replace(db_dir, dl_dir, files, saved_as):
         The local directory that the files are saved in.
     files : list of str
         The paths of the files to download, relative to `db_dir`.
-    saved_as : iterable of str
-        The paths that the files are saved as, relative to `dl_dir`.
+    saved_as : dict
+        The path that each file is saved as, relative to `dl_dir`, by its path
+        within the database.
 
     Returns
     -------
@@ -526,14 +527,19 @@ def _check_files_to_replace(db_dir, dl_dir, files, saved_as):
     ValueError
         If a file would be saved outside `dl_dir`, because its path is not a
         plain relative path (for example "../a.dat"), or through a symbolic
-        link.
+        link, or if two files would be saved as one, including as names that
+        differ only in case (one file on macOS and Windows), or through a
+        symbolic link.
     FileNotFoundError
         If the database has no such file.
 
     """
     root = os.path.realpath(dl_dir)
     local_files = []
-    for local in saved_as:
+    # Each destination, after following symbolic links and ignoring case, and
+    # the file saved there
+    destinations = {}
+    for path, local in saved_as.items():
         parts = local.split("/")
         if (
             "\\" in local
@@ -545,10 +551,18 @@ def _check_files_to_replace(db_dir, dl_dir, files, saved_as):
                 f"{local!r}"
             )
         local_file = os.path.join(dl_dir, *parts)
-        if os.path.commonpath([root, os.path.realpath(local_file)]) != root:
+        resolved = os.path.realpath(local_file)
+        if os.path.commonpath([root, resolved]) != root:
             raise ValueError(
                 f"{local!r} would be saved outside dl_dir, through a symbolic link"
             )
+        key = os.path.normcase(resolved).casefold()
+        if key in destinations:
+            raise ValueError(
+                f"{destinations[key]!r} and {path!r} would both be saved as "
+                f"{local!r} (or as the same file) in dl_dir"
+            )
+        destinations[key] = path
         local_files.append(local_file)
 
     available = _project_files(db_dir)
