@@ -172,6 +172,72 @@ class TestProcessing:
 
         assert np.array_equal(peaks, expected_peaks)
 
+    @staticmethod
+    def _run_gqrs(x, fs, adc_gain, adc_zero):
+        """Run GQRS, and return its annotations and final state."""
+        conf = processing.qrs.GQRS.Conf(fs=fs, adc_gain=adc_gain)
+        gqrs = processing.qrs.GQRS()
+        annotations = gqrs.detect(x=x, conf=conf, adc_zero=adc_zero)
+        return (
+            [(a.time, a.type, a.subtype, a.num) for a in annotations],
+            vars(conf),
+            gqrs.smv.tolist(),
+            gqrs.qfv.tolist(),
+            int(gqrs.v1),
+            gqrs.SIG_SMOOTH,
+            gqrs.SIG_QRS,
+        )
+
+    @pytest.mark.parametrize(
+        ("record_name", "channel", "fs"),
+        [("100", 0, None), ("100", 1, None), ("12726", 0, None), ("100", 0, 60)],
+    )
+    def test_gqrs_filters_computed_ahead(self, monkeypatch, record_name, channel, fs):
+        """Computing the filters ahead gives the same result as qf() and sm()."""
+        record = wfdb.rdrecord(
+            f"sample-data/{record_name}",
+            channels=[channel],
+            sampto=100000,
+            physical=False,
+        )
+        x = record.d_signal[:, 0]
+        if fs is not None:
+            # A low sampling frequency, where the filters are shortest
+            x = x[:: round(record.fs / fs)]
+        else:
+            fs = record.fs
+        args = (x, fs, record.adc_gain[0], record.adc_zero[0])
+        computed = []
+        compute = processing.qrs.GQRS._compute_ahead
+
+        def record_computed(self):
+            result = compute(self)
+            computed.append(result)
+            return result
+
+        with monkeypatch.context() as m:
+            m.setattr(processing.qrs.GQRS, "_compute_ahead", record_computed)
+            ahead = self._run_gqrs(*args)
+        # The filters were computed ahead, once the running sums started
+        assert any(isinstance(result, dict) for result in computed)
+
+        with monkeypatch.context() as m:
+            m.setattr(processing.qrs.GQRS, "_compute_ahead", lambda self: False)
+            expected = self._run_gqrs(*args)
+        assert ahead == expected
+        assert len(ahead[0]) > 10
+
+        # Stop using the filters computed ahead partway through
+        use = processing.qrs.GQRS._qf_ahead
+
+        def stop_early(self):
+            if self._ahead and self._ahead["used"] == 5000:
+                self._finish_ahead(self._ahead)
+            return use(self)
+
+        monkeypatch.setattr(processing.qrs.GQRS, "_qf_ahead", stop_early)
+        assert self._run_gqrs(*args) == expected
+
     def test_correct_peaks(self):
         sig, fields = wfdb.rdsamp("sample-data/100")
         ann = wfdb.rdann("sample-data/100", "atr")
