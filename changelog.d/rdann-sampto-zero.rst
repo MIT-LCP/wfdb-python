@@ -1,0 +1,2 @@
+**Reject sampto=0 in rdann, and summarize no annotations**
+  ``rdann`` now raises a ``ValueError`` when ``sampto`` is not greater than ``sampfrom``, as ``rdrecord`` does. ``sampto=0`` used to return every annotation, but with ``sampfrom`` it returned none. With ``summarize_labels=True``, ``rdann`` and ``Annotation.get_contained_labels`` no longer fail with ``KeyError: 'n_occurrences'`` when there are no annotations, for example when ``sampfrom`` is after the last one.
