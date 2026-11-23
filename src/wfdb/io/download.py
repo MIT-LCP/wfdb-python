@@ -262,7 +262,8 @@ def get_dbs():
     """
     import physionet
 
-    projects = physionet.PhysioNetClient().projects.list_published()
+    with physionet.PhysioNetClient() as client:
+        projects = client.projects.list_published()
     # The API lists every version of each project, with the title of each
     titles = {
         project.slug: project.title

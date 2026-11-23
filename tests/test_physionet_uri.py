@@ -442,11 +442,34 @@ def test_get_dbs_lists_the_latest_version_of_each_database(monkeypatch):
         project("challenge-2015", "1.0.0", "Reducing False Alarms", "Challenge"),
     ]
     monkeypatch.setattr(ProjectsAPI, "list_published", lambda self: projects)
+    closed = []
+    monkeypatch.setattr(
+        physionet.PhysioNetClient, "close", lambda self: closed.append(self)
+    )
 
     assert wfdb.get_dbs() == [
         ["ludb", "Lobachevsky University Database"],
         ["mitdb", "MIT-BIH Arrhythmia Database"],
     ]
+    assert len(closed) == 1
+
+
+def test_get_dbs_closes_its_session_after_an_error(monkeypatch):
+    import physionet
+    from physionet.api.endpoints import ProjectsAPI
+
+    def list_published(self):
+        raise ConnectionError("PhysioNet is unavailable")
+
+    monkeypatch.setattr(ProjectsAPI, "list_published", list_published)
+    closed = []
+    monkeypatch.setattr(
+        physionet.PhysioNetClient, "close", lambda self: closed.append(self)
+    )
+
+    with pytest.raises(ConnectionError):
+        wfdb.get_dbs()
+    assert len(closed) == 1
 
 
 @pytest.mark.network
