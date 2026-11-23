@@ -3326,11 +3326,12 @@ def dl_database(
         as they are organized in PhysioNet (True), or to download all
         files into the same base directory (False).
     overwrite : bool, optional
-        If True, all files are downloaded again. If False, a file that is
-        already saved with the right content (checked against the database's
-        checksum list) is skipped, a partly downloaded file is completed, and
-        any other saved file is downloaded again. A saved file is only
-        replaced once its new copy is complete and checked.
+        If True, all files are downloaded again, and each saved file is only
+        replaced once its new copy is complete and checked. If False, a file
+        that is already saved with the right content (checked against the
+        database's checksum list) is skipped, a partly downloaded file is
+        completed, and any other saved file is downloaded again in its place,
+        which removes the saved file if the new download fails its checksum.
 
     Returns
     -------
