@@ -466,3 +466,23 @@ def test_rdann_fs_header_error(tmp_path, monkeypatch):
     monkeypatch.setattr(wfdb.io.record, "rdheader", rdheader)
     with pytest.raises(wfdb.io._url.NetFileError, match="Bad Gateway"):
         wfdb.rdann(str(tmp_path / "err"), "atr")
+
+
+def test_rdann_sampfrom_without_sampto():
+    """rdann with only sampfrom returns the annotations from sampfrom onwards."""
+    full = wfdb.rdann("sample-data/100", "atr")
+    start = np.searchsorted(full.sample, 600000)
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=600000)
+    np.testing.assert_array_equal(ann.sample, full.sample[start:])
+    assert ann.symbol == full.symbol[start:]
+    assert ann.ann_len == full.ann_len - start
+    shifted = wfdb.rdann("sample-data/100", "atr", sampfrom=600000, shift_samps=True)
+    np.testing.assert_array_equal(shifted.sample, full.sample[start:] - 600000)
+
+
+def test_rdann_sampfrom_empty_file(tmp_path):
+    """rdann with only sampfrom reads an annotation file with no annotations."""
+    # A file that holds only the end-of-file marker
+    (tmp_path / "empty.atr").write_bytes(b"\x00\x00")
+    ann = wfdb.rdann(str(tmp_path / "empty"), "atr", sampfrom=10)
+    assert ann.sample.size == 0

@@ -241,14 +241,14 @@ class Annotation:
         sampfrom : int, optional
             The minimum sample number for annotations to be returned.
         sampto : int, optional
-            The maximum sample number for annotations to be returned.
+            The maximum sample number for annotations to be returned. If None,
+            there is no upper limit.
 
         """
-        sampto = sampto or self.sample[-1]
-
-        kept_inds = np.intersect1d(
-            np.where(self.sample >= sampfrom), np.where(self.sample <= sampto)
-        )
+        kept = self.sample >= sampfrom
+        if sampto is not None:
+            kept &= self.sample <= sampto
+        kept_inds = np.flatnonzero(kept)
 
         for field in ["sample", "label_store", "subtype", "chan", "num"]:
             setattr(self, field, getattr(self, field)[kept_inds])
@@ -2046,7 +2046,7 @@ def rdann(
     )
 
     # Apply the desired index range
-    if sampfrom > 0 and sampto is not None:
+    if sampfrom > 0:
         annotation.apply_range(sampfrom=sampfrom, sampto=sampto)
 
     # If specified, obtain annotation samples relative to the starting
