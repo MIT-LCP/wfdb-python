@@ -83,33 +83,78 @@ def find_local_peaks(sig, radius):
     if np.min(sig) == np.max(sig):
         return np.empty(0)
 
+    # The search continues at least one sample later
+    step = max(radius, 1)
+    # maximum_filter1d supports booleans, integers, float32 and float64.
+    # float16 values are all exactly float32 values. Other types (such as
+    # complex numbers) are checked one sample at a time.
+    if sig.dtype.type is np.float16:
+        sig = sig.astype(np.float32)
+    elif sig.dtype.kind not in "biu" and sig.dtype.type not in (np.float32, np.float64):
+        return _scan_local_peaks(sig, radius)
+
+    n = len(sig)
     size = 2 * radius + 1
-    nan_locs = np.isnan(sig) if sig.dtype.kind in "fc" else None
-    has_nan = nan_locs is not None and nan_locs.any()
-
-    # The largest value within `radius` samples of each sample. A NaN can
-    # spoil the result of maximum_filter1d well beyond its own window, so
-    # filter a copy with -inf in its place.
-    window_max = maximum_filter1d(
-        np.where(nan_locs, -np.inf, sig) if has_nan else sig,
-        size=size,
-        mode="nearest",
-    )
-    is_candidate = sig == window_max
-    if has_nan:
-        # A window that contains NaN has no peak
-        nan_nearby = maximum_filter1d(nan_locs.view(np.uint8), size=size)
-        is_candidate &= nan_nearby == 0
-
-    # Take the candidates in order, skipping any within `radius` samples
-    # after the previous peak
     peak_inds = []
     next_allowed = 0
-    for i in np.flatnonzero(is_candidate).tolist():
-        if i >= next_allowed:
-            peak_inds.append(i)
-            next_allowed = i + radius
+    # Work on blocks of the signal, so that the arrays below stay small
+    for start in range(0, n, _PEAK_BLOCK_SIZE):
+        stop = min(start + _PEAK_BLOCK_SIZE, n)
+        # The block with the `radius` samples on each side
+        lo = max(0, start - radius)
+        hi = min(n, stop + radius)
+        seg = sig[lo:hi]
+        seg_nan = np.isnan(seg) if sig.dtype.kind == "f" else None
+        has_nan = seg_nan is not None and seg_nan.any()
 
+        # The largest value within `radius` samples of each sample. A NaN
+        # can spoil the result of maximum_filter1d well beyond its own
+        # window, so filter a copy with -inf in its place.
+        window_max = maximum_filter1d(
+            np.where(seg_nan, -np.inf, seg) if has_nan else seg,
+            size=size,
+            mode="nearest",
+        )[start - lo : stop - lo]
+        is_candidate = sig[start:stop] == window_max
+        if has_nan:
+            # A window that contains NaN has no peak
+            nan_nearby = maximum_filter1d(seg_nan.view(np.uint8), size, mode="nearest")
+            is_candidate &= nan_nearby[start - lo : stop - lo] == 0
+
+        # Take the candidates in order, skipping any within `radius` samples
+        # after the previous peak. Within a run of consecutive candidates
+        # (such as a flat top), that is every `radius` samples.
+        edges = np.flatnonzero(np.diff(is_candidate.view(np.int8), prepend=0, append=0))
+        for run_start, run_stop in zip(edges[0::2].tolist(), edges[1::2].tolist()):
+            first = max(start + run_start, next_allowed)
+            if first < start + run_stop:
+                run_peaks = range(first, start + run_stop, step)
+                peak_inds.extend(run_peaks)
+                next_allowed = run_peaks[-1] + step
+
+    return np.array(peak_inds)
+
+
+# The number of samples that find_local_peaks works on at a time
+_PEAK_BLOCK_SIZE = 65536
+
+
+def _scan_local_peaks(sig, radius):
+    """Find local peaks by checking one sample at a time.
+
+    This is used by `find_local_peaks` for signal types that
+    scipy.ndimage.maximum_filter1d does not support.
+
+    """
+    step = max(radius, 1)
+    peak_inds = []
+    i = 0
+    while i < len(sig):
+        if sig[i] == sig[max(0, i - radius) : i + radius + 1].max():
+            peak_inds.append(i)
+            i += step
+        else:
+            i += 1
     return np.array(peak_inds)
 
 
