@@ -1830,6 +1830,44 @@ def check_np_array(item, field_name, ndim, parent_class, channel_num=None):
 # ------------------------- Reading Records --------------------------- #
 
 
+def _resolve_pn_dir(record_name, pn_dir):
+    """Find the PhysioNet directory and name of a record to read.
+
+    Adds the latest version of the database to `pn_dir` if it has no version,
+    and moves any folders in `record_name` to the end of `pn_dir`, so that
+    reading "files/p1/100" with pn_dir="demo" reads "100" with
+    pn_dir="demo/<latest version>/files/p1".
+
+    Parameters
+    ----------
+    record_name : str
+        The name of the record, which may start with folders in the database.
+    pn_dir : str
+        The PhysioNet database, with an optional version and folders.
+
+    Returns
+    -------
+    record_name : str
+        The name of the record, without folders.
+    pn_dir : str
+        The PhysioNet directory that holds the record.
+
+    """
+    if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        raise ValueError(
+            "Cloud paths should be passed under record_name, not under pn_dir"
+        )
+    if "." not in pn_dir:
+        dir_list = pn_dir.split("/")
+        pn_dir = posixpath.join(
+            dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
+        )
+    folders, record_name = posixpath.split(record_name)
+    if folders:
+        pn_dir = posixpath.join(pn_dir, folders)
+    return record_name, pn_dir
+
+
 def rdheader(record_name, pn_dir=None, rd_segments=False):
     """Read a WFDB header file and return a `Record` or `MultiRecord`.
 
@@ -1893,18 +1931,8 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     # If the PhysioNet database path is provided, construct the download path using the
     # database version
     elif pn_dir is not None:
-        # check to make sure a cloud path isn't being passed under pn_dir
-        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-            raise ValueError(
-                "Cloud paths should be passed under record_name, not under pn_dir"
-            )
-
-        if "." not in pn_dir:
-            dir_list = pn_dir.split("/")
-            pn_dir = posixpath.join(
-                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-            )
-
+        base_record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
+        file_name = f"{base_record_name}.hea"
         header_content = download._stream_header(file_name, pn_dir)
 
     # If it isn't a cloud path or a PhysioNet path, we treat as a local file
@@ -1953,6 +1981,8 @@ def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
     """
     if wfdb_archive is not None:
         return _parse_header_content(wfdb_archive.read_header(record_name))
+    if pn_dir is not None:
+        return rdheader(record_name, pn_dir=pn_dir)
     return rdheader(_join_path(dir_name, record_name), pn_dir=pn_dir)
 
 
@@ -2222,16 +2252,7 @@ def _rdrecord(
 
     # Read the header fields
     if pn_dir is not None:
-        # check to make sure a cloud path isn't being passed under pn_dir
-        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-            raise ValueError(
-                "Cloud paths should be passed under record_name, not under pn_dir"
-            )
-        if "." not in pn_dir:
-            dir_list = pn_dir.split("/")
-            pn_dir = posixpath.join(
-                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-            )
+        record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
 
     if wfdb_archive is not None:
         segment_name = None if is_archive_path(record_name) else record_name
@@ -2422,8 +2443,12 @@ def _rdrecord(
                     wfdb_archive=wfdb_archive,
                 )
             else:
+                # On PhysioNet, the segments are in pn_dir, not in dir_name
+                segment_name = record.seg_name[seg_num]
+                if pn_dir is None:
+                    segment_name = _join_path(dir_name, segment_name)
                 record.segments[seg_num] = rdrecord(
-                    _join_path(dir_name, record.seg_name[seg_num]),
+                    segment_name,
                     sampfrom=seg_ranges[i][0],
                     sampto=seg_ranges[i][1],
                     channels=seg_channels[i],

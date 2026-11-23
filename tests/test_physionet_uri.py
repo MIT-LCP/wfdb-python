@@ -163,6 +163,50 @@ def test_pn_dir_rdheader_and_rdann(physionet_cache, offline):
     np.testing.assert_array_equal(annotation.sample, expected.sample)
 
 
+@pytest.mark.parametrize("pn_dir", ["demo/1.0", "demo/1.0/files", "demo"])
+def test_pn_dir_record_name_with_folders(physionet_cache, offline, versions, pn_dir):
+    """Folders at the start of the record name are folders in the database."""
+    _, results = versions
+    results["demo"] = "1.0"
+    target = physionet_cache / "physionet.org" / "demo" / "1.0" / "files" / "p1"
+    target.mkdir(parents=True)
+    for name in ["100.hea", "100.dat", "100.atr"]:
+        shutil.copy(SAMPLE_DATA / name, target / name)
+    record_name = "p1/100" if pn_dir.endswith("files") else "files/p1/100"
+
+    header = wfdb.rdheader(record_name, pn_dir=pn_dir)
+    record = wfdb.rdrecord(record_name, pn_dir=pn_dir, sampto=1000)
+    annotation = wfdb.rdann(record_name, "atr", pn_dir=pn_dir, sampto=1000)
+
+    assert header.sig_name == ["MLII", "V5"]
+    expected = wfdb.rdrecord("sample-data/100", sampto=1000)
+    np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+    expected_ann = wfdb.rdann("sample-data/100", "atr", sampto=1000)
+    np.testing.assert_array_equal(annotation.sample, expected_ann.sample)
+    assert annotation.record_name == "100"
+
+
+def test_pn_dir_multi_segment_record_in_a_folder(physionet_cache, offline):
+    folder = SAMPLE_DATA / "multi-segment" / "041s"
+    target = physionet_cache / "physionet.org" / "demo" / "1.0" / "subjects" / "041"
+    target.mkdir(parents=True)
+    for name in ["041s.hea", "041s01.hea", "041s01.dat", "041s02.hea", "041s02.dat"]:
+        shutil.copy(folder / name, target / name)
+
+    record = wfdb.rdrecord("subjects/041/041s", pn_dir="demo/1.0", sampto=1000)
+
+    expected = wfdb.rdrecord(str(folder / "041s"), sampto=1000)
+    np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
+
+@pytest.mark.network
+def test_pn_dir_record_name_with_folders_from_physionet():
+    header = wfdb.rdheader(
+        "files/p1000/p10000032/s40689238/40689238", pn_dir="mimic-iv-ecg/1.0"
+    )
+    assert header.sig_len == 5000
+
+
 @pytest.fixture
 def versions(monkeypatch):
     """Replace physionet.latest_version, recording calls, and clear the cache."""
