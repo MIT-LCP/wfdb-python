@@ -1,3 +1,4 @@
+import functools
 import os
 import pathlib
 import re
@@ -601,9 +602,9 @@ def test_rdann_summarize_labels_without_annotations():
     assert "n_occurrences" in ann.contained_labels.columns
 
 
-@pytest.mark.parametrize("symbol", ["Z", "AB", "PV2"])
+@pytest.mark.parametrize("symbol", ["Z", "AB", "PV2", "ABCD", "LONGSYMBOL"])
 def test_wrann_custom_symbol_of_several_characters(tmp_path, symbol):
-    """Custom labels may have symbols of up to 3 characters (#411)."""
+    """Custom labels may have symbols of more than one character (#411)."""
     custom_labels = pd.DataFrame(
         {"label_store": [42], "symbol": [symbol], "description": ["custom beat"]}
     )
@@ -621,3 +622,39 @@ def test_wrann_custom_symbol_of_several_characters(tmp_path, symbol):
     np.testing.assert_array_equal(ann.sample, [10, 20, 30])
     assert ann.symbol == ["N", symbol, "N"]
     assert ann.custom_labels.values.tolist() == [[42, symbol, "custom beat"]]
+
+
+@pytest.mark.parametrize(("description_length", "fits"), [(248, True), (249, False)])
+def test_wrann_custom_label_note_fits_in_255_bytes(tmp_path, description_length, fits):
+    """A custom label's note ("42 PV2 <description>") has a one-byte length."""
+    description = "d" * description_length
+    write = functools.partial(
+        wfdb.wrann,
+        "custom",
+        "atr",
+        np.array([10]),
+        symbol=["PV2"],
+        custom_labels=[(42, "PV2", description)],
+        write_dir=str(tmp_path),
+    )
+    if fits:
+        write()
+        ann = wfdb.rdann(str(tmp_path / "custom"), "atr")
+        assert ann.custom_labels.values.tolist() == [[42, "PV2", description]]
+    else:
+        with pytest.raises(ValueError, match="at most 255 characters"):
+            write()
+        assert not (tmp_path / "custom.atr").exists()
+
+
+def test_wrann_custom_label_must_be_latin1(tmp_path):
+    with pytest.raises(ValueError, match="Latin-1"):
+        wfdb.wrann(
+            "custom",
+            "atr",
+            np.array([10]),
+            symbol=["Z"],
+            custom_labels=[(42, "Z", "1 \u20ac beat")],
+            write_dir=str(tmp_path),
+        )
+    assert not (tmp_path / "custom.atr").exists()
