@@ -9,7 +9,8 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb
-    :members: rdrecord, rdheader, rdsamp, wrsamp
+    :members: rdrecord, rdheader, rdsamp, wrsamp, sampfreq, signame, wfdbdesc,
+              wfdbtime
 
 .. autoclass:: wfdb.Record
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
@@ -25,7 +26,7 @@ WFDB Annotations
 
 .. automodule:: wfdb
     :no-index:
-    :members: rdann, wrann, show_ann_labels, show_ann_classes
+    :members: rdann, wrann, mrgann, show_ann_labels, show_ann_classes
 
 .. autoclass:: wfdb.Annotation
     :members: wrann

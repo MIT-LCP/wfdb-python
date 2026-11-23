@@ -2767,7 +2767,7 @@ def wfdbdesc(record_name, pn_dir=None):
      69 M 1085 1629 x1
      Aldomet, Inderal
     =====
-
+    <BLANKLINE>
     Starting time: not specified
     Length: 0:30:05.555556 (650000 sample intervals)
     Sampling frequency: 360 Hz
@@ -2907,25 +2907,29 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
     Examples
     --------
-    * Note, the use of a single string instead of a list.
+    A single time can be given as a string instead of a list.
+
     >>> wfdb.wfdbtime('sample-data/100', 's250')
         s250            00:00:00.694                    00:00:00.694
 
-    * Note, the elapsed time and date fields are the same since no start time
-      or date was provided.
+    The elapsed time and date fields are the same, since the record has no
+    start time or date.
+
     >>> wfdb.wfdbtime('sample-data/100', ['s10',':5:','2'])
          s10            00:00:00.028                    00:00:00.028
      s108000            00:05:00.000                    00:05:00.000
         s720            00:00:02.000                    00:00:02.000
 
-    * Note, '01/01/0001' represents a start time was provided but not a date.
+    A date of '01/01/0001' means that the record has a start time but no date.
+
     >>> wfdb.wfdbtime('sample-data/3000003_0003', ['s1','0:0:05','e'])
           s1            00:00:00.008    [19:46:25.765000 01/01/0001]
         s625            00:00:05.000    [19:46:30.757000 01/01/0001]
        s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
 
-    * Note, the final argument results in the same date field as the argument
-      but a different value for the elapsed time.
+    The final argument gives the same date field as the argument, but a
+    different elapsed time.
+
     >>> wfdb.wfdbtime('sample-data/3000003_0003',
     ...               ['s1', '::5', 'e', '19:46:34.981 01/01/0001'])
           s1            00:00:00.008    [19:46:25.765000 01/01/0001]
