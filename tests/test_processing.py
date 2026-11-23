@@ -1,4 +1,5 @@
 import math
+import tracemalloc
 from unittest import mock
 
 import numpy as np
@@ -189,15 +190,28 @@ class TestProcessing:
         )
 
     @pytest.mark.parametrize(
-        ("record_name", "channel", "fs"),
-        [("100", 0, None), ("100", 1, None), ("12726", 0, None), ("100", 0, 60)],
+        ("record_name", "channel", "fs", "sampto", "chunk_size"),
+        [
+            ("100", 0, None, 100000, None),
+            ("100", 1, None, 100000, None),
+            ("12726", 0, None, 100000, None),
+            ("100", 0, 60, 100000, None),
+            # Chunks that end at many different points in the signal
+            ("100", 0, None, 100000, 1000),
+            ("100", 0, None, 5000, 7),
+            ("100", 0, None, 5000, 1),
+        ],
     )
-    def test_gqrs_filters_computed_ahead(self, monkeypatch, record_name, channel, fs):
+    def test_gqrs_filters_computed_ahead(
+        self, monkeypatch, record_name, channel, fs, sampto, chunk_size
+    ):
         """Computing the filters ahead gives the same result as qf() and sm()."""
+        if chunk_size is not None:
+            monkeypatch.setattr(processing.qrs.GQRS, "_AHEAD_CHUNK_SIZE", chunk_size)
         record = wfdb.rdrecord(
             f"sample-data/{record_name}",
             channels=[channel],
-            sampto=100000,
+            sampto=sampto,
             physical=False,
         )
         x = record.d_signal[:, 0]
@@ -233,10 +247,34 @@ class TestProcessing:
         def stop_early(self):
             if self._ahead and self._ahead["used"] == 5000:
                 self._finish_ahead(self._ahead)
+                self._ahead = False
             return use(self)
 
         monkeypatch.setattr(processing.qrs.GQRS, "_qf_ahead", stop_early)
         assert self._run_gqrs(*args) == expected
+
+    def test_gqrs_filters_computed_ahead_memory(self, monkeypatch):
+        """The filters for a long signal are computed in chunks of bounded size."""
+        peaks = []
+        compute = processing.qrs.GQRS._compute_ahead
+
+        def measure(self):
+            tracemalloc.start()
+            try:
+                result = compute(self)
+                peaks.append(tracemalloc.get_traced_memory()[1])
+            finally:
+                tracemalloc.stop()
+            return result
+
+        monkeypatch.setattr(processing.qrs.GQRS, "_compute_ahead", measure)
+        x = np.zeros(1_000_000, dtype=np.int16)
+        processing.gqrs_detect(d_sig=x, fs=360, adc_gain=200, adc_zero=0)
+
+        # Computing the whole signal at once used about 85 bytes per sample
+        chunk_size = processing.qrs.GQRS._AHEAD_CHUNK_SIZE
+        assert len(peaks) > len(x) // chunk_size
+        assert max(peaks) < 8 * 2**20
 
     def test_correct_peaks(self):
         sig, fields = wfdb.rdsamp("sample-data/100")
