@@ -7,7 +7,34 @@ from wfdb.io import _url
 from wfdb.io.download import config
 
 # Cloud protocols
-CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://", "memory://"]
+CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://", "memory://", "physionet://"]
+
+
+def _fsspec_open(path, mode="rb", **kwargs):
+    """Open a local path or cloud URI with `fsspec.open`.
+
+    Files with a `physionet://` URI are read in parts as they are needed,
+    with HTTP range requests, instead of being downloaded in full, and
+    without progress bars.
+
+    Parameters
+    ----------
+    path : str
+        The local path or cloud URI.
+    mode : str, optional
+        The mode to open the file in.
+    kwargs : dict, optional
+        Passed to `fsspec.open`.
+
+    Returns
+    -------
+    fsspec.core.OpenFile
+        The file to open, as a context manager.
+
+    """
+    if os.fspath(path).startswith("physionet://"):
+        kwargs = {"stream": True, "show_progress": False, **kwargs}
+    return fsspec.open(path, mode, **kwargs)
 
 
 def _split_path(record_name):
@@ -103,7 +130,7 @@ def _open_file(
 
     """
     if pn_dir is None:
-        return fsspec.open(
+        return _fsspec_open(
             file_name,
             mode,
             buffering=buffering,

@@ -1,0 +1,2 @@
+**Read records from PhysioNet with physionet:// URIs**
+  ``rdrecord``, ``rdsamp``, ``rdheader`` and ``rdann`` now accept ``physionet://`` URIs such as ``physionet://mitdb/1.0.0/100``, which read from PhysioNet through the ``physionet`` package, now a dependency. Only the parts of signal files that are needed are read (header and annotation files are read in full), and restricted databases can be read after ``physionet login``. ``fsspec`` 2025.7.0 or later is now required, as for the ``physionet`` package.

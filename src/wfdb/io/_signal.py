@@ -3,7 +3,6 @@ import math
 import os
 import sys
 
-import fsspec
 import numpy as np
 
 from wfdb.io import _coreio, download, util
@@ -1709,7 +1708,7 @@ def _rd_dat_file(
 
     # Local or cloud dat file
     elif pn_dir is None:
-        with fsspec.open(_coreio._join_path(dir_name, file_name), "rb") as fp:
+        with _coreio._fsspec_open(_coreio._join_path(dir_name, file_name), "rb") as fp:
             fp.seek(start_byte)
             sig_data = util.fromfile(
                 fp, dtype=np.dtype(DATA_LOAD_TYPES[fmt]), count=element_count
@@ -2600,7 +2599,9 @@ def _infer_sig_len(
 
     # If this is a cloud path, use fsspec to open the file
     elif any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
-        with fsspec.open(_coreio._join_path(dir_name, file_name), mode="rb") as f:
+        with _coreio._fsspec_open(
+            _coreio._join_path(dir_name, file_name), mode="rb"
+        ) as f:
             file_size = f.seek(0, os.SEEK_END)
 
     # If the PhysioNet database path is provided, construct the download path using the
