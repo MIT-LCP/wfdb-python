@@ -1404,9 +1404,10 @@ class Annotation:
         else:
             raise Exception("No annotation labels contained in object")
 
-        contained_labels = label_map.loc[list(index_vals), :]
+        contained_labels = label_map.loc[list(index_vals), :].copy()
 
-        # Add the counts
+        # Add the counts. With no annotations, there are none to add.
+        contained_labels["n_occurrences"] = 0
         for i in range(len(counts[0])):
             contained_labels.loc[counts[0][i], "n_occurrences"] = counts[1][i]
         contained_labels["n_occurrences"] = pd.to_numeric(
@@ -1948,7 +1949,8 @@ def rdann(
     sampfrom : int, optional
         The minimum sample number for annotations to be returned.
     sampto : int, optional
-        The maximum sample number for annotations to be returned.
+        The maximum sample number for annotations to be returned. It must
+        be greater than `sampfrom`. Leave it out to read to the end.
     shift_samps : bool, optional
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
@@ -2105,7 +2107,7 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
         'label_store', 'description'.
 
     """
-    if sampto and sampto <= sampfrom:
+    if sampto is not None and sampto <= sampfrom:
         raise ValueError("sampto must be greater than sampfrom")
     if sampfrom < 0:
         raise ValueError("sampfrom must be a non-negative integer")
