@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -1877,3 +1878,72 @@ class TestChecksumHelpers:
         signal = np.array([[0.1, 0.0]] * 10)
         expected = [int(np.sum(col) % 65536) for col in np.transpose(signal)]
         assert wfdb.io._signal._checksums(signal) == expected
+
+
+def write_record_with_date(tmp_path, date):
+    """Write a small record, and give its record line the base date `date`."""
+    wfdb.wrsamp(
+        "dated",
+        fs=250,
+        units=["mV"],
+        sig_name=["I"],
+        p_signal=np.linspace(-1, 1, 10)[:, None],
+        fmt=["16"],
+        write_dir=str(tmp_path),
+    )
+    header = tmp_path / "dated.hea"
+    lines = header.read_text().splitlines(keepends=True)
+    lines[0] = f"dated 1 250 10 10:30:00 {date}\n"
+    header.write_text("".join(lines))
+    return str(tmp_path / "dated")
+
+
+@pytest.mark.parametrize("date", ["25.12.2020", "2020-12-25", "2020", "31/02/2020"])
+def test_invalid_base_date_is_ignored_with_a_warning(tmp_path, date):
+    """As in the WFDB library, a date that is not DD/MM/YYYY is ignored."""
+    record_name = write_record_with_date(tmp_path, date)
+
+    with pytest.warns(UserWarning, match="base date is not a valid DD/MM/YYYY"):
+        record = wfdb.rdrecord(record_name)
+
+    assert record.base_date is None
+    assert record.base_time == datetime.time(10, 30)
+    assert record.base_datetime is None
+    np.testing.assert_allclose(record.p_signal[:, 0], np.linspace(-1, 1, 10), atol=0.01)
+
+
+def test_valid_base_date_is_read_without_a_warning(tmp_path, recwarn):
+    record = wfdb.rdheader(write_record_with_date(tmp_path, "25/12/2020"))
+    assert record.base_date == datetime.date(2020, 12, 25)
+    assert record.base_datetime == datetime.datetime(2020, 12, 25, 10, 30)
+    assert not [w for w in recwarn if "base date" in str(w.message)]
+
+
+@pytest.mark.parametrize(
+    ("time_and_date", "warning"),
+    [
+        # The 2020 and 2021 Challenges put the date, with dashes, first
+        ("05-Feb-2020 11:39:16", "base time .* base date"),
+        # A year alone, in place of the time
+        ("2020", "base time"),
+        ("25:00:00 25/12/2020", "base time"),
+    ],
+)
+def test_invalid_base_time_is_ignored_with_a_warning(tmp_path, time_and_date, warning):
+    """An invalid time is ignored whole, not read in part as a wrong time."""
+    record_name = write_record_with_date(tmp_path, "")
+    header = tmp_path / "dated.hea"
+    lines = header.read_text().splitlines(keepends=True)
+    lines[0] = f"dated 1 250 10 {time_and_date}\n"
+    header.write_text("".join(lines))
+
+    with pytest.warns(UserWarning) as warnings:
+        record = wfdb.rdrecord(record_name)
+
+    messages = " ".join(str(w.message) for w in warnings)
+    assert re.search(warning.replace(" .* ", ".*"), messages)
+    assert record.base_time is None
+    assert record.base_datetime is None
+    assert record.sig_len == 10
+    if time_and_date.endswith("25/12/2020"):
+        assert record.base_date == datetime.date(2020, 12, 25)
