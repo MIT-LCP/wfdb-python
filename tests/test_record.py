@@ -1828,3 +1828,52 @@ class TestWrDatFile:
 
         written = (tmp_path / "x.dat").read_bytes()
         assert written == _pack_reference(fmt, [1, -2, 5, 3, -4, -6])
+
+
+class TestChecksumHelpers:
+    """Direct tests for the WFDB checksum helpers."""
+
+    @pytest.mark.parametrize(
+        ("values", "expected"),
+        [
+            ([], 0),
+            ([0], 0),
+            ([100, -25, 5], 80),
+            ([30000, 30000, 10000], 4464),
+            ([-1], 65535),
+            ([-70000, -1], 61071),
+        ],
+    )
+    def test_checksum_single_channel(self, values, expected):
+        """Wrap-around, negative sums, and empty channels return a Python int."""
+        result = wfdb.io._signal._checksum(np.array(values, dtype=np.int64))
+        assert type(result) is int
+        assert result == expected
+
+    @pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64])
+    def test_checksums_2d_and_dtypes(self, dtype):
+        """Per-channel checksums match _checksum across integer dtypes."""
+        rows = 1000
+        signal = np.column_stack(
+            [
+                np.full(rows, 100, dtype=dtype),
+                np.full(rows, -100, dtype=dtype),
+                np.zeros(rows, dtype=dtype),
+            ]
+        )
+        result = wfdb.io._signal._checksums(signal)
+        expected = [wfdb.io._signal._checksum(col) for col in signal.T]
+        assert result == expected
+        assert all(type(c) is int for c in result)
+        assert result == [34464, 31072, 0]
+
+    def test_checksums_empty_signal(self):
+        """A 2-D signal with zero samples produces zero checksums per channel."""
+        signal = np.empty((0, 3), dtype=np.int16)
+        assert wfdb.io._signal._checksums(signal) == [0, 0, 0]
+
+    def test_checksums_float_matches_per_channel_sum(self):
+        """Float signals sum each column individually, preserving read_edf parity."""
+        signal = np.array([[0.1, 0.0]] * 10)
+        expected = [int(np.sum(col) % 65536) for col in np.transpose(signal)]
+        assert wfdb.io._signal._checksums(signal) == expected

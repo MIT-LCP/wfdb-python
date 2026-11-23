@@ -11,6 +11,8 @@ from wfdb.io._coreio import CLOUD_PROTOCOLS
 MAX_I32 = 2147483647
 MIN_I32 = -2147483648
 
+CHECKSUM_MODULUS = 65536
+
 # Formats in which all samples align with integer (power-of-two) boundaries
 ALIGNED_FMTS = ["8", "16", "32", "61", "80", "160"]
 # Formats in which not all samples align with integer boundaries
@@ -109,6 +111,40 @@ INVALID_SAMPLE_VALUE = {
     "32": -(2**31),
     "8": None,
 }
+
+
+def _checksum(values):
+    """Return the WFDB checksum of one channel of digital samples.
+
+    Parameters
+    ----------
+    values : array_like
+        The digital samples of a single channel.
+
+    Returns
+    -------
+    int
+        The sum of the samples modulo 65536.
+
+    """
+    return int(np.sum(values) % CHECKSUM_MODULUS)
+
+
+def _checksums(signal):
+    """Return the WFDB checksum of each channel (column) of a 2-D signal array.
+
+    Parameters
+    ----------
+    signal : ndarray
+        A 2-D array of digital samples with one column per channel.
+
+    Returns
+    -------
+    list of int
+        The sum of each column modulo 65536.
+
+    """
+    return [_checksum(channel) for channel in np.transpose(signal)]
 
 
 class SignalMixin:
@@ -940,10 +976,9 @@ class SignalMixin:
 
         """
         if expanded:
-            cs = [int(np.sum(s) % 65536) for s in self.e_d_signal]
+            cs = [_checksum(s) for s in self.e_d_signal]
         else:
-            cs = np.sum(self.d_signal, 0) % 65536
-            cs = [int(c) for c in cs]
+            cs = _checksums(self.d_signal)
         return cs
 
     def wr_dat_files(self, expanded=False, write_dir="", wfdb_archive=None):

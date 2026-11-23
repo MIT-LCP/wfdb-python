@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import download
+from wfdb.io._signal import _checksums
 from wfdb.io.annotation import Annotation, format_ann_from_df, wrann
 from wfdb.io.record import SIG_UNITS, Record, rdrecord
 
@@ -424,9 +425,7 @@ def read_edf(
     #        [  -5.004123,   43.546991,  -99.481966,   51.64255 ,  -43.079939],...
 
     init_value = [int(s[0, 0]) for s in temp_all_sigs]
-    checksum = [
-        int(np.sum(v) % 65536) for v in np.transpose(sig_data)
-    ]  # not all values correct?
+    checksum = _checksums(sig_data)  # not all values correct?
 
     edf_file.close()
 
