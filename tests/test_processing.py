@@ -241,6 +241,109 @@ class TestProcessing:
 
         assert np.array_equal(peaks, expected_peaks)
 
+    @staticmethod
+    def _run_gqrs(x, fs, adc_gain, adc_zero):
+        """Run GQRS, and return its annotations and final state."""
+        conf = processing.qrs.GQRS.Conf(fs=fs, adc_gain=adc_gain)
+        gqrs = processing.qrs.GQRS()
+        annotations = gqrs.detect(x=x, conf=conf, adc_zero=adc_zero)
+        return (
+            [(a.time, a.type, a.subtype, a.num) for a in annotations],
+            vars(conf),
+            gqrs.smv.tolist(),
+            gqrs.qfv.tolist(),
+            int(gqrs.v1),
+            gqrs.SIG_SMOOTH,
+            gqrs.SIG_QRS,
+        )
+
+    @pytest.mark.parametrize(
+        ("record_name", "channel", "fs", "sampto", "chunk_size"),
+        [
+            ("100", 0, None, 100000, None),
+            ("100", 1, None, 100000, None),
+            ("12726", 0, None, 100000, None),
+            ("100", 0, 60, 100000, None),
+            # Chunks that end at many different points in the signal
+            ("100", 0, None, 100000, 1000),
+            ("100", 0, None, 5000, 7),
+            ("100", 0, None, 5000, 1),
+        ],
+    )
+    def test_gqrs_filters_computed_ahead(
+        self, monkeypatch, record_name, channel, fs, sampto, chunk_size
+    ):
+        """Computing the filters ahead gives the same result as qf() and sm()."""
+        if chunk_size is not None:
+            monkeypatch.setattr(processing.qrs.GQRS, "_AHEAD_CHUNK_SIZE", chunk_size)
+        record = wfdb.rdrecord(
+            f"sample-data/{record_name}",
+            channels=[channel],
+            sampto=sampto,
+            physical=False,
+        )
+        x = record.d_signal[:, 0]
+        if fs is not None:
+            # A low sampling frequency, where the filters are shortest
+            x = x[:: round(record.fs / fs)]
+        else:
+            fs = record.fs
+        args = (x, fs, record.adc_gain[0], record.adc_zero[0])
+        computed = []
+        compute = processing.qrs.GQRS._compute_ahead
+
+        def record_computed(self):
+            result = compute(self)
+            computed.append(result)
+            return result
+
+        with monkeypatch.context() as m:
+            m.setattr(processing.qrs.GQRS, "_compute_ahead", record_computed)
+            ahead = self._run_gqrs(*args)
+        # The filters were computed ahead, once the running sums started
+        assert any(isinstance(result, dict) for result in computed)
+
+        with monkeypatch.context() as m:
+            m.setattr(processing.qrs.GQRS, "_compute_ahead", lambda self: False)
+            expected = self._run_gqrs(*args)
+        assert ahead == expected
+        assert len(ahead[0]) > 10
+
+        # Stop using the filters computed ahead partway through
+        use = processing.qrs.GQRS._qf_ahead
+
+        def stop_early(self):
+            if self._ahead and self._ahead["used"] == 5000:
+                self._finish_ahead(self._ahead)
+                self._ahead = False
+            return use(self)
+
+        monkeypatch.setattr(processing.qrs.GQRS, "_qf_ahead", stop_early)
+        assert self._run_gqrs(*args) == expected
+
+    def test_gqrs_filters_computed_ahead_memory(self, monkeypatch):
+        """The filters for a long signal are computed in chunks of bounded size."""
+        peaks = []
+        compute = processing.qrs.GQRS._compute_ahead
+
+        def measure(self):
+            tracemalloc.start()
+            try:
+                result = compute(self)
+                peaks.append(tracemalloc.get_traced_memory()[1])
+            finally:
+                tracemalloc.stop()
+            return result
+
+        monkeypatch.setattr(processing.qrs.GQRS, "_compute_ahead", measure)
+        x = np.zeros(1_000_000, dtype=np.int16)
+        processing.gqrs_detect(d_sig=x, fs=360, adc_gain=200, adc_zero=0)
+
+        # Computing the whole signal at once used about 85 bytes per sample
+        chunk_size = processing.qrs.GQRS._AHEAD_CHUNK_SIZE
+        assert len(peaks) > len(x) // chunk_size
+        assert max(peaks) < 8 * 2**20
+
     def test_correct_peaks(self):
         sig, fields = wfdb.rdsamp("sample-data/100")
         ann = wfdb.rdann("sample-data/100", "atr")

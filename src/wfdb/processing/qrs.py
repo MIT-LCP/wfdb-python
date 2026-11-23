@@ -1003,6 +1003,9 @@ class GQRS:
         self.qfv = np.zeros((self.c._BUFLN), dtype="int64")
         self.smv = np.zeros((self.c._BUFLN), dtype="int64")
         self.v1 = 0
+        # Filter outputs computed ahead by _qf_ahead, if any
+        self._ahead = None
+        self._x_array = None
 
         t0 = 0
         self.tf = len(x) - 1
@@ -1228,6 +1231,9 @@ class GQRS:
         N/A
 
         """
+        if self._qf_ahead():
+            return
+
         # Do this first, to ensure that all of the other smoothed values
         # needed below are in the buffer
         dv2 = self.sm(self.t + self.c.dt4)
@@ -1244,6 +1250,158 @@ class GQRS:
         v0 = int(self.v1 / self.c.v1norm)
         self.qfv_put(self.t, v0 * v0)
         self.SIG_QRS.append(v0**2)
+
+    def _qf_ahead(self):
+        """Evaluate qf() from filter outputs computed ahead.
+
+        After the first few samples, sm() and qf() are running sums that
+        qf() advances by one sample per call, which is slow in Python. On
+        the first call in that state, this computes their outputs for the
+        next `_AHEAD_CHUNK_SIZE` calls with NumPy, giving the same integers,
+        and then the next chunk when those have been used. Each call stores
+        the next output in the buffer, as qf() would. The rest of the state
+        that qf() updates is set at the end of each chunk, since only qf()
+        and sm() read it.
+
+        Returns
+        -------
+        bool
+            Whether qf() was evaluated. If not, qf() is evaluated as usual.
+
+        """
+        ahead = self._ahead
+        if ahead is None:
+            ahead = self._compute_ahead()
+            if ahead is None:
+                # The running sums have not started yet
+                return False
+            self._ahead = ahead
+        if not ahead:
+            return False
+
+        k = self.t - ahead["t0"]
+        if k != ahead["used"]:
+            # The calls did not follow on from each other, so go back to
+            # qf() from here on, with the state it expects
+            self._finish_ahead(ahead)
+            self._ahead = False
+            return False
+        self.qfv[self.t & ahead["mask"]] = ahead["qfv_list"][k]
+        ahead["used"] = k + 1
+        if k == ahead["last"]:
+            self._finish_ahead(ahead)
+            # Compute the next chunk on the next call, unless this was the
+            # last call
+            self._ahead = False if ahead["final"] else None
+        return True
+
+    # The number of qf() outputs that _qf_ahead computes at a time
+    _AHEAD_CHUNK_SIZE = 32768
+
+    def _compute_ahead(self):
+        """Compute the outputs of qf() for the next chunk of calls.
+
+        Returns
+        -------
+        dict, bool or None
+            The outputs and the information needed to use them, None if
+            the running sums have not started yet, or False if the outputs
+            cannot be computed this way (for example, for a signal that is
+            not made of integers).
+
+        """
+        c = self.c
+        t0 = self.t
+        smt = c.smt
+        if smt <= int(c.smt0):
+            return None
+        smdt = int(c.smdt)
+        if self._x_array is None:
+            self._x_array = np.asarray(self.x)
+        x = self._x_array
+        # A float signal is rounded at every step of sm(), so it cannot be
+        # summed ahead. Unsigned 64-bit integers do not mix with int64.
+        if not (x.dtype.kind == "i" or (x.dtype.kind == "u" and x.dtype.itemsize < 8)):
+            return False
+        tf = len(x) - 1
+        # qf() is called once per sample until sm() reads past the end of
+        # the signal, after the call at t_last
+        t_last = tf - 3 * c.dt + 2
+        if smt != t0 + c.dt4 - 1 or t_last < t0:
+            return False
+        t_stop = min(t_last, t0 + self._AHEAD_CHUNK_SIZE - 1)
+
+        # Smoothed values, for samples t0 - dt4 to t_stop + dt4. Those up to
+        # smt are already in the buffer. Later ones are the running sum in
+        # sm(), with samples before the start or after the end taken from
+        # the first or last sample, as in at().
+        lo = t0 - c.dt4
+        hi = t_stop + c.dt4
+        mask = c._BUFLN - 1
+        known = self.smv[np.arange(lo, smt + 1) & mask]
+        s = np.arange(smt + 1, hi + 1)
+        # The samples that sm() reads for this chunk
+        x_lo = min(max(smt - smdt, 0), tf)
+        x_hi = min(max(hi + smdt, 0), tf)
+        x = x[x_lo : x_hi + 1].astype(np.int64)
+
+        def at(t):
+            return x[np.clip(t, 0, tf) - x_lo]
+
+        step = at(s + smdt) + at(s + smdt - 1) - at(s - smdt) - at(s - smdt - 1)
+        new = self.smv[smt & mask] + np.cumsum(step)
+        smv = np.concatenate([known, new])
+
+        t = np.arange(t0, t_stop + 1) - lo
+
+        def diff(d):
+            return smv[t + d] - smv[t - d]
+
+        dv1 = diff(c.dt)
+        dv = (((dv1 << 1) - diff(c.dt2)) << 1) + dv1 - diff(c.dt3)
+        dv = (dv << 1) + diff(c.dt4)
+        v1 = self.v1 + np.cumsum(dv)
+        v0 = np.trunc(v1 / c.v1norm).astype(np.int64)
+        # qf() stores v0 * v0 in an int64 buffer, which raises an
+        # OverflowError if it is too large. Leave that to qf().
+        if np.any(np.abs(v0) > 3037000499):
+            return False
+        qfv = (v0 * v0).tolist()
+
+        return {
+            "t0": t0,
+            "last": len(qfv) - 1,
+            "final": t_stop == t_last,
+            "used": 0,
+            "mask": mask,
+            "lo": lo,
+            "smv": smv,
+            "new": new,
+            "v1": v1,
+            "qfv_list": qfv,
+        }
+
+    def _finish_ahead(self, ahead):
+        """Set the state as qf() would after the outputs computed ahead.
+
+        The state is set as after the last output that was used: the
+        smoothed values go into the buffer, and the outputs into SIG_SMOOTH
+        and SIG_QRS.
+
+        """
+        used = ahead["used"]
+        c = self.c
+        c.smt = ahead["t0"] + c.dt4 - 1 + used
+        self.v1 = ahead["v1"][used - 1]
+        # sm() last reads the sample at smt - smdt - 1, which is past the
+        # end of the signal after the last output
+        if ahead["final"] and used - 1 == ahead["last"]:
+            self.sample_valid = False
+        start = max(ahead["lo"], c.smt - c._BUFLN + 1)
+        i = np.arange(start, c.smt + 1)
+        self.smv[i & ahead["mask"]] = ahead["smv"][i - ahead["lo"]]
+        self.SIG_SMOOTH.extend(ahead["new"][:used].tolist())
+        self.SIG_QRS.extend(ahead["qfv_list"][:used])
 
     def gqrs(self, from_sample, to_sample):
         """The GQRS algorithm.
@@ -1402,6 +1560,8 @@ class GQRS:
         r = None
         next_minute = 0
         minutes = 0
+        qfv = self.qfv
+        mask = self.c._BUFLN - 1
         while self.t <= to_sample + self.c.sps:
             if self.countdown < 0:
                 if self.sample_valid:
@@ -1414,9 +1574,10 @@ class GQRS:
                 if self.countdown < 0:
                     break
 
-            q0 = self.qfv_at(self.t)
-            q1 = self.qfv_at(self.t - 1)
-            q2 = self.qfv_at(self.t - 2)
+            # The same as qfv_at(), without the cost of a method call
+            q0 = qfv[self.t & mask]
+            q1 = qfv[(self.t - 1) & mask]
+            q2 = qfv[(self.t - 2) & mask]
             # state == RUNNING only
             if q1 > self.c.pthr and q2 < q1 and q1 >= q0 and self.t > self.c.dt4:
                 add_peak(self.t - 1, q1, 0)
