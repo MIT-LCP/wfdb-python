@@ -241,14 +241,14 @@ class Annotation:
         sampfrom : int, optional
             The minimum sample number for annotations to be returned.
         sampto : int, optional
-            The maximum sample number for annotations to be returned.
+            The maximum sample number for annotations to be returned. If None,
+            there is no upper limit.
 
         """
-        sampto = sampto or self.sample[-1]
-
-        kept_inds = np.intersect1d(
-            np.where(self.sample >= sampfrom), np.where(self.sample <= sampto)
-        )
+        kept = self.sample >= sampfrom
+        if sampto is not None:
+            kept &= self.sample <= sampto
+        kept_inds = np.flatnonzero(kept)
 
         for field in ["sample", "label_store", "subtype", "chan", "num"]:
             setattr(self, field, getattr(self, field)[kept_inds])
@@ -1386,9 +1386,10 @@ class Annotation:
         else:
             raise Exception("No annotation labels contained in object")
 
-        contained_labels = label_map.loc[list(index_vals), :]
+        contained_labels = label_map.loc[list(index_vals), :].copy()
 
-        # Add the counts
+        # Add the counts. With no annotations, there are none to add.
+        contained_labels["n_occurrences"] = 0
         for i in range(len(counts[0])):
             contained_labels.loc[counts[0][i], "n_occurrences"] = counts[1][i]
         contained_labels["n_occurrences"] = pd.to_numeric(
@@ -1930,7 +1931,8 @@ def rdann(
     sampfrom : int, optional
         The minimum sample number for annotations to be returned.
     sampto : int, optional
-        The maximum sample number for annotations to be returned.
+        The maximum sample number for annotations to be returned. It must
+        be greater than `sampfrom`. Leave it out to read to the end.
     shift_samps : bool, optional
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
@@ -2046,7 +2048,7 @@ def rdann(
     )
 
     # Apply the desired index range
-    if sampfrom > 0 and sampto is not None:
+    if sampfrom > 0:
         annotation.apply_range(sampfrom=sampfrom, sampto=sampto)
 
     # If specified, obtain annotation samples relative to the starting
@@ -2087,7 +2089,7 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
         'label_store', 'description'.
 
     """
-    if sampto and sampto <= sampfrom:
+    if sampto is not None and sampto <= sampfrom:
         raise ValueError("sampto must be greater than sampfrom")
     if sampfrom < 0:
         raise ValueError("sampfrom must be a non-negative integer")

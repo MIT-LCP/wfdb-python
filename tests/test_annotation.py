@@ -466,3 +466,40 @@ def test_rdann_fs_header_error(tmp_path, monkeypatch):
     monkeypatch.setattr(wfdb.io.record, "rdheader", rdheader)
     with pytest.raises(wfdb.io._url.NetFileError, match="Bad Gateway"):
         wfdb.rdann(str(tmp_path / "err"), "atr")
+
+
+def test_rdann_sampfrom_without_sampto():
+    """rdann with only sampfrom returns the annotations from sampfrom onwards."""
+    full = wfdb.rdann("sample-data/100", "atr")
+    start = np.searchsorted(full.sample, 600000)
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=600000)
+    np.testing.assert_array_equal(ann.sample, full.sample[start:])
+    assert ann.symbol == full.symbol[start:]
+    assert ann.ann_len == full.ann_len - start
+    shifted = wfdb.rdann("sample-data/100", "atr", sampfrom=600000, shift_samps=True)
+    np.testing.assert_array_equal(shifted.sample, full.sample[start:] - 600000)
+
+
+def test_rdann_sampfrom_empty_file(tmp_path):
+    """rdann with only sampfrom reads an annotation file with no annotations."""
+    # A file that holds only the end-of-file marker
+    (tmp_path / "empty.atr").write_bytes(b"\x00\x00")
+    ann = wfdb.rdann(str(tmp_path / "empty"), "atr", sampfrom=10)
+    assert ann.sample.size == 0
+
+
+@pytest.mark.parametrize(
+    ("sampfrom", "sampto"), [(0, 0), (10, 0), (100, 100), (100, 50)]
+)
+def test_rdann_sampto_must_be_after_sampfrom(sampfrom, sampto):
+    """As in rdrecord, sampto must be greater than sampfrom (0 is not 'no limit')."""
+    with pytest.raises(ValueError, match="sampto must be greater than sampfrom"):
+        wfdb.rdann("sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto)
+
+
+def test_rdann_summarize_labels_without_annotations():
+    """summarize_labels works when the range holds no annotations."""
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=10**9, summarize_labels=True)
+    assert ann.ann_len == 0
+    assert ann.contained_labels.empty
+    assert "n_occurrences" in ann.contained_labels.columns
