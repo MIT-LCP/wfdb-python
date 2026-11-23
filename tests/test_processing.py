@@ -1,4 +1,5 @@
 import math
+import tracemalloc
 from unittest import mock
 
 import numpy as np
@@ -116,6 +117,74 @@ class TestProcessing:
     def test_find_local_peaks_list(self):
         """A list works as well as an array."""
         assert processing.find_local_peaks([0, 1, 2, 3, 2, 1, 0], 1).tolist() == [3]
+
+    @staticmethod
+    def _scan_peaks(sig, radius):
+        """Find local peaks one sample at a time, as find_local_peaks used to."""
+        peak_inds = []
+        i = 0
+        while i < len(sig):
+            if sig[i] == sig[max(0, i - radius) : i + radius + 1].max():
+                peak_inds.append(i)
+                i += radius
+            else:
+                i += 1
+        return peak_inds
+
+    @pytest.mark.parametrize("block_size", [65536, 1, 7])
+    @pytest.mark.parametrize("radius", [1, 3, 10, 200])
+    @pytest.mark.parametrize("n", [2, 5, 50, 1000, 20000])
+    def test_find_local_peaks_matches_scan(self, monkeypatch, n, radius, block_size):
+        """Give the same peaks as a sample-by-sample scan of the signal."""
+        # Small blocks check peaks and flat tops that cross a block edge
+        monkeypatch.setattr(processing.peaks, "_PEAK_BLOCK_SIZE", block_size)
+        rng = np.random.default_rng(n * 1000 + radius)
+        # Few distinct values, to give ties and flat tops
+        ties = rng.integers(0, 4, n).astype(float)
+        with_nan = rng.normal(size=n)
+        with_nan[rng.random(n) < 0.05] = np.nan
+        with_inf = rng.choice([0.0, 1.0, np.inf, -np.inf, np.nan], n)
+        integers = rng.integers(-100, 100, n)
+        for sig in (ties, with_nan, with_inf, integers):
+            if np.min(sig) == np.max(sig):
+                continue
+            expected = self._scan_peaks(sig, radius)
+            assert processing.find_local_peaks(sig, radius).tolist() == expected
+
+    @pytest.mark.parametrize(
+        "dtype",
+        ["bool", "uint8", "int16", "uint64", "float16", "float32", "longdouble"]
+        + ["complex64", "complex128", "object"],
+    )
+    def test_find_local_peaks_dtypes(self, dtype):
+        """Work for any type of signal that can be compared."""
+        sig = np.array([0, 2, 0, 3, 0, 0, 1, 1, 0], dtype=dtype)
+        expected = self._scan_peaks(sig, 1)
+        assert expected == [1, 3, 6, 7]
+        assert processing.find_local_peaks(sig, 1).tolist() == expected
+
+    def test_find_local_peaks_flat(self):
+        """A long flat signal is fast and uses little memory."""
+        sig = np.zeros(2_000_001)
+        sig[-1] = 1
+        tracemalloc.start()
+        try:
+            peaks = processing.find_local_peaks(sig, 50)
+            peak_memory = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        assert peaks.tolist() == self._scan_peaks(sig, 50)
+        # Checking every sample at once used about 110 MB
+        assert peak_memory < 10 * 2**20
+
+    def test_find_local_peaks_ecg(self):
+        """Peaks on an ECG signal are window maxima at least `radius` apart."""
+        record = wfdb.rdrecord("sample-data/100", sampto=36000, channels=[0])
+        sig = record.p_signal[:, 0]
+        peaks = processing.find_local_peaks(sig, 50)
+        for i in peaks:
+            assert sig[i] == sig[max(0, i - 50) : i + 51].max()
+        assert np.all(np.diff(peaks) >= 50)
 
     def test_gqrs(self):
         record = wfdb.rdrecord(

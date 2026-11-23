@@ -1,0 +1,2 @@
+**Speed up find_local_peaks and XQRS**
+  ``find_local_peaks`` now finds the largest value around each sample with ``scipy.ndimage.maximum_filter1d`` instead of checking each sample in a Python loop, and is about 20 times faster. ``XQRS`` uses it to find candidate peaks, so QRS detection with ``xqrs_detect`` is about 10 times faster (35 ms instead of 380 ms for the 30-minute MIT-BIH record 100). The peaks found are unchanged.
