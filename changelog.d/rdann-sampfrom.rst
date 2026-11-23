@@ -1,2 +1,0 @@
-**Apply sampfrom in rdann without sampto**
-  ``rdann`` now returns only the annotations at or after ``sampfrom`` when ``sampto`` is not given. It used to ignore ``sampfrom`` and return every annotation in the file, which gave negative sample numbers with ``shift_samps=True``. ``Annotation.apply_range`` with ``sampto=None`` now keeps annotations up to the end without assuming they are sorted, and no longer fails when there are no annotations.
