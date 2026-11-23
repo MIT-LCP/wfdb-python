@@ -101,6 +101,48 @@ class TestProcessing:
         assert np.array_equal(hp, [1, 8])
         assert np.array_equal(sp, [6, 10])
 
+    @pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64])
+    def test_find_peaks_signed_integer_limits(self, dtype):
+        limits = np.iinfo(dtype)
+        x = np.array([0, limits.max, limits.min, 0], dtype=dtype)
+        hp, sp = processing.find_peaks(x)
+        np.testing.assert_array_equal(hp, [1, 2])
+        assert sp.size == 0
+
+    @pytest.mark.parametrize("dtype", [np.uint8, np.uint16, np.uint32, np.uint64])
+    def test_find_peaks_unsigned_integer_limits(self, dtype):
+        limits = np.iinfo(dtype)
+        x = np.array([0, limits.max, 0, 0, limits.max, limits.max, 0], dtype=dtype)
+        hp, sp = processing.find_peaks(x)
+        np.testing.assert_array_equal(hp, [1])
+        np.testing.assert_array_equal(sp, [2, 4])
+
+    def test_find_peaks_uint64_small_differences(self):
+        # These distinct samples become equal if first converted to float64.
+        base = 2**63
+        x = np.array([base, base + 1, base, base + 1], dtype=np.uint64)
+        hp, sp = processing.find_peaks(x)
+        np.testing.assert_array_equal(hp, [1, 2])
+        assert sp.size == 0
+
+    def test_find_peaks_digital_record(self, tmp_path):
+        x = np.array([0, 32767, -32767, 0], dtype=np.int16)
+        wfdb.wrsamp(
+            "peaks",
+            fs=250,
+            units=["mV"],
+            sig_name=["ECG"],
+            d_signal=x[:, None],
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            write_dir=tmp_path,
+        )
+        record = wfdb.rdrecord(str(tmp_path / "peaks"), physical=False, return_res=16)
+        hp, sp = processing.find_peaks(record.d_signal[:, 0])
+        np.testing.assert_array_equal(hp, [1, 2])
+        assert sp.size == 0
+
     def test_find_peaks_empty(self):
         x = []
         hp, sp = processing.find_peaks(x)

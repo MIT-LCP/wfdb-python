@@ -28,7 +28,11 @@ def find_peaks(sig):
 
     tmp = sig[1:]
     tmp = np.append(tmp, [sig[-1]])
-    tmp = sig - tmp
+    if np.asarray(sig).dtype.kind in "iu":
+        # Comparing integer samples avoids overflow before slopes are classified.
+        tmp = (sig > tmp).astype(np.int8) - (sig < tmp).astype(np.int8)
+    else:
+        tmp = sig - tmp
     tmp[np.where(tmp > 0)] = 1
     tmp[np.where(tmp == 0)] = 0
     tmp[np.where(tmp < 0)] = -1
