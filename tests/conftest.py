@@ -5,6 +5,8 @@ from wfdb.io._url import NetFileError
 
 # Errors that mean PhysioNet is unreachable or too slow (not that a test failed)
 NETWORK_ERRORS = (
+    # Raised by the physionet package, for example when looking up a version
+    ConnectionError,
     requests.exceptions.ConnectionError,
     requests.exceptions.ChunkedEncodingError,
     requests.exceptions.Timeout,
@@ -16,14 +18,12 @@ def is_network_error(exc):
     if isinstance(exc, NETWORK_ERRORS):
         return True
     # Server errors (for example 502 Bad Gateway) and rate limiting, but not errors
-    # like 404 or 403 which indicate a real problem. physionet:// files are read
-    # with the physionet package, which raises requests' HTTPError.
+    # like 404 or 403 which indicate a real problem
     if isinstance(exc, NetFileError):
         status = exc.status_code
-    elif isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-        status = exc.response.status_code
     else:
-        return False
+        # requests' HTTPError and the physionet package's API errors
+        status = getattr(getattr(exc, "response", None), "status_code", None)
     return status is not None and (status >= 500 or status == 429)
 
 

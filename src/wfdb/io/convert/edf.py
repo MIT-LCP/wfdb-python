@@ -8,7 +8,7 @@ import struct
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _url, download
+from wfdb.io import download
 from wfdb.io.annotation import Annotation, format_ann_from_df, wrann
 from wfdb.io.record import SIG_UNITS, Record, rdrecord
 
@@ -135,10 +135,9 @@ def read_edf(
                 dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
             )
 
-        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file for MNE to read it though can give the
         # user the option to delete it immediately afterwards
-        with _url.openurl(file_url, "rb") as f:
+        with download._open_pn_file(pn_dir, record_name) as f:
             open(record_name, "wb").write(f.read())
 
     # Open the desired file
