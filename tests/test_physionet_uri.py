@@ -250,3 +250,119 @@ def test_other_servers_are_read_without_physionet(monkeypatch):
         wfdb.io.download._physionet_uri("mitdb/1.0.0", "100.hea")
         == "physionet://mitdb/1.0.0/100.hea"
     )
+
+
+@pytest.fixture
+def demo_database(physionet_cache, offline, versions, monkeypatch):
+    """A database 'demo', version 1.0, in the physionet cache, with downloads recorded.
+
+    Returns the list of keyword arguments that physionet.download was called with.
+    """
+    import physionet
+
+    _, results = versions
+    results["demo"] = "1.0"
+    project = physionet_cache / "physionet.org" / "demo" / "1.0"
+    (project / "sub").mkdir(parents=True)
+    (project / "RECORDS").write_text("100\n041s\n")
+    (project / "ANNOTATORS").write_text("atr\tReference beat annotations\n")
+    (project / "sub" / "RECORDS").write_text("200\n")
+    (project / "sub" / "200.hea").write_text(
+        "200 1 360 10\n200.dat 16 200 16 0 0 0 0 ECG\n"
+    )
+    shutil.copy(SAMPLE_DATA / "100.hea", project)
+    for path in (SAMPLE_DATA / "multi-segment" / "041s").glob("*.hea"):
+        shutil.copy(path, project)
+
+    # The checksum list: 100 has annotations, 041s does not
+    manifest = physionet_cache / "physionet.org" / ".manifests" / "demo" / "1.0"
+    manifest.mkdir(parents=True)
+    names = ["RECORDS", "ANNOTATORS", "100.hea", "100.dat", "100.atr", "041s.hea"]
+    names += ["041s01.hea", "041s01.dat", "041s02.hea", "041s02.dat"]
+    names += ["sub/RECORDS", "sub/200.hea", "sub/200.dat", "sub/200.atr"]
+    (manifest / "SHA256SUMS.txt").write_text(
+        "".join(f"{'0' * 64}  {n}\n" for n in names)
+    )
+    (manifest / "ACCESS").write_text("open\n")
+
+    calls = []
+    monkeypatch.setattr(physionet, "download", lambda *a, **kw: calls.append((a, kw)))
+    # dl_database checks that the database's web page exists
+    monkeypatch.setattr(wfdb.io._url, "openurl", lambda url, *a, **kw: io.BytesIO())
+    return calls
+
+
+def test_dl_database_downloads_with_physionet(demo_database, tmp_path):
+    wfdb.dl_database("demo", str(tmp_path / "out"), annotators=["atr"])
+
+    [(args, kwargs)] = demo_database
+    assert args == ("demo", "1.0")
+    files = kwargs.pop("files")
+    assert kwargs == {
+        "output_dir": str(tmp_path / "out"),
+        "verbose": False,
+        "show_progress": False,
+        "jobs": 2,
+    }
+    # Each record's header and signal files, and the annotation files there are
+    expected = ["100.hea", "100.dat", "100.atr", "041s.hea", "041s01.hea"]
+    expected += ["041s01.dat", "041s02.hea", "041s02.dat"]
+    assert files == {name: name for name in expected}
+
+
+def test_dl_database_subdirectory_and_flat_layout(demo_database, tmp_path):
+    out = tmp_path / "out"
+    wfdb.dl_database("demo/sub", str(out), annotators=None)
+    wfdb.dl_database(
+        "demo", str(out), records=["100"], annotators=None, keep_subdirs=False
+    )
+
+    # Files are saved relative to the subdirectory, as before
+    assert demo_database[0][1]["files"] == {
+        "sub/200.hea": "200.hea",
+        "sub/200.dat": "200.dat",
+    }
+    assert demo_database[1][1]["files"] == {"100.hea": "100.hea", "100.dat": "100.dat"}
+
+
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_dl_database_overwrite(demo_database, tmp_path, overwrite):
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "100.dat").write_bytes(b"saved before")
+    wfdb.dl_database(
+        "demo", str(out), records=["100"], annotators=None, overwrite=overwrite
+    )
+
+    # With overwrite, the saved file is removed, so that it is downloaded again.
+    # Otherwise physionet keeps it if its checksum matches, and replaces it if not.
+    assert (out / "100.dat").exists() == (not overwrite)
+
+
+@pytest.mark.parametrize("keep_subdirs", [True, False])
+def test_dl_files_downloads_with_physionet(demo_database, tmp_path, keep_subdirs):
+    out = tmp_path / "out"
+    wfdb.dl_files(
+        "demo", str(out), ["100.hea", "sub/200.hea"], keep_subdirs=keep_subdirs
+    )
+
+    [(args, kwargs)] = demo_database
+    assert args == ("demo", "1.0")
+    expected = "sub/200.hea" if keep_subdirs else "200.hea"
+    assert kwargs["files"] == {"100.hea": "100.hea", "sub/200.hea": expected}
+    assert out.is_dir()
+
+
+def test_dl_files_from_another_server(demo_database, monkeypatch, tmp_path):
+    """With set_db_index_url, files are downloaded from that server, as before."""
+    downloaded = []
+    monkeypatch.setattr(wfdb.io.download, "dl_pn_file", downloaded.append)
+    wfdb.io.download.set_db_index_url("https://mirror.example.org/files/")
+    try:
+        wfdb.dl_files("demo", str(tmp_path / "out"), ["100.hea"])
+    finally:
+        wfdb.io.download.set_db_index_url()
+    assert demo_database == []
+    assert [(name, subdir, db) for name, subdir, db, *_ in downloaded] == [
+        ("100.hea", "", "demo/1.0")
+    ]

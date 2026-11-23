@@ -3326,18 +3326,25 @@ def dl_database(
         as they are organized in PhysioNet (True), or to download all
         files into the same base directory (False).
     overwrite : bool, optional
-        If True, all files will be redownloaded regardless. If False,
-        existing files with the same name and relative subdirectory will
-        be checked. If the local file is the same size as the online
-        file, the download is skipped. If the local file is larger, it
-        will be deleted and the file will be redownloaded. If the local
-        file is smaller, the file will be assumed to be partially
-        downloaded and the remaining bytes will be downloaded and
-        appended.
+        If True, all files are downloaded again. If False, a file that is
+        already saved with the right content (checked against the database's
+        checksum list) is skipped, a partly downloaded file is completed, and
+        any other saved file is downloaded again.
 
     Returns
     -------
     N/A
+
+    Notes
+    -----
+    Files are downloaded with the `physionet` package, two at a time, from the
+    AWS open data mirror for open databases, and from PhysioNet for restricted
+    ones, which can be downloaded after signing in with `physionet login`.
+    Each file is checked against the database's checksum list, and which
+    annotation files there are is found from that list. If the database index
+    URL has been set to another server with `set_db_index_url`, files are
+    downloaded from that server instead, comparing only their sizes when they
+    are already saved.
 
     Examples
     --------
@@ -3360,6 +3367,9 @@ def dl_database(
     record_list = download.get_record_list(db_dir, records)
     # Get the annotator extensions
     annotators = download.get_annotators(db_dir, annotators)
+    # The files in the database, to check which annotation files there are
+    # (None if the database index URL is not PhysioNet's)
+    project_files = download._project_files(db_dir) if annotators else None
 
     # All files to download (relative to the database's home directory)
     all_files = []
@@ -3409,12 +3419,22 @@ def dl_database(
         if annotators is not None:
             for a in annotators:
                 ann_file = rec + "." + a
+                if project_files is not None:
+                    if ann_file in project_files:
+                        all_files.append(ann_file)
+                    continue
                 url = posixpath.join(download.config.db_index_url, db_dir, ann_file)
                 try:
                     _url.openurl(url, check_access=True)
                     all_files.append(ann_file)
                 except FileNotFoundError:
                     pass
+
+    if download._physionet_uri(db_dir, "") is not None:
+        print("Downloading files...")
+        download._download_files(db_dir, dl_dir, all_files, keep_subdirs, overwrite)
+        print("Finished downloading files")
+        return
 
     dl_inputs = [
         (
