@@ -245,16 +245,17 @@ class Annotation:
         Parameters
         ----------
         sampfrom : int, optional
-            The minimum sample number for annotations to be returned.
+            The first sample number for annotations to be kept.
         sampto : int, optional
-            The maximum sample number for annotations to be returned. If None,
-            there is no upper limit.
+            The sample number at which to stop: annotations before this
+            sample are kept, as in `rdrecord`. If None, there is no upper
+            limit.
 
         """
         n_annotations = len(self.sample)
         kept = self.sample >= sampfrom
         if sampto is not None:
-            kept &= self.sample <= sampto
+            kept &= self.sample < sampto
         kept_inds = np.flatnonzero(kept)
 
         for field in [
@@ -1953,10 +1954,12 @@ def rdann(
         The annotatator extension of the annotation file. ie. for  file
         '100.atr', extension='atr'.
     sampfrom : int, optional
-        The minimum sample number for annotations to be returned.
+        The first sample number for annotations to be returned.
     sampto : int, optional
-        The maximum sample number for annotations to be returned. It must
-        be greater than `sampfrom`. Leave it out to read to the end.
+        The sample number at which to stop: annotations before this sample
+        are returned, as `rdrecord` and `rdsamp` return the samples before
+        it. It must be greater than `sampfrom`. Leave it out to read to the
+        end.
     shift_samps : bool, optional
         Specifies whether to return the sample indices relative to `sampfrom`
         (True), or sample 0 (False).
@@ -2097,9 +2100,10 @@ def check_read_inputs(sampfrom, sampto, return_label_elements):
     Parameters
     ----------
     sampfrom : int
-        The minimum sample number for annotations to be returned.
+        The first sample number for annotations to be returned.
     sampto : int
-        The maximum sample number for annotations to be returned.
+        The sample number at which to stop: only annotations before this
+        sample are returned.
     return_label_elements : list, str
         The label elements that are to be returned from reading the annotation
         file. A list with at least one of the following options: 'symbol',
@@ -2203,7 +2207,8 @@ def proc_ann_bytes(filebytes, sampto):
     filebytes : ndarray
         The input filestream converted to an Nx2 array of unsigned bytes.
     sampto : int
-        The maximum sample number for annotations to be returned.
+        The sample number at which to stop: only annotations before this
+        sample are returned.
 
     Returns
     -------
@@ -2280,7 +2285,7 @@ def proc_ann_bytes(filebytes, sampto):
             subtype, chan, num, aux_note, update
         )
 
-        if sampto and sampto < sample_total:
+        if sampto and sample_total >= sampto:
             sample, label_store, subtype, chan, num, aux_note = rm_last(
                 sample, label_store, subtype, chan, num, aux_note
             )

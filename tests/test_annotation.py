@@ -523,6 +523,59 @@ def test_rdann_sampfrom_without_sampto():
     np.testing.assert_array_equal(shifted.sample, full.sample[start:] - 600000)
 
 
+@pytest.mark.parametrize("sampfrom", [0, 1000])
+def test_rdann_sampto_is_not_included(sampfrom):
+    """As in rdrecord, rdann returns the annotations before sampto."""
+    full = wfdb.rdann("sample-data/100", "atr")
+    sampto = int(full.sample[20])
+    kept = (full.sample >= sampfrom) & (full.sample < sampto)
+
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto)
+
+    np.testing.assert_array_equal(ann.sample, full.sample[kept])
+    assert ann.symbol == list(np.array(full.symbol)[kept])
+    # One more sample includes the annotation at the old sampto
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto + 1)
+    assert ann.sample[-1] == sampto
+
+
+def test_rdann_and_rdsamp_read_the_same_range(tmp_path):
+    """Annotations read with a signal's range index that signal (#470)."""
+    wfdb.wrsamp(
+        "test",
+        fs=250,
+        units=["mV"],
+        sig_name=["test"],
+        p_signal=np.linspace(0, 1, 250)[:, None],
+        fmt=["16"],
+        write_dir=str(tmp_path),
+    )
+    wfdb.Annotation(
+        record_name="test",
+        extension="atr",
+        sample=np.array([0, 99, 100, 249]),
+        symbol=["N", "N", "N", "N"],
+    ).wrann(write_dir=str(tmp_path))
+    record_name = str(tmp_path / "test")
+
+    for sampfrom in [0, 50]:
+        signal, _ = wfdb.rdsamp(record_name, sampfrom=sampfrom, sampto=100)
+        ann = wfdb.rdann(
+            record_name, "atr", sampfrom=sampfrom, sampto=100, shift_samps=True
+        )
+        assert ann.sample[-1] == 99 - sampfrom
+        signal[ann.sample]
+
+
+def test_apply_range_sampto_is_not_included():
+    ann = wfdb.Annotation(
+        "test", "atr", sample=np.array([10, 20, 30]), symbol=["N", "V", "N"]
+    )
+    ann.apply_range(sampfrom=10, sampto=30)
+    np.testing.assert_array_equal(ann.sample, [10, 20])
+    assert ann.symbol == ["N", "V"]
+
+
 def test_rdann_sampfrom_empty_file(tmp_path):
     """rdann with only sampfrom reads an annotation file with no annotations."""
     # A file that holds only the end-of-file marker
