@@ -136,6 +136,33 @@ handles credential discovery automatically.
     against the configured PhysioNet index URL.
 
 
+Reading From PhysioNet
+----------------------
+
+Records and annotations on PhysioNet can also be read with a
+``physionet://`` URI, using the ``physionet`` package (a dependency of
+``wfdb``). The URI is the database, its version and the record name, as in
+``physionet://mitdb/1.0.0/100``. Use ``latest`` as the version to read the
+newest one.
+
+.. code-block:: python
+
+    import wfdb
+
+    record = wfdb.rdrecord("physionet://mitdb/1.0.0/100", sampto=3600)
+    ann = wfdb.rdann("physionet://mitdb/1.0.0/100", "atr")
+
+Only the parts of each file that are needed are read, with HTTP range
+requests: open databases from the AWS open data mirror, and restricted ones
+from PhysioNet. Files that the ``physionet`` package has already downloaded
+into its cache are read from there.
+
+Restricted databases can be read once you have access to them on PhysioNet
+and have signed in, by running ``physionet login`` once in a terminal (or
+setting ``PHYSIONET_TOKEN``). See the `physionet package
+<https://github.com/MIT-LCP/physionet>`_ for details.
+
+
 Reading From Memory
 -------------------
 

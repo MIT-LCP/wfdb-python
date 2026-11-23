@@ -4,12 +4,11 @@ import posixpath
 import re
 import sys
 
-import fsspec
 import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, download, record, util
-from wfdb.io._coreio import CLOUD_PROTOCOLS
+from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open
 from wfdb.io.archive import WFDBArchive, is_archive_path
 
 
@@ -2131,7 +2130,7 @@ def load_byte_pairs(record_name, extension, pn_dir):
     """
     # local or cloud file
     if pn_dir is None:
-        with fsspec.open(record_name + "." + extension, "rb") as f:
+        with _fsspec_open(record_name + "." + extension, "rb") as f:
             filebytes = util.fromfile(f, "<u1").reshape([-1, 2])
 
     # PhysioNet file

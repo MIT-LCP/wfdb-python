@@ -16,12 +16,15 @@ def is_network_error(exc):
     if isinstance(exc, NETWORK_ERRORS):
         return True
     # Server errors (for example 502 Bad Gateway) and rate limiting, but not errors
-    # like 404 or 403 which indicate a real problem
-    return (
-        isinstance(exc, NetFileError)
-        and exc.status_code is not None
-        and (exc.status_code >= 500 or exc.status_code == 429)
-    )
+    # like 404 or 403 which indicate a real problem. physionet:// files are read
+    # with the physionet package, which raises requests' HTTPError.
+    if isinstance(exc, NetFileError):
+        status = exc.status_code
+    elif isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
+        status = exc.response.status_code
+    else:
+        return False
+    return status is not None and (status >= 500 or status == 429)
 
 
 @pytest.fixture(scope="class")
