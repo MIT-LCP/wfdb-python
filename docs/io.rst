@@ -152,10 +152,13 @@ newest one.
     record = wfdb.rdrecord("physionet://mitdb/1.0.0/100", sampto=3600)
     ann = wfdb.rdann("physionet://mitdb/1.0.0/100", "atr")
 
-Only the parts of each file that are needed are read, with HTTP range
-requests: open databases from the AWS open data mirror, and restricted ones
-from PhysioNet. Files that the ``physionet`` package has already downloaded
-into its cache are read from there.
+Files are read with HTTP range requests: open databases from the AWS open
+data mirror, and restricted ones from PhysioNet. For signal files, only the
+parts that hold the samples that are needed are read, so reading a few
+seconds of a long recording does not download the whole file. Header and
+annotation files are read in full (``rdann`` reads the whole annotation
+file, even with ``sampto``). Files that the ``physionet`` package has
+already downloaded into its cache are read from there.
 
 Restricted databases can be read once you have access to them on PhysioNet
 and have signed in, by running ``physionet login`` once in a terminal (or
