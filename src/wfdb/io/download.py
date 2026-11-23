@@ -483,8 +483,10 @@ def _download_files(db_dir, dl_dir, files, keep_subdirs, overwrite):
         os.makedirs(dl_dir)
         print("Created local base download directory: %s" % dl_dir)
     if overwrite:
-        for local in saved_as.values():
-            local_file = os.path.join(dl_dir, *local.split("/"))
+        # Remove the saved files, so that they are downloaded again, but only
+        # once every file is known to exist and to be saved inside dl_dir
+        local_files = _check_files_to_replace(db_dir, dl_dir, files, saved_as.values())
+        for local_file in local_files:
             if os.path.isfile(local_file):
                 os.remove(local_file)
 
@@ -498,6 +500,66 @@ def _download_files(db_dir, dl_dir, files, keep_subdirs, overwrite):
         show_progress=False,
         jobs=2,
     )
+
+
+def _check_files_to_replace(db_dir, dl_dir, files, saved_as):
+    """Check the files that _download_files would replace, before removing any.
+
+    Parameters
+    ----------
+    db_dir : str
+        The PhysioNet database directory, including its version.
+    dl_dir : str
+        The local directory that the files are saved in.
+    files : list of str
+        The paths of the files to download, relative to `db_dir`.
+    saved_as : iterable of str
+        The paths that the files are saved as, relative to `dl_dir`.
+
+    Returns
+    -------
+    list of str
+        The local path of each file.
+
+    Raises
+    ------
+    ValueError
+        If a file would be saved outside `dl_dir`, because its path is not a
+        plain relative path (for example "../a.dat"), or through a symbolic
+        link.
+    FileNotFoundError
+        If the database has no such file.
+
+    """
+    root = os.path.realpath(dl_dir)
+    local_files = []
+    for local in saved_as:
+        parts = local.split("/")
+        if (
+            "\\" in local
+            or local.startswith("/")
+            or any(part in ("", ".", "..") for part in parts)
+        ):
+            raise ValueError(
+                f"Files can only be saved inside dl_dir, as plain relative paths: "
+                f"{local!r}"
+            )
+        local_file = os.path.join(dl_dir, *parts)
+        if os.path.commonpath([root, os.path.realpath(local_file)]) != root:
+            raise ValueError(
+                f"{local!r} would be saved outside dl_dir, through a symbolic link"
+            )
+        local_files.append(local_file)
+
+    available = _project_files(db_dir)
+    missing = [file for file in files if file not in available]
+    if missing:
+        raise FileNotFoundError(
+            f"{db_dir} has no file "
+            + ", ".join(repr(file) for file in missing[:5])
+            + (f" and {len(missing) - 5} more" if len(missing) > 5 else "")
+        )
+    return local_files
 
 
 def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
