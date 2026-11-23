@@ -1,8 +1,11 @@
+import functools
 import json
 import multiprocessing.dummy
 import os
 import posixpath
+import time
 
+import fsspec
 import numpy as np
 
 from wfdb.io import _url
@@ -46,6 +49,74 @@ def set_db_index_url(db_index_url=PN_INDEX_URL):
     config.db_index_url = db_index_url
 
 
+# Options for opening physionet:// files: read only the parts of a file that
+# are needed, with HTTP range requests, and show no progress bars
+PHYSIONET_OPEN_OPTIONS = {"stream": True, "show_progress": False}
+
+
+def _physionet_uri(pn_dir, file_name):
+    """Return the physionet:// URI of a file in a PhysioNet database.
+
+    Parameters
+    ----------
+    pn_dir : str
+        The PhysioNet database directory, including its version, such as
+        'mitdb/1.0.0'.
+    file_name : str
+        The name of the file in that directory.
+
+    Returns
+    -------
+    str or None
+        The URI, or None if the database index URL has been set to a server
+        other than PhysioNet (with `set_db_index_url`).
+
+    """
+    if config.db_index_url.rstrip("/") != PN_INDEX_URL.rstrip("/"):
+        return None
+    return "physionet://" + posixpath.join(pn_dir, file_name)
+
+
+def _open_pn_file(pn_dir, file_name, mode="rb", **kwargs):
+    """Open a file in a PhysioNet database directory.
+
+    Files on PhysioNet are read through the physionet package, which reads
+    only the parts of a file that are needed, and reads restricted databases
+    with the sign-in saved by `physionet login`. Files on another server, set
+    with `set_db_index_url`, are read with `wfdb.io._url.openurl`.
+
+    Parameters
+    ----------
+    pn_dir : str
+        The PhysioNet database directory, including its version.
+    file_name : str
+        The name of the file in that directory.
+    mode : str, optional
+        The mode to open the file in: "rb" (the default) or "r".
+    kwargs : dict, optional
+        Passed to `wfdb.io._url.openurl` for another server. For PhysioNet,
+        only `encoding`, `errors` and `newline` are used.
+
+    Returns
+    -------
+    file
+        The file to open, as a context manager.
+
+    """
+    uri = _physionet_uri(pn_dir, file_name)
+    if uri is None:
+        url = posixpath.join(config.db_index_url, pn_dir, file_name)
+        return _url.openurl(url, mode, **kwargs)
+    # Other options would make fsspec create a separate filesystem, without
+    # the connection and lookups that are shared by every physionet:// file
+    text_options = {
+        name: kwargs[name]
+        for name in ("encoding", "errors", "newline")
+        if kwargs.get(name) is not None
+    }
+    return fsspec.open(uri, mode, **PHYSIONET_OPEN_OPTIONS, **text_options)
+
+
 def _remote_file_size(url=None, file_name=None, pn_dir=None):
     """Get the remote file size in bytes.
 
@@ -67,9 +138,9 @@ def _remote_file_size(url=None, file_name=None, pn_dir=None):
         Size of the file in bytes.
 
     """
-    # Option to construct the url
     if file_name and pn_dir:
-        url = posixpath.join(config.db_index_url, pn_dir, file_name)
+        with _open_pn_file(pn_dir, file_name) as f:
+            return f.seek(0, os.SEEK_END)
 
     with _url.openurl(url, "rb") as f:
         remote_file_size = f.seek(0, os.SEEK_END)
@@ -95,11 +166,8 @@ def _stream_header(file_name: str, pn_dir: str) -> str:
         The text contained in the header file
 
     """
-    # Full url of header location
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
-
     # Get the content of the remote file
-    with _url.openurl(url, "rb") as f:
+    with _open_pn_file(pn_dir, file_name) as f:
         content = f.read()
 
     return content.decode("iso-8859-1")
@@ -127,11 +195,8 @@ def _stream_dat(file_name, pn_dir, byte_count, start_byte, dtype):
         The data read from the dat file.
 
     """
-    # Full url of dat file
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
-
     # Get the content
-    with _url.openurl(url, "rb", buffering=0) as f:
+    with _open_pn_file(pn_dir, file_name, buffering=0) as f:
         f.seek(start_byte)
         content = f.read(byte_count)
 
@@ -157,11 +222,8 @@ def _stream_annotation(file_name, pn_dir):
         The resulting data stream in numpy array format.
 
     """
-    # Full url of annotation file
-    url = posixpath.join(config.db_index_url, pn_dir, file_name)
-
     # Get the content
-    with _url.openurl(url, "rb") as f:
+    with _open_pn_file(pn_dir, file_name) as f:
         content = f.read()
 
     # Convert to numpy array
@@ -219,18 +281,41 @@ def get_version(pn_dir):
     Returns
     -------
     version_number : str
-        The version number of the most recent database.
+        The version number of the most recent database. It is looked up
+        once per database, and remembered until the program ends.
 
     """
-    db_dir = pn_dir.split("/")[0]
-    url = posixpath.join(PN_CONTENT_URL, db_dir) + "/"
-    with _url.openurl(url, "rb") as f:
-        content = f.read()
-    contents = [line.decode("utf-8").strip() for line in content.splitlines()]
-    version_number = [v for v in contents if "Version:" in v]
-    version_number = version_number[0].split(":")[-1].strip().split("<")[0]
+    return _latest_version(pn_dir.split("/")[0])
 
-    return version_number
+
+# How many times to try looking up a version, if PhysioNet is unavailable
+VERSION_ATTEMPTS = 3
+
+
+@functools.cache
+def _latest_version(db_dir):
+    """Look up the latest version of a PhysioNet database.
+
+    Connection errors, server errors and rate limiting are retried, after 1
+    and then 2 seconds.
+
+    """
+    import physionet
+    from physionet.api.exceptions import NotFoundError, PhysioNetAPIError
+
+    for attempt in range(VERSION_ATTEMPTS):
+        try:
+            return physionet.latest_version(db_dir)
+        except NotFoundError as exc:
+            raise FileNotFoundError(f"PhysioNet has no database {db_dir!r}") from exc
+        except (ConnectionError, PhysioNetAPIError) as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            unavailable = isinstance(exc, ConnectionError) or (
+                status is not None and (status >= 500 or status == 429)
+            )
+            if not unavailable or attempt == VERSION_ATTEMPTS - 1:
+                raise
+            time.sleep(2**attempt)
 
 
 def get_record_list(db_dir, records="all"):

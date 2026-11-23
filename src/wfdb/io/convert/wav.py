@@ -4,7 +4,7 @@ import struct
 
 import numpy as np
 
-from wfdb.io import Record, _url, download
+from wfdb.io import Record, download
 from wfdb.io._signal import _digi_nan
 from wfdb.io.record import rdrecord
 
@@ -227,10 +227,9 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
                 dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
             )
 
-        file_url = posixpath.join(download.PN_INDEX_URL, pn_dir, record_name)
         # Currently must download file to read it though can give the
         # user the option to delete it immediately afterwards
-        with _url.openurl(file_url, "rb") as f:
+        with download._open_pn_file(pn_dir, record_name) as f:
             open(record_name, "wb").write(f.read())
 
     wave_file = open(record_name, mode="rb")

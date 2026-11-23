@@ -3,8 +3,7 @@ import posixpath
 
 import fsspec
 
-from wfdb.io import _url
-from wfdb.io.download import config
+from wfdb.io import download
 
 # Cloud protocols
 CLOUD_PROTOCOLS = ["az://", "azureml://", "s3://", "gs://", "memory://", "physionet://"]
@@ -33,7 +32,7 @@ def _fsspec_open(path, mode="rb", **kwargs):
 
     """
     if os.fspath(path).startswith("physionet://"):
-        kwargs = {"stream": True, "show_progress": False, **kwargs}
+        kwargs = {**download.PHYSIONET_OPEN_OPTIONS, **kwargs}
     return fsspec.open(path, mode, **kwargs)
 
 
@@ -145,9 +144,9 @@ def _open_file(
                 "Cloud paths should be passed under record_name, not under pn_dir"
             )
 
-        url = posixpath.join(config.db_index_url, pn_dir, file_name)
-        return _url.openurl(
-            url,
+        return download._open_pn_file(
+            pn_dir,
+            file_name,
             mode,
             buffering=buffering,
             encoding=encoding,
