@@ -416,3 +416,41 @@ def test_dl_files_overwrite_removes_nothing_itself(demo_database, tmp_path):
     [(args, kwargs)] = demo_database
     assert kwargs["overwrite"] is True
     assert kwargs["files"] == {"100.hea": "100.hea", "999.hea": "999.hea"}
+
+
+def test_get_dbs_lists_the_latest_version_of_each_database(monkeypatch):
+    """get_dbs lists databases from PhysioNet's API, once each, sorted by slug."""
+    import physionet
+    from physionet.api.endpoints import ProjectsAPI
+
+    def project(slug, version, title, resource_type="Database", latest=True):
+        return physionet.api.models.PublishedProject.from_dict(
+            {
+                "slug": slug,
+                "version": version,
+                "title": title,
+                "resource_type": resource_type,
+                "is_latest_version": latest,
+            }
+        )
+
+    projects = [
+        project("mitdb", "1.0.0", "MIT-BIH Arrhythmia Database"),
+        project("ludb", "1.0.0", "Old title", latest=False),
+        project("ludb", "1.0.1", "Lobachevsky University Database"),
+        project("wfdb-python", "4.0.0", "WFDB Python Package", "Software"),
+        project("challenge-2015", "1.0.0", "Reducing False Alarms", "Challenge"),
+    ]
+    monkeypatch.setattr(ProjectsAPI, "list_published", lambda self: projects)
+
+    assert wfdb.get_dbs() == [
+        ["ludb", "Lobachevsky University Database"],
+        ["mitdb", "MIT-BIH Arrhythmia Database"],
+    ]
+
+
+@pytest.mark.network
+def test_get_dbs_from_physionet():
+    dbs = wfdb.get_dbs()
+    assert ["mitdb", "MIT-BIH Arrhythmia Database"] in dbs
+    assert len({slug for slug, title in dbs}) == len(dbs)
