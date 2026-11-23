@@ -501,15 +501,11 @@ class Annotation:
                             + " field must be integer-like"
                         )
 
-                if not isinstance(symbol[i], str_types) or len(symbol[i]) not in [
-                    1,
-                    2,
-                    3,
-                ]:
+                if not isinstance(symbol[i], str_types) or not symbol[i]:
                     raise ValueError(
                         "The symbol values of the "
                         + field
-                        + " field must be strings of length 1 to 3"
+                        + " field must be non-empty strings"
                     )
 
                 if bool(re.search("[ \t\n\r\f\v]", symbol[i])):
@@ -550,11 +546,9 @@ class Annotation:
 
             if field == "symbol":
                 for e in uniq_elements:
-                    if len(e) not in [1, 2, 3]:
+                    if not e:
                         raise ValueError(
-                            "Subelements of the "
-                            + field
-                            + " field must be strings of length 1 to 3"
+                            "Subelements of the " + field + " field must not be empty"
                         )
                     if bool(re.search("[ \t\n\r\f\v]", e)):
                         raise ValueError(
@@ -1587,17 +1581,26 @@ def custom_triplet_bytes(custom_triplet):
         All the bytes converted from the tiplet.
 
     """
-    # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space,
-    # description, (0 null if necessary)
-    # Remember, aux_note string includes 'number(s)<space><symbol><space><description>''
-    annbytes = (
-        [0, 88, len(custom_triplet[2]) + 3 + len(str(custom_triplet[0])), 252]
-        + [ord(c) for c in str(custom_triplet[0])]
-        + [32]
-        + [ord(custom_triplet[1])]
-        + [32]
-        + [ord(c) for c in custom_triplet[2]]
-    )
+    # Structure: 0, NOTE, len(aux_note), aux_note, (0 null if necessary), where
+    # aux_note is '<label_store><space><symbol><space><description>'. The
+    # symbol may have more than one character. As for any note, its length
+    # is stored in one byte, so it can have at most 255 Latin-1 characters.
+    label_store, symbol, description = custom_triplet
+    note = f"{label_store} {symbol} {description}"
+    try:
+        encoded = note.encode("latin-1")
+    except UnicodeEncodeError:
+        raise ValueError(
+            f"The custom label {note!r} contains characters that can't be "
+            "written (only Latin-1 characters are supported)"
+        ) from None
+    if len(encoded) > 255:
+        raise ValueError(
+            "A custom label's number, symbol and description, separated by "
+            f"spaces, must be at most 255 characters, but {note[:20]!r}... has "
+            f"{len(encoded)}"
+        )
+    annbytes = [0, 88, len(encoded), 252] + list(encoded)
 
     if len(annbytes) % 2:
         annbytes.append(0)
