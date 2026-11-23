@@ -1,2 +1,0 @@
-**Keep every annotation field in Annotation.apply_range**
-  ``Annotation.apply_range`` now keeps the same annotations in every field that is set, including ``symbol`` and ``description``, which it used to leave unchanged, so that they no longer matched ``sample``. It also works on an annotation read by ``rdann`` with the default ``return_label_elements``, where ``label_store`` is ``None``, instead of failing with a ``TypeError``.

@@ -7,6 +7,43 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.1.0 (Nov 2026)
+------------------------
+
+This release reads records and annotations from PhysioNet through the
+``physionet`` package, which is now a dependency: ``physionet://`` URIs, such
+as ``physionet://mitdb/1.0.0/100``, and ``pn_dir`` read only the parts of signal
+files that are needed, ``dl_database`` and ``dl_files`` check each file against
+the database's checksums, and restricted databases can be read and downloaded
+after ``physionet login``. ``xqrs_detect`` and ``gqrs_detect`` are faster.
+``rdann`` now raises a ``ValueError`` when ``sampto`` is not greater than
+``sampfrom``, including ``sampto=0``, which used to return every annotation.
+See the entries below for details.
+
+**Keep every annotation field in Annotation.apply_range**
+  ``Annotation.apply_range`` now keeps the same annotations in every field that is set, including ``symbol`` and ``description``, which it used to leave unchanged, so that they no longer matched ``sample``. It also works on an annotation read by ``rdann`` with the default ``return_label_elements``, where ``label_store`` is ``None``, instead of failing with a ``TypeError``.
+
+**Download databases with the physionet package**
+  ``dl_database`` and ``dl_files`` now download files with the ``physionet`` package (0.7.2 or later). Each file is checked against the database's checksum list, a file that is already saved with the right content is skipped, a partly downloaded one is completed, ``overwrite=True`` replaces each saved file only once its new copy is complete and checked, and restricted databases can be downloaded after ``physionet login``. ``dl_database`` finds which annotation files there are from the checksum list instead of requesting each one, which makes downloading three MIT-BIH records with their annotations take 20 requests instead of 38. ``dl_files`` reports a file that the database does not have before downloading anything. With a database index URL set by ``set_db_index_url``, files are downloaded from that server as before.
+
+**Speed up find_local_peaks and XQRS**
+  ``find_local_peaks`` now finds the largest value around each sample with ``scipy.ndimage.maximum_filter1d`` instead of checking each sample in a Python loop, and is about 20 times faster. ``XQRS`` uses it to find candidate peaks, so QRS detection with ``xqrs_detect`` is about 10 times faster (35 ms instead of 380 ms for the 30-minute MIT-BIH record 100). The peaks found are unchanged.
+
+**Speed up gqrs_detect**
+  ``gqrs_detect`` now computes its smoothing and QRS matched filters for the whole signal with NumPy, instead of one sample at a time in Python, and is about 4 times faster (0.36 seconds instead of 1.4 for the 30-minute MIT-BIH record 100). The detected QRS locations are unchanged.
+
+**Read records from PhysioNet with physionet:// URIs**
+  ``rdrecord``, ``rdsamp``, ``rdheader`` and ``rdann`` now accept ``physionet://`` URIs such as ``physionet://mitdb/1.0.0/100``, which read from PhysioNet through the ``physionet`` package, now a dependency. Only the parts of signal files that are needed are read (header and annotation files are read in full), and restricted databases can be read after ``physionet login``. ``fsspec`` 2025.7.0 or later is now required, as for the ``physionet`` package.
+
+**Read pn_dir records through the physionet package**
+  Records, headers and annotations read with ``pn_dir`` (and EDF and WAV files read with ``pn_dir`` by ``read_edf`` and ``read_wav``) are now read through the ``physionet`` package, as ``physionet://`` URIs are. Open databases are read directly from the AWS open data mirror, which makes reading part of a record from MIT-BIH about twice as fast, and restricted databases can be read after ``physionet login``. The latest version of a database, used when ``pn_dir`` has no version, is now looked up with the PhysioNet API once per database, and retried if PhysioNet is unavailable, instead of reading the database's web page on every call. With a database index URL set by ``set_db_index_url``, files are read from that server as before.
+
+**Apply sampfrom in rdann without sampto**
+  ``rdann`` now returns only the annotations at or after ``sampfrom`` when ``sampto`` is not given. It used to ignore ``sampfrom`` and return every annotation in the file, which gave negative sample numbers with ``shift_samps=True``. ``Annotation.apply_range`` with ``sampto=None`` now keeps annotations up to the end without assuming they are sorted, and no longer fails when there are no annotations.
+
+**Reject sampto=0 in rdann, and summarize no annotations**
+  ``rdann`` now raises a ``ValueError`` when ``sampto`` is not greater than ``sampfrom``, as ``rdrecord`` does. ``sampto=0`` used to return every annotation, but with ``sampfrom`` it returned none. With ``summarize_labels=True``, ``rdann`` and ``Annotation.get_contained_labels`` no longer fail with ``KeyError: 'n_occurrences'`` when there are no annotations, for example when ``sampfrom`` is after the last one.
+
 Version 5.0.0 (Nov 2026)
 ------------------------
 
