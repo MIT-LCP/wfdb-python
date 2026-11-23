@@ -468,6 +468,49 @@ def test_rdann_fs_header_error(tmp_path, monkeypatch):
         wfdb.rdann(str(tmp_path / "err"), "atr")
 
 
+@pytest.mark.parametrize(
+    "label_elements", [None, ["label_store", "symbol", "description"]]
+)
+def test_apply_range_keeps_every_field_consistent(label_elements):
+    """apply_range gives the same result as reading only that range."""
+    kwargs = {} if label_elements is None else {"return_label_elements": label_elements}
+    ann = wfdb.rdann("sample-data/100", "atr", **kwargs)
+    ann.apply_range(sampfrom=600000, sampto=620000)
+
+    expected = wfdb.rdann(
+        "sample-data/100", "atr", sampfrom=600000, sampto=620000, **kwargs
+    )
+    assert ann.ann_len == expected.ann_len == 71
+    for field in ["sample", "subtype", "chan", "num"]:
+        np.testing.assert_array_equal(getattr(ann, field), getattr(expected, field))
+    for field in ["label_store", "symbol", "description", "aux_note"]:
+        value, expected_value = getattr(ann, field), getattr(expected, field)
+        if expected_value is None:
+            # Fields that are not set stay None
+            assert value is None
+        else:
+            assert list(value) == list(expected_value)
+
+
+@pytest.mark.parametrize(("sampfrom", "sampto"), [(600000, 620000), (10**9, None)])
+def test_apply_range_updates_the_label_summary(sampfrom, sampto):
+    """A summary made before apply_range counts only the annotations kept."""
+    ann = wfdb.rdann("sample-data/100", "atr", summarize_labels=True)
+    ann.apply_range(sampfrom=sampfrom, sampto=sampto)
+
+    expected = wfdb.rdann(
+        "sample-data/100",
+        "atr",
+        sampfrom=sampfrom,
+        sampto=sampto,
+        summarize_labels=True,
+    )
+    assert ann.contained_labels["n_occurrences"].sum() == ann.ann_len
+    pd.testing.assert_frame_equal(
+        ann.contained_labels.sort_index(), expected.contained_labels.sort_index()
+    )
+
+
 def test_rdann_sampfrom_without_sampto():
     """rdann with only sampfrom returns the annotations from sampfrom onwards."""
     full = wfdb.rdann("sample-data/100", "atr")

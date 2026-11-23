@@ -236,6 +236,12 @@ class Annotation:
     def apply_range(self, sampfrom=0, sampto=None):
         """Keep only the annotation items between the desired sample values.
 
+        Every field with one value per annotation that is set (such as
+        `symbol` and `aux_note`) is kept for the same annotations. Fields that
+        are not set are left as None. If the labels have been summarized in
+        `contained_labels`, the summary is made again for the annotations that
+        are kept.
+
         Parameters
         ----------
         sampfrom : int, optional
@@ -245,17 +251,35 @@ class Annotation:
             there is no upper limit.
 
         """
+        n_annotations = len(self.sample)
         kept = self.sample >= sampfrom
         if sampto is not None:
             kept &= self.sample <= sampto
         kept_inds = np.flatnonzero(kept)
 
-        for field in ["sample", "label_store", "subtype", "chan", "num"]:
-            setattr(self, field, getattr(self, field)[kept_inds])
-
-        self.aux_note = [self.aux_note[i] for i in kept_inds]
+        for field in [
+            "sample",
+            "label_store",
+            "symbol",
+            "description",
+            "subtype",
+            "chan",
+            "num",
+            "aux_note",
+        ]:
+            values = getattr(self, field)
+            if values is None or np.ndim(values) == 0 or len(values) != n_annotations:
+                continue
+            if isinstance(values, np.ndarray):
+                setattr(self, field, values[kept_inds])
+            else:
+                setattr(self, field, [values[i] for i in kept_inds])
 
         self.ann_len = len(self.sample)
+
+        # A summary of the labels would still count the annotations removed
+        if self.contained_labels is not None:
+            self.get_contained_labels()
 
     def wrann(self, write_fs=False, write_dir=""):
         """Write a WFDB annotation file from this object.
