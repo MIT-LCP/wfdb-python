@@ -1,4 +1,5 @@
 import datetime
+import warnings
 from collections.abc import Sequence
 from typing import Any
 
@@ -1017,6 +1018,36 @@ def wfdb_strptime(time_string: str) -> datetime.time:
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
+def _parse_base_date(base_date: str, record_line: str) -> datetime.date | None:
+    """Parse the base date of a record line, or warn and ignore it if invalid.
+
+    As in the WFDB library, a date that is not a valid DD/MM/YYYY date is
+    ignored, so that the rest of the header can still be read.
+
+    Parameters
+    ----------
+    base_date : str
+        The base date read from the record line.
+    record_line : str
+        The record line, to show in the warning.
+
+    Returns
+    -------
+    datetime.date or None
+        The base date, or None if it is not valid.
+
+    """
+    try:
+        return datetime.datetime.strptime(base_date, "%d/%m/%Y").date()
+    except ValueError:
+        warnings.warn(
+            "The base date is not a valid DD/MM/YYYY date, so it is ignored. "
+            f"Record line: {record_line.strip()!r}",
+            stacklevel=2,
+        )
+        return None
+
+
 def _parse_record_line(record_line: str) -> dict:
     """Extract fields from a record line string into a dictionary.
 
@@ -1071,9 +1102,9 @@ def _parse_record_line(record_line: str) -> dict:
             elif field == "base_time":
                 record_fields["base_time"] = wfdb_strptime(record_fields["base_time"])
             elif field == "base_date":
-                record_fields["base_date"] = datetime.datetime.strptime(
-                    record_fields["base_date"], "%d/%m/%Y"
-                ).date()
+                record_fields["base_date"] = _parse_base_date(
+                    record_fields["base_date"], record_line
+                )
 
     # This is not a standard WFDB field, but is useful to set.
     if record_fields["base_date"] and record_fields["base_time"]:
