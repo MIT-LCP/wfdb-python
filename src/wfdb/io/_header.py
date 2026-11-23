@@ -1,4 +1,5 @@
 import datetime
+import re
 import warnings
 from collections.abc import Sequence
 from typing import Any
@@ -1018,34 +1019,56 @@ def wfdb_strptime(time_string: str) -> datetime.time:
     return datetime.datetime.strptime(time_string, time_fmt).time()
 
 
-def _parse_base_date(base_date: str, record_line: str) -> datetime.date | None:
-    """Parse the base date of a record line, or warn and ignore it if invalid.
+# A base time: SS, MM:SS or HH:MM:SS, with optional fractions of a second
+_rx_base_time = re.compile(r"\d{1,2}(:\d{1,2}){0,2}(\.\d{1,6})?")
 
-    As in the WFDB library, a date that is not a valid DD/MM/YYYY date is
-    ignored, so that the rest of the header can still be read.
+
+def _parse_base_time_date(base_time: str, base_date: str, record_line: str):
+    """Parse the base time and date of a record line, ignoring invalid ones.
+
+    As in the WFDB library, a time or date that is not valid is ignored, with
+    a warning, so that the rest of the header can still be read.
 
     Parameters
     ----------
+    base_time : str
+        The fifth field of the record line, or "" if there is none.
     base_date : str
-        The base date read from the record line.
+        The sixth field of the record line, or "" if there is none.
     record_line : str
-        The record line, to show in the warning.
+        The record line, to show in the warnings.
 
     Returns
     -------
-    datetime.date or None
-        The base date, or None if it is not valid.
+    base_time : datetime.time or None
+        The base time, or None if it is missing or not valid.
+    base_date : datetime.date or None
+        The base date, or None if it is missing or not valid.
 
     """
-    try:
-        return datetime.datetime.strptime(base_date, "%d/%m/%Y").date()
-    except ValueError:
-        warnings.warn(
-            "The base date is not a valid DD/MM/YYYY date, so it is ignored. "
-            f"Record line: {record_line.strip()!r}",
-            stacklevel=2,
-        )
-        return None
+    time = date = None
+    if base_time:
+        if _rx_base_time.fullmatch(base_time):
+            try:
+                time = wfdb_strptime(base_time)
+            except ValueError:
+                pass
+        if time is None:
+            warnings.warn(
+                "The base time is not a valid HH:MM:SS time, so it is ignored. "
+                f"Record line: {record_line.strip()!r}",
+                stacklevel=3,
+            )
+    if base_date:
+        try:
+            date = datetime.datetime.strptime(base_date, "%d/%m/%Y").date()
+        except ValueError:
+            warnings.warn(
+                "The base date is not a valid DD/MM/YYYY date, so it is ignored. "
+                f"Record line: {record_line.strip()!r}",
+                stacklevel=3,
+            )
+    return time, date
 
 
 def _parse_record_line(record_line: str) -> dict:
@@ -1080,10 +1103,21 @@ def _parse_record_line(record_line: str) -> dict:
         record_fields["base_time"],
         record_fields["base_date"],
     ) = match.groups()
+    # The base time and date are the fifth and sixth fields. Read them whole,
+    # rather than the part that the pattern matches, so that a value in
+    # another form (such as "05-Feb-2020") is ignored rather than misread.
+    fields = record_line.split()
+    record_fields["base_time"], record_fields["base_date"] = _parse_base_time_date(
+        fields[4] if len(fields) > 4 else "",
+        fields[5] if len(fields) > 5 else "",
+        record_line,
+    )
 
     for field in RECORD_SPECS.index:
         # Replace empty strings with their read defaults (which are
         # mostly None)
+        if field in ("base_time", "base_date"):
+            continue
         if record_fields[field] == "":
             record_fields[field] = RECORD_SPECS.loc[field, "read_default"]
         # Typecast non-empty strings for non-string (numerical/datetime)
@@ -1099,12 +1133,6 @@ def _parse_record_line(record_line: str) -> dict:
                     if round(fs, 8) == float(int(fs)):
                         fs = int(fs)
                     record_fields["fs"] = fs
-            elif field == "base_time":
-                record_fields["base_time"] = wfdb_strptime(record_fields["base_time"])
-            elif field == "base_date":
-                record_fields["base_date"] = _parse_base_date(
-                    record_fields["base_date"], record_line
-                )
 
     # This is not a standard WFDB field, but is useful to set.
     if record_fields["base_date"] and record_fields["base_time"]:

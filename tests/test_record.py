@@ -1,5 +1,6 @@
 import datetime
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -1916,3 +1917,33 @@ def test_valid_base_date_is_read_without_a_warning(tmp_path, recwarn):
     assert record.base_date == datetime.date(2020, 12, 25)
     assert record.base_datetime == datetime.datetime(2020, 12, 25, 10, 30)
     assert not [w for w in recwarn if "base date" in str(w.message)]
+
+
+@pytest.mark.parametrize(
+    ("time_and_date", "warning"),
+    [
+        # The 2020 and 2021 Challenges put the date, with dashes, first
+        ("05-Feb-2020 11:39:16", "base time .* base date"),
+        # A year alone, in place of the time
+        ("2020", "base time"),
+        ("25:00:00 25/12/2020", "base time"),
+    ],
+)
+def test_invalid_base_time_is_ignored_with_a_warning(tmp_path, time_and_date, warning):
+    """An invalid time is ignored whole, not read in part as a wrong time."""
+    record_name = write_record_with_date(tmp_path, "")
+    header = tmp_path / "dated.hea"
+    lines = header.read_text().splitlines(keepends=True)
+    lines[0] = f"dated 1 250 10 {time_and_date}\n"
+    header.write_text("".join(lines))
+
+    with pytest.warns(UserWarning) as warnings:
+        record = wfdb.rdrecord(record_name)
+
+    messages = " ".join(str(w.message) for w in warnings)
+    assert re.search(warning.replace(" .* ", ".*"), messages)
+    assert record.base_time is None
+    assert record.base_datetime is None
+    assert record.sig_len == 10
+    if time_and_date.endswith("25/12/2020"):
+        assert record.base_date == datetime.date(2020, 12, 25)
