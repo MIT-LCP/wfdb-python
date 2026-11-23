@@ -175,6 +175,38 @@ def test_annotations_inside_signal_no_warning():
     plt.close(fig)
 
 
+def test_plot_items_xlabel():
+    fig = wfdb.plot_items(np.zeros((10, 2)), xlabel=["a", "b"], return_fig=True)
+    plt.close(fig)
+    assert [ax.get_xlabel() for ax in fig.axes] == ["a", "b"]
+
+
+def test_plot_wfdb_default_axis_labels():
+    record = wfdb.rdrecord("sample-data/100", sampto=360)
+    fig = wfdb.plot_wfdb(record, return_fig=True)
+    plt.close(fig)
+
+    assert [ax.get_ylabel() for ax in fig.axes] == ["MLII/mV", "V5/mV"]
+    assert [ax.get_xlabel() for ax in fig.axes] == ["", "time/second"]
+
+
+def test_plot_wfdb_custom_axis_labels():
+    """plot_wfdb passes xlabel and ylabel to plot_items (#276)."""
+    record = wfdb.rdrecord("sample-data/100", sampto=360)
+    annotation = wfdb.rdann("sample-data/100", "atr", sampto=360)
+    fig = wfdb.plot_wfdb(
+        record,
+        annotation,
+        xlabel=["", "Time (s)"],
+        ylabel=["Lead II (mV)", "Lead V5 (mV)"],
+        return_fig=True,
+    )
+    plt.close(fig)
+
+    assert [ax.get_ylabel() for ax in fig.axes] == ["Lead II (mV)", "Lead V5 (mV)"]
+    assert [ax.get_xlabel() for ax in fig.axes] == ["", "Time (s)"]
+
+
 class TestPlotInternal:
     """Unit tests for internal wfdb.plot.plot functions"""
 
