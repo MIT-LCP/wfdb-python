@@ -167,9 +167,13 @@ setting ``PHYSIONET_TOKEN``). See the `physionet package
 
 The ``pn_dir`` argument reads files the same way, so
 ``wfdb.rdrecord("100", pn_dir="mitdb")`` and
-``wfdb.rdrecord("physionet://mitdb/1.0.0/100")`` read the same files. When
-``pn_dir`` has no version, the latest version is looked up once per database,
-and used until the program ends. If the database index URL has been changed
+``wfdb.rdrecord("physionet://mitdb/1.0.0/100")`` read the same files. For a
+record in a folder of the database, the folders can be given in either
+argument, so ``wfdb.rdrecord("files/p1000/p10000032/s40689238/40689238",
+pn_dir="mimic-iv-ecg/1.0")`` and ``wfdb.rdrecord("40689238",
+pn_dir="mimic-iv-ecg/1.0/files/p1000/p10000032/s40689238")`` read the same
+record. When ``pn_dir`` has no version, the latest version is looked up once
+per database, and used until the program ends. If the database index URL has been changed
 with ``wfdb.io.download.set_db_index_url``, files are read from that server
 instead, as before.
 

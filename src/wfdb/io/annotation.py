@@ -1,6 +1,5 @@
 import copy
 import os
-import posixpath
 import re
 import sys
 
@@ -8,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, download, record, util
-from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open
+from wfdb.io._coreio import _fsspec_open
 from wfdb.io.archive import WFDBArchive, is_archive_path
 
 
@@ -1967,6 +1966,8 @@ def rdann(
         Option used to stream data from Physionet. The PhysioNet database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
+        Folders in the database may be given in `record_name`, in `pn_dir`,
+        or split between them.
     return_label_elements : list, optional
         The label elements that are to be returned from reading the annotation
         file. A list with at least one of the following options: 'symbol',
@@ -2003,16 +2004,7 @@ def rdann(
         record._check_archive_read_args(record_name, pn_dir)
 
     if pn_dir is not None:
-        # check to make sure a cloud path isn't being passed under pn_dir
-        if any(pn_dir.startswith(proto) for proto in CLOUD_PROTOCOLS):
-            raise ValueError(
-                "Cloud paths should be passed under record_name, not under pn_dir"
-            )
-        if "." not in pn_dir:
-            dir_list = pn_dir.split("/")
-            pn_dir = posixpath.join(
-                dir_list[0], download.get_version(dir_list[0]), *dir_list[1:]
-            )
+        record_name, pn_dir = record._resolve_pn_dir(record_name, pn_dir)
 
     return_label_elements = check_read_inputs(sampfrom, sampto, return_label_elements)
 
