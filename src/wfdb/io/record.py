@@ -163,8 +163,8 @@ class BaseRecord:
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -696,8 +696,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -1083,8 +1083,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -1880,8 +1880,8 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2105,8 +2105,8 @@ def rdrecord(
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2504,8 +2504,8 @@ def rdsamp(
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2626,8 +2626,8 @@ def sampfreq(record_name, pn_dir=None):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2678,8 +2678,8 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2739,8 +2739,8 @@ def wfdbdesc(record_name, pn_dir=None):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,
@@ -2875,8 +2875,8 @@ def wfdbtime(record_name, input_times, pn_dir=None):
         extensions. If the argument contains any path delimiter
         characters, the argument will be interpreted as PATH/BASE_RECORD.
         Both relative and absolute paths are accepted. If `pn_dir` is set,
-        `record_name` should contain just the base record name, and the
-        files will be searched for remotely on PhysioNet. Otherwise,
+        the files are read from PhysioNet, and folders in the database may be
+        given in `record_name`, in `pn_dir`, or split between them. Otherwise,
         files are searched for locally, or when `record_name` is a
         supported cloud URI, they are read directly from cloud storage
         via `fsspec`. Supported URIs: `s3://`, `gs://`, `az://`,

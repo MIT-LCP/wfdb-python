@@ -1963,6 +1963,8 @@ def rdann(
         Option used to stream data from Physionet. The PhysioNet database
         directory from which to find the required annotation file. eg. For
         record '100' in 'http://physionet.org/content/mitdb': pn_dir='mitdb'.
+        Folders in the database may be given in `record_name`, in `pn_dir`,
+        or split between them.
     return_label_elements : list, optional
         The label elements that are to be returned from reading the annotation
         file. A list with at least one of the following options: 'symbol',
