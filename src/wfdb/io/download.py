@@ -1,5 +1,4 @@
 import functools
-import json
 import multiprocessing.dummy
 import os
 import posixpath
@@ -233,7 +232,12 @@ def _stream_annotation(file_name, pn_dir):
 
 
 def get_dbs():
-    """Get a list of all the PhysioNet databases available.
+    """Get a list of the databases published on PhysioNet.
+
+    The list comes from PhysioNet's API, through the ``physionet`` package. It
+    includes every database on PhysioNet, including those that need
+    credentials or a signed data use agreement to access, but not software,
+    models or challenges.
 
     Parameters
     ----------
@@ -242,7 +246,7 @@ def get_dbs():
     Returns
     -------
     dbs : list
-        All of the databases currently available for analysis.
+        The slug and title of each database, sorted by slug.
 
     Examples
     --------
@@ -256,13 +260,17 @@ def get_dbs():
     ]
 
     """
-    with _url.openurl("https://physionet.org/rest/database-list/", "rb") as f:
-        content = f.read()
-    dbs = json.loads(content)
-    dbs = [[d["slug"], d["title"]] for d in dbs]
-    dbs.sort()
+    import physionet
 
-    return dbs
+    with physionet.PhysioNetClient() as client:
+        projects = client.projects.list_published()
+    # The API lists every version of each project, with the title of each
+    titles = {
+        project.slug: project.title
+        for project in projects
+        if project.resource_type == "Database" and project.is_latest_version
+    }
+    return [[slug, title] for slug, title in sorted(titles.items())]
 
 
 # ---- Helper functions for downloading PhysioNet files ------- #
