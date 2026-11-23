@@ -1,0 +1,68 @@
+name: Publish
+
+# Build the package from a published GitHub release and upload it to PyPI with
+# Trusted Publishing, which also uploads provenance attestations for the
+# files. On a pull request that changes this file, or when run by hand, only
+# build the package, without uploading anything.
+#
+# One-time setup:
+# - On PyPI, in the wfdb project's settings, under Publishing, add a GitHub
+#   publisher with owner MIT-LCP, repository wfdb-python, workflow publish.yml
+#   and environment pypi.
+# - On GitHub, in this repository's settings, create an environment named
+#   pypi, optionally requiring a reviewer's approval before each upload.
+
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - .github/workflows/publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Check that the release tag matches the version
+        if: github.event_name == 'release'
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::The release tag $GITHUB_REF_NAME does not match version $version in pyproject.toml"
+            exit 1
+          fi
+      - name: Build
+        run: uv build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Upload to PyPI
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: pypi
+      url: https://pypi.org/project/wfdb/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
