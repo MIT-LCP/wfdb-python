@@ -486,3 +486,27 @@ def test_rdann_sampfrom_empty_file(tmp_path):
     (tmp_path / "empty.atr").write_bytes(b"\x00\x00")
     ann = wfdb.rdann(str(tmp_path / "empty"), "atr", sampfrom=10)
     assert ann.sample.size == 0
+
+
+@pytest.mark.parametrize(
+    "label_elements", [None, ["label_store", "symbol", "description"]]
+)
+def test_apply_range_keeps_every_field_consistent(label_elements):
+    """apply_range gives the same result as reading only that range."""
+    kwargs = {} if label_elements is None else {"return_label_elements": label_elements}
+    ann = wfdb.rdann("sample-data/100", "atr", **kwargs)
+    ann.apply_range(sampfrom=600000, sampto=620000)
+
+    expected = wfdb.rdann(
+        "sample-data/100", "atr", sampfrom=600000, sampto=620000, **kwargs
+    )
+    assert ann.ann_len == expected.ann_len == 71
+    for field in ["sample", "subtype", "chan", "num"]:
+        np.testing.assert_array_equal(getattr(ann, field), getattr(expected, field))
+    for field in ["label_store", "symbol", "description", "aux_note"]:
+        value, expected_value = getattr(ann, field), getattr(expected, field)
+        if expected_value is None:
+            # Fields that are not set stay None
+            assert value is None
+        else:
+            assert list(value) == list(expected_value)
