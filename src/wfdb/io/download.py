@@ -482,15 +482,9 @@ def _download_files(db_dir, dl_dir, files, keep_subdirs, overwrite):
     if not os.path.isdir(dl_dir):
         os.makedirs(dl_dir)
         print("Created local base download directory: %s" % dl_dir)
-    if overwrite:
-        # Remove the saved files, so that they are downloaded again, but only
-        # once every file is known to exist and to be saved inside dl_dir
-        local_files = _check_files_to_replace(db_dir, dl_dir, files, saved_as)
-        for local_file in local_files:
-            if os.path.isfile(local_file):
-                os.remove(local_file)
-
-    # Two files at a time, as before, to avoid overloading the server
+    # Two files at a time, as before, to avoid overloading the server. With
+    # overwrite, physionet replaces each saved file only after checking every
+    # requested file and destination, and once the new copy is complete.
     physionet.download(
         slug,
         version,
@@ -499,81 +493,8 @@ def _download_files(db_dir, dl_dir, files, keep_subdirs, overwrite):
         verbose=False,
         show_progress=False,
         jobs=2,
+        overwrite=overwrite,
     )
-
-
-def _check_files_to_replace(db_dir, dl_dir, files, saved_as):
-    """Check the files that _download_files would replace, before removing any.
-
-    Parameters
-    ----------
-    db_dir : str
-        The PhysioNet database directory, including its version.
-    dl_dir : str
-        The local directory that the files are saved in.
-    files : list of str
-        The paths of the files to download, relative to `db_dir`.
-    saved_as : dict
-        The path that each file is saved as, relative to `dl_dir`, by its path
-        within the database.
-
-    Returns
-    -------
-    list of str
-        The local path of each file.
-
-    Raises
-    ------
-    ValueError
-        If a file would be saved outside `dl_dir`, because its path is not a
-        plain relative path (for example "../a.dat"), or through a symbolic
-        link, or if two files would be saved as one, including as names that
-        differ only in case (one file on macOS and Windows), or through a
-        symbolic link.
-    FileNotFoundError
-        If the database has no such file.
-
-    """
-    root = os.path.realpath(dl_dir)
-    local_files = []
-    # Each destination, after following symbolic links and ignoring case, and
-    # the file saved there
-    destinations = {}
-    for path, local in saved_as.items():
-        parts = local.split("/")
-        if (
-            "\\" in local
-            or local.startswith("/")
-            or any(part in ("", ".", "..") for part in parts)
-        ):
-            raise ValueError(
-                f"Files can only be saved inside dl_dir, as plain relative paths: "
-                f"{local!r}"
-            )
-        local_file = os.path.join(dl_dir, *parts)
-        resolved = os.path.realpath(local_file)
-        if os.path.commonpath([root, resolved]) != root:
-            raise ValueError(
-                f"{local!r} would be saved outside dl_dir, through a symbolic link"
-            )
-        key = os.path.normcase(resolved).casefold()
-        if key in destinations:
-            raise ValueError(
-                f"{destinations[key]!r} and {path!r} would both be saved as "
-                f"{local!r} (or as the same file) in dl_dir"
-            )
-        destinations[key] = path
-        local_files.append(local_file)
-
-    available = _project_files(db_dir)
-    missing = [file for file in files if file not in available]
-    if missing:
-        raise FileNotFoundError(
-            f"{db_dir} has no file "
-            + ", ".join(repr(file) for file in missing[:5])
-            + (f" and {len(missing) - 5} more" if len(missing) > 5 else "")
-        )
-    return local_files
 
 
 def make_local_dirs(dl_dir, dl_inputs, keep_subdirs):
@@ -717,7 +638,8 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
         If True, all files are downloaded again. If False, a file that is
         already saved with the right content (checked against the database's
         checksum list) is skipped, a partly downloaded file is completed, and
-        any other saved file is downloaded again.
+        any other saved file is downloaded again. A saved file is only
+        replaced once its new copy is complete and checked.
 
     Returns
     -------

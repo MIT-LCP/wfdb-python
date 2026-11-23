@@ -1,5 +1,6 @@
 """Tests for reading records and annotations with physionet:// URIs."""
 
+import importlib
 import io
 import shutil
 from pathlib import Path
@@ -303,6 +304,7 @@ def test_dl_database_downloads_with_physionet(demo_database, tmp_path):
         "verbose": False,
         "show_progress": False,
         "jobs": 2,
+        "overwrite": False,
     }
     # Each record's header and signal files, and the annotation files there are
     expected = ["100.hea", "100.dat", "100.atr", "041s.hea", "041s01.hea"]
@@ -334,9 +336,10 @@ def test_dl_database_overwrite(demo_database, tmp_path, overwrite):
         "demo", str(out), records=["100"], annotators=None, overwrite=overwrite
     )
 
-    # With overwrite, the saved file is removed, so that it is downloaded again.
-    # Otherwise physionet keeps it if its checksum matches, and replaces it if not.
-    assert (out / "100.dat").exists() == (not overwrite)
+    # physionet replaces saved files itself, after checking every file and
+    # destination, so wfdb removes nothing
+    assert demo_database[0][1]["overwrite"] is overwrite
+    assert (out / "100.dat").read_bytes() == b"saved before"
 
 
 @pytest.mark.parametrize("keep_subdirs", [True, False])
@@ -368,73 +371,48 @@ def test_dl_files_from_another_server(demo_database, monkeypatch, tmp_path):
     ]
 
 
-def test_dl_files_overwrite_never_removes_files_outside_dl_dir(demo_database, tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
-    victim = tmp_path / "victim.dat"
-    victim.write_bytes(b"keep me")
-
-    with pytest.raises(ValueError, match="only be saved inside dl_dir"):
-        wfdb.dl_files("demo", str(out), ["../victim.dat"], overwrite=True)
-    assert victim.read_bytes() == b"keep me"
-    assert demo_database == []
-
-
-def test_dl_files_overwrite_through_a_symbolic_link(demo_database, tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / "100.hea").write_bytes(b"keep me")
-    try:
-        (out / "link").symlink_to(outside, target_is_directory=True)
-    except (OSError, NotImplementedError):
-        pytest.skip("symbolic links are not available")
-
-    with pytest.raises(ValueError, match="through a symbolic link"):
-        wfdb.dl_files("demo", str(out), ["link/100.hea"], overwrite=True)
-    assert (outside / "100.hea").read_bytes() == b"keep me"
-    assert demo_database == []
-
-
-def test_dl_files_overwrite_with_a_missing_file(demo_database, tmp_path):
-    out = tmp_path / "out"
-    out.mkdir()
-    (out / "100.hea").write_bytes(b"saved before")
-
-    with pytest.raises(FileNotFoundError, match="no file '999.hea'"):
-        wfdb.dl_files("demo", str(out), ["100.hea", "999.hea"], overwrite=True)
-    assert (out / "100.hea").read_bytes() == b"saved before"
-    assert demo_database == []
-
-
 @pytest.mark.parametrize(
     ("files", "keep_subdirs", "saved"),
     [
+        # A path outside dl_dir
+        (["../victim.dat"], True, "../victim.dat"),
         # Two files with one name, without their subdirectories
         (["RECORDS", "sub/RECORDS"], False, "RECORDS"),
         # Names that differ only in case, which are one file on macOS and Windows
         (["100.hea", "sub/100.HEA"], False, "100.hea"),
-        # One file through a symbolic link
-        (["a/100.hea", "b/100.hea"], True, "b/100.hea"),
     ],
-    ids=["same-name", "case", "symbolic-link"],
+    ids=["outside", "same-name", "case"],
 )
-def test_dl_files_overwrite_with_two_files_saved_as_one(
-    demo_database, tmp_path, files, keep_subdirs, saved
+def test_dl_files_overwrite_replaces_nothing_for_an_unsafe_request(
+    demo_database, monkeypatch, tmp_path, files, keep_subdirs, saved
 ):
+    """physionet refuses these requests before replacing or downloading anything."""
+    import physionet
+
+    # The real physionet.download, which checks the request before any request
+    monkeypatch.setattr(
+        physionet, "download", importlib.import_module("physionet.download").download
+    )
     out = tmp_path / "out"
-    (out / "b").mkdir(parents=True)
-    try:
-        (out / "a").symlink_to(out / "b", target_is_directory=True)
-    except (OSError, NotImplementedError):
-        if "a/100.hea" in files:
-            pytest.skip("symbolic links are not available")
+    out.mkdir()
     (out / saved).write_bytes(b"saved before")
 
-    with pytest.raises(ValueError, match="would both be saved as"):
+    with pytest.raises(ValueError):
         wfdb.dl_files(
             "demo", str(out), files, keep_subdirs=keep_subdirs, overwrite=True
         )
     assert (out / saved).read_bytes() == b"saved before"
-    assert demo_database == []
+
+
+def test_dl_files_overwrite_removes_nothing_itself(demo_database, tmp_path):
+    """wfdb leaves replacing saved files to physionet, which checks them first."""
+    out = tmp_path / "out"
+    out.mkdir()
+    (out / "100.hea").write_bytes(b"saved before")
+
+    wfdb.dl_files("demo", str(out), ["100.hea", "999.hea"], overwrite=True)
+
+    assert (out / "100.hea").read_bytes() == b"saved before"
+    [(args, kwargs)] = demo_database
+    assert kwargs["overwrite"] is True
+    assert kwargs["files"] == {"100.hea": "100.hea", "999.hea": "999.hea"}

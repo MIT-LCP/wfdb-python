@@ -3329,7 +3329,8 @@ def dl_database(
         If True, all files are downloaded again. If False, a file that is
         already saved with the right content (checked against the database's
         checksum list) is skipped, a partly downloaded file is completed, and
-        any other saved file is downloaded again.
+        any other saved file is downloaded again. A saved file is only
+        replaced once its new copy is complete and checked.
 
     Returns
     -------
