@@ -1852,7 +1852,7 @@ class TestChecksumHelpers:
 
     @pytest.mark.parametrize("dtype", [np.int8, np.int16, np.int32, np.int64])
     def test_checksums_2d_and_dtypes(self, dtype):
-        """Vectorized per-channel checksums match _checksum across integer dtypes."""
+        """Per-channel checksums match _checksum across integer dtypes."""
         rows = 1000
         signal = np.column_stack(
             [
@@ -1872,7 +1872,8 @@ class TestChecksumHelpers:
         signal = np.empty((0, 3), dtype=np.int16)
         assert wfdb.io._signal._checksums(signal) == [0, 0, 0]
 
-    def test_checksums_rejects_1d(self):
-        """A 1-D array raises TypeError rather than returning per-sample values."""
-        with pytest.raises(TypeError):
-            wfdb.io._signal._checksums(np.arange(10, dtype=np.int16))
+    def test_checksums_float_matches_per_channel_sum(self):
+        """Float signals sum each column individually, preserving read_edf parity."""
+        signal = np.array([[0.1, 0.0]] * 10)
+        expected = [int(np.sum(col) % 65536) for col in np.transpose(signal)]
+        assert wfdb.io._signal._checksums(signal) == expected
