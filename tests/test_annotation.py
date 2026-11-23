@@ -486,3 +486,20 @@ def test_rdann_sampfrom_empty_file(tmp_path):
     (tmp_path / "empty.atr").write_bytes(b"\x00\x00")
     ann = wfdb.rdann(str(tmp_path / "empty"), "atr", sampfrom=10)
     assert ann.sample.size == 0
+
+
+@pytest.mark.parametrize(
+    ("sampfrom", "sampto"), [(0, 0), (10, 0), (100, 100), (100, 50)]
+)
+def test_rdann_sampto_must_be_after_sampfrom(sampfrom, sampto):
+    """As in rdrecord, sampto must be greater than sampfrom (0 is not 'no limit')."""
+    with pytest.raises(ValueError, match="sampto must be greater than sampfrom"):
+        wfdb.rdann("sample-data/100", "atr", sampfrom=sampfrom, sampto=sampto)
+
+
+def test_rdann_summarize_labels_without_annotations():
+    """summarize_labels works when the range holds no annotations."""
+    ann = wfdb.rdann("sample-data/100", "atr", sampfrom=10**9, summarize_labels=True)
+    assert ann.ann_len == 0
+    assert ann.contained_labels.empty
+    assert "n_occurrences" in ann.contained_labels.columns
