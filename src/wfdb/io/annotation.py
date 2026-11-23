@@ -1587,17 +1587,12 @@ def custom_triplet_bytes(custom_triplet):
         All the bytes converted from the tiplet.
 
     """
-    # Structure: 0, NOTE, len(aux_note), aux_note, codenumber, space, codesymbol, space,
-    # description, (0 null if necessary)
-    # Remember, aux_note string includes 'number(s)<space><symbol><space><description>''
-    annbytes = (
-        [0, 88, len(custom_triplet[2]) + 3 + len(str(custom_triplet[0])), 252]
-        + [ord(c) for c in str(custom_triplet[0])]
-        + [32]
-        + [ord(custom_triplet[1])]
-        + [32]
-        + [ord(c) for c in custom_triplet[2]]
-    )
+    # Structure: 0, NOTE, len(aux_note), aux_note, (0 null if necessary), where
+    # aux_note is '<label_store><space><symbol><space><description>'. The
+    # symbol may have more than one character.
+    label_store, symbol, description = custom_triplet
+    note = f"{label_store} {symbol} {description}"
+    annbytes = [0, 88, len(note), 252] + [ord(c) for c in note]
 
     if len(annbytes) % 2:
         annbytes.append(0)
