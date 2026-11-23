@@ -117,6 +117,43 @@ class TestProcessing:
         """A list works as well as an array."""
         assert processing.find_local_peaks([0, 1, 2, 3, 2, 1, 0], 1).tolist() == [3]
 
+    @pytest.mark.parametrize("radius", [1, 3, 10, 200])
+    @pytest.mark.parametrize("n", [2, 5, 50, 1000, 20000])
+    def test_find_local_peaks_matches_scan(self, n, radius):
+        """Give the same peaks as a sample-by-sample scan of the signal."""
+
+        def scan(sig, radius):
+            peak_inds = []
+            i = 0
+            while i < len(sig):
+                if sig[i] == sig[max(0, i - radius) : i + radius + 1].max():
+                    peak_inds.append(i)
+                    i += radius
+                else:
+                    i += 1
+            return peak_inds
+
+        rng = np.random.default_rng(n * 1000 + radius)
+        # Few distinct values, to give ties and flat tops
+        ties = rng.integers(0, 4, n).astype(float)
+        with_nan = rng.normal(size=n)
+        with_nan[rng.random(n) < 0.05] = np.nan
+        integers = rng.integers(-100, 100, n)
+        for sig in (ties, with_nan, integers):
+            if np.min(sig) == np.max(sig):
+                continue
+            expected = scan(sig, radius)
+            assert processing.find_local_peaks(sig, radius).tolist() == expected
+
+    def test_find_local_peaks_ecg(self):
+        """Peaks on an ECG signal are window maxima at least `radius` apart."""
+        record = wfdb.rdrecord("sample-data/100", sampto=36000, channels=[0])
+        sig = record.p_signal[:, 0]
+        peaks = processing.find_local_peaks(sig, 50)
+        for i in peaks:
+            assert sig[i] == sig[max(0, i - 50) : i + 51].max()
+        assert np.all(np.diff(peaks) >= 50)
+
     def test_gqrs(self):
         record = wfdb.rdrecord(
             "sample-data/100",

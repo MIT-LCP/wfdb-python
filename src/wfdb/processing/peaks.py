@@ -76,20 +76,39 @@ def find_local_peaks(sig, radius):
         The locations of all of the local peaks of the input signal.
 
     """
+    from scipy.ndimage import maximum_filter1d
+
     # TODO: Fix flat mountain scenarios.
     sig = np.asarray(sig)
     if np.min(sig) == np.max(sig):
         return np.empty(0)
 
-    peak_inds = []
+    size = 2 * radius + 1
+    nan_locs = np.isnan(sig) if sig.dtype.kind in "fc" else None
+    has_nan = nan_locs is not None and nan_locs.any()
 
-    i = 0
-    while i < len(sig):
-        if sig[i] == sig[max(0, i - radius) : i + radius + 1].max():
+    # The largest value within `radius` samples of each sample. A NaN can
+    # spoil the result of maximum_filter1d well beyond its own window, so
+    # filter a copy with -inf in its place.
+    window_max = maximum_filter1d(
+        np.where(nan_locs, -np.inf, sig) if has_nan else sig,
+        size=size,
+        mode="nearest",
+    )
+    is_candidate = sig == window_max
+    if has_nan:
+        # A window that contains NaN has no peak
+        nan_nearby = maximum_filter1d(nan_locs.view(np.uint8), size=size)
+        is_candidate &= nan_nearby == 0
+
+    # Take the candidates in order, skipping any within `radius` samples
+    # after the previous peak
+    peak_inds = []
+    next_allowed = 0
+    for i in np.flatnonzero(is_candidate).tolist():
+        if i >= next_allowed:
             peak_inds.append(i)
-            i += radius
-        else:
-            i += 1
+            next_allowed = i + radius
 
     return np.array(peak_inds)
 
