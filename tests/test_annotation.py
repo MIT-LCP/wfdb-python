@@ -492,6 +492,25 @@ def test_apply_range_keeps_every_field_consistent(label_elements):
             assert list(value) == list(expected_value)
 
 
+@pytest.mark.parametrize(("sampfrom", "sampto"), [(600000, 620000), (10**9, None)])
+def test_apply_range_updates_the_label_summary(sampfrom, sampto):
+    """A summary made before apply_range counts only the annotations kept."""
+    ann = wfdb.rdann("sample-data/100", "atr", summarize_labels=True)
+    ann.apply_range(sampfrom=sampfrom, sampto=sampto)
+
+    expected = wfdb.rdann(
+        "sample-data/100",
+        "atr",
+        sampfrom=sampfrom,
+        sampto=sampto,
+        summarize_labels=True,
+    )
+    assert ann.contained_labels["n_occurrences"].sum() == ann.ann_len
+    pd.testing.assert_frame_equal(
+        ann.contained_labels.sort_index(), expected.contained_labels.sort_index()
+    )
+
+
 def test_rdann_sampfrom_without_sampto():
     """rdann with only sampfrom returns the annotations from sampfrom onwards."""
     full = wfdb.rdann("sample-data/100", "atr")

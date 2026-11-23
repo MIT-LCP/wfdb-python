@@ -236,6 +236,12 @@ class Annotation:
     def apply_range(self, sampfrom=0, sampto=None):
         """Keep only the annotation items between the desired sample values.
 
+        Every field with one value per annotation that is set (such as
+        `symbol` and `aux_note`) is kept for the same annotations. Fields that
+        are not set are left as None. If the labels have been summarized in
+        `contained_labels`, the summary is made again for the annotations that
+        are kept.
+
         Parameters
         ----------
         sampfrom : int, optional
@@ -243,10 +249,6 @@ class Annotation:
         sampto : int, optional
             The maximum sample number for annotations to be returned. If None,
             there is no upper limit.
-
-        Every field with one value per annotation that is set (such as
-        `symbol` and `aux_note`) is kept for the same annotations. Fields that
-        are not set are left as None.
 
         """
         n_annotations = len(self.sample)
@@ -274,6 +276,10 @@ class Annotation:
                 setattr(self, field, [values[i] for i in kept_inds])
 
         self.ann_len = len(self.sample)
+
+        # A summary of the labels would still count the annotations removed
+        if self.contained_labels is not None:
+            self.get_contained_labels()
 
     def wrann(self, write_fs=False, write_dir=""):
         """Write a WFDB annotation file from this object.
