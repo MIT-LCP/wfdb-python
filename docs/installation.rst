@@ -1,10 +1,29 @@
 Installation
 ------------
 
-The distribution is hosted on pypi at: https://pypi.python.org/pypi/wfdb/. To directly install the package from pypi without needing to explicitly download content, run from your terminal::
+WFDB requires Python 3.11 or newer. Install the latest release from PyPI::
 
-    $ pip install wfdb
+    pip install wfdb
 
-The development version is hosted at: https://github.com/MIT-LCP/wfdb-python. This repository also contains demo scripts and example data. To install the development version, clone or download the repository, navigate to the base directory, and run::
+To install from a checkout of the development repository, run::
 
-    $ pip install .
+    pip install .
+
+See the `contributor guide
+<https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md>`_ for development
+setup and testing instructions.
+
+FLAC files
+----------
+
+WFDB reads FLAC-compressed signal files using the ``soundfile`` package.
+Platform-specific SoundFile wheels bundle ``libsndfile`` and ``libFLAC``.
+Older bundled libFLAC versions can fail when seeking within some valid FLAC
+files with ``Internal psf_fseek() failed``. Use SoundFile 0.13.1 or newer to
+get updated bundled libraries.
+
+If SoundFile uses a system-installed ``libsndfile`` instead, the system's
+``libFLAC`` must be updated separately. Versions 1.4.0 through 1.4.2 have
+a known seek failure; use libFLAC 1.4.3 or newer. See the reports for
+`older libFLAC versions <https://github.com/MIT-LCP/wfdb-python/issues/486>`_
+and `libFLAC 1.4.0--1.4.2 <https://github.com/MIT-LCP/wfdb-python/issues/488>`_.
