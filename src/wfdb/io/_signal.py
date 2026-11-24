@@ -940,7 +940,7 @@ class SignalMixin:
                 if current_dtype != return_dtype:
                     # Do not allow changing integer dtype to lower value due to
                     # over/underflow
-                    if int(str(current_dtype)[3:]) > int(str(return_dtype)[3:]):
+                    if not np.can_cast(current_dtype, return_dtype, "safe"):
                         raise Exception(
                             "Cannot convert digital samples to lower dtype. Risk of overflow/underflow."
                         )
@@ -951,7 +951,7 @@ class SignalMixin:
                     if current_dtype != return_dtype:
                         # Do not allow changing integer dtype to lower value due to
                         # over/underflow
-                        if int(str(current_dtype)[3:]) > int(str(return_dtype)[3:]):
+                        if not np.can_cast(current_dtype, return_dtype, "safe"):
                             raise Exception(
                                 "Cannot convert digital samples to lower dtype. Risk of overflow/underflow."
                             )
