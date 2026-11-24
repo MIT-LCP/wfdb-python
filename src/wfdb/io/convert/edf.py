@@ -1031,7 +1031,7 @@ def rdedfann(
     info_only=True,
     record_only=False,
     verbose=False,
-    encoding="iso8859-1",
+    encoding=None,
 ):
     """Return the annotation information from an EDF+ file.
 
@@ -1079,8 +1079,9 @@ def rdedfann(
         Whether to print all the information read about the file (True) or
         not (False).
     encoding : str, optional
-        The encoding to use for strings in the header. Although the edf
-        specification requires ascii strings, some files do not adhere to it.
+        Override the encoding of both header strings and annotation text.
+        By default, headers use ISO-8859-1 for compatibility and EDF+
+        annotation text uses UTF-8, as required by the format.
 
     Returns
     -------
@@ -1145,19 +1146,21 @@ def rdedfann(
     #   "The coding is EDF compatible in the sense that old EDF software would
     #    simply treat this 'EDF Annotations' signal as if it were a (strange-
     #    looking) ordinary signal"
+    header_encoding = "iso8859-1" if encoding is None else encoding
+    annotation_encoding = "utf-8" if encoding is None else encoding
     rec = read_edf(
         record_name,
         pn_dir=pn_dir,
         verbose=verbose,
         rdedfann_flag=True,
-        encoding=encoding,
+        encoding=header_encoding,
     )
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
     # EDF+ annotation characters are packed into the two bytes of each digital
     # sample. Their meaning is independent of the channel's physical scaling.
-    annotation_string = rec._edf_annotation_bytes.decode(encoding)
+    annotation_string = rec._edf_annotation_bytes.decode(annotation_encoding)
     for rep in ["\x00", "\x14", "\x15"]:
         annotation_string = annotation_string.replace(rep, " ")
 
