@@ -145,6 +145,43 @@ def test_iter_dataframes_reuses_remote_headers(memory_fs, monkeypatch):
     assert opened_headers.count(f"{uri}.hea") == 3
 
 
+@pytest.mark.parametrize("selection", [{"channels": [0]}, {"channel_names": ["PLETH"]}])
+def test_digital_iterator_looks_ahead_for_requested_channels(
+    memory_fs, monkeypatch, selection
+):
+    from wfdb.io import record
+
+    upload(memory_fs, "multi-segment/p000878/*")
+    name = "p000878-2137-10-26-16-57"
+    uri = f"memory://wfdb-test/multi-segment/p000878/{name}"
+    opened_headers = []
+    open_file = record._fsspec_open
+
+    def track_header(path, mode="rb", **kwargs):
+        if path.endswith(".hea"):
+            opened_headers.append(path)
+        return open_file(path, mode, **kwargs)
+
+    monkeypatch.setattr(record, "_fsspec_open", track_header)
+    chunks = wfdb.iter_dataframes(uri, 1000, sampto=7500, physical=False, **selection)
+    first = next(chunks)
+
+    assert first.iloc[0, 0] == -128
+    assert f"{uri.rsplit('/', 1)[0]}/3269321_0001.hea" in opened_headers
+    assert f"{uri.rsplit('/', 1)[0]}/3269321_0002.hea" not in opened_headers
+
+    actual = pd.concat([first, *chunks])
+    expected = wfdb.rdrecord(
+        f"sample-data/multi-segment/p000878/{name}",
+        sampto=7500,
+        physical=False,
+        **selection,
+    ).to_dataframe()
+    pd.testing.assert_frame_equal(actual, expected)
+    remote_headers = [path for path in opened_headers if path.startswith("memory://")]
+    assert len(remote_headers) == len(set(remote_headers)) == 4
+
+
 def test_wrsamp_to_cloud(memory_fs):
     signal = np.array([[0], [1], [-1], [2]], dtype=np.int16)
     wfdb.wrsamp(

@@ -1288,6 +1288,29 @@ class TestMultiRecord:
             assert record.__eq__(record_pn)
         assert record.__eq__(record_named)
 
+    def test_multi_variable_d_with_absent_channels(self):
+        """Read digital samples when a window lacks layout channels."""
+        path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+        record = wfdb.rdrecord(path, sampto=7500, physical=False)
+
+        assert record.sig_name == ["PLETH", "II", "V", "ABP"]
+        assert record.fmt == ["80", "80", None, None]
+        assert record.d_signal.shape == (7500, 4)
+        np.testing.assert_array_equal(record.d_signal[:3750, :2], -128)
+        np.testing.assert_array_equal(
+            record.d_signal[:, 2:], np.iinfo(record.d_signal.dtype).min
+        )
+
+        absent_only = wfdb.rdrecord(path, sampto=7500, channels=[2, 3], physical=False)
+        assert absent_only.fmt == [None, None]
+        np.testing.assert_array_equal(
+            absent_only.d_signal, np.iinfo(absent_only.d_signal.dtype).min
+        )
+
+        narrower = wfdb.rdrecord(path, sampto=3000, channels=[0], physical=False)
+        assert narrower.fmt == [None]
+        assert narrower.d_signal[0, 0] == np.iinfo(narrower.d_signal.dtype).min
+
     def test_multi_variable_write(self, tmp_path):
         """Write a variable layout multi-segment record and read it back.
 
