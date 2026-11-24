@@ -270,6 +270,20 @@ class TestEdfToWfdb:
             converted.p_signal[:3600], original.p_signal, atol=1e-10
         )
 
+    def test_read_edf_record_can_be_written(self, tmp_path):
+        """The baseline of a converted record satisfies WFDB field checks."""
+        edf_path = tmp_path / "100.edf"
+        wfdb_to_edf(
+            "sample-data/100", sampto=100, channels=[0], output_filename=str(edf_path)
+        )
+
+        record = read_edf(str(edf_path))
+        assert isinstance(record.baseline, list)
+        record.wrsamp(write_dir=str(tmp_path))
+
+        written = rdrecord(str(tmp_path / "100"))
+        np.testing.assert_allclose(written.p_signal[:100], record.p_signal[:100])
+
     def test_edf_mixed_rate_uses_consistent_frame_count(self, tmp_path):
         """Read a converted file with fractional fs and varied sample rates."""
         output = tmp_path / "drive02.edf"
