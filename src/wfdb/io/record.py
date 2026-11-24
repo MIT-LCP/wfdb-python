@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
-from wfdb.io._cloud import is_cloud_path, staged_cloud_write
+from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
 
@@ -939,18 +939,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         >>> record.wrsamp()
 
         """
-        if (
-            wfdb_archive is not None
-            and not isinstance(wfdb_archive, WFDBArchive)
-            and isinstance(wfdb_archive, (str, os.PathLike))
-            and is_cloud_path(wfdb_archive)
-        ):
-            raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
+        check_cloud_write(write_dir, wfdb_archive)
         if is_cloud_path(write_dir):
-            if wfdb_archive is not None:
-                raise ValueError(
-                    "Writing .wfdb archives to cloud storage is unsupported"
-                )
             if self.n_sig and self.file_name:
                 self._warn_about_replacing_other_files(write_dir)
             with staged_cloud_write(write_dir, self.record_name + ".hea") as staging:
@@ -1361,18 +1351,8 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
-        if (
-            wfdb_archive is not None
-            and not isinstance(wfdb_archive, WFDBArchive)
-            and isinstance(wfdb_archive, (str, os.PathLike))
-            and is_cloud_path(wfdb_archive)
-        ):
-            raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
+        check_cloud_write(write_dir, wfdb_archive)
         if is_cloud_path(write_dir):
-            if wfdb_archive is not None:
-                raise ValueError(
-                    "Writing .wfdb archives to cloud storage is unsupported"
-                )
             with staged_cloud_write(write_dir, self.record_name + ".hea") as staging:
                 self.wrsamp(expanded=expanded, write_dir=staging)
             return

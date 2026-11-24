@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, download, record, util
-from wfdb.io._cloud import is_cloud_path, staged_cloud_write
+from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import _fsspec_open
 from wfdb.io.archive import WFDBArchive, is_archive_path
 
@@ -299,6 +299,7 @@ class Annotation:
 
         """
         if is_cloud_path(write_dir):
+            check_cloud_write(write_dir)
             with staged_cloud_write(write_dir) as staging:
                 self.wrann(write_fs=write_fs, write_dir=staging)
             return

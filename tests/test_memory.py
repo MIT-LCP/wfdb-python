@@ -5,6 +5,8 @@ import numpy as np
 import pytest
 
 import wfdb
+from wfdb.io import _cloud
+from wfdb.io.archive import WFDBArchive
 
 SAMPLE_DATA = Path("sample-data")
 
@@ -131,11 +133,26 @@ def test_record_wrsamp_to_cloud(memory_fs):
     np.testing.assert_array_equal(result.d_signal, record.d_signal)
 
 
-def test_multi_record_wrsamp_to_cloud(memory_fs):
+def test_multi_record_wrsamp_to_cloud(memory_fs, monkeypatch):
     source = "sample-data/multi-segment/fixed1/v102s"
     record = wfdb.rdrecord(source, sampto=1000, m2s=False, physical=False)
+    uploaded = []
+    open_file = _cloud._fsspec_open
+
+    def record_upload(path, mode="rb", **kwargs):
+        if mode == "wb":
+            uploaded.append(path)
+        return open_file(path, mode, **kwargs)
+
+    monkeypatch.setattr(_cloud, "_fsspec_open", record_upload)
     record.wrsamp(write_dir="memory://wfdb-test/multi")
 
+    assert set(uploaded) == {
+        "memory://wfdb-test/multi/v102s.dat",
+        "memory://wfdb-test/multi/v102s_1.hea",
+        "memory://wfdb-test/multi/v102s.hea",
+    }
+    assert uploaded[-1] == "memory://wfdb-test/multi/v102s.hea"
     assert memory_fs.exists("/wfdb-test/multi/v102s.hea")
     assert memory_fs.exists("/wfdb-test/multi/v102s_1.hea")
     result = wfdb.rdrecord("memory://wfdb-test/multi/v102s", physical=False)
@@ -188,7 +205,7 @@ def test_cloud_write_warns_when_replacing_another_records_signal(memory_fs):
         record.wrsamp(write_dir="memory://wfdb-test")
 
 
-def test_physionet_write_is_rejected():
+def test_physionet_write_is_rejected(monkeypatch):
     with pytest.raises(ValueError, match="physionet://"):
         wfdb.wrann(
             "test",
@@ -198,8 +215,24 @@ def test_physionet_write_is_rejected():
             write_dir="physionet://mitdb",
         )
 
+    record = wfdb.rdrecord("sample-data/100", sampto=10, physical=False)
+
+    def unexpected_lookup(write_dir):
+        pytest.fail("PhysioNet was queried before the write was rejected")
+
+    monkeypatch.setattr(record, "_warn_about_replacing_other_files", unexpected_lookup)
+    with pytest.raises(ValueError, match="physionet://"):
+        record.wrsamp(write_dir="physionet://mitdb")
+
 
 def test_cloud_archive_write_is_rejected(memory_fs):
     record = wfdb.rdrecord("sample-data/100", sampto=10, physical=False)
     with pytest.raises(ValueError, match="archives to cloud storage"):
         record.wrsamp(wfdb_archive="memory://wfdb-test/100.wfdb")
+
+
+def test_cloud_write_dir_with_open_archive_is_rejected(tmp_path):
+    record = wfdb.rdrecord("sample-data/100", sampto=10, physical=False)
+    with pytest.raises(ValueError, match="cloud write_dir is unused"):
+        with WFDBArchive(tmp_path / "100.wfdb", mode="w") as archive:
+            record.wrsamp(write_dir="memory://wfdb-test", wfdb_archive=archive)

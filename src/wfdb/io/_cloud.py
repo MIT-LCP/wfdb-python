@@ -6,11 +6,24 @@ import tempfile
 from contextlib import contextmanager
 
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path
+from wfdb.io.archive import WFDBArchive
 
 
 def is_cloud_path(path):
     """Return whether a path uses one of the supported cloud protocols."""
     return os.fspath(path).startswith(tuple(CLOUD_PROTOCOLS))
+
+
+def check_cloud_write(write_dir, wfdb_archive=None):
+    """Reject unsupported cloud destinations before any remote lookup."""
+    if os.fspath(write_dir).startswith("physionet://"):
+        raise ValueError("Writing to physionet:// is not supported")
+    if isinstance(wfdb_archive, (str, os.PathLike)) and is_cloud_path(wfdb_archive):
+        raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
+    if is_cloud_path(write_dir) and wfdb_archive is not None:
+        if isinstance(wfdb_archive, WFDBArchive):
+            raise ValueError("A cloud write_dir is unused with an open WFDBArchive")
+        raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
 
 
 @contextmanager
@@ -22,9 +35,6 @@ def staged_cloud_write(write_dir, header_name=None):
     incomplete new record while its files are still being uploaded.
 
     """
-    if os.fspath(write_dir).startswith("physionet://"):
-        raise ValueError("Writing to physionet:// is not supported")
-
     with tempfile.TemporaryDirectory(prefix="wfdb-cloud-") as staging:
         yield staging
         paths = []
