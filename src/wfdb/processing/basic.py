@@ -170,7 +170,8 @@ def normalize_bound(sig, lb=0, ub=1):
 
     Integer signals are shifted by their minimum before conversion to floating
     point, so small differences are retained even when the samples have a
-    large offset. The result is always within the bounds.
+    large offset. The result is always within the bounds. A constant signal
+    is normalized to the middle of the bounds.
 
     Parameters
     ----------
@@ -195,6 +196,9 @@ def normalize_bound(sig, lb=0, ub=1):
     mid = ub - (ub - lb) / 2
     min_v = np.min(sig)
     max_v = np.max(sig)
+    if max_v == min_v:
+        # A constant signal has no range to scale, so it is put in the middle
+        return np.zeros_like(np.asanyarray(sig), dtype=np.float64) + mid
     if isinstance(min_v, np.integer) and isinstance(max_v, np.integer):
         min_v, max_v = int(min_v), int(max_v)
         coef = (ub - lb) / (max_v - min_v)

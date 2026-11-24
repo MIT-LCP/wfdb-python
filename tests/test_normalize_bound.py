@@ -125,3 +125,28 @@ def test_results_are_within_the_bounds(dtype, lb, ub):
         assert min(lb, ub) <= result.min() and result.max() <= max(lb, ub)
         assert result.min() == pytest.approx(min(lb, ub))
         assert result.max() == pytest.approx(max(lb, ub))
+
+
+@pytest.mark.parametrize(
+    "sig",
+    [
+        np.array([5, 5, 5], dtype=np.int16),
+        np.array([2**63 - 1] * 2, dtype=np.int64),
+        np.array([7.5, 7.5]),
+        [3, 3],
+        np.array([[4, 4], [4, 4]], dtype=np.uint8),
+    ],
+)
+def test_constant_signal_is_put_in_the_middle(sig):
+    """A constant signal has no range: it used to raise or give NaN."""
+    with np.errstate(divide="raise", invalid="raise"):
+        result = processing.normalize_bound(sig, -1, 3)
+    np.testing.assert_array_equal(result, np.full(np.shape(sig), 1.0))
+
+
+def test_constant_masked_signal_stays_masked():
+    sig = np.ma.array([4, 4, 9], mask=[False, False, True])
+    result = processing.normalize_bound(sig, 0, 1)
+    assert isinstance(result, np.ma.MaskedArray)
+    assert result.mask.tolist() == [False, False, True]
+    np.testing.assert_array_equal(result.compressed(), [0.5, 0.5])
