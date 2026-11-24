@@ -100,6 +100,8 @@ class TestEdfToWfdb:
         record_EDF = read_edf("sample-data/wave_4.edf").__dict__
 
         fields = list(record_MIT.keys())
+        # Inverted EDF channels use a reflected WFDB digital scale.
+        fields.remove("init_value")
         # Original MIT format method of checksum is outdated, sometimes
         # the same value though
         fields.remove("checksum")
@@ -256,6 +258,65 @@ class TestEdfToWfdb:
 
         record = read_edf(str(edf_file))
         np.testing.assert_allclose(record.p_signal[:, 0], [-100, 100])
+
+    def test_edf_inverted_range_can_be_written(self, tmp_path):
+        """Reflect inverted EDF samples without changing physical values."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("512", 8),
+            ("", 44),
+            ("1", 8),
+            ("1", 8),
+            ("1", 4),
+        ]
+        signal_fields = [
+            ("temperature", 16),
+            ("", 80),
+            ("degreeC", 8),
+            ("1", 8),
+            ("0", 8),
+            ("-32768", 8),
+            ("32767", 8),
+            ("", 80),
+            ("2", 8),
+            ("", 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        header += "".join(value.ljust(width) for value, width in signal_fields)
+        edf_file = tmp_path / "inverted.edf"
+        edf_file.write_bytes(
+            header.encode() + np.array([-32768, 32767], dtype="<i2").tobytes()
+        )
+
+        record = read_edf(str(edf_file))
+        assert record.adc_gain == [65535.0]
+        assert record.fmt == ["32"]
+        assert record.baseline == [-32768]
+        np.testing.assert_array_equal(record.p_signal[:, 0], [1, 0])
+        np.testing.assert_array_equal(record.adc()[:, 0], [32767, -32768])
+
+        record.wrsamp(write_dir=str(tmp_path))
+        np.testing.assert_array_equal(
+            rdrecord(str(tmp_path / "inverted")).p_signal, record.p_signal
+        )
+
+    def test_wave_4_inverted_channel_can_be_written(self, tmp_path):
+        """Write the mixed-rate example with its inverted temperature scale."""
+        record = read_edf("sample-data/wave_4.edf")
+        channel = record.sig_name.index("DEV_Temperature")
+        assert record.adc_gain[channel] > 0
+        original = record.p_signal[:100].copy()
+        record.p_signal = record.p_signal[:100]
+        record.sig_len = 100
+
+        record.wrsamp(write_dir=str(tmp_path))
+        written = rdrecord(str(tmp_path / "wave_4"))
+        tolerance = max(1 / gain for gain in record.adc_gain)
+        np.testing.assert_allclose(written.p_signal, original, atol=tolerance, rtol=0)
 
     def test_edf_round_trip_has_no_digital_offset(self, tmp_path):
         """Reading a converted WFDB record does not shift every sample."""
