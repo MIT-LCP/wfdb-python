@@ -2,6 +2,7 @@ from pathlib import Path
 
 import fsspec
 import numpy as np
+import pandas as pd
 import pytest
 
 import wfdb
@@ -101,6 +102,17 @@ def test_missing_file(memory_fs):
 
     with pytest.raises(FileNotFoundError):
         wfdb.rdrecord("memory://wfdb-test/nonexistent")
+
+
+def test_iter_dataframes(memory_fs):
+    upload(memory_fs, "100.hea")
+    upload(memory_fs, "100.dat")
+
+    chunks = list(
+        wfdb.iter_dataframes("memory://wfdb-test/100", chunk_size=6, sampto=14)
+    )
+    expected = wfdb.rdrecord("sample-data/100", sampto=14).to_dataframe()
+    pd.testing.assert_frame_equal(pd.concat(chunks), expected)
 
 
 def test_wrsamp_to_cloud(memory_fs):
