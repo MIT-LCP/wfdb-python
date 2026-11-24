@@ -1,6 +1,7 @@
 """Tests for reading WFDB records as bounded DataFrame chunks."""
 
 import datetime
+import weakref
 
 import numpy as np
 import pandas as pd
@@ -117,16 +118,45 @@ def test_read_is_lazy(monkeypatch):
     from wfdb.io import record
 
     calls = []
-    read_record = record.rdrecord
+    read_record = record._rdrecord
 
     def spy(*args, **kwargs):
         calls.append((args, kwargs))
         return read_record(*args, **kwargs)
 
-    monkeypatch.setattr(record, "rdrecord", spy)
+    monkeypatch.setattr(record, "_rdrecord", spy)
     chunks = wfdb.iter_dataframes("sample-data/100", chunk_size=5, sampto=12)
     assert calls == []
-    assert len(next(chunks)) == 5
+    first = next(chunks)
+    assert len(first) == 5
     assert len(calls) == 1
+    first_ref = weakref.ref(first)
+    del first
     assert len(next(chunks)) == 5
     assert len(calls) == 2
+    assert first_ref() is None
+
+
+@pytest.mark.parametrize(
+    "path, field",
+    [
+        ("sample-data/100", "sig_name"),
+        (
+            "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57",
+            "seg_name",
+        ),
+    ],
+)
+def test_cached_header_lists_are_independent(path, field):
+    """Window edits do not change header metadata saved for later windows."""
+    from wfdb.io import record
+
+    cache = {}
+    first = record._cached_record_header(path, None, None, cache)
+    original = getattr(first, field).copy()
+    getattr(first, field).append("changed")
+
+    second = record._cached_record_header(path, None, None, cache)
+    assert getattr(second, field) == original
+    getattr(second, field).append("changed again")
+    assert getattr(cache[(path, None)], field) == original
