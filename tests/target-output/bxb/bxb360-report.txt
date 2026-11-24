@@ -1,0 +1,29 @@
+Beat-by-beat comparison results for record bxb360
+Reference annotator: atr
+     Test annotator: tst
+
+               Algorithm
+        n    s    v    f    q    o    x
+   ____________________________________
+ N |  115    6    3    2    2   14    0
+ S |    2   56    3    1    3   10    0
+ V |    6    0   58    0    4   11    0
+ F |    4    1    2   19    3    4    0
+ Q |    5    0    2    1   42    7    0
+ O |    5    4    3    0    0
+ X |    5    1    3    2    0
+
+           QRS sensitivity:  88.08% (340/386)
+ QRS positive predictivity:  93.66% (340/363)
+           VEB sensitivity:  73.42% (58/79)
+ VEB positive predictivity:  82.86% (58/70)
+          SVEB sensitivity:  74.67% (56/75)
+SVEB positive predictivity:  82.35% (56/68)
+     RMS RR interval error: 445.35 ms
+
+  Beats missed in shutdown:   0.00% (0/386)
+      N missed in shutdown:   0.00% (0/142)
+      S missed in shutdown:   0.00% (0/75)
+      V missed in shutdown:   0.00% (0/79)
+      F missed in shutdown:   0.00% (0/33)
+       Total shutdown time:     1 seconds

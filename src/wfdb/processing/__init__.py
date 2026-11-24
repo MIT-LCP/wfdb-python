@@ -6,6 +6,7 @@ from wfdb.processing.basic import (
     resample_sig,
     resample_singlechan,
 )
+from wfdb.processing.beat_comparison import BxbResult, bxb, bxb_record, sumstats
 from wfdb.processing.evaluate import (
     Comparitor,
     benchmark_mitdb,

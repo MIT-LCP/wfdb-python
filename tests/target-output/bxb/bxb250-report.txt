@@ -1,0 +1,29 @@
+Beat-by-beat comparison results for record bxb250
+Reference annotator: atr
+     Test annotator: tst
+
+               Algorithm
+        n    s    v    f    q    o    x
+   ____________________________________
+ N |   68    3    6    2    0    9   25
+ S |    1   34    1    0    3    6   19
+ V |    4    0   34    2    3   14    9
+ F |    0    1    0   12    1    4    5
+ Q |    2    3    1    1   18    4   16
+ O |    6    1    5    1    2
+ X |    0    0    0    0    0
+
+           QRS sensitivity:  64.31% (200/311)
+ QRS positive predictivity:  93.02% (200/215)
+           VEB sensitivity:  51.52% (34/66)
+ VEB positive predictivity:  73.91% (34/46)
+          SVEB sensitivity:  53.12% (34/64)
+SVEB positive predictivity:  87.18% (34/39)
+     RMS RR interval error: 232.15 ms
+
+  Beats missed in shutdown:  17.68% (55/311)
+      N missed in shutdown:  22.12% (25/113)
+      S missed in shutdown:  29.69% (19/64)
+      V missed in shutdown:  13.64% (9/66)
+      F missed in shutdown:  21.74% (5/23)
+       Total shutdown time:    26 seconds
