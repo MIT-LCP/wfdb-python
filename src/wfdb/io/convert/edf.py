@@ -330,10 +330,15 @@ def read_edf(
 
     # Pre-process the acquired data before creating the record
     record_name_out = _split_path(record_name)[1].replace("-", "_").replace(".edf", "")
-    sample_rate = [int(i / block_duration) for i in samps_per_block]
-    fs = functools.reduce(math.gcd, sample_rate)
-    samps_per_frame = [int(s / min(samps_per_block)) for s in samps_per_block]
-    sig_len = int(fs * num_blocks * block_duration)
+    # Each EDF data record contains a whole number of samples per signal.
+    # Their greatest common divisor gives the number of WFDB frames per record,
+    # even when the EDF data-record duration implies a fractional frame rate.
+    frames_per_block = functools.reduce(math.gcd, samps_per_block)
+    fs = frames_per_block / block_duration
+    if fs.is_integer():
+        fs = int(fs)
+    samps_per_frame = [s // frames_per_block for s in samps_per_block]
+    sig_len = num_blocks * frames_per_block
     base_time = datetime.time(start_hour, start_minute, start_second)
     base_date = datetime.date(start_year, start_month, start_day)
     file_name = n_sig * [record_name_out + ".dat"]
@@ -342,7 +347,11 @@ def read_edf(
     byte_offset = n_sig * [None]
     adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
     adc_gain = [float(format(a, ".12g")) for a in adc_gain_all]
-    baseline = (digital_max - (physical_max * adc_gain_all) + 1).astype("int64")
+    # EDF permits a fractional offset, whereas WFDB stores an integer baseline.
+    # Use the exact offset to decode physical samples and round only the
+    # baseline stored in the Record metadata.
+    edf_baseline = digital_max - physical_max * adc_gain_all
+    baseline = np.rint(edf_baseline).astype("int64")
 
     units = n_sig * [""]
     for i, f in enumerate(physical_dims):
@@ -401,30 +410,19 @@ def read_edf(
     for i in range(n_sig):
         if uniform_rate:
             sig_data[:, i] = (
-                temp_all_sigs[i].flatten().astype(np.int64) - baseline[i]
+                temp_all_sigs[i].flatten().astype(np.int64) - edf_baseline[i]
             ) / adc_gain_all[i]
         else:
             temp_sig_data = temp_all_sigs[i].flatten()
 
             if samps_per_frame[i] == 1:
                 sig_data[:, i] = (
-                    temp_sig_data.astype(np.int64) - baseline[i]
+                    temp_sig_data.astype(np.int64) - edf_baseline[i]
                 ) / adc_gain_all[i]
             else:
                 frames = temp_sig_data.reshape(sig_len, samps_per_frame[i])
-                sig_data[:, i] = (frames.mean(axis=1) - baseline[i]) / adc_gain_all[i]
-
-    # This is the closest I can get to the original implementation
-    # NOTE: This is done using `np.testing.assert_array_equal()`
-    # Mismatched elements: 15085545 / 15400000 (98%)
-    # Max absolute difference: 3.75166564e-12
-    # Max relative difference: 5.41846079e-15
-    #  x: array([[  -3.580728,   42.835293, -102.818048,   54.978632,  -52.354247],
-    #        [  -8.340205,   43.079939, -102.106351,   56.402027,  -44.992626],
-    #        [  -5.004123,   43.546991,  -99.481966,   51.64255 ,  -43.079939],...
-    #  y: array([[  -3.580728,   42.835293, -102.818048,   54.978632,  -52.354247],
-    #        [  -8.340205,   43.079939, -102.106351,   56.402027,  -44.992626],
-    #        [  -5.004123,   43.546991,  -99.481966,   51.64255 ,  -43.079939],...
+                mean_digital = frames.mean(axis=1)
+                sig_data[:, i] = (mean_digital - edf_baseline[i]) / adc_gain_all[i]
 
     init_value = [int(s[0, 0]) for s in temp_all_sigs]
     # Sum each channel separately: sig_data holds floats, so the order of the
@@ -1119,13 +1117,14 @@ def rdedfann(
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
-    # Convert from array of integers to ASCII strings
+    # Convert from array of integers to ASCII strings. With the EDF calibration
+    # offset corrected, annotation samples already contain their byte values.
     annotation_string = ""
     for chunk in rec.p_signal.flatten().astype(np.int64):
-        if chunk + 1 == 0:
+        if chunk == 0:
             continue
         else:
-            adjusted_hex = hex(struct.unpack("<H", struct.pack(">H", chunk + 1))[0])
+            adjusted_hex = hex(struct.unpack("<H", struct.pack(">H", chunk))[0])
             annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(encoding)
             # Remove all of the whitespace
             for rep in ["\x00", "\x14", "\x15"]:
