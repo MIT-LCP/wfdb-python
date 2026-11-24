@@ -60,3 +60,41 @@ def test_integer_list_input():
     np.testing.assert_allclose(
         processing.normalize_bound([-30000, 0, 30000], -1, 1), [-1, 0, 1]
     )
+
+
+@pytest.mark.parametrize(
+    "sig",
+    [
+        np.array([2**53, 2**53 + 1, 2**53 + 2], dtype=np.int64),
+        np.array([-(2**63), -(2**63) + 1, -(2**63) + 2], dtype=np.int64),
+        np.array([2**64 - 3, 2**64 - 2, 2**64 - 1], dtype=np.uint64),
+    ],
+)
+def test_large_integer_offset_preserves_small_differences(sig):
+    original = sig.copy()
+    with np.errstate(over="raise", divide="raise", invalid="raise"):
+        result = processing.normalize_bound(sig, 0, 1)
+    np.testing.assert_array_equal(result, [0, 0.5, 1])
+    np.testing.assert_array_equal(sig, original)
+
+
+def test_large_integer_list_offset():
+    sig = [2**53, 2**53 + 1, 2**53 + 2]
+    np.testing.assert_array_equal(processing.normalize_bound(sig), [0, 0.5, 1])
+
+
+@pytest.mark.parametrize(
+    ("bound_dtype", "lb", "ub"),
+    [
+        (np.int8, -100, 100),
+        (np.int16, -30000, 30000),
+        (np.int32, -(2**30), 2**30),
+        (np.int64, -(2**62), 2**62),
+    ],
+)
+@pytest.mark.parametrize("signal_dtype", [np.int16, np.float64])
+def test_numpy_integer_bounds_do_not_overflow(bound_dtype, lb, ub, signal_dtype):
+    sig = np.array([0, 1], dtype=signal_dtype)
+    with np.errstate(over="raise", divide="raise", invalid="raise"):
+        result = processing.normalize_bound(sig, bound_dtype(lb), bound_dtype(ub))
+    np.testing.assert_array_equal(result, [float(lb), float(ub)])
