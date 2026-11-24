@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, _signal, _url, download, header, util
+from wfdb.io._cloud import is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
 
@@ -914,7 +915,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             Whether to write the expanded signal (e_d_signal) instead
             of the uniform signal (d_signal).
         write_dir : str, optional
-            The directory in which to write the files.
+            The local directory or cloud URI in which to write the files.
         wfdb_archive : str, os.PathLike or WFDBArchive, optional
             Write the record into a .wfdb archive instead of writing separate
             files to `write_dir`. A path creates a new archive, replacing any
@@ -938,6 +939,24 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         >>> record.wrsamp()
 
         """
+        if (
+            wfdb_archive is not None
+            and not isinstance(wfdb_archive, WFDBArchive)
+            and isinstance(wfdb_archive, (str, os.PathLike))
+            and is_cloud_path(wfdb_archive)
+        ):
+            raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
+        if is_cloud_path(write_dir):
+            if wfdb_archive is not None:
+                raise ValueError(
+                    "Writing .wfdb archives to cloud storage is unsupported"
+                )
+            if self.n_sig and self.file_name:
+                self._warn_about_replacing_other_files(write_dir)
+            with staged_cloud_write(write_dir, self.record_name + ".hea") as staging:
+                self.wrsamp(expanded=expanded, write_dir=staging)
+            return
+
         converted = None
         if not expanded and self.d_signal is None and self.p_signal is not None:
             self.d_signal = self.adc()
@@ -1023,17 +1042,23 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         """
         record_name = self.record_name or ""
+
+        def file_exists(file_name):
+            path = _join_path(os.fspath(write_dir), file_name)
+            if is_cloud_path(write_dir):
+                opened = _fsspec_open(path)
+                return opened.fs.exists(opened.path)
+            return os.path.exists(path)
+
         existing = [
             file_name
             for file_name in dict.fromkeys(self.file_name)
-            if file_name
-            and file_name != "~"
-            and os.path.exists(os.path.join(write_dir, file_name))
+            if file_name and file_name != "~" and file_exists(file_name)
         ]
         if not existing:
             return
         try:
-            header = rdheader(os.path.join(write_dir, record_name))
+            header = rdheader(_join_path(os.fspath(write_dir), record_name))
             own = set(getattr(header, "file_name", None) or [])
         except Exception:
             # No readable header of this record, so no file is its own yet
@@ -1323,7 +1348,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             instead of the uniform signal (`d_signal`). This flag is passed
             through to each segment's `Record.wrsamp()` call.
         write_dir : str, optional
-            The directory in which to write the files.
+            The local directory or cloud URI in which to write the files.
         wfdb_archive : str, os.PathLike or WFDBArchive, optional
             Write the record, including all its segments, into a .wfdb
             archive instead of writing separate files to `write_dir`. A
@@ -1336,6 +1361,22 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
+        if (
+            wfdb_archive is not None
+            and not isinstance(wfdb_archive, WFDBArchive)
+            and isinstance(wfdb_archive, (str, os.PathLike))
+            and is_cloud_path(wfdb_archive)
+        ):
+            raise ValueError("Writing .wfdb archives to cloud storage is unsupported")
+        if is_cloud_path(write_dir):
+            if wfdb_archive is not None:
+                raise ValueError(
+                    "Writing .wfdb archives to cloud storage is unsupported"
+                )
+            with staged_cloud_write(write_dir, self.record_name + ".hea") as staging:
+                self.wrsamp(expanded=expanded, write_dir=staging)
+            return
+
         # Validate the segments before writing anything.
         self._check_segment_cohesion()
         self._check_segment_signals(expanded)
@@ -3388,7 +3429,7 @@ def wrsamp(
         The date and time at the beginning of the record, equivalent to
         setting both `base_date` and `base_time`.
     write_dir : str, optional
-        The directory in which to write the files.
+        The local directory or cloud URI in which to write the files.
     wfdb_archive : str, os.PathLike or WFDBArchive, optional
         Write the record into a .wfdb archive instead of writing separate
         files to `write_dir`. A path creates a new archive, replacing any
