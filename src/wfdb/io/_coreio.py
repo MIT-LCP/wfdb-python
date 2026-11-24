@@ -63,6 +63,31 @@ def _split_path(record_name):
     return os.path.split(path)
 
 
+def _open_input_file(path):
+    """Open a local file, or a file at a cloud URI, to read in binary mode.
+
+    A file at a cloud URI, such as a `physionet://` URI, is read as it is
+    needed (for `physionet://`, with HTTP range requests), so that reading
+    only the start of a file does not fetch the rest. It can be sought and
+    sized like a local file.
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        The path of a local file, or a cloud URI.
+
+    Returns
+    -------
+    file
+        The open file.
+
+    """
+    path = os.fspath(path)
+    if any(path.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        return _fsspec_open(path, "rb").open()
+    return open(path, "rb")
+
+
 def _join_path(dir_name, file_name):
     """Join a local directory or cloud URI with a file name.
 
