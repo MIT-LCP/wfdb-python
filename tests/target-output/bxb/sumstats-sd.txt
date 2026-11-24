@@ -1,0 +1,9 @@
+Record Nx   Sx   Vx   Fx   Qx  % beats  % N    % S    % V    % F   Total Shutdown
+                                missed missed missed missed missed      Time
+ 100    0    0    0    0    0     0.00   0.00   0.00   0.00      -    0 seconds 1872 29 1 0 0
+bxb360    0    0    0    0    0     0.00   0.00   0.00   0.00   0.00    1 seconds 142 75 79 33 57
+bxb250   25   19    9    5   16    17.68  22.12  29.69  13.64  21.74   26 seconds 113 64 66 23 45
+________________________________________________________________________
+Sum    25   19    9    5   16                                        27 seconds
+
+Summary of results from 3 records

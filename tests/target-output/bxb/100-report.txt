@@ -1,0 +1,29 @@
+Beat-by-beat comparison results for record 100
+Reference annotator: atr
+     Test annotator: qrs
+
+               Algorithm
+        n    s    v    f    q    o    x
+   ____________________________________
+ N | 1872    0    0    0    0    0    0
+ S |   29    0    0    0    0    0    0
+ V |    1    0    0    0    0    0    0
+ F |    0    0    0    0    0    0    0
+ Q |    0    0    0    0    0    0    0
+ O |    0    0    0    0    0
+ X |    0    0    0    0    0
+
+           QRS sensitivity: 100.00% (1902/1902)
+ QRS positive predictivity: 100.00% (1902/1902)
+           VEB sensitivity:   0.00% (0/1)
+ VEB positive predictivity:      -  (0/0)
+          SVEB sensitivity:   0.00% (0/29)
+SVEB positive predictivity:      -  (0/0)
+     RMS RR interval error:   1.96 ms
+
+  Beats missed in shutdown:   0.00% (0/1902)
+      N missed in shutdown:   0.00% (0/1872)
+      S missed in shutdown:   0.00% (0/29)
+      V missed in shutdown:   0.00% (0/1)
+      F missed in shutdown:      -  (0/0)
+       Total shutdown time:     0 seconds

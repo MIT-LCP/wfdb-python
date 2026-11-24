@@ -8,6 +8,7 @@
 *.gz        binary
 *.mat       binary
 *.qrs       binary
+*.tst       binary
 *.wabp      binary
 *.wav       binary
 *.wqrs      binary

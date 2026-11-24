@@ -49,3 +49,24 @@ Annotation Evaluators
 .. automodule:: wfdb.processing
     :no-index:
     :members: Comparitor, compare_annotations, benchmark_mitdb
+
+
+Beat-by-beat Comparison
+-----------------------
+
+.. warning::
+
+    These functions are a development feature. They compare annotation
+    files as the ``bxb`` and ``sumstats`` programs of the WFDB Software
+    Package do, and were written from the ANSI/AAMI EC57 standard and the
+    documentation of those programs, without reference to their source code.
+    Their interface may change, and results should be checked against
+    ``bxb`` before they are used for reporting.
+
+.. automodule:: wfdb.processing
+    :no-index:
+    :members: bxb, bxb_record, sumstats
+
+.. autoclass:: wfdb.processing.BxbResult
+    :members: count, matrix, statistics, rms_rr_error, shutdown_seconds,
+              report, line_columns, lines
