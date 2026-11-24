@@ -42,10 +42,10 @@ def read_edf(
     this function to produce WFDB-compatible files from EDF files if desired.
 
     If an EDF channel has an inverted physical range, its WFDB digital scale
-    is reflected so the returned record has a positive gain. All channels
-    then use WFDB format 32 in their shared signal file, since EDF's -32768
-    is a valid sample but WFDB format 16 reserves it for missing samples.
-    Physical signals are unchanged.
+    is reflected so the returned record has a positive gain. Physical signals
+    are unchanged. The shared WFDB signal file uses format 32 if any converted
+    sample would be invalid in format 16. EDF's -32768 is a valid sample, but
+    WFDB format 16 reserves it for missing samples.
 
     Parameters
     ----------
@@ -352,7 +352,6 @@ def read_edf(
     byte_offset = n_sig * [None]
     adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
     inverted = adc_gain_all < 0
-    fmt = n_sig * (["32"] if np.any(inverted) else ["16"])
     adc_gain = [float(format(abs(a), ".12g")) for a in adc_gain_all]
     # EDF permits a fractional offset, whereas WFDB stores an integer baseline.
     # Use the exact offset to decode physical samples and round only the
@@ -434,6 +433,14 @@ def read_edf(
                 frames = temp_sig_data.reshape(sig_len, samps_per_frame[i])
                 mean_digital = frames.mean(axis=1)
                 sig_data[:, i] = (mean_digital - edf_baseline[i]) / adc_gain_all[i]
+
+    # Choose the shared WFDB format from the values wrsamp will write. Format
+    # 16 reserves -32768 for missing samples, and baseline rounding can also
+    # push a converted sample beyond its signed 16-bit range.
+    written_min = np.rint(sig_data.min(axis=0) * adc_gain + baseline)
+    written_max = np.rint(sig_data.max(axis=0) * adc_gain + baseline)
+    needs_32 = np.any((written_min <= -32768) | (written_max > 32767))
+    fmt = n_sig * (["32"] if needs_32 else ["16"])
 
     # A high-rate channel is averaged into each WFDB frame. Its first digital
     # sample may therefore differ from the value represented by p_signal[0].

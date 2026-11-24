@@ -258,8 +258,25 @@ class TestEdfToWfdb:
 
         record = read_edf(str(edf_file))
         np.testing.assert_allclose(record.p_signal[:, 0], [-100, 100])
+        assert record.fmt == ["32"]
+        record.wrsamp(write_dir=str(tmp_path))
+        np.testing.assert_allclose(
+            rdrecord(str(tmp_path / "fractional_baseline")).p_signal,
+            record.p_signal,
+            atol=1 / record.adc_gain[0],
+            rtol=0,
+        )
 
-    def test_edf_inverted_range_can_be_written(self, tmp_path):
+    @pytest.mark.parametrize(
+        "samples, expected_fmt, expected_digital",
+        [
+            ([-32768, 32767], "32", [32767, -32768]),
+            ([0, 1], "16", [-1, -2]),
+        ],
+    )
+    def test_edf_inverted_range_can_be_written(
+        self, tmp_path, samples, expected_fmt, expected_digital
+    ):
         """Reflect inverted EDF samples without changing physical values."""
         record_fields = [
             ("0", 8),
@@ -288,20 +305,23 @@ class TestEdfToWfdb:
         header = "".join(value.ljust(width) for value, width in record_fields)
         header += "".join(value.ljust(width) for value, width in signal_fields)
         edf_file = tmp_path / "inverted.edf"
-        edf_file.write_bytes(
-            header.encode() + np.array([-32768, 32767], dtype="<i2").tobytes()
-        )
+        edf_file.write_bytes(header.encode() + np.array(samples, dtype="<i2").tobytes())
 
         record = read_edf(str(edf_file))
         assert record.adc_gain == [65535.0]
-        assert record.fmt == ["32"]
+        assert record.fmt == [expected_fmt]
         assert record.baseline == [-32768]
-        np.testing.assert_array_equal(record.p_signal[:, 0], [1, 0])
-        np.testing.assert_array_equal(record.adc()[:, 0], [32767, -32768])
+        np.testing.assert_allclose(
+            record.p_signal[:, 0], [(32767 - sample) / 65535 for sample in samples]
+        )
+        np.testing.assert_array_equal(record.adc()[:, 0], expected_digital)
 
         record.wrsamp(write_dir=str(tmp_path))
-        np.testing.assert_array_equal(
-            rdrecord(str(tmp_path / "inverted")).p_signal, record.p_signal
+        np.testing.assert_allclose(
+            rdrecord(str(tmp_path / "inverted")).p_signal,
+            record.p_signal,
+            atol=1 / record.adc_gain[0],
+            rtol=0,
         )
 
     def test_wave_4_inverted_channel_can_be_written(self, tmp_path):
