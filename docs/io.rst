@@ -9,8 +9,19 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, wrsamp, sampfreq, signame, wfdbdesc,
-              wfdbtime
+    :members: rdrecord, rdheader, rdsamp, iter_dataframes, wrsamp, sampfreq,
+              signame, wfdbdesc, wfdbtime
+
+Use ``iter_dataframes`` to process long recordings without loading the whole
+signal into memory. Each chunk is a pandas DataFrame with the same columns
+and absolute time index as a full-record DataFrame:
+
+.. code-block:: python
+
+    import wfdb
+
+    for chunk in wfdb.iter_dataframes("100", chunk_size=3600, pn_dir="mitdb"):
+        print(chunk.shape)
 
 .. autoclass:: wfdb.io.Record
     :no-index:

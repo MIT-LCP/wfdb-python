@@ -24,6 +24,7 @@ from wfdb.io.record import (
     MultiRecord,
     Record,
     dl_database,
+    iter_dataframes,
     rdheader,
     rdrecord,
     rdsamp,

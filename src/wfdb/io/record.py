@@ -1,6 +1,7 @@
 import contextlib
 import datetime
 import multiprocessing.dummy
+import operator
 import os
 import posixpath
 import re
@@ -1131,17 +1132,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             nearest nanosecond.
 
         """
-        # Compute the time of each sample directly, rather than adding up a
-        # sample interval cut to whole nanoseconds, which drifts over
-        # long records. Work in place to avoid extra copies of the index.
-        offsets = np.arange(self.sig_len, dtype=np.float64)
-        offsets *= 1e9 / self.fs
-        offsets_ns = np.empty(self.sig_len, dtype=np.int64)
-        np.rint(offsets, out=offsets_ns, casting="unsafe")
-        del offsets
-        index = pd.to_timedelta(offsets_ns, unit="ns")
-        if self.base_datetime is not None:
-            index = pd.Timestamp(self.base_datetime) + index
+        index = _sample_time_index(self.fs, 0, self.sig_len, self.base_datetime)
 
         if self.p_signal is not None:
             data = self.p_signal
@@ -1155,6 +1146,18 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             raise ValueError("No signal in record.")
 
         return pd.DataFrame(data=data, index=index, columns=self.sig_name)
+
+
+def _sample_time_index(fs, sampfrom, sampto, base_datetime):
+    """Build an index from absolute sample positions without time drift."""
+    offsets = np.arange(sampfrom, sampto, dtype=np.float64)
+    offsets *= 1e9 / fs
+    offsets_ns = np.empty(sampto - sampfrom, dtype=np.int64)
+    np.rint(offsets, out=offsets_ns, casting="unsafe")
+    index = pd.to_timedelta(offsets_ns, unit="ns")
+    if base_datetime is not None:
+        index = pd.Timestamp(base_datetime) + index
+    return index
 
 
 def _move_files_into_place(source_dir, target_dir):
@@ -2486,32 +2489,13 @@ def _rdrecord(
     else:
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
+    # If the header omits the signal length, infer it from the first dat file
+    # before validating a requested window. This also permits ranged reads.
+    if record.sig_len is None:
+        record.sig_len = _record_sig_len(record, dir_name, pn_dir, wfdb_archive)
+
     # Set defaults for sampto and channels input variables
     if sampto is None:
-        # If the header does not contain the signal length, figure it
-        # out from the first dat file. This is only possible for single
-        # segment records. If there are no signals, sig_len is 0.
-        if record.sig_len is None:
-            if record.n_sig == 0:
-                record.sig_len = 0
-            else:
-                # Calculate total number of samples per frame in the
-                # first dat file.
-                tsamps_per_frame = 0
-                for fname, spf in zip(record.file_name, record.samps_per_frame):
-                    if fname == record.file_name[0]:
-                        tsamps_per_frame += spf
-
-                # Calculate length from size of the dat file.
-                record.sig_len = _signal._infer_sig_len(
-                    file_name=record.file_name[0],
-                    fmt=record.fmt[0],
-                    tsamps_per_frame=tsamps_per_frame,
-                    byte_offset=record.byte_offset[0],
-                    dir_name=dir_name,
-                    pn_dir=pn_dir,
-                    wfdb_archive=wfdb_archive,
-                )
         sampto = record.sig_len
 
     # channel_names takes precedence over channels
@@ -2710,6 +2694,139 @@ def _rdrecord(
         record.convert_dtype(physical, return_res, smooth_frames)
 
     return record
+
+
+def _record_sig_len(record, dir_name, pn_dir, wfdb_archive):
+    """Get a record's length, inferring it from a signal file if necessary."""
+    if record.sig_len is not None:
+        return record.sig_len
+    if record.n_sig == 0:
+        return 0
+    if not isinstance(record, Record):
+        raise ValueError("Cannot infer the length of a multi-segment record")
+
+    # A dat file can contain several channels, each with a different number
+    # of samples per frame.
+    first_file = record.file_name[0]
+    tsamps_per_frame = sum(
+        spf
+        for file_name, spf in zip(record.file_name, record.samps_per_frame)
+        if file_name == first_file
+    )
+    return _signal._infer_sig_len(
+        file_name=first_file,
+        fmt=record.fmt[0],
+        tsamps_per_frame=tsamps_per_frame,
+        byte_offset=record.byte_offset[0],
+        dir_name=dir_name,
+        pn_dir=pn_dir,
+        wfdb_archive=wfdb_archive,
+    )
+
+
+def iter_dataframes(
+    record_name,
+    chunk_size,
+    *,
+    sampfrom=0,
+    sampto=None,
+    channels=None,
+    physical=True,
+    pn_dir=None,
+    ignore_skew=False,
+    return_res=64,
+    channel_names=None,
+):
+    """Yield successive WFDB signal windows as pandas DataFrames.
+
+    Only one window is read at a time. Each frame's index uses its absolute
+    position in the record, so consecutive chunks have a continuous time
+    index. Signals with multiple samples per frame are smoothed as in the
+    default `rdrecord` behavior. Multi-segment records are merged into a
+    single DataFrame for each window.
+
+    Parameters
+    ----------
+    record_name : str
+        Local path or cloud URI of the record, without a file extension.
+        A local .wfdb archive path is also accepted.
+    chunk_size : int
+        Maximum number of sample frames in each DataFrame.
+    sampfrom : int, optional
+        First sample frame to read (inclusive).
+    sampto : int, optional
+        Last sample frame to read (exclusive). Defaults to the record length.
+    channels : list, optional
+        Channel indices to read. Defaults to all channels.
+    physical : bool, optional
+        Return physical values (True) or digital values (False).
+    pn_dir : str, optional
+        PhysioNet database directory, as for `rdrecord`.
+    ignore_skew : bool, optional
+        Whether to ignore signal skew, as for `rdrecord`.
+    return_res : int, optional
+        NumPy signal resolution, as for `rdrecord`.
+    channel_names : list, optional
+        Channel names to read, taking precedence over `channels`.
+
+    Yields
+    ------
+    pandas.DataFrame
+        Signal values for one window. The index is a DatetimeIndex if the
+        record has a base date and time, otherwise a TimedeltaIndex.
+
+    Examples
+    --------
+    >>> import wfdb
+    >>> frames = wfdb.iter_dataframes('100', 3600, pn_dir='mitdb')
+    >>> for frame in frames:  # doctest: +SKIP
+    ...     print(frame.shape)
+
+    """
+    if isinstance(chunk_size, bool):
+        raise TypeError("chunk_size must be an integer")
+    chunk_size = operator.index(chunk_size)
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be a positive integer")
+
+    if pn_dir is not None:
+        record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
+    header = rdheader(record_name, pn_dir=pn_dir)
+    dir_name, _ = _split_path(record_name)
+    if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        dir_name = os.path.abspath(dir_name)
+
+    if is_archive_path(record_name) and header.sig_len is None:
+        with WFDBArchive(record_name, mode="r") as archive:
+            sig_len = _record_sig_len(header, dir_name, pn_dir, archive)
+    else:
+        sig_len = _record_sig_len(header, dir_name, pn_dir, None)
+
+    start = operator.index(sampfrom)
+    stop = sig_len if sampto is None else operator.index(sampto)
+    if start < 0 or start >= sig_len:
+        raise ValueError("sampfrom must be within the signal length")
+    if stop <= start or stop > sig_len:
+        raise ValueError(
+            "sampto must be greater than sampfrom and no more than sig_len"
+        )
+
+    for first in range(start, stop, chunk_size):
+        last = min(first + chunk_size, stop)
+        frame = rdrecord(
+            record_name,
+            sampfrom=first,
+            sampto=last,
+            channels=channels,
+            physical=physical,
+            pn_dir=pn_dir,
+            ignore_skew=ignore_skew,
+            return_res=return_res,
+            channel_names=channel_names,
+        ).to_dataframe()
+        frame.index = _sample_time_index(header.fs, first, last, header.base_datetime)
+        yield frame
+        del frame
 
 
 def rdsamp(
