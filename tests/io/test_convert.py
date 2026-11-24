@@ -22,6 +22,7 @@ class TestEdfToWfdb:
         """Read EDF+ annotations without passing obsolete read_edf options."""
         info = rdedfann("sample-data/test_edfann.edf")
         assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
+        assert all(sample is None for sample in info["sample_num"])
 
     def test_rdedfann_parses_signed_tals_and_multiple_annotations(self, tmp_path):
         """TAL byte delimiters separate events without splitting annotation text."""
@@ -121,6 +122,96 @@ class TestEdfToWfdb:
         assert info["comment"] == ["Event"]
         annotation = rdedfann(str(edf_file), info_only=False, record_only=True)
         assert annotation.sample[0] == expected_sample
+
+    def test_rdedfann_annotation_only_requires_fs(self):
+        """Annotation-only records have no implicit sample rate."""
+        source = "sample-data/test_edfann.edf"
+        metadata = read_edf(source, header_only=True, rdedfann_flag=True)
+        assert metadata["fs"] is None
+        assert metadata["sig_len"] == 0
+        assert metadata["n_sig"] == 0
+        with pytest.raises(ValueError, match="no signal channels"):
+            read_edf(source)
+        info = rdedfann(source)
+        assert info["sample_num"] and all(
+            sample is None for sample in info["sample_num"]
+        )
+        with pytest.raises(ValueError, match="fs is required"):
+            rdedfann(source, info_only=False, record_only=True)
+        with_rate = rdedfann(source, fs=32)
+        assert len(with_rate["sample_num"]) == len(info["sample_num"])
+        assert all(isinstance(sample, int) for sample in with_rate["sample_num"])
+        annotation = rdedfann(source, info_only=False, record_only=True, fs=32)
+        assert annotation.fs == 32
+
+    @pytest.mark.parametrize(
+        "signal_rate, annotation_capacity, expected_samples",
+        [
+            (100, 60, [37, 150]),
+            (200, 30, [74, 300]),
+            (256, 30, [95, 384]),
+        ],
+    )
+    def test_edf_annotations_do_not_set_signal_rate(
+        self, tmp_path, signal_rate, annotation_capacity, expected_samples
+    ):
+        """Annotation text capacity does not downsample physiologic signals."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("768", 8),
+            ("EDF+C", 44),
+            ("2", 8),
+            ("1", 8),
+            ("2", 4),
+        ]
+        signal_fields = [
+            (["ECG", "EDF Annotations"], 16),
+            (["", ""], 80),
+            (["mV", ""], 8),
+            (["-32767", "-1"], 8),
+            (["32767", "1"], 8),
+            (["-32767", "-32768"], 8),
+            (["32767", "32767"], 8),
+            (["", ""], 80),
+            ([str(signal_rate), str(annotation_capacity)], 8),
+            (["", ""], 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for values, width in signal_fields:
+            header += "".join(value.ljust(width) for value in values)
+        samples = np.arange(2 * signal_rate, dtype="<i2")
+        first_tals = b"+0\x14\x14\x00+0.37\x15.0\x14First\x14\x00"
+        second_tals = b"+1\x14\x14\x00+1.5\x15.0\x14Second\x14\x00"
+        block_bytes = 2 * annotation_capacity
+        data = (
+            samples[:signal_rate].tobytes()
+            + first_tals.ljust(block_bytes, b"\x00")
+            + samples[signal_rate:].tobytes()
+            + second_tals.ljust(block_bytes, b"\x00")
+        )
+        edf_file = tmp_path / "ecg_with_annotations.edf"
+        edf_file.write_bytes(header.encode() + data)
+
+        metadata = read_edf(str(edf_file), header_only=True)
+        assert metadata["fs"] == signal_rate
+        assert metadata["sig_len"] == 2 * signal_rate
+        assert metadata["n_sig"] == 1
+        assert metadata["sig_name"] == ["ECG"]
+        record = read_edf(str(edf_file))
+        assert record.fs == signal_rate
+        assert record.samps_per_frame == [1]
+        assert record.sig_len == 2 * signal_rate
+        assert record.sig_name == ["ECG"]
+        np.testing.assert_array_equal(record.p_signal[:, 0], samples)
+        info = rdedfann(str(edf_file))
+        assert info["sample_num"] == expected_samples
+        assert info["comment"] == ["First", "Second"]
+        annotation = rdedfann(str(edf_file), info_only=False, record_only=True)
+        np.testing.assert_array_equal(annotation.sample, expected_samples)
 
     def test_rdedfann_ignores_physical_calibration(self, tmp_path):
         """Annotation bytes have the same meaning with different EDF scales."""
