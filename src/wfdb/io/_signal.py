@@ -558,7 +558,7 @@ class SignalMixin:
         Examples
         --------
         >>> import wfdb
-        >>> record = wfdb.rdsamp('sample-data/100')
+        >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampto=1000)
         >>> d_signal = record.adc()
         >>> record.adc(inplace=True)
         >>> record.dac(inplace=True)
@@ -667,7 +667,8 @@ class SignalMixin:
         Examples
         --------
         >>> import wfdb
-        >>> record = wfdb.rdsamp('sample-data/100', physical=False)
+        >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampto=1000,
+        ...                        physical=False)
         >>> p_signal = record.dac()
         >>> record.dac(inplace=True)
         >>> record.adc(inplace=True)
@@ -1563,8 +1564,8 @@ def _dat_read_params(
         The number of samples to replace with NAN at the end of each
         signal, due to skew wanting samples beyond the file.
 
-    Examples
-    --------
+    Notes
+    -----
     sig_len=100, t = 4 (total samples/frame), skew = [0, 2, 4, 5]
     sampfrom=0, sampto=100 --> read_len = 100, n_sampread = 100*t, extralen = 5,
     nan_replace = [0, 2, 4, 5]

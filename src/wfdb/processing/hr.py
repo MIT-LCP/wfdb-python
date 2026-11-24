@@ -233,12 +233,9 @@ def ann2rr(
     Examples
     --------
     >>> from wfdb import processing
-    >>> processing.ann2rr('sample-data/100', 'atr', as_array=False)
-    77
-    293
-    ...
-    250
-    257
+    >>> rr = processing.ann2rr('100', 'atr', pn_dir='mitdb')
+    >>> rr[:2]
+    array([ 77, 293])
 
     """
     if start_time is not None and stop_time is not None and start_time > stop_time:
@@ -330,15 +327,17 @@ def rr2ann(rr_array, record_name, extension, fs=250, as_time=False):
 
     Examples
     --------
-    Using time of occurence as input:
+    Using times of occurrence as input:
+
     >>> import numpy as np
+    >>> from wfdb import processing
     >>> rr_array = np.array([[0.2, 0.6, 1.3], ['V', 'N', 'V']]).T
-    >>> wfdb.rr2ann(rr_array, 'test_ann', 'atr', fs=100, as_time=True)
+    >>> processing.rr2ann(rr_array, 'time_ann', 'atr', fs=100, as_time=True)
 
     Using samples as input:
-    >>> import numpy as np
+
     >>> rr_array = np.array([4, 17, 18, 16])
-    >>> wfdb.rr2ann(rr_array, 'test_ann', 'atr')
+    >>> processing.rr2ann(rr_array, 'sample_ann', 'atr')
 
     """
     try:

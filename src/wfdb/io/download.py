@@ -250,14 +250,10 @@ def get_dbs():
 
     Examples
     --------
+    >>> import wfdb
     >>> dbs = wfdb.get_dbs()
-    >>> dbs
-    [
-     ['aami-ec13', 'ANSI/AAMI EC13 Test Waveforms'],
-     ['adfecgdb', 'Abdominal and Direct Fetal ECG Database'],
-     ...
-     ['wrist', 'Wrist PPG During Exercise']
-    ]
+    >>> any(slug == 'mitdb' for slug, title in dbs)
+    True
 
     """
     import physionet
@@ -345,7 +341,8 @@ def get_record_list(db_dir, records="all"):
 
     Examples
     --------
-    >>> wfdb.get_record_list('mitdb')
+    >>> import wfdb
+    >>> records = wfdb.get_record_list('mitdb')
 
     """
     if "/" not in db_dir:
@@ -388,7 +385,8 @@ def get_annotators(db_dir, annotators):
 
     Examples
     --------
-    >>> wfdb.get_annotators('mitdb')
+    >>> from wfdb.io.download import get_annotators
+    >>> annotators = get_annotators('mitdb/1.0.0', 'all')
 
     """
     # Full url PhysioNet database
@@ -666,9 +664,11 @@ def dl_files(db, dl_dir, files, keep_subdirs=True, overwrite=False):
 
     Examples
     --------
-    >>> wfdb.dl_files('ahadb', os.getcwd(),
-                      ['STAFF-Studies-bibliography-2016.pdf', 'data/001a.hea',
-                      'data/001a.dat'])
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> import wfdb
+    >>> with redirect_stdout(StringIO()):
+    ...     wfdb.dl_files('mitdb', '.', ['100.hea'])
 
     """
     # Full url PhysioNet database

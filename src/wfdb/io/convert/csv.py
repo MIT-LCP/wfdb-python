@@ -154,26 +154,17 @@ def csv_to_wfdb(
 
     Examples
     --------
-    Create the header ('.hea') and record ('.dat') files, specifies both
-    units to be 'mV'
-    >>> csv_to_wfdb('sample-data/100.csv', fs=360, units='mV')
+    Create a two-channel CSV file and convert it to a WFDB record:
 
-    Create the header ('.hea') and record ('.dat') files, change units for
-    each signal
-    >>> csv_to_wfdb('sample-data/100.csv', fs=360, units=['mV','kV'])
+    >>> from pathlib import Path
+    >>> from wfdb.io.convert import csv_to_wfdb
+    >>> _ = Path('example.csv').write_text('I,II\\n0.0,0.1\\n0.2,0.3\\n')
+    >>> csv_to_wfdb('example.csv', fs=360, units='mV')
 
-    Return just the record, note the use of lists to specify which values should
-    be applied to each signal
-    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360,
-    ...                          units=['mV', 'mV'], fmt=['80', '212'],
-    ...                          adc_gain=[100, 200], baseline=[1024, 512],
-    ...                          record_only=True)
+    Return a Record without writing WFDB files:
 
-    Return just the record, note the use of single strings and ints to specify
-    when fields can be applied to all signals
-    >>> csv_record = csv_to_wfdb('sample-data/100.csv', fs=360, units='mV',
-    ...                          fmt=['80', '212'], adc_gain=200, baseline=1024,
-    ...                          record_only=True)
+    >>> record = csv_to_wfdb('example.csv', fs=360,
+    ...                      units=['mV', 'mV'], record_only=True)
 
     """
     # NOTE: No need to write input checks here since the Record class should
@@ -421,33 +412,15 @@ def csv2ann(
 
     Examples
     --------
-    1) Write WFDB annotation file from CSV with time onsets:
-       ======= start example.csv =======
-       onset,description
-       0.2,p-wave
-       0.8,qrs
-       ======== end example.csv ========
-       >>> wfdb.csv2ann('example.csv', fs=360)
-       * Creates a WFDB annotation file called: 'example.atr'
+    Create a CSV file with onsets in seconds and convert it to annotations:
 
-    2) Write WFDB annotation file from CSV with sample onsets:
-       ======= start example.csv =======
-       onset,description
-       5,p-wave
-       13,qrs
-       ======== end example.csv ========
-       >>> wfdb.csv2ann('example.csv', fs=10, time_onset=False)
-       * Creates a WFDB annotation file called: 'example.atr'
-       * 5,13 samples -> 0.5,1.3 seconds for onset
-
-    3) Write WFDB annotation file from CSV with time onsets, durations, and no
-       header:
-       ======= start example.csv =======
-       0.2,0.1,qrs
-       0.8,0.4,qrs
-       ======== end example.csv ========
-       >>> wfdb.csv2ann('example.csv', extension='qrs', fs=360, header=False)
-       * Creates a WFDB annotation file called: 'example.qrs'
+    >>> from pathlib import Path
+    >>> from wfdb.io.convert import csv2ann
+    >>> _ = Path('events.csv').write_text(
+    ...     'onset,description\\n0.2,p-wave\\n0.8,qrs\\n')
+    >>> annotation = csv2ann('events.csv', fs=360, record_only=True)
+    >>> annotation.sample.tolist()
+    [72, 288]
 
     """
     # NOTE: No need to write input checks here since the Annotation class

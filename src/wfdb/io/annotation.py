@@ -144,9 +144,10 @@ class Annotation:
 
     Examples
     --------
+    >>> import wfdb
     >>> ann1 = wfdb.Annotation(record_name='rec1', extension='atr',
-                               sample=[10,20,400], symbol=['N','N','['],
-                               aux_note=[None, None, 'Serious Vfib'])
+    ...                        sample=[10, 20, 400], symbol=['N', 'N', '['],
+    ...                        aux_note=[None, None, 'Serious Vfib'])
 
     """
 
@@ -1854,6 +1855,7 @@ def wrann(
 
     Examples
     --------
+    >>> import wfdb
     >>> # Read an annotation as an Annotation object
     >>> annotation = wfdb.rdann('b001', 'atr', pn_dir='cebsdb')
     >>> # Write a copy of the annotation file
@@ -1906,6 +1908,7 @@ def show_ann_labels():
 
     Examples
     --------
+    >>> from wfdb import show_ann_labels
     >>> show_ann_labels()
 
     """
@@ -1925,6 +1928,7 @@ def show_ann_classes():
 
     Examples
     --------
+    >>> from wfdb import show_ann_classes
     >>> show_ann_classes()
 
     """
@@ -1997,8 +2001,8 @@ def rdann(
 
     Examples
     --------
-    >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=300000)
-    >>> ann = wfdb.rdann('100.wfdb', 'atr')
+    >>> import wfdb
+    >>> ann = wfdb.rdann('100', 'atr', pn_dir='mitdb', sampto=300000)
 
     """
     record_name = os.fspath(record_name)

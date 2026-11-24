@@ -54,7 +54,8 @@ def wfdb_to_wav(
 
     Examples
     --------
-    >>> wfdb_to_wav('100', pn_dir='pwave')
+    >>> from wfdb.io.convert import wfdb_to_wav
+    >>> wfdb_to_wav('100', pn_dir='mitdb', sampto=1000)
 
     The output file name is '100.wav'
 
@@ -220,7 +221,12 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
 
     Examples
     --------
-    >>> record = read_wav('sample-data/SC4001E0-PSG.wav')
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> from wfdb.io.convert import read_wav, wfdb_to_wav
+    >>> wfdb_to_wav('100', pn_dir='mitdb', sampto=1000)
+    >>> with redirect_stdout(StringIO()):
+    ...     record = read_wav('100.wav')
 
     """
     if not record_name.endswith(".wav"):

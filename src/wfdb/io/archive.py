@@ -72,6 +72,10 @@ class WFDBArchive:
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import wfdb
+    >>> from wfdb.io.archive import WFDBArchive
+    >>> signal = np.array([[0.0], [0.1]])
     >>> with WFDBArchive("record.wfdb", mode="w") as archive:
     ...     wfdb.wrsamp("record", fs=250, units=["mV"], sig_name=["I"],
     ...                 p_signal=signal, fmt=["16"], wfdb_archive=archive)
@@ -498,6 +502,12 @@ def create_archive(file_paths, archive_path):
 
     Examples
     --------
+    >>> import numpy as np
+    >>> import wfdb
+    >>> from wfdb.io.archive import create_archive
+    >>> signal = np.array([[0.0], [0.1]])
+    >>> wfdb.wrsamp("100", fs=250, units=["mV"], sig_name=["I"],
+    ...             p_signal=signal, fmt=["16"])
     >>> create_archive(["100.hea", "100.dat"], "100.wfdb")
 
     """

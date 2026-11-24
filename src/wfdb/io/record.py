@@ -764,8 +764,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
     Examples
     --------
+    >>> import wfdb
     >>> record = wfdb.Record(record_name='r1', fs=250, n_sig=2, sig_len=1000,
-                         file_name=['r1.dat','r1.dat'])
+    ...                      file_name=['r1.dat', 'r1.dat'])
 
     """
 
@@ -929,7 +930,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         --------
         Save a copy of record 100 as record '100_copy':
 
-        >>> record = wfdb.rdrecord('sample-data/100', physical=False)
+        >>> import wfdb
+        >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampto=1000,
+        ...                        physical=False)
         >>> record.record_name = '100_copy'
         >>> record.file_name = ['100_copy.dat'] * record.n_sig
         >>> record.wrsamp()
@@ -1252,16 +1255,10 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
     Examples
     --------
-    >>> record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=8,
-                                    sig_len=9999, seg_name=['rm_1', '~', rm_2'],
-                                    seg_len=[800, 200, 900])
-    >>> # Get a MultiRecord object
-    >>> record_s = wfdb.rdsamp('s00001-2896-10-10-00-31', m2s=False)
-    >>> # Turn it into a single record
-    >>> record_s = record_s.multi_to_single()
-
-    record_s initially stores a `MultiRecord` object, and is then converted into
-    a `Record` object.
+    >>> import wfdb
+    >>> record_m = wfdb.MultiRecord(record_name='rm', fs=50, n_sig=1,
+    ...                             sig_len=100, seg_name=['rm_1'],
+    ...                             seg_len=[100])
 
     """
 
@@ -2113,6 +2110,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
 
     Examples
     --------
+    >>> import wfdb
     >>> ecg_record = wfdb.rdheader('100', pn_dir='mitdb')
 
     """
@@ -2394,9 +2392,9 @@ def rdrecord(
 
     Examples
     --------
-    >>> record = wfdb.rdrecord('sample-data/test01_00s', sampfrom=800,
-                               channels=[1, 3])
-    >>> record = wfdb.rdrecord('100.wfdb')
+    >>> import wfdb
+    >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampfrom=800,
+    ...                        sampto=900, channels=[0, 1])
 
     """
     if is_archive_path(record_name):
@@ -2777,9 +2775,9 @@ def rdsamp(
 
     Examples
     --------
-    >>> signals, fields = wfdb.rdsamp('sample-data/test01_00s',
-                                      sampfrom=800,
-                                      channels=[1,3])
+    >>> import wfdb
+    >>> signals, fields = wfdb.rdsamp('100', pn_dir='mitdb', sampfrom=800,
+    ...                               sampto=900, channels=[0, 1])
 
     """
     if pn_dir is not None:
@@ -2855,11 +2853,14 @@ def sampfreq(record_name, pn_dir=None):
 
     Examples
     --------
-    >>> wfdb.sampfreq('sample-data/test01_00s')
-    >>> ECG 1    500
-    >>> ECG 2    500
-    >>> ECG 3    500
-    >>> ECG 4    500
+    >>> import wfdb
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> output = StringIO()
+    >>> with redirect_stdout(output):
+    ...     wfdb.sampfreq('100', pn_dir='mitdb')
+    >>> [line.split() for line in output.getvalue().splitlines()]
+    [['MLII', '360'], ['V5', '360']]
 
     """
     if (pn_dir is not None) and ("." not in pn_dir):
@@ -2909,15 +2910,13 @@ def signame(record_name, pn_dir=None, sig_nums=[]):
 
     Examples
     --------
-    >>> wfdb.signame('sample-data/test01_00s')
-    >>> ECG 1
-    >>> ECG 2
-    >>> ECG 3
-    >>> ECG 4
+    >>> import wfdb
+    >>> wfdb.signame('100', pn_dir='mitdb')
+    MLII
+    V5
 
-    >>> wfdb.signame('sample-data/test01_00s', sig_nums=[1,3])
-    >>> ECG 2
-    >>> ECG 4
+    >>> wfdb.signame('100', pn_dir='mitdb', sig_nums=[1])
+    V5
 
     """
     if (pn_dir is not None) and ("." not in pn_dir):
@@ -2968,6 +2967,7 @@ def wfdbdesc(record_name, pn_dir=None):
 
     Examples
     --------
+    >>> import wfdb
     >>> wfdb.wfdbdesc('100', pn_dir='mitdb')
     Record 100
     Notes
@@ -3115,35 +3115,39 @@ def wfdbtime(record_name, input_times, pn_dir=None):
 
     Examples
     --------
+    >>> import wfdb
+
     A single time can be given as a string instead of a list.
 
-    >>> wfdb.wfdbtime('sample-data/100', 's250')
-        s250            00:00:00.694                    00:00:00.694
+    >>> wfdb.wfdbtime('100', 's250', pn_dir='mitdb')
+            s250            00:00:00.694                    00:00:00.694
 
     The elapsed time and date fields are the same, since the record has no
     start time or date.
 
-    >>> wfdb.wfdbtime('sample-data/100', ['s10',':5:','2'])
-         s10            00:00:00.028                    00:00:00.028
-     s108000            00:05:00.000                    00:05:00.000
-        s720            00:00:02.000                    00:00:02.000
+    >>> wfdb.wfdbtime('100', ['s10', ':5:', '2'], pn_dir='mitdb')
+             s10            00:00:00.028                    00:00:00.028
+         s108000            00:05:00.000                    00:05:00.000
+            s720            00:00:02.000                    00:00:02.000
 
     A date of '01/01/0001' means that the record has a start time but no date.
 
-    >>> wfdb.wfdbtime('sample-data/3000003_0003', ['s1','0:0:05','e'])
-          s1            00:00:00.008    [19:46:25.765000 01/01/0001]
-        s625            00:00:05.000    [19:46:30.757000 01/01/0001]
-       s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
+    >>> wfdb.wfdbtime('3000003_0003', ['s1', '0:0:05', 'e'],
+    ...               pn_dir='mimic3wdb/30/3000003')
+              s1            00:00:00.008    [19:46:25.765000 01/01/0001]
+            s625            00:00:05.000    [19:46:30.757000 01/01/0001]
+           s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
 
     The final argument gives the same date field as the argument, but a
     different elapsed time.
 
-    >>> wfdb.wfdbtime('sample-data/3000003_0003',
-    ...               ['s1', '::5', 'e', '19:46:34.981 01/01/0001'])
-          s1            00:00:00.008    [19:46:25.765000 01/01/0001]
-        s625            00:00:05.000    [19:46:30.757000 01/01/0001]
-       s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
-       s1153            00:00:09.224    [19:46:34.981000 01/01/0001]
+    >>> wfdb.wfdbtime('3000003_0003',
+    ...               ['s1', '::5', 'e', '19:46:34.981 01/01/0001'],
+    ...               pn_dir='mimic3wdb/30/3000003')
+              s1            00:00:00.008    [19:46:25.765000 01/01/0001]
+            s625            00:00:05.000    [19:46:30.757000 01/01/0001]
+           s1028            00:00:08.224    [19:46:33.981000 01/01/0001]
+           s1153            00:00:09.224    [19:46:34.981000 01/01/0001]
 
     """
     if (pn_dir is not None) and ("." not in pn_dir):
@@ -3407,16 +3411,18 @@ def wrsamp(
 
     Examples
     --------
+    >>> import wfdb
     >>> # Read part of a record from Physionet
-    >>> signals, fields = wfdb.rdsamp('a103l', sampfrom=50000, channels=[0,1],
-                                      pn_dir='challenge-2015/training')
+    >>> signals, fields = wfdb.rdsamp('a103l', sampfrom=50000,
+    ...                               sampto=51000, channels=[0, 1],
+    ...                               pn_dir='challenge-2015/training')
     >>> # Write a local WFDB record (manually inserting fields)
-    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
-                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
+    >>> wfdb.wrsamp('ecgrecord', fs=250, units=['mV', 'mV'],
+    ...             sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'])
     >>> # Write the same record into a .wfdb archive
-    >>> wfdb.wrsamp('ecgrecord', fs = 250, units=['mV', 'mV'],
-                    sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'],
-                    wfdb_archive='ecgrecord.wfdb')
+    >>> wfdb.wrsamp('ecgrecord', fs=250, units=['mV', 'mV'],
+    ...             sig_name=['I', 'II'], p_signal=signals, fmt=['16', '16'],
+    ...             wfdb_archive='ecgrecord.wfdb')
 
     """
     # Check for valid record name
@@ -3587,7 +3593,12 @@ def dl_database(
 
     Examples
     --------
-    >>> wfdb.dl_database('ahadb', os.getcwd())
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> import wfdb
+    >>> with redirect_stdout(StringIO()):
+    ...     wfdb.dl_database('mitdb', './mitdb', records=['100'],
+    ...                      annotators=['atr'])
 
     """
     # Full url PhysioNet database
