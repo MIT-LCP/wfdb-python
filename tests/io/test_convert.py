@@ -3,6 +3,7 @@ import shutil
 import wave
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pytest
 from scipy.io import loadmat
@@ -13,6 +14,7 @@ from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
 from wfdb.io.convert.edf import rdedfann, read_edf, wfdb_to_edf
 from wfdb.io.convert.matlab import wfdb_to_mat
 from wfdb.io.record import Record, rdheader, rdrecord, wrsamp
+from wfdb.plot import plot_wfdb
 
 
 class TestEdfToWfdb:
@@ -133,12 +135,14 @@ class TestEdfToWfdb:
         with pytest.raises(ValueError, match="no signal channels"):
             read_edf(source)
         info = rdedfann(source)
+        assert info["fs"] is None
         assert info["sample_num"] and all(
             sample is None for sample in info["sample_num"]
         )
         with pytest.raises(ValueError, match="fs is required"):
             rdedfann(source, info_only=False, record_only=True)
         with_rate = rdedfann(source, fs=32)
+        assert with_rate["fs"] == 32
         assert len(with_rate["sample_num"]) == len(info["sample_num"])
         assert all(isinstance(sample, int) for sample in with_rate["sample_num"])
         annotation = rdedfann(source, info_only=False, record_only=True, fs=32)
@@ -208,10 +212,89 @@ class TestEdfToWfdb:
         assert record.sig_name == ["ECG"]
         np.testing.assert_array_equal(record.p_signal[:, 0], samples)
         info = rdedfann(str(edf_file))
+        assert info["fs"] == signal_rate
         assert info["sample_num"] == expected_samples
         assert info["comment"] == ["First", "Second"]
         annotation = rdedfann(str(edf_file), info_only=False, record_only=True)
         np.testing.assert_array_equal(annotation.sample, expected_samples)
+
+    def test_rdedfann_uses_fastest_signal_rate_for_mixed_rates(self, tmp_path):
+        """WFDB annotations retain onset timing across mixed signal rates."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("1024", 8),
+            ("EDF+C", 44),
+            ("2", 8),
+            ("1", 8),
+            ("3", 4),
+        ]
+        signal_fields = [
+            (["ECG", "EEG", "EDF Annotations"], 16),
+            (["", "", ""], 80),
+            (["mV", "mV", ""], 8),
+            (["-32767", "-32767", "-1"], 8),
+            (["32767", "32767", "1"], 8),
+            (["-32767", "-32767", "-32768"], 8),
+            (["32767", "32767", "32767"], 8),
+            (["", "", ""], 80),
+            (["256", "100", "30"], 8),
+            (["", "", ""], 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for values, width in signal_fields:
+            header += "".join(value.ljust(width) for value in values)
+        ecg = np.arange(512, dtype="<i2")
+        eeg = np.arange(200, dtype="<i2")
+        first_tals = b"+0\x14\x14\x00+0.37\x14First\x14\x00"
+        second_tals = b"+1\x14\x14\x00+1.5\x14Second\x14\x00"
+        data = (
+            ecg[:256].tobytes()
+            + eeg[:100].tobytes()
+            + first_tals.ljust(60, b"\x00")
+            + ecg[256:].tobytes()
+            + eeg[100:].tobytes()
+            + second_tals.ljust(60, b"\x00")
+        )
+        edf_file = tmp_path / "mixed_rates.edf"
+        edf_file.write_bytes(header.encode() + data)
+
+        record = read_edf(str(edf_file), rdedfann_flag=True)
+        assert record.fs == 4
+        assert record.samps_per_frame == [64, 25]
+        info = rdedfann(str(edf_file))
+        assert info["fs"] == 256
+        assert info["sample_num"] == [95, 384]
+        annotation = rdedfann(str(edf_file), info_only=False, record_only=True)
+        assert annotation.fs == 256
+        np.testing.assert_array_equal(annotation.sample, [95, 384])
+        annotation.wrann(write_fs=True, write_dir=str(tmp_path))
+        written = rdann(str(tmp_path / "mixed_rates"), "atr")
+        assert written.fs == 256
+        np.testing.assert_array_equal(written.sample, [95, 384])
+
+        record.wrsamp(write_dir=str(tmp_path))
+        written_record = rdrecord(str(tmp_path / "mixed_rates"))
+        assert written_record.fs == 4
+        fig = plot_wfdb(written_record, written, time_units="samples", return_fig=True)
+        plt.close(fig)
+        annotations = fig.axes[0].lines[1]
+        np.testing.assert_allclose(annotations.get_xdata(), [95 / 64, 6])
+        np.testing.assert_allclose(
+            annotations.get_ydata(), written_record.p_signal[[1, 6], 0]
+        )
+        assert annotations.get_xdata()[-1] < written_record.sig_len
+
+        fig = plot_wfdb(written_record, written, time_units="seconds", return_fig=True)
+        plt.close(fig)
+        np.testing.assert_allclose(fig.axes[0].lines[1].get_xdata(), [95 / 256, 1.5])
+
+        overridden = rdedfann(str(edf_file), fs=1000)
+        assert overridden["fs"] == 1000
+        assert overridden["sample_num"] == [370, 1500]
 
     def test_rdedfann_ignores_physical_calibration(self, tmp_path):
         """Annotation bytes have the same meaning with different EDF scales."""
