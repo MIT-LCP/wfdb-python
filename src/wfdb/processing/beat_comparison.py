@@ -92,7 +92,8 @@ def _beats_and_intervals(sample, label_store, subtype, window):
             ):
                 shutdowns.append(_Interval(t, int(sample[i + 1]), i))
             elif i + 1 < n:
-                start = int(sample[i - 1]) + window if i > 0 else 0
+                # (taking the previous annotation to be at 0 if there is none)
+                start = (int(sample[i - 1]) if i > 0 else 0) + window
                 end = int(sample[i + 1]) - window
                 # The previous beat is forgotten only if the next annotation
                 # comes after the start of the shutdown
@@ -104,15 +105,31 @@ def _beats_and_intervals(sample, label_store, subtype, window):
     if in_vf:
         vf.append(_Interval(int(sample[vf_start]), math.inf, vf_start))
     # A shutdown that starts during VF in the same file is ignored
-    shutdowns = [s for s in shutdowns if not _in(s.start, vf)]
+    vf_index = _Intervals(vf)
+    shutdowns = [s for s in shutdowns if not vf_index.contains(s.start)]
     return beats, vf, shutdowns
 
 
-def _in(t, intervals, closed=False):
-    """Whether time `t` is inside one of `intervals`."""
-    if closed:
-        return any(iv.start <= t <= iv.end for iv in intervals)
-    return any(iv.start <= t < iv.end for iv in intervals)
+class _Intervals:
+    """A set of intervals, for finding quickly whether a time is in one.
+
+    The intervals are sorted by start, with the latest end of those starting
+    at or before each one, so that a lookup takes logarithmic time even if
+    the intervals overlap.
+
+    """
+
+    def __init__(self, intervals):
+        intervals = sorted(intervals, key=lambda iv: iv.start)
+        self.starts = [iv.start for iv in intervals]
+        self.max_ends = list(np.maximum.accumulate([iv.end for iv in intervals]))
+
+    def contains(self, t, closed=False):
+        """Whether `t` is in one of the intervals (with its end, if `closed`)."""
+        k = bisect.bisect_right(self.starts, t)
+        if k == 0:
+            return False
+        return self.max_ends[k - 1] >= t if closed else self.max_ends[k - 1] > t
 
 
 def _label_store(annotation):
@@ -476,12 +493,15 @@ def bxb(
     sig_len : int, optional
         The length of the record, in samples. If given, and `stop` is not,
         the comparison ends at the end of the record. Otherwise it ends at
-        the last reference annotation.
+        the last reference beat.
     start : int, optional
         The sample at which to start the comparison. By default, 5 minutes
         after the start of the record, as EC57 requires.
     stop : int, optional
-        The sample at which to stop the comparison (inclusive).
+        The sample at which to stop the comparison (inclusive). If 0, the
+        comparison stops at the last beat of whichever file ends first, as
+        with ``bxb -t 0``. By default, it stops at the end of the record if
+        `sig_len` is given, and at the last reference beat otherwise.
     window : float, optional
         The match window, in seconds. The default, 0.15, is the one that
         EC57 requires.
@@ -522,11 +542,26 @@ def bxb(
         )
         files.append(_beats_and_intervals(sample, codes, subtype, w))
     (R, rvf, rshut), (A, tvf, tshut) = files
+    whole_files = stop == 0
+    end_known = bool(sig_len) or stop is not None
+    rvf_index, rshut_index, tshut_index = (
+        _Intervals(rvf),
+        _Intervals(rshut),
+        _Intervals(tshut),
+    )
     if stop is None:
         if sig_len:
             stop = int(sig_len)
         else:
-            stop = int(samples[0][-1]) if len(samples[0]) else 0
+            # Without a record length, the comparison ends at the last
+            # reference beat
+            stop = R[-1].time if R else 0
+    elif stop == 0:
+        # As with bxb -t 0, the comparison ends when either file has no more
+        # beats
+        stop = min(R[-1].time, A[-1].time) if R and A else 0
+    else:
+        stop = int(stop)
 
     events = _match(R, A, w)
     counts = {r: [0] * (5 if r in "OX" else 7) for r in ROWS}
@@ -544,14 +579,19 @@ def bxb(
     )
 
     # The first test beat after the start is not counted if it is within the
-    # match window of the start and the next event also has a test beat
+    # match window of the start, matches no reference beat, and the next test
+    # beat is closer than it to the reference beat it was compared with
     k0 = bisect.bisect_left([a.time for a in A], start)
     skipped = None
-    if k0 < len(A) and A[k0].time - start <= w:
-        for e, after in zip(events, events[1:]):
-            if e[0] == "fp" and e[2] is A[k0]:
-                if after[0] in ("fp", "match"):
-                    skipped = A[k0]
+    if k0 + 1 < len(A) and A[k0].time - start <= w:
+        for kind, _, a, other in events:
+            if a is A[k0]:
+                if (
+                    kind == "fp"
+                    and other is not None
+                    and abs(A[k0 + 1].time - other.time) < abs(a.time - other.time)
+                ):
+                    skipped = a
                 break
 
     prev_r = prev_a = None
@@ -575,16 +615,18 @@ def bxb(
             counted = (
                 start <= a.time <= stop
                 and a is not skipped
-                and not _in(a.time, rvf, closed=True)
+                and not rvf_index.contains(a.time, closed=True)
             )
         if counted:
             counted_events.append((kind, r, a))
             if kind == "match":
                 counts[r.cls][COLUMNS.index(a.cls.lower())] += 1
             elif kind == "fn":
-                counts[r.cls][6 if _in(r.time, tshut, closed=True) else 5] += 1
+                counts[r.cls][
+                    6 if tshut_index.contains(r.time, closed=True) else 5
+                ] += 1
             else:
-                row = "X" if _in(a.time, rshut, closed=True) else "O"
+                row = "X" if rshut_index.contains(a.time, closed=True) else "O"
                 counts[row]["nsvfq".index(a.cls.lower())] += 1
             if prev_r is not None and prev_a is not None:
                 # For an unmatched beat, the other side's interval is the one
@@ -604,9 +646,17 @@ def bxb(
     k = bisect.bisect_right(rt, stop)
     cutoff = rt[k] if k < len(rt) else math.inf
     shutdown = sum(
-        max(0, (iv.end if iv.end != math.inf else stop) - iv.start)
+        # A shutdown with no annotation after it lasts until the end of the
+        # comparison, if that is known (from the record length or `stop`)
+        (
+            max(0, iv.end - iv.start)
+            if iv.end != math.inf
+            else (max(0, stop - iv.start) if end_known else 0)
+        )
         for iv in tshut
-        if iv.start <= stop
+        # With stop=0, the test file is read to its end
+        if whole_files
+        or iv.start <= stop
         or int(samples[1][iv.index]) <= stop
         or int(samples[1][iv.index]) < cutoff
     )
@@ -724,7 +774,7 @@ def bxb_record(
         The sample at which to start the comparison (by default, 5 minutes).
     stop : int, optional
         The sample at which to stop the comparison (by default, the end of
-        the record).
+        the record). If 0, it stops when either file has no more beats.
     window : float, optional
         The match window, in seconds (by default, 0.15).
 
