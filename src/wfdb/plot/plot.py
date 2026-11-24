@@ -225,14 +225,15 @@ def plot_items(
 
     Examples
     --------
-    >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
-    >>> ann = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
+    >>> import wfdb
+    >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampto=3000)
+    >>> ann = wfdb.rdann('100', 'atr', pn_dir='mitdb', sampto=3000)
 
     >>> wfdb.plot_items(signal=record.p_signal,
-                        ann_samp=[ann.sample, ann.sample],
-                        fs=record.fs, sig_units=record.units,
-                        title='MIT-BIH Record 100', time_units='seconds',
-                        figsize=(10,4), ecg_grids='all')
+    ...                 ann_samp=[ann.sample, ann.sample],
+    ...                 fs=record.fs, sig_units=record.units,
+    ...                 title='MIT-BIH Record 100', time_units='seconds',
+    ...                 figsize=(10, 4), ecg_grids='all')
 
     """
     import matplotlib.pyplot as plt
@@ -922,12 +923,13 @@ def plot_wfdb(
 
     Examples
     --------
-    >>> record = wfdb.rdrecord('sample-data/100', sampto=3000)
-    >>> annotation = wfdb.rdann('sample-data/100', 'atr', sampto=3000)
+    >>> import wfdb
+    >>> record = wfdb.rdrecord('100', pn_dir='mitdb', sampto=3000)
+    >>> annotation = wfdb.rdann('100', 'atr', pn_dir='mitdb', sampto=3000)
 
-    >>> wfdb.plot_wfdb(record=record, annotation=annotation, plot_sym=True
-                       time_units='seconds', title='MIT-BIH Record 100',
-                       figsize=(10,4), ecg_grids='all')
+    >>> wfdb.plot_wfdb(record=record, annotation=annotation, plot_sym=True,
+    ...                time_units='seconds', title='MIT-BIH Record 100',
+    ...                figsize=(10, 4), ecg_grids='all')
 
     """
     (

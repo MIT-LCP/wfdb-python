@@ -130,6 +130,7 @@ def read_edf(
 
     Examples
     --------
+    >>> from wfdb.io.convert import read_edf
     >>> record = read_edf('x001_FAROS.edf',
     ...                    pn_dir='simultaneous-measurements/raw_data')
 
@@ -575,7 +576,11 @@ def wfdb_to_edf(
 
     Examples
     --------
-    >>> wfdb.wfdb_to_edf('100', pn_dir='pwave')
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> from wfdb.io.convert import wfdb_to_edf
+    >>> with redirect_stdout(StringIO()):
+    ...     wfdb_to_edf('100', pn_dir='mitdb', sampto=1000)
 
     The output file name is '100.edf'
 
@@ -1084,7 +1089,11 @@ def rdedfann(
 
     Examples
     --------
-    >>> ann_info = wfdb.rdedfann('sample-data/test_edfann.edf')
+    Read annotations from a published EDF+ file on PhysioNet:
+
+    >>> from wfdb.io.convert import rdedfann
+    >>> ann_info = rdedfann('test_edfann.edf',
+    ...                     pn_dir='wfdb-python/4.1.0/sample-data')
 
     """
     # Some preliminary checks

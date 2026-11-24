@@ -88,7 +88,11 @@ def wfdb_to_mat(record_name, pn_dir=None, sampfrom=0, sampto=None, channels=None
 
     Examples
     --------
-    >>> wfdb2mat('100', pn_dir='pwave')
+    >>> from contextlib import redirect_stdout
+    >>> from io import StringIO
+    >>> from wfdb.io.convert import wfdb_to_mat
+    >>> with redirect_stdout(StringIO()):
+    ...     wfdb_to_mat('100', pn_dir='mitdb', sampto=1000)
 
     The output file name is 100m.mat and 100m.hea
 

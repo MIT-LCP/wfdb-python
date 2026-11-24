@@ -29,17 +29,26 @@ class Comparitor:
     >>> import wfdb
     >>> from wfdb import processing
 
-    >>> sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
-    >>> ann_ref = wfdb.rdann('sample-data/100','atr')
-    >>> xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'])
-    >>> xqrs.detect()
+    >>> sig, fields = wfdb.rdsamp('100', pn_dir='mitdb', channels=[0],
+    ...                          sampto=10000)
+    >>> ann_ref = wfdb.rdann('100', 'atr', pn_dir='mitdb', sampto=10000)
+    >>> xqrs = processing.XQRS(sig=sig[:, 0], fs=fields['fs'])
+    >>> xqrs.detect(verbose=False)
 
     >>> comparitor = processing.Comparitor(ann_ref.sample[1:],
-                                           xqrs.qrs_inds,
-                                           int(0.1 * fields['fs']),
-                                           sig[:,0])
+    ...                                    xqrs.qrs_inds,
+    ...                                    int(0.1 * fields['fs']),
+    ...                                    sig[:, 0])
     >>> comparitor.compare()
     >>> comparitor.print_summary()
+    35 reference annotations, 34 test annotations
+    <BLANKLINE>
+    True Positives (matched samples): 34
+    False Positives (unmatched test samples): 0
+    False Negatives (unmatched reference samples): 1
+    <BLANKLINE>
+    Sensitivity: 0.9714 (34/35)
+    Positive Predictivity: 1.0000 (34/34)
     >>> comparitor.plot()
 
     """
@@ -139,8 +148,8 @@ class Comparitor:
         -------
         N/A
 
-        Examples
-        --------
+        Notes
+        -----
         A:
         o----o---o---o
         x-------x----x
@@ -427,16 +436,16 @@ def compare_annotations(ref_sample, test_sample, window_width, signal=None):
     >>> import wfdb
     >>> from wfdb import processing
 
-    >>> sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
-    >>> ann_ref = wfdb.rdann('sample-data/100','atr')
-    >>> xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'])
-    >>> xqrs.detect()
+    >>> sig, fields = wfdb.rdsamp('100', pn_dir='mitdb', channels=[0],
+    ...                          sampto=10000)
+    >>> ann_ref = wfdb.rdann('100', 'atr', pn_dir='mitdb', sampto=10000)
+    >>> xqrs = processing.XQRS(sig=sig[:, 0], fs=fields['fs'])
+    >>> xqrs.detect(verbose=False)
 
     >>> comparitor = processing.compare_annotations(ann_ref.sample[1:],
-                                                    xqrs.qrs_inds,
-                                                    int(0.1 * fields['fs']),
-                                                    sig[:,0])
-    >>> comparitor.print_summary()
+    ...                                             xqrs.qrs_inds,
+    ...                                             int(0.1 * fields['fs']),
+    ...                                             sig[:, 0])
     >>> comparitor.plot()
 
     """
@@ -482,8 +491,7 @@ def benchmark_mitdb(detector, verbose=False, print_results=False):
 
     Examples
     --------
-    >>> import wfdb
-    >> from wfdb.processing import benchmark_mitdb, xqrs_detect
+    >>> from wfdb.processing import benchmark_mitdb, xqrs_detect
 
     >>> comparitors, spec, pp = benchmark_mitdb(xqrs_detect)
 

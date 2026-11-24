@@ -58,9 +58,10 @@ class XQRS:
     >>> import wfdb
     >>> from wfdb import processing
 
-    >>> sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
+    >>> sig, fields = wfdb.rdsamp('100', pn_dir='mitdb', channels=[0],
+    ...                          sampto=10000)
     >>> xqrs = processing.XQRS(sig=sig[:,0], fs=fields['fs'])
-    >>> xqrs.detect()
+    >>> xqrs.detect(verbose=False)
 
     >>> wfdb.plot_items(signal=sig, ann_samp=[xqrs.qrs_inds])
 
@@ -763,8 +764,10 @@ def xqrs_detect(sig, fs, sampfrom=0, sampto="end", conf=None, learn=True, verbos
     >>> import wfdb
     >>> from wfdb import processing
 
-    >>> sig, fields = wfdb.rdsamp('sample-data/100', channels=[0])
-    >>> qrs_inds = processing.xqrs_detect(sig=sig[:,0], fs=fields['fs'])
+    >>> sig, fields = wfdb.rdsamp('100', pn_dir='mitdb', channels=[0],
+    ...                          sampto=10000)
+    >>> qrs_inds = processing.xqrs_detect(sig=sig[:,0], fs=fields['fs'],
+    ...                                   verbose=False)
 
     """
     xqrs = XQRS(sig=sig, fs=fs, conf=conf)
@@ -1843,15 +1846,17 @@ def gqrs_detect(
     >>> from wfdb import processing
 
     >>> # Detect using a physical input signal
-    >>> record = wfdb.rdrecord('sample-data/100', channels=[0])
+    >>> record = wfdb.rdrecord('100', pn_dir='mitdb', channels=[0],
+    ...                        sampto=10000)
     >>> qrs_locs = processing.gqrs_detect(record.p_signal[:,0], fs=record.fs)
 
     >>> # Detect using a digital input signal
-    >>> record_2 = wfdb.rdrecord('sample-data/100', channels=[0], physical=False)
+    >>> record_2 = wfdb.rdrecord('100', pn_dir='mitdb', channels=[0],
+    ...                          sampto=10000, physical=False)
     >>> qrs_locs_2 = processing.gqrs_detect(d_sig=record_2.d_signal[:,0],
-                                            fs=record_2.fs,
-                                            adc_gain=record_2.adc_gain[0],
-                                            adc_zero=record_2.adc_zero[0])
+    ...                                     fs=record_2.fs,
+    ...                                     adc_gain=record_2.adc_gain[0],
+    ...                                     adc_zero=record_2.adc_zero[0])
 
     """
     # Perform adc if input signal is physical
@@ -1949,13 +1954,14 @@ def ricker(points, a):
     Examples
     --------
     >>> import matplotlib.pyplot as plt
+    >>> from wfdb.processing.qrs import ricker
 
     >>> points = 100
     >>> a = 4.0
     >>> vec2 = ricker(points, a)
     >>> print(len(vec2))
     100
-    >>> plt.plot(vec2)
+    >>> _ = plt.plot(vec2)
     >>> plt.show()
 
     """

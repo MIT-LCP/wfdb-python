@@ -515,10 +515,12 @@ def bxb(
 
     Examples
     --------
-    >>> ref = wfdb.rdann('sample-data/100', 'atr')
-    >>> test = wfdb.rdann('sample-data/100', 'qrs')
-    >>> result = wfdb.processing.bxb(ref, test, sig_len=650000)
-    >>> print(result.report())
+    >>> import wfdb
+    >>> from wfdb import processing
+    >>> ref = wfdb.rdann('100', 'atr', pn_dir='mitdb')
+    >>> result = processing.bxb(ref, ref, sig_len=650000)
+    >>> result.count('N', 'n')
+    1872
 
     """
     fs = fs if fs is not None else reference.fs
