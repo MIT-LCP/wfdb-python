@@ -6,6 +6,7 @@ import posixpath
 import re
 import shutil
 import tempfile
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -724,8 +725,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     base_datetime : datetime.datetime, optional
         The date and time at the beginning of the record, equivalent to
         `datetime.combine(base_date, base_time)`.
-    file_name : str, optional
-        The name of the file used for analysis.
+    file_name : list, optional
+        The name of the signal file of each signal. The signals are written
+        to these files, which are not renamed when `record_name` is changed:
+        to save a copy of a record under a new name, set both.
     fmt : list, optional
         A list of strings giving the WFDB format of each file used to store each
         channel. Accepted formats are: '80','212','16','24', and '32'. There are
@@ -897,6 +900,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         `skew` attribute is not changed, and a value assigned to it after
         reading is written to the header.
 
+        The header file is named after `record_name`, and the signal files are
+        named by `file_name`. A record that was read keeps the signal file
+        names of the original, so to save a copy under a new name, change
+        both, or the copy's signals are written to the original's files. A
+        warning is given when writing would replace an existing signal file
+        that is not listed by this record's own header in `write_dir`.
+
         Parameters
         ----------
         expanded : bool, optional
@@ -914,6 +924,15 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         Returns
         -------
         N/A
+
+        Examples
+        --------
+        Save a copy of record 100 as record '100_copy':
+
+        >>> record = wfdb.rdrecord('sample-data/100', physical=False)
+        >>> record.record_name = '100_copy'
+        >>> record.file_name = ['100_copy.dat'] * record.n_sig
+        >>> record.wrsamp()
 
         """
         converted = None
@@ -961,6 +980,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                         checksums[ch] = old_val
                 self.checksum = checksums
 
+            if wfdb_archive is None and has_signal_files and self.file_name:
+                self._warn_about_replacing_other_files(write_dir)
+
             with archive_for_writing(wfdb_archive, write_dir) as archive:
                 # Perform field validity and cohesion checks, and write the
                 # header file.
@@ -977,6 +999,51 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.skew = skew
             if converted:
                 setattr(self, converted, None)
+
+    def _warn_about_replacing_other_files(self, write_dir):
+        """Warn if writing would replace signal files of another record.
+
+        A signal file that already exists is this record's own if the
+        record's header in `write_dir` lists it, as when a record is written
+        again. Otherwise it belongs to another record, as when a record that
+        was read is given a new `record_name` but keeps the original's
+        `file_name`.
+
+        Parameters
+        ----------
+        write_dir : str
+            The directory in which the files are to be written.
+
+        Returns
+        -------
+        N/A
+
+        """
+        record_name = self.record_name or ""
+        existing = [
+            file_name
+            for file_name in dict.fromkeys(self.file_name)
+            if file_name
+            and file_name != "~"
+            and os.path.exists(os.path.join(write_dir, file_name))
+        ]
+        if not existing:
+            return
+        try:
+            header = rdheader(os.path.join(write_dir, record_name))
+            own = set(getattr(header, "file_name", None) or [])
+        except Exception:
+            # No readable header of this record, so no file is its own yet
+            own = set()
+        others = [file_name for file_name in existing if file_name not in own]
+        if others:
+            warnings.warn(
+                f"Writing record {record_name!r} replaces existing signal files "
+                f"{', '.join(others)}, which are named by `file_name`, not "
+                "`record_name`. To write a copy of a record under a new name, "
+                "set `file_name` too.",
+                stacklevel=3,
+            )
 
     def _arrange_fields(self, channels, sampfrom, smooth_frames):
         """Arrange/edit object fields to reflect user channel and/or signal range input.
