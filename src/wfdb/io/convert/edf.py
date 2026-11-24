@@ -47,6 +47,11 @@ def read_edf(
     sample would be invalid in format 16. EDF's -32768 is a valid sample, but
     WFDB format 16 reserves it for missing samples.
 
+    EDF+ annotation channels contain text, not signals. They are excluded from
+    the returned Record and do not determine its sampling frequency. For an
+    annotation-only file, `header_only=True` reports no signal rate and a full
+    signal read raises ValueError; use `rdedfann` to read its annotations.
+
     Parameters
     ----------
     record_name : str
@@ -334,17 +339,40 @@ def read_edf(
     for _ in range(n_sig):
         struct.unpack("<32s", edf_file.read(32))[0].decode(encoding)
 
+    # Annotation samples hold text bytes, not physiologic signal samples.
+    # Keep the original block layout for extracting their raw bytes below.
+    edf_samps_per_block = samps_per_block
+    annotation_channels = [
+        i for i, name in enumerate(sig_name) if name == "EDF Annotations"
+    ]
+    signal_channels = [
+        i for i, name in enumerate(sig_name) if name != "EDF Annotations"
+    ]
+    sig_name = [sig_name[i] for i in signal_channels]
+    physical_dims = [physical_dims[i] for i in signal_channels]
+    physical_min = physical_min[signal_channels]
+    physical_max = physical_max[signal_channels]
+    digital_min = digital_min[signal_channels]
+    digital_max = digital_max[signal_channels]
+    samps_per_block = [samps_per_block[i] for i in signal_channels]
+    n_sig = len(signal_channels)
+
     # Pre-process the acquired data before creating the record
     record_name_out = _split_path(record_name)[1].replace("-", "_").replace(".edf", "")
     # Each EDF data record contains a whole number of samples per signal.
     # Their greatest common divisor gives the number of WFDB frames per record,
     # even when the EDF data-record duration implies a fractional frame rate.
-    frames_per_block = functools.reduce(math.gcd, samps_per_block)
-    fs = frames_per_block / block_duration
-    if fs.is_integer():
-        fs = int(fs)
-    samps_per_frame = [s // frames_per_block for s in samps_per_block]
-    sig_len = num_blocks * frames_per_block
+    if n_sig:
+        frames_per_block = functools.reduce(math.gcd, samps_per_block)
+        fs = frames_per_block / block_duration
+        if fs.is_integer():
+            fs = int(fs)
+        samps_per_frame = [s // frames_per_block for s in samps_per_block]
+        sig_len = num_blocks * frames_per_block
+    else:
+        fs = None
+        samps_per_frame = []
+        sig_len = 0
     base_time = datetime.time(start_hour, start_minute, start_second)
     base_date = datetime.date(start_year, start_month, start_day)
     file_name = n_sig * [record_name_out + ".dat"]
@@ -411,23 +439,39 @@ def read_edf(
             "comments": [],
         }
 
-    sig_data = np.empty((sig_len, n_sig))
+    if not n_sig and not rdedfann_flag:
+        edf_file.close()
+        raise ValueError("EDF file has no signal channels; use rdedfann()")
+
     # Read the rest of the file, ignoring a final odd byte
     data = edf_file.read()
     temp_sig_data = np.frombuffer(data, dtype="<i2", count=len(data) // 2)
-    temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
-    temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
+    temp_sig_data = temp_sig_data.reshape((-1, sum(edf_samps_per_block)))
+    temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(edf_samps_per_block)[:-1])
 
     if rdedfann_flag:
-        annotation_channels = [
-            i for i, name in enumerate(sig_name) if name == "EDF Annotations"
-        ]
         annotation_bytes = b"".join(
             temp_all_sigs[i][block].tobytes()
             for block in range(num_blocks)
             for i in annotation_channels
         )
 
+    if not n_sig:
+        edf_file.close()
+        record = Record(
+            record_name=record_name_out,
+            n_sig=0,
+            fs=None,
+            sig_len=0,
+            base_time=base_time,
+            base_date=base_date,
+            sig_name=[],
+        )
+        record._edf_annotation_bytes = annotation_bytes
+        return record
+
+    temp_all_sigs = [temp_all_sigs[i] for i in signal_channels]
+    sig_data = np.empty((sig_len, n_sig))
     uniform_rate = all(spf == samps_per_frame[0] for spf in samps_per_frame)
     for i in range(n_sig):
         if uniform_rate:
@@ -1038,6 +1082,7 @@ def rdedfann(
     record_only=False,
     verbose=False,
     encoding=None,
+    fs=None,
 ):
     """Return the annotation information from an EDF+ file.
 
@@ -1048,7 +1093,8 @@ def rdedfann(
             'onset_time': list of %H:%M:%S.fff strings denoting the annotation
                           onset times,
             'sample_num': list of annotation onset sample numbers, rounded to
-                          the nearest sample (half-sample ties to even),
+                          the nearest sample (half-sample ties to even). For
+                          annotation-only files without `fs`, values are None,
             'comment': list of comments (`aux_note`) for the annotations,
             'duration': list of floats denoting the duration of the event
         }
@@ -1088,6 +1134,10 @@ def rdedfann(
         Override the encoding of both header strings and annotation text.
         By default, headers use ISO-8859-1 for compatibility and EDF+
         annotation text uses UTF-8, as required by the format.
+    fs : float, optional
+        Sampling frequency for annotation sample numbers. By default, use the
+        signal frame rate. Annotation-only files have no signal rate; provide
+        this value to produce sample numbers or a WFDB Annotation object/file.
 
     Returns
     -------
@@ -1164,6 +1214,12 @@ def rdedfann(
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
+    if fs is not None and (not np.isfinite(fs) or fs <= 0):
+        raise ValueError("fs must be a positive, finite sampling frequency")
+    sample_fs = rec.fs if fs is None else fs
+    if sample_fs is None and not info_only:
+        raise ValueError("fs is required to write annotation-only EDF files")
+
     # EDF+ annotation characters are packed into the two bytes of each digital
     # sample. Split TALs and fields at their byte delimiters before decoding
     # text, so punctuation inside an annotation cannot be mistaken for a TAL.
@@ -1185,7 +1241,7 @@ def rdedfann(
         hours, rem = divmod(abs(onset), 3600)
         minutes, seconds = divmod(rem, 60)
         onset_time = f"{sign}{hours:02.0f}:{minutes:02.0f}:{seconds:06.3f}"
-        sample_num = int(np.rint(onset * rec.fs))
+        sample_num = None if sample_fs is None else int(np.rint(onset * sample_fs))
         for annotation in fields[1:]:
             if not annotation:
                 continue
@@ -1217,8 +1273,7 @@ def rdedfann(
         # Remove extension from input file name
         record_name = _split_path(record_name)[1].split(".")[0]
         extension = "atr"
-        fs = rec.fs
-        sample = np.rint(df_out["onset"].to_numpy() * fs).astype(np.int64)
+        sample = np.rint(df_out["onset"].to_numpy() * sample_fs).astype(np.int64)
         # Assume each annotation is a comment
         symbol = ['"'] * len(df_out.index)
         subtype = np.array([22] * len(df_out.index))
@@ -1237,7 +1292,7 @@ def rdedfann(
                 chan=chan,
                 num=num,
                 aux_note=aux_note,
-                fs=fs,
+                fs=sample_fs,
             )
         else:
             wrann(
@@ -1249,5 +1304,5 @@ def rdedfann(
                 chan=chan,
                 num=num,
                 aux_note=aux_note,
-                fs=fs,
+                fs=sample_fs,
             )
