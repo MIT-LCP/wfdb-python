@@ -98,3 +98,30 @@ def test_numpy_integer_bounds_do_not_overflow(bound_dtype, lb, ub, signal_dtype)
     with np.errstate(over="raise", divide="raise", invalid="raise"):
         result = processing.normalize_bound(sig, bound_dtype(lb), bound_dtype(ub))
     np.testing.assert_array_equal(result, [float(lb), float(ub)])
+
+
+def test_full_range_int64_is_within_integer_bounds():
+    """Rounding used to give 100.00000000000001 for an upper bound of 100."""
+    info = np.iinfo(np.int64)
+    sig = np.array([info.min + 12345, 0, info.max - 6789], dtype=np.int64)
+    result = processing.normalize_bound(sig, -1, 100)
+    assert result.min() == -1 and result.max() == 100
+
+
+@pytest.mark.parametrize(
+    "dtype", [np.int8, np.int16, np.int32, np.int64, np.uint16, np.float64]
+)
+@pytest.mark.parametrize(("lb", "ub"), [(0.1, 7.3), (-0.7, 3.0), (7.3, -5.0)])
+def test_results_are_within_the_bounds(dtype, lb, ub):
+    """Rounding never puts a value past a bound, however they are ordered."""
+    rng = np.random.default_rng(0)
+    for _ in range(200):
+        if np.issubdtype(dtype, np.integer):
+            info = np.iinfo(dtype)
+            sig = rng.integers(info.min, info.max, 50, dtype=dtype, endpoint=True)
+        else:
+            sig = rng.normal(0, 10 ** rng.uniform(-3, 6), 50)
+        result = processing.normalize_bound(sig, lb, ub)
+        assert min(lb, ub) <= result.min() and result.max() <= max(lb, ub)
+        assert result.min() == pytest.approx(min(lb, ub))
+        assert result.max() == pytest.approx(max(lb, ub))

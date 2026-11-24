@@ -170,7 +170,7 @@ def normalize_bound(sig, lb=0, ub=1):
 
     Integer signals are shifted by their minimum before conversion to floating
     point, so small differences are retained even when the samples have a
-    large offset.
+    large offset. The result is always within the bounds.
 
     Parameters
     ----------
@@ -198,19 +198,18 @@ def normalize_bound(sig, lb=0, ub=1):
     if isinstance(min_v, np.integer) and isinstance(max_v, np.integer):
         min_v, max_v = int(min_v), int(max_v)
         coef = (ub - lb) / (max_v - min_v)
-        values = np.asanyarray(sig)
-        if values.dtype.itemsize <= np.dtype(np.uint64).itemsize:
-            # Unsigned subtraction wraps to the exact nonnegative distance
-            # from the minimum, even when the input is signed int64.
-            shifted = values.astype(np.uint64, copy=False) - np.uint64(
-                min_v % (1 << 64)
-            )
-        else:
-            shifted = values.astype(object) - min_v
-        return shifted.astype(np.float64) * coef + lb
-    mid_v = max_v - (max_v - min_v) / 2
-    coef = (ub - lb) / (max_v - min_v)
-    return np.multiply(sig, coef) - (mid_v * coef) + mid
+        # Unsigned subtraction wraps to the exact nonnegative distance from
+        # the minimum, for every integer dtype (even signed int64)
+        shifted = np.asanyarray(sig).astype(np.uint64, copy=False) - np.uint64(
+            min_v % (1 << 64)
+        )
+        result = shifted.astype(np.float64) * coef + lb
+    else:
+        mid_v = max_v - (max_v - min_v) / 2
+        coef = (ub - lb) / (max_v - min_v)
+        result = np.multiply(sig, coef) - (mid_v * coef) + mid
+    # Rounding can put a value just past a bound, so keep it within them
+    return np.clip(result, min(lb, ub), max(lb, ub))
 
 
 def smooth(sig, window_size):
