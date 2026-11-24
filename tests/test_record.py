@@ -636,7 +636,8 @@ class TestRecord:
         np.testing.assert_array_equal(record_write.d_signal, expected_d_signal)
         assert record.d_signal is None
 
-    def test_wrsamp_expanded_physical_only_record(self, temp_path):
+    def test_wrsamp_expanded_physical_only_record(self, tmp_path):
+        # Its own directory: the record shares its signal file name with others
         record = wfdb.rdrecord("sample-data/test01_00s_frame", smooth_frames=False)
         expected_e_d_signal = wfdb.rdrecord(
             "sample-data/test01_00s_frame",
@@ -646,9 +647,9 @@ class TestRecord:
 
         assert record.e_d_signal is None
 
-        record.wrsamp(write_dir=temp_path, expanded=True)
+        record.wrsamp(write_dir=str(tmp_path), expanded=True)
         record_write = wfdb.rdrecord(
-            os.path.join(temp_path, "test01_00s_frame"),
+            os.path.join(tmp_path, "test01_00s_frame"),
             smooth_frames=False,
             physical=False,
         )
@@ -765,12 +766,13 @@ class TestRecord:
 
     # -------------- 4. Skew and multiple samples/frame -------------- #
 
-    def test_4a(self, temp_path):
+    def test_4a(self, tmp_path):
         """Format 16, multi-samples per frame, skew, digital.
 
         Target file created with:
             rdsamp -r sample-data/test01_00s_skewframe | cut -f 2- > record-4a
         """
+        # Its own directory: the record shares its signal file name with others
         record = wfdb.rdrecord("sample-data/test01_00s_skewframe", physical=False)
         sig = record.d_signal
         # The WFDB library rdsamp does not return the final N samples for all
@@ -788,10 +790,10 @@ class TestRecord:
             smooth_frames=False,
             ignore_skew=True,
         )
-        record_no_skew.wrsamp(write_dir=temp_path, expanded=True)
+        record_no_skew.wrsamp(write_dir=str(tmp_path), expanded=True)
         # Read the written record
         record_write = wfdb.rdrecord(
-            os.path.join(temp_path, "test01_00s_skewframe"),
+            os.path.join(tmp_path, "test01_00s_skewframe"),
             physical=False,
         )
 
@@ -2126,6 +2128,33 @@ class TestWarnAboutReplacingOtherFiles:
         record.wrsamp(write_dir=str(write_dir), wfdb_archive=archive)
 
         assert not [w for w in recwarn if "replaces existing" in str(w.message)]
+
+    def test_renamed_record_whose_name_is_a_prefix_warns(self, tmp_path):
+        """A file named like the new record name can still be another's."""
+        record = wfdb.rdrecord("sample-data/100", physical=False, sampto=100)
+        record.record_name = "100_extra"
+        record.file_name = ["100_extra.dat"] * record.n_sig
+        record.wrsamp(write_dir=str(tmp_path))
+        record.record_name = "100"
+
+        with pytest.warns(
+            UserWarning, match=r"replaces existing signal files 100_extra"
+        ):
+            record.wrsamp(write_dir=str(tmp_path))
+
+    def test_own_header_listing_other_files_warns(self, tmp_path):
+        """Files that this record's existing header does not list are not its."""
+        self.read_100(tmp_path)
+        record = wfdb.rdrecord("sample-data/100", physical=False, sampto=100)
+        record.record_name = "other"
+        record.file_name = ["other.dat"] * record.n_sig
+        record.wrsamp(write_dir=str(tmp_path))
+        record.file_name = ["100.dat"] * record.n_sig
+
+        with pytest.warns(
+            UserWarning, match=r"replaces existing signal files 100\.dat"
+        ):
+            record.wrsamp(write_dir=str(tmp_path))
 
     def test_signal_files_named_with_a_suffix_do_not_warn(self, tmp_path, recwarn):
         """Signal files whose names start with the record name are its own."""

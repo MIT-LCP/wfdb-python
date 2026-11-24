@@ -905,7 +905,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         names of the original, so to save a copy under a new name, change
         both, or the copy's signals are written to the original's files. A
         warning is given when writing would replace an existing signal file
-        whose name does not start with `record_name`.
+        that is not listed by this record's own header in `write_dir`.
 
         Parameters
         ----------
@@ -1003,9 +1003,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     def _warn_about_replacing_other_files(self, write_dir):
         """Warn if writing would replace signal files of another record.
 
-        This is the case when a signal file already exists and its name does
-        not start with the record name, as when a record that was read is
-        given a new `record_name` but keeps the original's `file_name`.
+        A signal file that already exists is this record's own if the
+        record's header in `write_dir` lists it, as when a record is written
+        again. Otherwise it belongs to another record, as when a record that
+        was read is given a new `record_name` but keeps the original's
+        `file_name`.
 
         Parameters
         ----------
@@ -1018,14 +1020,22 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
         """
         record_name = self.record_name or ""
-        others = [
+        existing = [
             file_name
             for file_name in dict.fromkeys(self.file_name)
             if file_name
             and file_name != "~"
-            and not file_name.startswith(record_name)
             and os.path.exists(os.path.join(write_dir, file_name))
         ]
+        if not existing:
+            return
+        try:
+            header = rdheader(os.path.join(write_dir, record_name))
+            own = set(getattr(header, "file_name", None) or [])
+        except Exception:
+            # No readable header of this record, so no file is its own yet
+            own = set()
+        others = [file_name for file_name in existing if file_name not in own]
         if others:
             warnings.warn(
                 f"Writing record {record_name!r} replaces existing signal files "
