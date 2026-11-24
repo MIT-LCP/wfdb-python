@@ -1949,6 +1949,53 @@ def test_invalid_base_time_is_ignored_with_a_warning(tmp_path, time_and_date, wa
         assert record.base_date == datetime.date(2020, 12, 25)
 
 
+class TestExpandedBigEndian:
+    """Reading format 61 (big-endian) signals as expanded digital samples."""
+
+    @pytest.mark.parametrize("return_res", [16, 32, 64])
+    def test_dtype_and_samples(self, return_res):
+        """The samples match the uniform read, in the requested native dtype."""
+        expanded = wfdb.rdrecord(
+            "sample-data/p10143",
+            physical=False,
+            smooth_frames=False,
+            return_res=return_res,
+            sampto=100,
+        )
+        uniform = wfdb.rdrecord(
+            "sample-data/p10143",
+            physical=False,
+            return_res=return_res,
+            sampto=100,
+        )
+        dtype = np.dtype(f"int{return_res}")
+        for ch, signal in enumerate(expanded.e_d_signal):
+            assert signal.dtype == dtype
+            assert signal.dtype.isnative
+            np.testing.assert_array_equal(signal, uniform.d_signal[:, ch])
+
+    def test_lower_dtype_rejected(self):
+        """Samples are not converted to a dtype that cannot hold them."""
+        with pytest.raises(Exception, match="lower dtype"):
+            wfdb.rdrecord(
+                "sample-data/p10143",
+                physical=False,
+                smooth_frames=False,
+                return_res=8,
+                sampto=100,
+            )
+
+    def test_mixed_formats(self):
+        """A record mixing format 61 with other formats can be read."""
+        record = wfdb.rdrecord(
+            "sample-data/binformats",
+            physical=False,
+            smooth_frames=False,
+            return_res=32,
+        )
+        assert all(signal.dtype == np.dtype("int32") for signal in record.e_d_signal)
+
+
 class TestWriteAppliedSkew:
     """Writing a record whose signals were read with their skew applied."""
 
