@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "wfdb"
-version = "5.1.0"
+version = "5.2.0"
 description = "The WFDB Python package: tools for reading, writing, and processing physiologic signals and annotations."
 authors = [{name = "The Laboratory for Computational Physiology", email = "contact@physionet.org"}]
 license = "MIT"

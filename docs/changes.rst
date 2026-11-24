@@ -7,6 +7,152 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.2.0 (Nov 2026)
+------------------------
+
+This release changes ``rdann`` and ``Annotation.apply_range`` to stop before
+``sampto``, as ``rdrecord`` and ``rdsamp`` do, so an annotation exactly at
+``sampto`` is no longer included (pass ``sampto + 1`` for the old result).
+``get_dbs`` works again after a change on PhysioNet, ``pn_dir`` reads record
+names that include folders, and ``read_edf``, ``rdedfann`` and ``read_wav``
+read ``physionet://`` and other URIs. Headers with a base time or date in
+another form can now be read, multi-segment records are no longer left partly
+written after an error, and ``wrsamp`` warns before replacing another record's
+signal files. ``processing.bxb`` is a new development feature that compares
+annotation files as the WFDB ``bxb`` program does. See the entries below for
+details.
+
+**Beat-by-beat comparison of annotations, as WFDB bxb does (development feature)**
+  ``processing.bxb`` and ``processing.bxb_record`` compare a test annotation
+  file with a reference annotation file beat by beat, as the ``bxb`` program
+  of the WFDB Software Package does for the ANSI/AAMI EC57 and EC38
+  standards. The result holds the comparison matrix and the QRS, VEB and SVEB
+  sensitivity and positive predictivity, RMS RR interval error and shutdown
+  statistics, and gives the standard and line-format reports of ``bxb``.
+  ``processing.sumstats`` combines the results of several records, as WFDB
+  ``sumstats`` does. These functions were written from the standards and the
+  documentation of ``bxb``, and by comparing results with it, without
+  reference to its source code. They are a development feature: their
+  interface may change, and their results should be checked against ``bxb``
+  before they are used for reporting.
+
+**Read EDF and WAV files from physionet:// and other URIs**
+  ``read_edf``, ``rdedfann`` and ``read_wav`` now take a cloud URI as
+  ``record_name``, such as ``physionet://chbmit/1.0.0/chb01/chb01_01.edf``,
+  ``s3://`` or ``memory://``, as ``rdrecord`` and ``rdann`` do, and read the
+  file without saving a copy. All of the functions that take ``pn_dir`` now
+  also take a ``physionet://`` URI. Output files written by ``wfdb_to_edf``
+  and ``wfdb_to_wav`` for a URI are named after the record, on every platform.
+
+**Correct unsorted peak guesses near the signal start**
+  ``correct_peaks`` now applies its boundary adjustment to every near-start
+  guess, including those listed after a later guess, while preserving input
+  order.
+
+**Make docstring examples runnable outside the source tree**
+  Replace repository-only sample paths with published PhysioNet records or
+  self-contained data, correct API calls and doctest prompts, and show printed
+  output accurately.
+
+**Read format 61 signals with smooth_frames=False**
+  ``rdrecord`` with ``physical=False`` and ``smooth_frames=False`` failed with ``ValueError: invalid literal for int()`` for records with format 61 signals, which are stored in big-endian byte order. These signals are now returned with the requested native dtype.
+
+**Fix peak detection for integer signals**
+  ``processing.find_peaks`` now compares integer samples without subtracting
+  them first, avoiding overflow for signed samples and errors for unsigned
+  samples. This also preserves differences between large 64-bit integers.
+
+**Fix get_dbs, which PhysioNet no longer supported**
+  ``get_dbs`` failed with a 404 error, because PhysioNet has removed the
+  ``/rest/database-list/`` page that it read. It now lists databases through
+  PhysioNet's API, using the ``physionet`` package, and returns the slug and
+  title of the latest version of each database, as before.
+
+**Read headers whose base time or date is in another form**
+  ``rdheader``, ``rdrecord`` and ``rdsamp`` raised a ``ValueError`` for a
+  header whose base date is not a DD/MM/YYYY date (such as ``25.12.2020``)
+  or whose base time is a year, so the record could not be read at all, and
+  read a time and date in another order (such as ``05-Feb-2020 11:39:16``,
+  in the 2020 and 2021 Challenges) as a wrong time. As in the WFDB library, a
+  base time or date that is not valid is now ignored with a warning, and the
+  rest of the record is read as usual.
+
+**Leave no partly written multi-segment record after an error**
+  ``MultiRecord.wrsamp`` wrote the main header and the earlier segments
+  before finding that a later segment could not be written, which left a
+  partly written record. It now writes the files into a temporary folder in
+  ``write_dir``, and moves them into place only once every segment has been
+  written. Files that are replaced keep their permissions, and if a move
+  fails, the files already moved are removed and the replaced files are
+  restored. The files are moved one at a time, so a program reading them
+  meanwhile, or a crash while they are moved, can still see a mix of files.
+  A segment without the signal to write, or without
+  ``samps_per_frame`` when writing expanded signals, now raises a
+  ``ValueError`` that names the segment, instead of a ``TypeError``. A
+  relative ``wfdb_archive`` path is now relative to ``write_dir``, as it is
+  for ``Record.wrsamp``.
+
+**Normalize constant signals to the middle of the bounds**
+  ``normalize_bound`` raised a ``ZeroDivisionError`` for a constant integer
+  signal, and returned NaN (with warnings) for a constant float signal. Both
+  are now normalized to the middle of the bounds.
+
+**Avoid integer overflow when normalizing signal bounds**
+  ``normalize_bound`` now computes the range of integer signals without
+  wrapping, so large signed ranges map to the requested bounds.
+
+**Avoid overflow with NumPy integer normalization bounds**
+  ``normalize_bound`` now widens NumPy integer bounds before subtracting them,
+  preventing overflow when their difference exceeds the bounds' dtype.
+
+**Preserve small differences in large integer signals when normalizing**
+  ``normalize_bound`` now subtracts an integer signal's minimum exactly before
+  scaling, so large offsets do not lose small differences, and the results are
+  always within the requested bounds.
+
+**Set axis labels in plot_wfdb, and fix xlabel in plot_items**
+  ``plot_wfdb`` takes ``xlabel`` and ``ylabel`` arguments, lists with a label
+  for each channel, to replace the default labels (the time unit, and the
+  signal names and units). ``plot_items`` failed with an ``AttributeError``
+  whenever ``xlabel`` was given, and now sets the labels.
+
+**Read PhysioNet records whose names include folders**
+  ``rdrecord``, ``rdsamp``, ``rdheader`` and ``rdann`` with ``pn_dir`` now
+  read a record name that starts with folders, such as
+  ``rdrecord("files/p1000/p10000032/s40689238/40689238",
+  pn_dir="mimic-iv-ecg/1.0")``, from those folders of the database. They used
+  to drop the folders and look for the record at the top of the database,
+  which failed with a "file not found" error.
+
+**rdann and Annotation.apply_range stop before sampto, as rdrecord does**
+  ``rdann`` and ``Annotation.apply_range`` used to include an annotation at
+  sample ``sampto``, while ``rdrecord`` and ``rdsamp`` return the samples
+  before it. They now return the annotations before ``sampto``, so that the
+  annotations read with a signal's range are within that signal, and can index
+  it when read with ``shift_samps=True``. To include an annotation at a given
+  sample, pass one more than that sample as ``sampto``.
+
+**Warn when a renamed record would replace another record's signal files**
+  ``Record.wrsamp`` names the header after ``record_name`` and the signal
+  files by ``file_name``, so writing a record that was read under a new
+  ``record_name``, next to the original, replaced the original's signal
+  files without any sign. It now warns when writing would replace an existing
+  signal file that the record's own header in ``write_dir`` does not list. The
+  documentation of ``wrsamp`` and ``file_name`` now explains this, with an
+  example of saving a copy under a new name.
+
+**Write custom annotation symbols of more than one character**
+  ``wrann`` and ``Annotation.wrann`` failed with a ``TypeError`` when a custom
+  label's symbol had more than one character, and symbols were limited to 3
+  characters. Symbols may now have any length (and still no whitespace), as
+  in the WFDB library, and ``rdann`` reads them. A custom label is stored as
+  a note of at most 255 Latin-1 characters ("<number> <symbol>
+  <description>"), and ``wrann`` now raises a ``ValueError`` for a longer one,
+  which it used to write as a file that could not be read.
+
+**Do not apply skew twice to rewritten records**
+  ``Record.wrsamp`` no longer writes the skew of a record whose signals were read with the skew applied. The samples were written already aligned but the header kept the skew, so reading the new record shifted those signals a second time. ``wfdb_to_wav`` with ``write_header=True`` had the same problem. The ``skew`` attribute is unchanged, and records read with ``ignore_skew=True`` are still written with their skew.
+
 Version 5.1.0 (Nov 2026)
 ------------------------
 
