@@ -2192,11 +2192,20 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     return record
 
 
+def _copy_record_header(record):
+    """Copy a parsed header and its mutable metadata lists."""
+    copied = copy.copy(record)
+    for field, value in vars(record).items():
+        if isinstance(value, list):
+            setattr(copied, field, value.copy())
+    return copied
+
+
 def _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache):
     """Read a header, or copy an iterator's cached header metadata."""
     key = (os.fspath(record_name), pn_dir)
     if header_cache is not None and key in header_cache:
-        return copy.deepcopy(header_cache[key])
+        return _copy_record_header(header_cache[key])
 
     if wfdb_archive is not None:
         segment_name = None if is_archive_path(record_name) else record_name
@@ -2205,7 +2214,7 @@ def _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache):
         record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
 
     if header_cache is not None:
-        header_cache[key] = copy.deepcopy(record)
+        header_cache[key] = _copy_record_header(record)
     return record
 
 
