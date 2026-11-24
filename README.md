@@ -95,7 +95,9 @@ to write annotations.
 WFDB-Python follows the open
 [WFDB specifications](https://github.com/wfdb/wfdb-spec/). It is inspired by
 the original [WFDB Software Package](https://physionet.org/content/wfdb/),
-but its Python API is documented separately.
+but its Python API is documented separately. The
+[WFDB project website](https://wfdb.io/) introduces the format and the
+other WFDB implementations.
 
 ## Documentation and help
 

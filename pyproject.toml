@@ -27,6 +27,7 @@ dependencies = [
 homepage = "https://github.com/MIT-LCP/wfdb-python/"
 repository = "https://github.com/MIT-LCP/wfdb-python/"
 documentation = "https://wfdb.readthedocs.io/"
+wfdb-project = "https://wfdb.io/"
 issues = "https://github.com/MIT-LCP/wfdb-python/issues"
 changelog = "https://wfdb.readthedocs.io/en/latest/changes.html"
 
