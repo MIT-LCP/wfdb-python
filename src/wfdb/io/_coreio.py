@@ -1,3 +1,4 @@
+import io
 import os
 import posixpath
 
@@ -61,6 +62,30 @@ def _split_path(record_name):
         dir_name, base_name = posixpath.split(location)
         return protocol + separator + dir_name, base_name
     return os.path.split(path)
+
+
+def _open_input_file(path):
+    """Open a local file, or a file at a cloud URI, to read in binary mode.
+
+    A file at a cloud URI, such as a `physionet://` URI, is read into memory,
+    so that it can be read, sought and sized like a local file.
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        The path of a local file, or a cloud URI.
+
+    Returns
+    -------
+    file
+        The open file.
+
+    """
+    path = os.fspath(path)
+    if any(path.startswith(proto) for proto in CLOUD_PROTOCOLS):
+        with _fsspec_open(path, "rb") as f:
+            return io.BytesIO(f.read())
+    return open(path, "rb")
 
 
 def _join_path(dir_name, file_name):

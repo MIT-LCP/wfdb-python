@@ -5,6 +5,7 @@ import struct
 import numpy as np
 
 from wfdb.io import Record, download
+from wfdb.io._coreio import _open_input_file, _split_path
 from wfdb.io._signal import _checksums, _digi_nan
 from wfdb.io.record import rdrecord
 
@@ -67,7 +68,7 @@ def wfdb_to_wav(
         physical=False,
         smooth_frames=True,
     )
-    record_name_out = record_name.split(os.sep)[-1].replace("-", "_")
+    record_name_out = _split_path(record_name)[1].replace("-", "_")
 
     # Get information needed for the header and format chunks
     num_samps = record.sig_len
@@ -159,7 +160,10 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     Parameters
     ----------
     record_name : str
-        The name of the input .wav record to be read.
+        The path of the input .wav file to be read, including its
+        extension. This can also be a cloud URI, such as
+        'physionet://<database>/<version>/<file>.wav' or 's3://...', which
+        is read without saving a copy of the file.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -232,16 +236,16 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         with download._open_pn_file(pn_dir, record_name) as f:
             open(record_name, "wb").write(f.read())
 
-    wave_file = open(record_name, mode="rb")
-    record_name_out = (
-        record_name.split(os.sep)[-1].replace("-", "_").replace(".wav", "")
-    )
+    wave_file = _open_input_file(record_name)
+    file_size = wave_file.seek(0, os.SEEK_END)
+    wave_file.seek(0)
+    record_name_out = _split_path(record_name)[1].replace("-", "_").replace(".wav", "")
 
     chunk_ID = "".join([s.decode() for s in struct.unpack(">4s", wave_file.read(4))])
     if chunk_ID != "RIFF":
         raise Exception(f"{record_name} is not a .wav-format file")
 
-    correct_chunk_size = os.path.getsize(record_name) - 8
+    correct_chunk_size = file_size - 8
     chunk_size = struct.unpack("<I", wave_file.read(4))[0]
     if chunk_size != correct_chunk_size:
         raise Exception(
@@ -298,7 +302,7 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
     if subchunk2_ID != "data":
         raise Exception("Format chunk missing or corrupt")
 
-    correct_subchunk2_size = os.path.getsize(record_name) - 44
+    correct_subchunk2_size = file_size - 44
     subchunk2_size = struct.unpack("<I", wave_file.read(4))[0]
     if subchunk2_size != correct_subchunk2_size:
         raise Exception(
@@ -306,8 +310,12 @@ def read_wav(record_name, pn_dir=None, delete_file=True, record_only=False):
         )
     sig_len = int(subchunk2_size / block_align)
 
+    data = wave_file.read()
+    wave_file.close()
     sig_data = (
-        np.fromfile(wave_file, dtype=np.int16).reshape((-1, num_channels))
+        np.frombuffer(data, dtype=np.int16, count=len(data) // 2).reshape(
+            (-1, num_channels)
+        )
         / (2 * adc_res)
     ).astype(np.int16)
 

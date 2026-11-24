@@ -521,3 +521,62 @@ def test_get_dbs_from_physionet():
     dbs = wfdb.get_dbs()
     assert ["mitdb", "MIT-BIH Arrhythmia Database"] in dbs
     assert len({slug for slug, title in dbs}) == len(dbs)
+
+
+@pytest.mark.parametrize("protocol", ["physionet", "memory"])
+def test_converters_read_uris(
+    physionet_cache, offline, tmp_path, monkeypatch, protocol
+):
+    """read_edf, read_wav and rdedfann read URIs, without saving a copy."""
+    from wfdb.io.convert.edf import rdedfann, read_edf
+    from wfdb.io.convert.wav import read_wav
+
+    names = ["n16.edf", "SC4001E0-PSG.wav", "test_edfann.edf"]
+    if protocol == "physionet":
+        cache_sample_files(physionet_cache, "demo", names)
+        base = "physionet://demo/1.0"
+    else:
+        memory = fsspec.filesystem("memory")
+        for name in names:
+            memory.pipe(f"/converters/{name}", (SAMPLE_DATA / name).read_bytes())
+        base = "memory://converters"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+    local = Path(__file__).parent.parent / SAMPLE_DATA
+
+    edf = read_edf(f"{base}/n16.edf")
+    wav = read_wav(f"{base}/SC4001E0-PSG.wav")
+    ann = rdedfann(f"{base}/test_edfann.edf")
+
+    expected = read_edf(str(local / "n16.edf"))
+    assert edf.record_name == expected.record_name == "n16"
+    np.testing.assert_array_equal(edf.p_signal, expected.p_signal)
+    expected = read_wav(str(local / "SC4001E0-PSG.wav"))
+    assert wav.record_name == expected.record_name
+    np.testing.assert_array_equal(wav.d_signal, expected.d_signal)
+    assert ann == rdedfann(str(local / "test_edfann.edf"))
+    assert list(workdir.iterdir()) == []
+    if protocol == "memory":
+        fsspec.filesystem("memory").rm("/converters", recursive=True)
+
+
+def test_record_converters_read_physionet_uris(
+    physionet_cache, offline, tmp_path, monkeypatch
+):
+    """Functions that read a record with rdrecord also take physionet:// URIs."""
+    from wfdb.io.convert.matlab import wfdb_to_mat
+    from wfdb.processing import sigavg
+
+    cache_sample_files(physionet_cache, "demo", ["100.hea", "100.dat", "100.atr"])
+    local = Path(__file__).parent.parent / SAMPLE_DATA / "100"
+    workdir = tmp_path / "workdir"
+    workdir.mkdir()
+    monkeypatch.chdir(workdir)
+
+    wfdb_to_mat("physionet://demo/1.0/100", sampto=1000)
+    averaged = sigavg("physionet://demo/1.0/100", "atr", stop_range=1, return_df=True)
+
+    assert sorted(p.name for p in workdir.iterdir()) == ["100m.hea", "100m.mat"]
+    expected = sigavg(str(local), "atr", stop_range=1, return_df=True)
+    assert averaged.equals(expected)
