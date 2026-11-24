@@ -446,22 +446,26 @@ def read_edf(
                 mean_digital = frames.mean(axis=1)
                 sig_data[:, i] = (mean_digital - edf_baseline[i]) / adc_gain_all[i]
 
-    # Choose the shared WFDB format from the values wrsamp will write. Format
-    # 16 reserves -32768 for missing samples, and baseline rounding can also
-    # push a converted sample beyond its signed 16-bit range.
-    written_min = np.rint(sig_data.min(axis=0) * adc_gain + baseline)
-    written_max = np.rint(sig_data.max(axis=0) * adc_gain + baseline)
-    needs_32 = np.any((written_min <= -32768) | (written_max > 32767))
-    fmt = n_sig * (["32"] if needs_32 else ["16"])
+    # Use the same gain, baseline, and rounding as Record.adc() so the
+    # metadata describes the digital samples that wrsamp() will write.
+    # Convert one channel at a time to limit peak memory for large EDF files.
+    written_min = []
+    written_max = []
+    init_value = []
+    checksum = []
+    for i, channel in enumerate(sig_data.T):
+        digital = np.rint(channel * adc_gain[i] + baseline[i]).astype("int64")
+        written_min.append(digital.min())
+        written_max.append(digital.max())
+        init_value.append(int(digital[0]))
+        checksum.append(_checksum(digital))
 
-    # A high-rate channel is averaged into each WFDB frame. Its first digital
-    # sample may therefore differ from the value represented by p_signal[0].
-    init_value = np.rint(sig_data[0] * adc_gain + baseline).astype("int64").tolist()
-    # Sum each channel separately: sig_data holds floats, so the order of the
-    # additions can change the result
-    checksum = [
-        _checksum(channel) for channel in np.transpose(sig_data)
-    ]  # not all values correct?
+    # Format 16 reserves -32768 for missing samples, and baseline rounding
+    # can push a converted sample beyond its signed 16-bit range.
+    needs_32 = any(
+        lo <= -32768 or hi > 32767 for lo, hi in zip(written_min, written_max)
+    )
+    fmt = n_sig * (["32"] if needs_32 else ["16"])
 
     edf_file.close()
 
