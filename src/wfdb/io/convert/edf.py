@@ -735,7 +735,8 @@ def wfdb_to_edf(
     # up so that we don't lose any frames, even if the number of frames is not
     # an exact multiple of frames_per_block
     total_frames = record.sig_len
-    num_blocks = int(total_frames / int(frames_per_block)) + 1
+    block_frames = int(frames_per_block)
+    num_blocks = (total_frames + block_frames - 1) // block_frames
 
     digital_min = []
     digital_max = []
