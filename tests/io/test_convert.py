@@ -10,7 +10,7 @@ from scipy.io import loadmat
 from wfdb.io.annotation import rdann
 from wfdb.io.convert import wfdb_to_wav
 from wfdb.io.convert.csv import csv2ann, csv_to_wfdb
-from wfdb.io.convert.edf import rdedfann, read_edf
+from wfdb.io.convert.edf import rdedfann, read_edf, wfdb_to_edf
 from wfdb.io.convert.matlab import wfdb_to_mat
 from wfdb.io.record import Record, rdheader, rdrecord, wrsamp
 
@@ -181,6 +181,59 @@ class TestEdfToWfdb:
         record = read_edf(str(edf_file))
         np.testing.assert_allclose(record.p_signal, 0.1)
         assert record.checksum == [1, 1]
+
+    def test_edf_mixed_rate_scaling(self, tmp_path):
+        """Average high-rate samples before applying the physical scale."""
+        n_sig = 2
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            (str(256 * (n_sig + 1)), 8),
+            ("", 44),
+            ("2", 8),
+            ("1", 8),
+            (str(n_sig), 4),
+        ]
+        signal_fields = [
+            (["fast", "slow"], 16),
+            (["", ""], 80),
+            (["mV", "mV"], 8),
+            (["0", "0"], 8),
+            (["50", "50"], 8),
+            (["0", "0"], 8),
+            (["100", "100"], 8),
+            (["", ""], 80),
+            (["2", "1"], 8),
+            (["", ""], 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for values, width in signal_fields:
+            header += "".join(value.ljust(width) for value in values)
+        edf_file = tmp_path / "mixed.edf"
+        samples = np.array([2, 4, 10, 6, 8, 20], dtype="<i2")
+        edf_file.write_bytes(header.encode() + samples.tobytes())
+
+        record = read_edf(str(edf_file))
+        assert record.samps_per_frame == [2, 1]
+        np.testing.assert_allclose(record.p_signal, [[1, 4.5], [3, 9.5]])
+
+    def test_wfdb_to_edf_interleaves_blocks(self, tmp_path):
+        """Write each channel's samples once per EDF data block."""
+        output = tmp_path / "copy.edf"
+        wfdb_to_edf("sample-data/100", sampto=3601, output_filename=str(output))
+        digital = rdrecord("sample-data/100", sampto=3601).adc()
+        first_block = np.concatenate((digital[:3600, 0], digital[:3600, 1]))
+        last_block = digital[3600, :]
+        raw = np.frombuffer(output.read_bytes()[256 * 3 :], dtype="<i2")
+
+        np.testing.assert_array_equal(
+            raw[: 2 * 3601], np.concatenate((first_block, last_block))
+        )
+        np.testing.assert_array_equal(raw[2 * 3601 :], -32768)
+        assert raw.size == 2 * 2 * 3600
 
 
 class TestCsvToWfdb:
