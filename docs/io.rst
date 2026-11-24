@@ -14,7 +14,8 @@ WFDB Records
 
 Use ``iter_dataframes`` to process long recordings without loading the whole
 signal into memory. Each chunk is a pandas DataFrame with the same columns
-and absolute time index as a full-record DataFrame:
+and absolute time index as a full-record DataFrame. For remote records, use
+larger chunks to reduce repeated header requests:
 
 .. code-block:: python
 

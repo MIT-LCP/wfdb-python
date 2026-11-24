@@ -103,7 +103,14 @@ def test_archive_chunks(tmp_path):
 def test_invalid_chunk_size(chunk_size):
     error = TypeError if isinstance(chunk_size, (float, bool)) else ValueError
     with pytest.raises(error):
-        next(wfdb.iter_dataframes("sample-data/100", chunk_size))
+        wfdb.iter_dataframes("sample-data/100", chunk_size)
+
+
+def test_invalid_range_and_missing_record_raise_at_call():
+    with pytest.raises(ValueError, match="sampto"):
+        wfdb.iter_dataframes("sample-data/100", 10, sampfrom=20, sampto=10)
+    with pytest.raises(FileNotFoundError):
+        wfdb.iter_dataframes("sample-data/does-not-exist", 10)
 
 
 def test_read_is_lazy(monkeypatch):

@@ -2739,11 +2739,13 @@ def iter_dataframes(
 ):
     """Yield successive WFDB signal windows as pandas DataFrames.
 
-    Only one window is read at a time. Each frame's index uses its absolute
+    The header is read when this function is called; signal windows are read
+    during iteration, one at a time. Each frame's index uses its absolute
     position in the record, so consecutive chunks have a continuous time
     index. Signals with multiple samples per frame are smoothed as in the
     default `rdrecord` behavior. Multi-segment records are merged into a
-    single DataFrame for each window.
+    single DataFrame for each window. Remote record headers are read again
+    for each chunk, so use larger chunks to reduce requests.
 
     Parameters
     ----------
@@ -2769,18 +2771,12 @@ def iter_dataframes(
     channel_names : list, optional
         Channel names to read, taking precedence over `channels`.
 
-    Yields
-    ------
-    pandas.DataFrame
-        Signal values for one window. The index is a DatetimeIndex if the
-        record has a base date and time, otherwise a TimedeltaIndex.
-
-    Examples
-    --------
-    >>> import wfdb
-    >>> frames = wfdb.iter_dataframes('100', 3600, pn_dir='mitdb')
-    >>> for frame in frames:  # doctest: +SKIP
-    ...     print(frame.shape)
+    Returns
+    -------
+    iterator of pandas.DataFrame
+        Signal values for successive windows. Each index is a
+        DatetimeIndex if the record has a base date and time, otherwise a
+        TimedeltaIndex.
 
     """
     if isinstance(chunk_size, bool):
@@ -2811,22 +2807,28 @@ def iter_dataframes(
             "sampto must be greater than sampfrom and no more than sig_len"
         )
 
-    for first in range(start, stop, chunk_size):
-        last = min(first + chunk_size, stop)
-        frame = rdrecord(
-            record_name,
-            sampfrom=first,
-            sampto=last,
-            channels=channels,
-            physical=physical,
-            pn_dir=pn_dir,
-            ignore_skew=ignore_skew,
-            return_res=return_res,
-            channel_names=channel_names,
-        ).to_dataframe()
-        frame.index = _sample_time_index(header.fs, first, last, header.base_datetime)
-        yield frame
-        del frame
+    def chunks():
+        for first in range(start, stop, chunk_size):
+            last = min(first + chunk_size, stop)
+            frame = rdrecord(
+                record_name,
+                sampfrom=first,
+                sampto=last,
+                channels=channels,
+                physical=physical,
+                pn_dir=pn_dir,
+                ignore_skew=ignore_skew,
+                return_res=return_res,
+                channel_names=channel_names,
+            ).to_dataframe()
+            frame.index = _sample_time_index(
+                header.fs, first, last, header.base_datetime
+            )
+            yield frame
+            # Rebinding happens after the next read; release this chunk first.
+            del frame
+
+    return chunks()
 
 
 def rdsamp(
