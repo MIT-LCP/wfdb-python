@@ -41,6 +41,12 @@ def read_edf(
     performed by `read_edf` is no longer necessary. However, one can still use
     this function to produce WFDB-compatible files from EDF files if desired.
 
+    If an EDF channel has an inverted physical range, its WFDB digital scale
+    is reflected so the returned record has a positive gain. Physical signals
+    are unchanged. The shared WFDB signal file uses format 32 if any converted
+    sample would be invalid in format 16. EDF's -32768 is a valid sample, but
+    WFDB format 16 reserves it for missing samples.
+
     Parameters
     ----------
     record_name : str
@@ -342,16 +348,20 @@ def read_edf(
     base_time = datetime.time(start_hour, start_minute, start_second)
     base_date = datetime.date(start_year, start_month, start_day)
     file_name = n_sig * [record_name_out + ".dat"]
-    fmt = n_sig * ["16"]
     skew = n_sig * [None]
     byte_offset = n_sig * [None]
     adc_gain_all = (digital_max - digital_min) / (physical_max - physical_min)
-    adc_gain = [float(format(a, ".12g")) for a in adc_gain_all]
+    inverted = adc_gain_all < 0
+    adc_gain = [float(format(abs(a), ".12g")) for a in adc_gain_all]
     # EDF permits a fractional offset, whereas WFDB stores an integer baseline.
     # Use the exact offset to decode physical samples and round only the
-    # baseline stored in the Record metadata.
+    # baseline stored in the Record metadata. Reflect inverted channels around
+    # the midpoint of their digital range to keep every sample within 16 bits.
     edf_baseline = digital_max - physical_max * adc_gain_all
-    baseline = np.rint(edf_baseline).astype("int64").tolist()
+    reflected_baseline = np.where(
+        inverted, digital_min + digital_max - edf_baseline, edf_baseline
+    )
+    baseline = np.rint(reflected_baseline).astype("int64").tolist()
 
     units = n_sig * [""]
     for i, f in enumerate(physical_dims):
@@ -424,7 +434,17 @@ def read_edf(
                 mean_digital = frames.mean(axis=1)
                 sig_data[:, i] = (mean_digital - edf_baseline[i]) / adc_gain_all[i]
 
-    init_value = [int(s[0, 0]) for s in temp_all_sigs]
+    # Choose the shared WFDB format from the values wrsamp will write. Format
+    # 16 reserves -32768 for missing samples, and baseline rounding can also
+    # push a converted sample beyond its signed 16-bit range.
+    written_min = np.rint(sig_data.min(axis=0) * adc_gain + baseline)
+    written_max = np.rint(sig_data.max(axis=0) * adc_gain + baseline)
+    needs_32 = np.any((written_min <= -32768) | (written_max > 32767))
+    fmt = n_sig * (["32"] if needs_32 else ["16"])
+
+    # A high-rate channel is averaged into each WFDB frame. Its first digital
+    # sample may therefore differ from the value represented by p_signal[0].
+    init_value = np.rint(sig_data[0] * adc_gain + baseline).astype("int64").tolist()
     # Sum each channel separately: sig_data holds floats, so the order of the
     # additions can change the result
     checksum = [
@@ -450,14 +470,19 @@ def read_edf(
         e_p_signal=None,
         e_d_signal=None,
         file_name=n_sig * [record_name_out + ".dat"],
-        fmt=n_sig * ["16"],
+        fmt=fmt,
         skew=n_sig * [None],
         byte_offset=n_sig * [None],
         adc_gain=adc_gain,
         baseline=baseline,
         units=units,
         adc_res=[int(math.log2(f)) for f in (digital_max - digital_min)],
-        adc_zero=[int(f) for f in ((digital_max + 1 + digital_min) / 2)],
+        adc_zero=[
+            int(digital_min[i] + digital_max[i] - adc_zero[i])
+            if inverted[i]
+            else adc_zero[i]
+            for i in range(n_sig)
+        ],
         init_value=init_value,
         checksum=checksum,
         block_size=n_sig * [0],
