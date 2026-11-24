@@ -4,6 +4,8 @@ import multiprocessing.dummy
 import os
 import posixpath
 import re
+import shutil
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -1053,6 +1055,50 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         return pd.DataFrame(data=data, index=index, columns=self.sig_name)
 
 
+def _move_files_into_place(source_dir, target_dir):
+    """Move every file in a directory into another directory, all or none.
+
+    A file that replaces an existing file gets that file's permissions. If a
+    move fails, the files that were already moved are removed and the files
+    they replaced are restored, before the error is raised again, so that
+    `target_dir` is left as it was.
+
+    Parameters
+    ----------
+    source_dir : str
+        The directory of the files to move. The files that are replaced are
+        kept in a folder in it until all the files have been moved.
+    target_dir : str
+        The directory to move the files into, on the same file system.
+
+    Returns
+    -------
+    N/A
+
+    """
+    names = sorted(os.listdir(source_dir))
+    replaced_dir = os.path.join(source_dir, ".replaced")
+    os.mkdir(replaced_dir)
+    moved = []
+    replaced = []
+    try:
+        for name in names:
+            new_file = os.path.join(source_dir, name)
+            target = os.path.join(target_dir, name)
+            if os.path.lexists(target):
+                shutil.copymode(target, new_file)
+                os.replace(target, os.path.join(replaced_dir, name))
+                replaced.append(name)
+            os.replace(new_file, target)
+            moved.append(name)
+    except BaseException:
+        for name in moved:
+            os.remove(os.path.join(target_dir, name))
+        for name in replaced:
+            os.replace(os.path.join(replaced_dir, name), os.path.join(target_dir, name))
+        raise
+
+
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     """The class representing multi-segment WFDB records.
 
@@ -1182,6 +1228,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write a multi-segment header and the headers and dat files of its segments.
 
+        The files are written into a temporary folder in `write_dir`, and
+        moved into `write_dir` once every segment has been written. If an
+        error occurs, no files are left in `write_dir`, and any files that
+        were being replaced are restored. The files are moved one at a time,
+        so a program reading them meanwhile, or a crash while they are moved,
+        can still see a mix of old and new files.
+
         Parameters
         ----------
         expanded : bool, optional
@@ -1202,22 +1255,90 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
-        # Validate segment cohesion before writing anything.
+        # Validate the segments before writing anything.
         self._check_segment_cohesion()
+        self._check_segment_signals(expanded)
 
-        with archive_for_writing(wfdb_archive) as archive:
-            # Perform field validity and cohesion checks, and write the
-            # header file.
-            self.wrheader(write_dir=write_dir, wfdb_archive=archive)
-            # Perform record validity and cohesion checks, and write the
-            # associated segments. Empty segments ('~') have no files.
-            for seg in self.segments:
-                if seg is not None:
-                    seg.wrsamp(
-                        expanded=expanded,
-                        write_dir=write_dir,
-                        wfdb_archive=archive,
+        if wfdb_archive is not None:
+            # An archive opened from a path is discarded if writing fails
+            with archive_for_writing(wfdb_archive, write_dir) as archive:
+                self._write_segments(expanded, write_dir, archive)
+            return
+
+        # Write the files into a temporary directory first, and move them into
+        # write_dir only once every segment has been written, so that a segment
+        # that cannot be written leaves no partly written record behind.
+        # (in write_dir itself, so that the files can be moved, not copied)
+        with tempfile.TemporaryDirectory(
+            dir=write_dir or os.curdir, prefix=".wfdb-"
+        ) as staging:
+            self._write_segments(expanded, staging, None)
+            _move_files_into_place(staging, write_dir or os.curdir)
+
+    def _write_segments(self, expanded, write_dir, wfdb_archive):
+        """Write the multi-segment header, and the files of each segment.
+
+        Parameters
+        ----------
+        expanded : bool
+            Whether to write each segment's expanded signal.
+        write_dir : str
+            The directory in which to write the files.
+        wfdb_archive : WFDBArchive or None
+            The archive to write the files into, if any.
+
+        Returns
+        -------
+        N/A
+
+        """
+        # Perform field validity and cohesion checks, and write the header file.
+        self.wrheader(write_dir=write_dir, wfdb_archive=wfdb_archive)
+        # Perform record validity and cohesion checks, and write the associated
+        # segments. Empty segments ('~') have no files.
+        for seg in self.segments:
+            if seg is not None:
+                seg.wrsamp(
+                    expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+                )
+
+    def _check_segment_signals(self, expanded):
+        """Check that each segment has the signal that is to be written.
+
+        Parameters
+        ----------
+        expanded : bool
+            Whether each segment's expanded signal is to be written.
+
+        Returns
+        -------
+        N/A
+
+        """
+        for seg_num, segment in enumerate(self.segments):
+            # Empty segments, and the layout header of a variable layout
+            # record, have no signal files
+            if segment is None or (
+                segment.file_name is not None
+                and all(f == "~" for f in segment.file_name)
+            ):
+                continue
+            name = f"Segment {seg_num} ({segment.record_name})"
+            if expanded:
+                if segment.e_d_signal is None and segment.e_p_signal is None:
+                    raise ValueError(
+                        f"{name} has no expanded signal (e_d_signal or e_p_signal) "
+                        "to write with expanded=True"
                     )
+                if segment.samps_per_frame is None:
+                    raise ValueError(
+                        f"{name} has no samps_per_frame, which is needed to "
+                        "write its expanded signal"
+                    )
+            elif segment.d_signal is None and segment.p_signal is None:
+                raise ValueError(
+                    f"{name} has no signal (d_signal or p_signal) to write"
+                )
 
     def _check_segment_cohesion(self):
         """Check the cohesion of the segments field with the other fields.
