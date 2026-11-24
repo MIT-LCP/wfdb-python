@@ -264,6 +264,8 @@ class TestEdfToWfdb:
 
         original = rdrecord("sample-data/100", sampto=3600)
         converted = read_edf(str(output))
+        assert converted.fs == 360
+        assert isinstance(converted.fs, int)
         np.testing.assert_allclose(
             converted.p_signal[:3600], original.p_signal, atol=1e-10
         )
@@ -275,6 +277,7 @@ class TestEdfToWfdb:
 
         record = read_edf(str(output))
         assert record.fs == 15.5
+        assert isinstance(record.fs, float)
         assert record.samps_per_frame == [32, 2, 1, 1, 2]
         assert record.sig_len == 1085
         assert record.p_signal.shape == (1085, 5)

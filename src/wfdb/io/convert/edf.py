@@ -335,6 +335,8 @@ def read_edf(
     # even when the EDF data-record duration implies a fractional frame rate.
     frames_per_block = functools.reduce(math.gcd, samps_per_block)
     fs = frames_per_block / block_duration
+    if fs.is_integer():
+        fs = int(fs)
     samps_per_frame = [s // frames_per_block for s in samps_per_block]
     sig_len = num_blocks * frames_per_block
     base_time = datetime.time(start_hour, start_minute, start_second)
