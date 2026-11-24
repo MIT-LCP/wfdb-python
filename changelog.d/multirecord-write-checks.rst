@@ -1,0 +1,10 @@
+**Write multi-segment records completely or not at all**
+  ``MultiRecord.wrsamp`` wrote the main header and the earlier segments
+  before finding that a later segment could not be written, which left a
+  partly written record. It now writes the files into a temporary folder in
+  ``write_dir``, and moves them into place only once every segment has been
+  written. A segment without the signal to write, or without
+  ``samps_per_frame`` when writing expanded signals, now raises a
+  ``ValueError`` that names the segment, instead of a ``TypeError``. A
+  relative ``wfdb_archive`` path is now relative to ``write_dir``, as it is
+  for ``Record.wrsamp``.

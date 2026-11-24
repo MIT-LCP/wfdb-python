@@ -4,6 +4,7 @@ import multiprocessing.dummy
 import os
 import posixpath
 import re
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -1202,22 +1203,91 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         N/A
 
         """
-        # Validate segment cohesion before writing anything.
+        # Validate the segments before writing anything.
         self._check_segment_cohesion()
+        self._check_segment_signals(expanded)
 
-        with archive_for_writing(wfdb_archive) as archive:
-            # Perform field validity and cohesion checks, and write the
-            # header file.
-            self.wrheader(write_dir=write_dir, wfdb_archive=archive)
-            # Perform record validity and cohesion checks, and write the
-            # associated segments. Empty segments ('~') have no files.
-            for seg in self.segments:
-                if seg is not None:
-                    seg.wrsamp(
-                        expanded=expanded,
-                        write_dir=write_dir,
-                        wfdb_archive=archive,
+        if wfdb_archive is not None:
+            # An archive opened from a path is discarded if writing fails
+            with archive_for_writing(wfdb_archive, write_dir) as archive:
+                self._write_segments(expanded, write_dir, archive)
+            return
+
+        # Write the files into a temporary directory first, and move them into
+        # write_dir only once every segment has been written, so that a segment
+        # that cannot be written leaves no partly written record behind.
+        # (in write_dir itself, so that the files can be moved, not copied)
+        with tempfile.TemporaryDirectory(
+            dir=write_dir or os.curdir, prefix=".wfdb-"
+        ) as staging:
+            self._write_segments(expanded, staging, None)
+            for name in os.listdir(staging):
+                os.replace(os.path.join(staging, name), os.path.join(write_dir, name))
+
+    def _write_segments(self, expanded, write_dir, wfdb_archive):
+        """Write the multi-segment header, and the files of each segment.
+
+        Parameters
+        ----------
+        expanded : bool
+            Whether to write each segment's expanded signal.
+        write_dir : str
+            The directory in which to write the files.
+        wfdb_archive : WFDBArchive or None
+            The archive to write the files into, if any.
+
+        Returns
+        -------
+        N/A
+
+        """
+        # Perform field validity and cohesion checks, and write the header file.
+        self.wrheader(write_dir=write_dir, wfdb_archive=wfdb_archive)
+        # Perform record validity and cohesion checks, and write the associated
+        # segments. Empty segments ('~') have no files.
+        for seg in self.segments:
+            if seg is not None:
+                seg.wrsamp(
+                    expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+                )
+
+    def _check_segment_signals(self, expanded):
+        """Check that each segment has the signal that is to be written.
+
+        Parameters
+        ----------
+        expanded : bool
+            Whether each segment's expanded signal is to be written.
+
+        Returns
+        -------
+        N/A
+
+        """
+        for seg_num, segment in enumerate(self.segments):
+            # Empty segments, and the layout header of a variable layout
+            # record, have no signal files
+            if segment is None or (
+                segment.file_name is not None
+                and all(f == "~" for f in segment.file_name)
+            ):
+                continue
+            name = f"Segment {seg_num} ({segment.record_name})"
+            if expanded:
+                if segment.e_d_signal is None and segment.e_p_signal is None:
+                    raise ValueError(
+                        f"{name} has no expanded signal (e_d_signal or e_p_signal) "
+                        "to write with expanded=True"
                     )
+                if segment.samps_per_frame is None:
+                    raise ValueError(
+                        f"{name} has no samps_per_frame, which is needed to "
+                        "write its expanded signal"
+                    )
+            elif segment.d_signal is None and segment.p_signal is None:
+                raise ValueError(
+                    f"{name} has no signal (d_signal or p_signal) to write"
+                )
 
     def _check_segment_cohesion(self):
         """Check the cohesion of the segments field with the other fields.

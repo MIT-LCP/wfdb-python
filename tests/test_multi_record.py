@@ -178,3 +178,71 @@ class TestMultiRecordWriting:
             smooth_frames=False,
         )
         assert record_write.segments[0].samps_per_frame == [1]
+
+    @pytest.mark.parametrize("expanded", [False, True])
+    def test_invalid_later_segment_writes_no_files(self, tmp_path, expanded):
+        """A segment that fails to be written leaves no partial record (#557)."""
+        record = wfdb.rdrecord(
+            self.record_path, m2s=False, physical=False, smooth_frames=not expanded
+        )
+        segment = record.segments[1]
+        if expanded:
+            segment.e_d_signal[0] = segment.e_d_signal[0][:-3]
+        else:
+            segment.fmt = ["999"] * segment.n_sig
+
+        with pytest.raises(ValueError):
+            record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_segment_without_samps_per_frame_when_expanded(self, tmp_path):
+        record = wfdb.rdrecord(
+            self.record_path, m2s=False, physical=False, smooth_frames=False
+        )
+        record.segments[1].samps_per_frame = None
+
+        with pytest.raises(ValueError, match=r"Segment 1 \(041s02\) has no samps"):
+            record.wrsamp(write_dir=str(tmp_path), expanded=True)
+
+        assert list(tmp_path.iterdir()) == []
+
+    @pytest.mark.parametrize("expanded", [False, True])
+    def test_segment_without_a_signal(self, tmp_path, expanded):
+        record = wfdb.rdrecord(
+            self.record_path, m2s=False, physical=False, smooth_frames=not expanded
+        )
+        segment = record.segments[1]
+        segment.d_signal = segment.p_signal = None
+        segment.e_d_signal = segment.e_p_signal = None
+
+        with pytest.raises(ValueError, match=r"Segment 1 \(041s02\) has no"):
+            record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_write_to_the_current_directory(self, tmp_path, monkeypatch):
+        """The default write_dir is the current directory, with no files left over."""
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        monkeypatch.chdir(tmp_path)
+
+        record.wrsamp()
+
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            "041s.hea",
+            "041s01.dat",
+            "041s01.hea",
+            "041s02.dat",
+            "041s02.hea",
+        ]
+
+    def test_archive_path_is_relative_to_write_dir(self, tmp_path, monkeypatch):
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "out").mkdir()
+
+        record.wrsamp(write_dir="out", wfdb_archive="041s.wfdb")
+
+        assert [p.name for p in (tmp_path / "out").iterdir()] == ["041s.wfdb"]
+        assert not (tmp_path / "041s.wfdb").exists()
+        assert wfdb.rdrecord("out/041s.wfdb").sig_len == record.sig_len
