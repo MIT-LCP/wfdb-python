@@ -113,6 +113,38 @@ class TestMultiRecordRanges:
                 assert record.contained_combined_ranges([sig_1, sig_2]) == [(0, 2000)]
 
 
+class TestMultiRecordFields:
+    """Check the types used for multi-segment header fields."""
+
+    def test_segment_fields_accept_lists(self):
+        record = wfdb.MultiRecord(seg_name=["layout", "segment"], seg_len=[0, 100])
+
+        record.check_field("seg_name")
+        record.check_field("seg_len")
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("seg_name", "segment"), ("seg_len", 100)],
+    )
+    def test_segment_fields_require_lists(self, field, value):
+        record = wfdb.MultiRecord(seg_name=["segment"], seg_len=[100])
+        setattr(record, field, value)
+
+        with pytest.raises(TypeError, match=f"Field `{field}` must be a list"):
+            record.check_field(field)
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [("seg_name", ["layout", 1]), ("seg_len", [0, "100"])],
+    )
+    def test_segment_fields_check_list_elements(self, field, value):
+        record = wfdb.MultiRecord(seg_name=["layout", "segment"], seg_len=[0, 100])
+        setattr(record, field, value)
+
+        with pytest.raises(TypeError, match=f"Channel 1 of field `{field}`"):
+            record.check_field(field)
+
+
 class TestMultiRecordWriting:
     """Test writing multi-segment records."""
 
