@@ -378,7 +378,9 @@ def read_edf(
             else:
                 units[i] = f
 
-    adc_res = [int(math.log2(f)) for f in (digital_max - digital_min)]
+    # The difference between inclusive digital extrema is one less than the
+    # number of possible values. Its bit length is the required resolution.
+    adc_res = [int(span).bit_length() for span in (digital_max - digital_min)]
     adc_zero = [int(f) for f in ((digital_max + 1 + digital_min) / 2)]
     block_size = n_sig * [0]
     base_datetime = datetime.datetime(
@@ -476,7 +478,7 @@ def read_edf(
         adc_gain=adc_gain,
         baseline=baseline,
         units=units,
-        adc_res=[int(math.log2(f)) for f in (digital_max - digital_min)],
+        adc_res=adc_res,
         adc_zero=[
             int(digital_min[i] + digital_max[i] - adc_zero[i])
             if inverted[i]

@@ -49,6 +49,7 @@ class TestEdfToWfdb:
         # Uniform sample rates
         record_MIT = rdrecord("sample-data/n16").__dict__
         record_EDF = read_edf("sample-data/n16.edf").__dict__
+        assert record_EDF["adc_res"] == [16] * 5
 
         fields = list(record_MIT.keys())
         # Original MIT format method of checksum is outdated, sometimes
@@ -337,6 +338,46 @@ class TestEdfToWfdb:
         written = rdrecord(str(tmp_path / "wave_4"))
         tolerance = max(1 / gain for gain in record.adc_gain)
         np.testing.assert_allclose(written.p_signal, original, atol=tolerance, rtol=0)
+
+    @pytest.mark.parametrize(
+        "digital_min, digital_max, expected_res",
+        [(-32768, 32767, 16), (-2048, 2047, 12)],
+    )
+    def test_edf_adc_res(self, tmp_path, digital_min, digital_max, expected_res):
+        """The inclusive EDF digital range determines ADC resolution."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("512", 8),
+            ("", 44),
+            ("1", 8),
+            ("1", 8),
+            ("1", 4),
+        ]
+        signal_fields = [
+            ("ECG", 16),
+            ("", 80),
+            ("mV", 8),
+            ("-1", 8),
+            ("1", 8),
+            (str(digital_min), 8),
+            (str(digital_max), 8),
+            ("", 80),
+            ("2", 8),
+            ("", 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        header += "".join(value.ljust(width) for value, width in signal_fields)
+        samples = np.array([digital_min, digital_max], dtype="<i2")
+        edf_file = tmp_path / "resolution.edf"
+        edf_file.write_bytes(header.encode() + samples.tobytes())
+
+        record = read_edf(str(edf_file))
+        assert record.adc_res == [expected_res]
+        np.testing.assert_allclose(record.p_signal[:, 0], [-1, 1])
 
     def test_edf_round_trip_has_no_digital_offset(self, tmp_path):
         """Reading a converted WFDB record does not shift every sample."""
