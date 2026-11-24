@@ -458,6 +458,17 @@ class TestWfdbToWav:
         np.testing.assert_array_equal(self.read_wav("100.wav", 2), expected)
         assert rdheader("100").init_value == expected[0].tolist()
 
+    def test_write_header_skew(self, tmp_path, monkeypatch):
+        """The header does not repeat a skew already applied to the samples."""
+        record_path = os.path.abspath("sample-data/100skew")
+        monkeypatch.chdir(tmp_path)
+        wfdb_to_wav(record_path, sampto=1000, write_header=True)
+
+        expected = rdrecord(record_path, sampto=1000)
+        record = rdrecord("100skew")
+        assert not any(record.skew)
+        np.testing.assert_array_equal(record.p_signal, expected.p_signal)
+
     def test_channels(self, tmp_path):
         """Only the selected channels are written."""
         wav_file = str(tmp_path / "out.wav")

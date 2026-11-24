@@ -832,6 +832,8 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.init_value = init_value
         self.checksum = checksum
         self.block_size = block_size
+        # The skew already applied to the signals when they were read, if any
+        self._applied_skew = None
 
     # Equal comparison operator for objects of this type
     def __eq__(self, other, verbose=False):
@@ -850,8 +852,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             Determines if the objects are equal (True) or not equal (False).
 
         """
-        att1 = self.__dict__
-        att2 = other.__dict__
+        # How the signals were read does not affect whether records are equal
+        att1 = {k: v for k, v in self.__dict__.items() if k != "_applied_skew"}
+        att2 = {k: v for k, v in other.__dict__.items() if k != "_applied_skew"}
 
         if set(att1.keys()) != set(att2.keys()):
             if verbose:
@@ -888,6 +891,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
     def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write a WFDB header file and any associated dat files from this object.
 
+        If the signals were read with their skew applied, they are already
+        aligned, so the header is written without skew. Read the record with
+        `ignore_skew=True` to write the signals and their skew as stored. The
+        `skew` attribute is not changed, and a value assigned to it after
+        reading is written to the header.
+
         Parameters
         ----------
         expanded : bool, optional
@@ -914,6 +923,13 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         elif expanded and self.e_d_signal is None and self.e_p_signal is not None:
             self.e_d_signal = self.adc(expanded=True)
             converted = "e_d_signal"
+
+        # Signals that are already aligned must not be skewed again when read
+        # (a record pickled by an older version does not have _applied_skew)
+        skew = self.skew
+        applied_skew = getattr(self, "_applied_skew", None)
+        if applied_skew is not None and skew is not None and list(skew) == applied_skew:
+            self.skew = None
 
         try:
             # A record whose signals have no files, such as the layout header
@@ -958,6 +974,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                         expanded=expanded, write_dir=write_dir, wfdb_archive=archive
                     )
         finally:
+            self.skew = skew
             if converted:
                 setattr(self, converted, None)
 
@@ -2508,6 +2525,9 @@ def _rdrecord(
             if physical:
                 # Perform dac to get physical signal
                 record.dac(expanded=True, return_res=return_res, inplace=True)
+
+        if not ignore_skew and record.skew is not None and any(record.skew):
+            record._applied_skew = list(record.skew)
 
     # A multi segment record
     else:

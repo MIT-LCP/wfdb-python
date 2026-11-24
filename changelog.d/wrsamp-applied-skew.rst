@@ -1,0 +1,2 @@
+**Do not apply skew twice to rewritten records**
+  ``Record.wrsamp`` no longer writes the skew of a record whose signals were read with the skew applied. The samples were written already aligned but the header kept the skew, so reading the new record shifted those signals a second time. ``wfdb_to_wav`` with ``write_header=True`` had the same problem. The ``skew`` attribute is unchanged, and records read with ``ignore_skew=True`` are still written with their skew.

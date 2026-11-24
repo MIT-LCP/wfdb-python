@@ -1,6 +1,7 @@
 import datetime
 import os
 import re
+import shutil
 
 import numpy as np
 import pandas as pd
@@ -1993,3 +1994,95 @@ class TestExpandedBigEndian:
             return_res=32,
         )
         assert all(signal.dtype == np.dtype("int32") for signal in record.e_d_signal)
+
+
+class TestWriteAppliedSkew:
+    """Writing a record whose signals were read with their skew applied."""
+
+    @staticmethod
+    def read(path, **kwargs):
+        return wfdb.rdrecord(path, physical=False, smooth_frames=False, **kwargs)
+
+    @staticmethod
+    def assert_signals_equal(record1, record2):
+        assert len(record1.e_d_signal) == len(record2.e_d_signal)
+        for sig1, sig2 in zip(record1.e_d_signal, record2.e_d_signal):
+            np.testing.assert_array_equal(sig1, sig2)
+
+    @pytest.mark.parametrize(
+        "record_name", ["100skew", "test01_00s_skew", "test01_00s_skewframe"]
+    )
+    @pytest.mark.parametrize(
+        "kwargs", [{}, {"sampfrom": 10, "sampto": 200}, {"channels": [1]}]
+    )
+    def test_not_applied_twice(self, tmp_path, record_name, kwargs):
+        """The samples read back match those written, and skew is kept in memory."""
+        source = f"sample-data/{record_name}"
+        record = self.read(source, **kwargs)
+        skew = list(record.skew)
+        record.wrsamp(expanded=True, write_dir=str(tmp_path))
+
+        assert record.skew == skew
+        written = str(tmp_path / record_name)
+        assert not any(wfdb.rdheader(written).skew)
+        self.assert_signals_equal(record, self.read(written))
+
+    def test_uniform_physical(self, tmp_path):
+        """A default read (physical, smoothed) is also written without skew."""
+        record = wfdb.rdrecord("sample-data/100skew", sampto=1000)
+        record.wrsamp(write_dir=str(tmp_path))
+        written = wfdb.rdrecord(str(tmp_path / "100skew"), physical=False)
+        expected = wfdb.rdrecord("sample-data/100skew", sampto=1000, physical=False)
+        np.testing.assert_array_equal(written.d_signal, expected.d_signal)
+
+    def test_ignore_skew_keeps_skew(self, tmp_path):
+        """Signals read without applying the skew are written with it."""
+        source = "sample-data/100skew"
+        self.read(source, ignore_skew=True).wrsamp(
+            expanded=True, write_dir=str(tmp_path)
+        )
+        written = str(tmp_path / "100skew")
+        assert wfdb.rdheader(written).skew == wfdb.rdheader(source).skew
+        self.assert_signals_equal(self.read(source), self.read(written))
+
+    def test_assigned_skew_is_written(self, tmp_path):
+        """A skew assigned after reading is written to the header."""
+        record = self.read("sample-data/100skew", sampto=100)
+        record.skew = [1, None]
+        record.wrsamp(expanded=True, write_dir=str(tmp_path))
+        assert wfdb.rdheader(str(tmp_path / "100skew")).skew == [1, None]
+
+    def test_wrheader_keeps_skew(self, tmp_path):
+        """Writing only the header still describes the original signal file."""
+        record = self.read("sample-data/100skew")
+        record.wrheader(write_dir=str(tmp_path))
+        assert wfdb.rdheader(str(tmp_path / "100skew")).skew == record.skew
+
+    def test_equal_to_record_read_without_marker(self):
+        """How the signals were read does not affect equality."""
+        record1 = self.read("sample-data/100skew", sampto=100)
+        record2 = self.read("sample-data/100skew", sampto=100)
+        record2._applied_skew = None
+        assert record1 == record2
+
+    def test_multi_segment(self, tmp_path):
+        """Skewed segments of a multi-segment record are not skewed again."""
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        for file_name in ["test01_00s_skew.hea", "test01_00s.dat"]:
+            shutil.copy(f"sample-data/{file_name}", source_dir)
+        segment = wfdb.rdheader("sample-data/test01_00s_skew")
+        (source_dir / "multi.hea").write_text(
+            f"multi/1 {segment.n_sig} {segment.fs:g} {segment.sig_len}\n"
+            f"test01_00s_skew {segment.sig_len}\n"
+        )
+        record = wfdb.rdrecord(str(source_dir / "multi"), physical=False, m2s=False)
+
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        record.wrsamp(write_dir=str(out_dir))
+
+        written = wfdb.rdrecord(str(out_dir / "multi"), physical=False, m2s=False)
+        np.testing.assert_array_equal(
+            written.segments[0].d_signal, record.segments[0].d_signal
+        )
