@@ -1,3 +1,4 @@
+import math
 import os
 import shutil
 import wave
@@ -15,6 +16,87 @@ from wfdb.io.convert.edf import rdedfann, read_edf, wfdb_to_edf
 from wfdb.io.convert.matlab import wfdb_to_mat
 from wfdb.io.record import Record, rdheader, rdrecord, wrsamp
 from wfdb.plot import plot_wfdb
+
+
+def assert_edf_header_calibration(record, edf_path):
+    """Compare converted frames with independent EDF header scaling."""
+    with Path(edf_path).open("rb") as edf_file:
+        fixed_header = edf_file.read(256)
+        n_sig = int(fixed_header[252:256])
+        header_bytes = int(fixed_header[184:192])
+        num_blocks = int(fixed_header[236:244])
+        block_duration = float(fixed_header[244:252])
+        signal_header = edf_file.read(256 * n_sig)
+        offset = 0
+
+        def fields(width):
+            nonlocal offset
+            raw = signal_header[offset : offset + width * n_sig]
+            offset += width * n_sig
+            return [
+                raw[i * width : (i + 1) * width].decode().strip() for i in range(n_sig)
+            ]
+
+        labels = fields(16)
+        fields(80)  # Transducer
+        fields(8)  # Units
+        physical_min = np.array(fields(8), dtype=float)
+        physical_max = np.array(fields(8), dtype=float)
+        digital_min = np.array(fields(8), dtype=float)
+        digital_max = np.array(fields(8), dtype=float)
+        fields(80)  # Prefilter
+        samples_per_block = np.array(fields(8), dtype=int)
+        frames_per_block = math.gcd(*samples_per_block)
+        samples_per_frame = samples_per_block // frames_per_block
+        physical_lsb = np.abs(
+            (physical_max - physical_min) / (digital_max - digital_min)
+        )
+
+        assert record.sig_name == labels
+        assert record.n_sig == n_sig
+        assert record.fs == frames_per_block / block_duration
+        assert record.samps_per_frame == samples_per_frame.tolist()
+        assert record.sig_len == num_blocks * frames_per_block
+
+        block_bytes = 2 * sum(samples_per_block)
+        for block_index in {0, num_blocks // 2, num_blocks - 1}:
+            edf_file.seek(header_bytes + block_index * block_bytes)
+            block = np.frombuffer(edf_file.read(block_bytes), dtype="<i2")
+            start = 0
+            for channel, count in enumerate(samples_per_block):
+                digital = block[start : start + count].astype(float)
+                mean_digital = digital.reshape(frames_per_block, -1).mean(axis=1)
+                expected = physical_min[channel] + (
+                    (mean_digital - digital_min[channel])
+                    * (physical_max[channel] - physical_min[channel])
+                    / (digital_max[channel] - digital_min[channel])
+                )
+                first = block_index * frames_per_block
+                actual = record.p_signal[first : first + frames_per_block, channel]
+                np.testing.assert_allclose(
+                    actual, expected, rtol=0, atol=physical_lsb[channel] / 4
+                )
+                start += count
+
+    return physical_lsb
+
+
+def assert_shared_record_metadata(mit, edf):
+    """Compare record fields that should survive the EDF conversion."""
+    fields = (
+        "record_name",
+        "n_sig",
+        "fs",
+        "samps_per_frame",
+        "sig_len",
+        "base_time",
+        "base_date",
+        "sig_name",
+        "units",
+        "file_name",
+    )
+    for field in fields:
+        assert getattr(mit, field) == getattr(edf, field), field
 
 
 class TestEdfToWfdb:
@@ -389,111 +471,44 @@ class TestEdfToWfdb:
         assert not local_file.exists()
 
     def test_edf_uniform(self):
-        """EDF format conversion to MIT for uniform sample rates."""
-        # Uniform sample rates
-        record_MIT = rdrecord("sample-data/n16").__dict__
-        converted = read_edf("sample-data/n16.edf")
-        record_EDF = converted.__dict__
-        assert record_EDF["adc_res"] == [16] * 5
-        assert record_EDF["checksum"][0] == 56364
-        np.testing.assert_equal(
-            record_EDF["checksum"],
-            [int(channel.sum() % 65536) for channel in converted.adc().T],
+        """Uniform EDF data matches its header scale and source WFDB record."""
+        source = "sample-data/n16.edf"
+        mit = rdrecord("sample-data/n16")
+        edf = read_edf(source)
+
+        assert_shared_record_metadata(mit, edf)
+        assert edf.adc_res == [16] * 5
+        assert edf.adc_gain == mit.adc_gain
+        assert edf.baseline == mit.baseline
+        physical_lsb = assert_edf_header_calibration(edf, source)
+        np.testing.assert_allclose(
+            edf.p_signal, mit.p_signal, rtol=0, atol=physical_lsb.min() / 4
         )
-
-        fields = list(record_MIT.keys())
-        # Original MIT format method of checksum is outdated, sometimes
-        # the same value though
-        fields.remove("checksum")
-        # Original MIT format units are less comprehensive since they
-        # default to mV if unknown.. therefore added more default labels
-        fields.remove("units")
-
-        test_results = []
-        for field in fields:
-            # Signal value will be slightly off due to C to Python type conversion
-            if field == "p_signal":
-                true_array = np.array(record_MIT[field]).flatten()
-                pred_array = np.array(record_EDF[field]).flatten()
-                # Prevent divide by zero warning
-                for i, v in enumerate(true_array):
-                    if v == 0:
-                        true_array[i] = 1
-                        pred_array[i] = 1
-                sig_diff = np.abs((pred_array - true_array) / true_array)
-                sig_diff[sig_diff == -np.inf] = 0
-                sig_diff[sig_diff == np.inf] = 0
-                sig_diff = np.nanmean(sig_diff, 0)
-                # 5% tolerance
-                if np.max(sig_diff) <= 5:
-                    test_results.append(True)
-                else:
-                    test_results.append(False)
-            elif field == "init_value":
-                signal_diff = [
-                    abs(record_MIT[field][i] - record_EDF[field][i])
-                    for i in range(len(record_MIT[field]))
-                ]
-                if abs(max(min(signal_diff), max(signal_diff), key=abs)) <= 2:
-                    test_results.append(True)
-                else:
-                    test_results.append(False)
-            else:
-                test_results.append(record_MIT[field] == record_MIT[field])
-
-        target_results = len(fields) * [True]
-        assert np.array_equal(test_results, target_results)
+        assert edf.checksum[0] == 56364
+        assert edf.checksum == [int(channel.sum() % 65536) for channel in edf.adc().T]
 
     def test_edf_non_uniform(self):
-        """EDF format conversion to MIT for non-uniform sample rates."""
-        # Non-uniform sample rates
-        record_MIT = rdrecord("sample-data/wave_4").__dict__
-        record_EDF = read_edf("sample-data/wave_4.edf").__dict__
+        """Mixed-rate EDF data follows its header despite legacy offsets."""
+        source = "sample-data/wave_4.edf"
+        mit = rdrecord("sample-data/wave_4")
+        edf = read_edf(source)
 
-        fields = list(record_MIT.keys())
-        # Inverted EDF channels use a reflected WFDB digital scale.
-        fields.remove("init_value")
-        # Original MIT format method of checksum is outdated, sometimes
-        # the same value though
-        fields.remove("checksum")
-        # Original MIT format units are less comprehensive since they
-        # default to mV if unknown.. therefore added more default labels
-        fields.remove("units")
-
-        test_results = []
-        for field in fields:
-            # Signal value will be slightly off due to C to Python type conversion
-            if field == "p_signal":
-                true_array = np.array(record_MIT[field]).flatten()
-                pred_array = np.array(record_EDF[field]).flatten()
-                # Prevent divide by zero warning
-                for i, v in enumerate(true_array):
-                    if v == 0:
-                        true_array[i] = 1
-                        pred_array[i] = 1
-                sig_diff = np.abs((pred_array - true_array) / true_array)
-                sig_diff[sig_diff == -np.inf] = 0
-                sig_diff[sig_diff == np.inf] = 0
-                sig_diff = np.nanmean(sig_diff, 0)
-                # 5% tolerance
-                if np.max(sig_diff) <= 5:
-                    test_results.append(True)
-                else:
-                    test_results.append(False)
-            elif field == "init_value":
-                signal_diff = [
-                    abs(record_MIT[field][i] - record_EDF[field][i])
-                    for i in range(len(record_MIT[field]))
-                ]
-                if abs(max(min(signal_diff), max(signal_diff), key=abs)) <= 2:
-                    test_results.append(True)
-                else:
-                    test_results.append(False)
-            else:
-                test_results.append(record_MIT[field] == record_MIT[field])
-
-        target_results = len(fields) * [True]
-        assert np.array_equal(test_results, target_results)
+        assert_shared_record_metadata(mit, edf)
+        assert edf.fmt == ["32"] * edf.n_sig
+        assert edf.adc_gain[-1] > 0  # Inverted temperature channel
+        physical_lsb = assert_edf_header_calibration(edf, source)
+        for channel in range(edf.n_sig):
+            finite = np.isfinite(mit.p_signal[:, channel])
+            if not finite.any():
+                # The legacy WFDB record marks all HRV samples as missing.
+                continue
+            # The older EDF converter can differ by up to two digital steps.
+            np.testing.assert_allclose(
+                edf.p_signal[finite, channel],
+                mit.p_signal[finite, channel],
+                rtol=0,
+                atol=2 * physical_lsb[channel] + 1e-12,
+            )
 
     def test_float_checksum(self, tmp_path):
         """Checksums sum converted digital samples rather than physical values."""
