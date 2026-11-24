@@ -186,9 +186,12 @@ def normalize_bound(sig, lb=0, ub=1):
     mid = ub - (ub - lb) / 2
     min_v = np.min(sig)
     max_v = np.max(sig)
+    if isinstance(min_v, np.integer) and isinstance(max_v, np.integer):
+        # Widen integer extrema before computing their difference.
+        min_v, max_v = int(min_v), int(max_v)
     mid_v = max_v - (max_v - min_v) / 2
     coef = (ub - lb) / (max_v - min_v)
-    return sig * coef - (mid_v * coef) + mid
+    return np.multiply(sig, coef) - (mid_v * coef) + mid
 
 
 def smooth(sig, window_size):
