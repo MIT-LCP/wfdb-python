@@ -23,6 +23,77 @@ class TestEdfToWfdb:
         info = rdedfann("sample-data/test_edfann.edf")
         assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
 
+    def test_rdedfann_ignores_physical_calibration(self, tmp_path):
+        """Annotation bytes have the same meaning with different EDF scales."""
+        source = "sample-data/test_edfann.edf"
+        expected = rdedfann(source)
+        data = bytearray(Path(source).read_bytes())
+        n_sig = int(data[252:256])
+        labels = [
+            data[256 + 16 * i : 256 + 16 * (i + 1)].decode().strip()
+            for i in range(n_sig)
+        ]
+        channel = labels.index("EDF Annotations")
+        physical_min = 256 + n_sig * (16 + 80 + 8) + 8 * channel
+        physical_max = physical_min + 8 * n_sig
+        data[physical_min : physical_min + 8] = b"-1".ljust(8, b" ")
+        data[physical_max : physical_max + 8] = b"1".ljust(8, b" ")
+        altered = tmp_path / "scaled_ann.edf"
+        altered.write_bytes(data)
+
+        assert rdedfann(str(altered)) == expected
+
+    @pytest.mark.parametrize(
+        "comment, wire_encoding, override",
+        [
+            ("Event", "utf-8", None),
+            ("Schlaf ä – Wach", "utf-8", None),
+            ("Schlaf ä", "iso8859-1", "iso8859-1"),
+        ],
+    )
+    def test_rdedfann_with_mixed_rate_signal(
+        self, tmp_path, comment, wire_encoding, override
+    ):
+        """Decode annotation bytes without averaging or garbling UTF-8 text."""
+        n_sig = 2
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            (str(256 * (n_sig + 1)), 8),
+            ("EDF+C", 44),
+            ("1", 8),
+            ("1", 8),
+            (str(n_sig), 4),
+        ]
+        signal_fields = [
+            (["ECG", "EDF Annotations"], 16),
+            (["", ""], 80),
+            (["mV", ""], 8),
+            (["-1", "-1"], 8),
+            (["1", "1"], 8),
+            (["-32768", "-32768"], 8),
+            (["32767", "32767"], 8),
+            (["", ""], 80),
+            (["4", "64"], 8),
+            (["", ""], 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for values, width in signal_fields:
+            header += "".join(value.ljust(width) for value in values)
+        annotation = f"+0\x14\x14\x00+1\x15.5\x14{comment}\x14\x00".encode(
+            wire_encoding
+        )
+        samples = np.array([1, 2, 3, 4], dtype="<i2").tobytes()
+        edf_file = tmp_path / "mixed_rate_ann.edf"
+        edf_file.write_bytes(header.encode() + samples + annotation.ljust(128, b"\x00"))
+
+        info = rdedfann(str(edf_file), encoding=override)
+        assert info["comment"] == [comment]
+        assert info["duration"] == [0.5]
+
     def test_rdedfann_keeps_local_file(self, tmp_path):
         """The delete_file option does not remove a local EDF file."""
         source = "sample-data/test_edfann.edf"
