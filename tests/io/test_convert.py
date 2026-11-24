@@ -23,6 +23,58 @@ class TestEdfToWfdb:
         info = rdedfann("sample-data/test_edfann.edf")
         assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
 
+    def test_rdedfann_parses_signed_tals_and_multiple_annotations(self, tmp_path):
+        """TAL byte delimiters separate events without splitting annotation text."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("512", 8),
+            ("EDF+C", 44),
+            ("1", 8),
+            ("1", 8),
+            ("1", 4),
+        ]
+        signal_fields = [
+            ("EDF Annotations", 16),
+            ("", 80),
+            ("", 8),
+            ("-1", 8),
+            ("1", 8),
+            ("-32768", 8),
+            ("32767", 8),
+            ("", 80),
+            ("128", 8),
+            ("", 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        header += "".join(value.ljust(width) for value, width in signal_fields)
+        tal_bytes = (
+            b"+0\x14\x14\x00"
+            b"-0.25\x14Pre+event\x14Other event\x14\x00"
+            b"+0.5\x15.2\x14Duration+event\x14\x00"
+            b"+0.75\x14No duration\x14\x00"
+        )
+        edf_file = tmp_path / "signed_tals.edf"
+        edf_file.write_bytes(header.encode() + tal_bytes.ljust(256, b"\x00"))
+
+        info = rdedfann(str(edf_file))
+        assert info["onset_time"] == [
+            "-00:00:00.250",
+            "-00:00:00.250",
+            "00:00:00.500",
+            "00:00:00.750",
+        ]
+        assert info["comment"] == [
+            "Pre+event",
+            "Other event",
+            "Duration+event",
+            "No duration",
+        ]
+        assert info["duration"] == [0.0, 0.0, 0.2, 0.0]
+
     @pytest.mark.parametrize("onset, expected_sample", [(1.3, 42), (1.265625, 40)])
     def test_rdedfann_sample_num_uses_fs(self, tmp_path, onset, expected_sample):
         """Both return modes round onset seconds to the nearest sample."""
