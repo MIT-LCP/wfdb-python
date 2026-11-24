@@ -472,6 +472,50 @@ class TestProcessing:
             sig, np.array([2]), search_radius=5, smooth_window_size=9, peak_dir=peak_dir
         ).tolist() == [peak]
 
+    @pytest.mark.parametrize("peak_dir", ["up", "down", "both", "compare"])
+    @pytest.mark.parametrize("guesses", [[20, 2], [20, 2, 20], [2, 20, 2], [2, 20]])
+    def test_correct_peaks_preserves_input_order(self, peak_dir, guesses):
+        """Unsorted guesses are corrected independently, including near zero."""
+        sig = np.zeros(30)
+        sig[[0, 20]] = -5 if peak_dir == "down" else 5
+        result = processing.correct_peaks(
+            sig,
+            np.array(guesses),
+            search_radius=5,
+            smooth_window_size=9,
+            peak_dir=peak_dir,
+        )
+        expected = [0 if guess == 2 else 20 for guess in guesses]
+        np.testing.assert_array_equal(result, expected)
+
+    def test_correct_peaks_unsorted_digital_record(self, tmp_path):
+        digital = np.zeros((30, 1), dtype=np.int16)
+        digital[[0, 20], 0] = 500
+        wfdb.wrsamp(
+            "unsorted_peaks",
+            fs=250,
+            units=["mV"],
+            sig_name=["ECG"],
+            d_signal=digital,
+            fmt=["16"],
+            adc_gain=[200],
+            baseline=[0],
+            write_dir=str(tmp_path),
+        )
+        record = wfdb.rdrecord(
+            str(tmp_path / "unsorted_peaks"), physical=False, return_res=16
+        )
+        guesses = np.array([20, 2])
+        result = processing.correct_peaks(
+            record.d_signal[:, 0],
+            guesses,
+            search_radius=5,
+            smooth_window_size=9,
+            peak_dir="up",
+        )
+        np.testing.assert_array_equal(result, [20, 0])
+        np.testing.assert_array_equal(guesses, [20, 2])
+
 
 class TestComputeHr:
     """Tests for compute_hr."""
