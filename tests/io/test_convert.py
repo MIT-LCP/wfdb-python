@@ -142,6 +142,46 @@ class TestEdfToWfdb:
         target_results = len(fields) * [True]
         assert np.array_equal(test_results, target_results)
 
+    def test_float_checksum(self, tmp_path):
+        """Each channel of the float signal is summed separately."""
+        # Two signals of ten samples, each read as a physical value of about 0.1.
+        # Summing the rows of the array in order would give 0.9999999999999999.
+        n_sig = 2
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            (str(256 * (n_sig + 1)), 8),
+            ("", 44),
+            ("1", 8),
+            ("1", 8),
+            (str(n_sig), 4),
+        ]
+        signal_fields = [
+            ("x", 16),
+            ("", 80),
+            ("mV", 8),
+            ("-3276.8", 8),
+            ("3276.7", 8),
+            ("-32768", 8),
+            ("32767", 8),
+            ("", 80),
+            ("10", 8),
+            ("", 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for value, width in signal_fields:
+            header += value.ljust(width) * n_sig
+        edf_file = tmp_path / "float.edf"
+        samples = np.full(10 * n_sig, 2, "<i2")
+        edf_file.write_bytes(header.encode() + samples.tobytes())
+
+        record = read_edf(str(edf_file))
+        np.testing.assert_allclose(record.p_signal, 0.1)
+        assert record.checksum == [1, 1]
+
 
 class TestCsvToWfdb:
     """Tests for the io.convert.csv module."""

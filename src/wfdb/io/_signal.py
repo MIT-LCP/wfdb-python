@@ -144,7 +144,7 @@ def _checksums(signal):
         The sum of each column modulo 65536.
 
     """
-    return [_checksum(channel) for channel in np.transpose(signal)]
+    return [int(c) for c in np.sum(signal, axis=0) % CHECKSUM_MODULUS]
 
 
 class SignalMixin:

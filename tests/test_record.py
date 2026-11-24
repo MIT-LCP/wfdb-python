@@ -1873,11 +1873,10 @@ class TestChecksumHelpers:
         signal = np.empty((0, 3), dtype=np.int16)
         assert wfdb.io._signal._checksums(signal) == [0, 0, 0]
 
-    def test_checksums_float_matches_per_channel_sum(self):
-        """Float signals sum each column individually, preserving read_edf parity."""
-        signal = np.array([[0.1, 0.0]] * 10)
-        expected = [int(np.sum(col) % 65536) for col in np.transpose(signal)]
-        assert wfdb.io._signal._checksums(signal) == expected
+    def test_checksums_rejects_1d(self):
+        """A 1-D array raises TypeError rather than returning per-sample values."""
+        with pytest.raises(TypeError):
+            wfdb.io._signal._checksums(np.arange(10, dtype=np.int16))
 
 
 def write_record_with_date(tmp_path, date):
