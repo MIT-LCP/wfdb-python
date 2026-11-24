@@ -294,7 +294,7 @@ def shift_peaks(sig, peak_inds, search_radius, peak_up):
     for i in range(n_peaks):
         ind = peak_inds[i]
         if ind >= search_radius:
-            break
+            continue
         # The window starts at 0 rather than ind - search_radius
         shift_inds[i] += search_radius - ind
 
