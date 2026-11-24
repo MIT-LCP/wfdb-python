@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import datetime
 import multiprocessing.dummy
 import operator
@@ -1559,7 +1560,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         return (seg_numbers, readsamps)
 
     def _required_channels(
-        self, seg_numbers, channels, dir_name, pn_dir, wfdb_archive=None
+        self,
+        seg_numbers,
+        channels,
+        dir_name,
+        pn_dir,
+        wfdb_archive=None,
+        header_cache=None,
     ):
         """Get the channel numbers to be read from each specified segment.
 
@@ -1614,6 +1621,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                         dir_name,
                         pn_dir,
                         wfdb_archive,
+                        header_cache,
                     ).sig_name
                     required_channels.append(
                         _get_wanted_channels(w_sig_names, s_sig_names)
@@ -2184,7 +2192,24 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     return record
 
 
-def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
+def _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache):
+    """Read a header, or copy an iterator's cached header metadata."""
+    key = (os.fspath(record_name), pn_dir)
+    if header_cache is not None and key in header_cache:
+        return copy.deepcopy(header_cache[key])
+
+    if wfdb_archive is not None:
+        segment_name = None if is_archive_path(record_name) else record_name
+        record = _parse_header_content(wfdb_archive.read_header(segment_name))
+    else:
+        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+
+    if header_cache is not None:
+        header_cache[key] = copy.deepcopy(record)
+    return record
+
+
+def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive, header_cache=None):
     """Read the header of a record that is stored with another record.
 
     An example is a segment of a multi-segment record.
@@ -2201,6 +2226,8 @@ def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
         PhysioNet.
     wfdb_archive : WFDBArchive or None
         The open .wfdb archive containing the record files, if any.
+    header_cache : dict or None
+        Parsed headers retained by one DataFrame iterator, if any.
 
     Returns
     -------
@@ -2209,10 +2236,12 @@ def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive):
 
     """
     if wfdb_archive is not None:
-        return _parse_header_content(wfdb_archive.read_header(record_name))
+        return _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache)
     if pn_dir is not None:
-        return rdheader(record_name, pn_dir=pn_dir)
-    return rdheader(_join_path(dir_name, record_name), pn_dir=pn_dir)
+        return _cached_record_header(record_name, pn_dir, None, header_cache)
+    return _cached_record_header(
+        _join_path(dir_name, record_name), None, None, header_cache
+    )
 
 
 def _read_segment_headers(record, dir_name, pn_dir, wfdb_archive):
@@ -2463,6 +2492,7 @@ def _rdrecord(
     channel_names,
     warn_empty,
     wfdb_archive,
+    header_cache=None,
 ):
     """Read a WFDB record.
 
@@ -2483,16 +2513,14 @@ def _rdrecord(
     if pn_dir is not None:
         record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
 
-    if wfdb_archive is not None:
-        segment_name = None if is_archive_path(record_name) else record_name
-        record = _parse_header_content(wfdb_archive.read_header(segment_name))
-    else:
-        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
+    record = _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache)
 
     # If the header omits the signal length, infer it from the first dat file
     # before validating a requested window. This also permits ranged reads.
     if record.sig_len is None:
         record.sig_len = _record_sig_len(record, dir_name, pn_dir, wfdb_archive)
+        if header_cache is not None:
+            header_cache[(os.fspath(record_name), pn_dir)].sig_len = record.sig_len
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2509,13 +2537,17 @@ def _rdrecord(
                 # names
                 first_seg_name = [n for n in record.seg_name if n != "~"][0]
                 reference_record = _read_record_header(
-                    first_seg_name, dir_name, pn_dir, wfdb_archive
+                    first_seg_name, dir_name, pn_dir, wfdb_archive, header_cache
                 )
             else:
                 # Use the layout specification header to get the signal
                 # names
                 reference_record = _read_record_header(
-                    record.seg_name[0], dir_name, pn_dir, wfdb_archive
+                    record.seg_name[0],
+                    dir_name,
+                    pn_dir,
+                    wfdb_archive,
+                    header_cache,
                 )
 
         channels = _get_wanted_channels(
@@ -2621,14 +2653,14 @@ def _rdrecord(
         # Variable layout, read the layout specification header
         if record.layout == "variable":
             record.segments[0] = _read_record_header(
-                record.seg_name[0], dir_name, pn_dir, wfdb_archive
+                record.seg_name[0], dir_name, pn_dir, wfdb_archive, header_cache
             )
 
         # The segment numbers and samples within each segment to read.
         seg_numbers, seg_ranges = record._required_segments(sampfrom, sampto)
         # The channels within each segment to read
         seg_channels = record._required_channels(
-            seg_numbers, channels, dir_name, pn_dir, wfdb_archive
+            seg_numbers, channels, dir_name, pn_dir, wfdb_archive, header_cache
         )
 
         # Read the desired samples in the relevant segments
@@ -2654,21 +2686,29 @@ def _rdrecord(
                     channel_names=None,
                     warn_empty=False,
                     wfdb_archive=wfdb_archive,
+                    header_cache=header_cache,
                 )
             else:
                 # On PhysioNet, the segments are in pn_dir, not in dir_name
                 segment_name = record.seg_name[seg_num]
                 if pn_dir is None:
                     segment_name = _join_path(dir_name, segment_name)
-                record.segments[seg_num] = rdrecord(
-                    segment_name,
+                record.segments[seg_num] = _rdrecord(
+                    record_name=segment_name,
                     sampfrom=seg_ranges[i][0],
                     sampto=seg_ranges[i][1],
                     channels=seg_channels[i],
                     physical=physical,
                     pn_dir=pn_dir,
+                    m2s=True,
                     smooth_frames=smooth_frames,
+                    ignore_skew=False,
                     return_res=return_res,
+                    force_channels=True,
+                    channel_names=None,
+                    warn_empty=False,
+                    wfdb_archive=None,
+                    header_cache=header_cache,
                 )
 
         # Arrange the fields of the layout specification segment, and
@@ -2744,8 +2784,8 @@ def iter_dataframes(
     position in the record, so consecutive chunks have a continuous time
     index. Signals with multiple samples per frame are smoothed as in the
     default `rdrecord` behavior. Multi-segment records are merged into a
-    single DataFrame for each window. Remote record headers are read again
-    for each chunk, so use larger chunks to reduce requests.
+    single DataFrame for each window. Record and segment headers are reused
+    within one iterator, including for remote sources.
 
     Parameters
     ----------
@@ -2797,6 +2837,8 @@ def iter_dataframes(
             sig_len = _record_sig_len(header, dir_name, pn_dir, archive)
     else:
         sig_len = _record_sig_len(header, dir_name, pn_dir, None)
+    header.sig_len = sig_len
+    header_cache = {(os.fspath(record_name), pn_dir): header}
 
     start = operator.index(sampfrom)
     stop = sig_len if sampto is None else operator.index(sampto)
@@ -2810,17 +2852,29 @@ def iter_dataframes(
     def chunks():
         for first in range(start, stop, chunk_size):
             last = min(first + chunk_size, stop)
-            frame = rdrecord(
-                record_name,
-                sampfrom=first,
-                sampto=last,
-                channels=channels,
-                physical=physical,
-                pn_dir=pn_dir,
-                ignore_skew=ignore_skew,
-                return_res=return_res,
-                channel_names=channel_names,
-            ).to_dataframe()
+            archive = (
+                WFDBArchive(record_name, mode="r")
+                if is_archive_path(record_name)
+                else contextlib.nullcontext()
+            )
+            with archive as wfdb_archive:
+                frame = _rdrecord(
+                    record_name=record_name,
+                    sampfrom=first,
+                    sampto=last,
+                    channels=channels,
+                    physical=physical,
+                    pn_dir=pn_dir,
+                    m2s=True,
+                    smooth_frames=True,
+                    ignore_skew=ignore_skew,
+                    return_res=return_res,
+                    force_channels=True,
+                    channel_names=channel_names,
+                    warn_empty=False,
+                    wfdb_archive=wfdb_archive,
+                    header_cache=header_cache,
+                ).to_dataframe()
             frame.index = _sample_time_index(
                 header.fs, first, last, header.base_datetime
             )

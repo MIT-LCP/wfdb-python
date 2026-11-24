@@ -115,6 +115,36 @@ def test_iter_dataframes(memory_fs):
     pd.testing.assert_frame_equal(pd.concat(chunks), expected)
 
 
+def test_iter_dataframes_reuses_remote_headers(memory_fs, monkeypatch):
+    from wfdb.io import record
+
+    upload(memory_fs, "multi-segment/p000878/*")
+    name = "p000878-2137-10-26-16-57"
+    uri = f"memory://wfdb-test/multi-segment/p000878/{name}"
+    opened_headers = []
+    open_file = record._fsspec_open
+
+    def track_header(path, mode="rb", **kwargs):
+        if path.endswith(".hea"):
+            opened_headers.append(path)
+        return open_file(path, mode, **kwargs)
+
+    monkeypatch.setattr(record, "_fsspec_open", track_header)
+    chunks = list(wfdb.iter_dataframes(uri, chunk_size=750, sampto=7500))
+
+    assert len(chunks) == 10
+    assert len(opened_headers) == len(set(opened_headers)) == 4
+    expected = wfdb.rdrecord(
+        f"sample-data/multi-segment/p000878/{name}", sampto=7500
+    ).to_dataframe()
+    pd.testing.assert_frame_equal(pd.concat(chunks), expected)
+
+    # Separate rdrecord calls still read their own headers.
+    for _ in range(2):
+        wfdb.rdrecord(uri, sampfrom=3745, sampto=3755)
+    assert opened_headers.count(f"{uri}.hea") == 3
+
+
 def test_wrsamp_to_cloud(memory_fs):
     signal = np.array([[0], [1], [-1], [2]], dtype=np.int16)
     wfdb.wrsamp(
