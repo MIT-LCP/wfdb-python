@@ -1,60 +1,115 @@
-# The WFDB Python Package
+# WFDB for Python
 
-![signals](https://raw.githubusercontent.com/MIT-LCP/wfdb-python/main/demo-img.png)
+Read, write, plot, and process physiologic waveforms and annotations with
+Python. WFDB works with local files and records hosted on
+[PhysioNet](https://physionet.org/), so you can move from a published dataset
+to NumPy arrays in a few lines of code.
 
-[![PyPI Downloads](https://img.shields.io/pypi/dm/wfdb.svg?label=PyPI%20downloads)](https://pypi.org/project/wfdb/)
-[![PhysioNet Project](https://img.shields.io/badge/DOI-10.13026%2Fjt5e--gq15-blue)](https://doi.org/10.13026/jt5e-gq15)
+[![PyPI](https://img.shields.io/pypi/v/wfdb)](https://pypi.org/project/wfdb/)
+[![Docs](https://img.shields.io/badge/docs-online-blue)](https://wfdb.readthedocs.io/)
 
-## Introduction
+![ECG](https://raw.githubusercontent.com/MIT-LCP/wfdb-python/main/demo-img.png)
 
-WFDB defines a set of open standards and software tools for the storage, sharing, and analysis of physiologic signal and annotation data. It has been widely used for decades to support biomedical research, clinical studies, and education. For more information on WFDB and its various implementations, see the [WFDB website](https://wfdb.mit.edu/).
+## Install
 
-This package is heavily inspired by the original [WFDB Software Package](https://www.physionet.org/content/wfdb/). It aims to replicate many of its command-line APIs in Python, but there is no promise of consistency between the two. Core I/O functionality is based on the Waveform Database (WFDB) [specifications](https://github.com/wfdb/wfdb-spec/).
-
-## Resources
-
-- WFDB Website: [https://wfdb.mit.edu/](https://wfdb.mit.edu/)
-- WFDB-Python Documentation: [http://wfdb.readthedocs.io](http://wfdb.readthedocs.io)
-- WFDB Specification: [https://github.com/wfdb/wfdb-spec/](https://github.com/wfdb/wfdb-spec/)
-- Demo Notebook: [https://github.com/MIT-LCP/wfdb-python/blob/main/demo.ipynb](https://github.com/MIT-LCP/wfdb-python/blob/main/demo.ipynb)
-- WFDB Development Repository: [https://github.com/MIT-LCP/wfdb-python](https://github.com/MIT-LCP/wfdb-python)
-
-## Installation
-
-The distribution is hosted on PyPI at: [https://pypi.python.org/pypi/wfdb/](https://pypi.python.org/pypi/wfdb/). The package can be directly installed from PyPI using pip:
+WFDB requires Python 3.11 or newer. Install it from PyPI:
 
 ```sh
 pip install wfdb
 ```
 
-Alternatively, add it to a project managed with [uv](https://docs.astral.sh/uv/):
+If you use [uv](https://docs.astral.sh/uv/), run `uv add wfdb` instead. On
+some systems, the `soundfile` dependency also needs a separate installation
+of `libsndfile`; see the
+[soundfile installation notes](https://pypi.org/project/soundfile/).
 
-```sh
-uv add wfdb
+## Quick start
+
+Read ten seconds of ECG and its beat annotations from the
+[MIT-BIH Arrhythmia Database](https://physionet.org/content/mitdb/):
+
+```python
+import wfdb
+
+record = wfdb.rdrecord("100", pn_dir="mitdb", sampto=3600)
+annotation = wfdb.rdann("100", "atr", pn_dir="mitdb", sampto=3600)
+
+print(record.fs)  # Sampling frequency: 360 Hz
+print(record.sig_name)  # ['MLII', 'V5']
+print(record.p_signal.shape)  # (3600, 2): samples x channels
+print(annotation.sample[:5])  # Sample positions of the first five annotations
+
+wfdb.plot_wfdb(record=record, annotation=annotation, title="Record 100")
 ```
 
-On some less-common systems, you may need to install `libsndfile` separately.  See the [soundfile installation notes](https://pypi.org/project/soundfile/) for more information.
+The `pn_dir` argument downloads data from PhysioNet. For files already on
+your computer, pass the path without its `.hea` or `.dat` extension instead:
 
-## Development
-
-The development version is hosted at: [https://github.com/MIT-LCP/wfdb-python](https://github.com/MIT-LCP/wfdb-python). This repository also contains demo scripts and example data. To set up a development environment, install [uv](https://docs.astral.sh/uv/), clone the repository, navigate to the base directory, and run:
-
-```sh
-uv sync
+```python
+record = wfdb.rdrecord("path/to/record")
+annotation = wfdb.rdann("path/to/record", "atr")
 ```
 
-This creates a virtual environment in `.venv` containing the package and all development tools. Commands can then be run inside this environment with `uv run`, for example:
+`record.p_signal` is a NumPy array of signals in physical units. Use
+`physical=False` with `rdrecord` to read digital values in `record.d_signal`.
+Annotations provide sample positions, symbols, and other label information.
 
-```sh
-uv run pytest
+## Write a record
+
+Create a WFDB header and signal file from a NumPy array:
+
+```python
+import numpy as np
+import wfdb
+
+signal = np.array([0.0, 0.2, 0.0, -0.2])[:, None]
+wfdb.wrsamp(
+    "example",
+    fs=250,
+    units=["mV"],
+    sig_name=["ECG"],
+    p_signal=signal,
+    fmt=["16"],
+)
 ```
 
-Please see the [DEVELOPING.md](https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md) document for contribution/development instructions.
+This writes `example.hea` and `example.dat` in the current directory. See
+[`wrann`](https://wfdb.readthedocs.io/en/latest/io.html#wfdb.io.wrann)
+to write annotations.
 
-### Creating a new release
+## What else can you do?
 
-For guidance on creating a new release, see: https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md#creating-distributions
+- **Work with remote data:** Read PhysioNet records with `pn_dir` or a
+  `physionet://` URI. Supported cloud URIs include `s3://` and `gs://` when
+  the corresponding `fsspec` backend is installed.
+- **Use WFDB archives:** Read local `.wfdb` archives containing a record and
+  its annotations. See the
+  [archive documentation](https://wfdb.readthedocs.io/en/latest/io.html#wfdb-archives).
+- **Analyze signals:** Use the
+  [processing tools](https://wfdb.readthedocs.io/en/latest/processing.html)
+  for tasks such as resampling and QRS detection.
+- **Convert formats:** See the
+  [conversion guide](https://wfdb.readthedocs.io/en/latest/convert.html)
+  for supported waveform formats.
 
-## Citing
+WFDB-Python follows the open
+[WFDB specifications](https://github.com/wfdb/wfdb-spec/). It is inspired by
+the original [WFDB Software Package](https://physionet.org/content/wfdb/),
+but its Python API is documented separately.
 
-When using this resource, please cite the software [publication](https://physionet.org/content/wfdb-python/) on PhysioNet.
+## Documentation and help
+
+The [documentation](https://wfdb.readthedocs.io/) covers the full
+[I/O API](https://wfdb.readthedocs.io/en/latest/io.html),
+[plotting](https://wfdb.readthedocs.io/en/latest/plot.html), and
+[processing](https://wfdb.readthedocs.io/en/latest/processing.html). The
+[demo notebook](https://github.com/MIT-LCP/wfdb-python/blob/main/demo.ipynb)
+shows more examples. Report bugs or request features in the
+[issue tracker](https://github.com/MIT-LCP/wfdb-python/issues).
+
+## Contributing and citing
+
+See [DEVELOPING.md](https://github.com/MIT-LCP/wfdb-python/blob/main/DEVELOPING.md)
+for setup, testing, and contribution guidance. If you use WFDB-Python in
+research, please cite its
+[PhysioNet publication](https://physionet.org/content/wfdb-python/).
