@@ -351,7 +351,7 @@ def read_edf(
     # Use the exact offset to decode physical samples and round only the
     # baseline stored in the Record metadata.
     edf_baseline = digital_max - physical_max * adc_gain_all
-    baseline = np.rint(edf_baseline).astype("int64")
+    baseline = np.rint(edf_baseline).astype("int64").tolist()
 
     units = n_sig * [""]
     for i, f in enumerate(physical_dims):
