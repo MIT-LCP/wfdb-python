@@ -47,3 +47,35 @@ jobs:
         env:
           MPLBACKEND: Agg
         run: uv run --python 3.11 --resolution lowest-direct pytest
+
+  bxb-comparison:
+    name: bxb differential / WFDB 10.7.0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Install Python 3.11
+        run: uv python install 3.11
+      - name: Install WFDB build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc make libflac-dev libcurl4-gnutls-dev
+      - name: Build WFDB Software Package 10.7.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 \
+            https://physionet.org/physiotools/archives/wfdb-10.7/wfdb-10.7.0.tar.gz \
+            -o "$RUNNER_TEMP/wfdb-10.7.0.tar.gz"
+          echo "a12b9c87cf69bb3e759c4c6ab946f82b9fafdc62f3c8022db8a629bb2732d4b6  $RUNNER_TEMP/wfdb-10.7.0.tar.gz" \
+            | sha256sum --check -
+          tar -xzf "$RUNNER_TEMP/wfdb-10.7.0.tar.gz" -C "$RUNNER_TEMP"
+          cd "$RUNNER_TEMP/wfdb-10.7.0"
+          ./configure --prefix="$RUNNER_TEMP/wfdb-install"
+          make install
+          echo "$RUNNER_TEMP/wfdb-install/bin" >> "$GITHUB_PATH"
+      - name: Verify bxb is installed
+        run: command -v bxb
+      - name: Compare all four seeds with bxb
+        run: uv run --python 3.11 pytest -q tests/test_beat_comparison.py::test_matches_wfdb_bxb
