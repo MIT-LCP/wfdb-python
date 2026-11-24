@@ -1228,6 +1228,13 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     def wrsamp(self, expanded=False, write_dir="", wfdb_archive=None):
         """Write a multi-segment header and the headers and dat files of its segments.
 
+        The files are written into a temporary folder in `write_dir`, and
+        moved into `write_dir` once every segment has been written. If an
+        error occurs, no files are left in `write_dir`, and any files that
+        were being replaced are restored. The files are moved one at a time,
+        so a program reading them meanwhile, or a crash while they are moved,
+        can still see a mix of old and new files.
+
         Parameters
         ----------
         expanded : bool, optional
