@@ -235,6 +235,26 @@ class TestEdfToWfdb:
         np.testing.assert_array_equal(raw[2 * 3601 :], -32768)
         assert raw.size == 2 * 2 * 3600
 
+    def test_wfdb_to_edf_rejects_samples_beyond_16_bits(self, tmp_path):
+        """Values that EDF cannot store raise an error instead of wrapping."""
+        sig = np.array([[0], [50000], [-70000], [100]], dtype=np.int32)
+        wrsamp(
+            "wide",
+            fs=250,
+            units=["mV"],
+            sig_name=["ECG"],
+            d_signal=sig,
+            fmt=["32"],
+            adc_gain=[1000.0],
+            baseline=[0],
+            write_dir=str(tmp_path),
+        )
+        output = tmp_path / "wide.edf"
+
+        with pytest.raises(ValueError, match="signal 'ECG' has digital values"):
+            wfdb_to_edf(str(tmp_path / "wide"), output_filename=str(output))
+        assert not output.exists()
+
 
 class TestCsvToWfdb:
     """Tests for the io.convert.csv module."""

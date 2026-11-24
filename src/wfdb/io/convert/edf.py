@@ -748,14 +748,21 @@ def wfdb_to_edf(
         temp_data = record.adc()
         temp_data = [v for v in np.transpose(temp_data)]
 
+    # EDF stores 16-bit samples, and casting would wrap larger values silently
+    for sig, name in zip(temp_data, record.sig_name):
+        if len(sig) and (np.min(sig) < -32768 or np.max(sig) > 32767):
+            raise ValueError(
+                f"EDF stores 16-bit samples, but signal {name!r} has digital "
+                f"values from {np.min(sig)} to {np.max(sig)}, outside -32768 to "
+                "32767"
+            )
     out_data = np.concatenate(
         [
             sig[i * count : (i + 1) * count]
             for i in range(num_blocks)
             for sig, count in zip(temp_data, samps_per_record)
-        ],
-        dtype=np.int16,
-    )
+        ]
+    ).astype(np.int16)
 
     # Start writing the file
     if output_filename == "":
