@@ -88,12 +88,13 @@ yet.
 Cloud Storage Access
 --------------------
 
-WFDB-Python supports reading records and annotations directly from cloud
-storage via the ``fsspec`` library. Pass a cloud URI as the
-``record_name`` argument instead of a local path.
+WFDB-Python supports reading and writing records and annotations in cloud
+storage via the ``fsspec`` library. Pass a cloud URI as ``record_name`` when
+reading, or as ``write_dir`` when writing.
 
 **Supported protocols:** ``s3://`` (Amazon S3), ``gs://`` (Google Cloud
-Storage), ``az://`` (Azure Blob Storage), and ``azureml://`` (Azure ML).
+Storage), ``az://`` (Azure Blob Storage), ``azureml://`` (Azure ML), and
+``memory://`` (in-memory filesystems, useful for testing).
 
 **Prerequisites:** Install the ``fsspec`` backend for your cloud provider:
 
@@ -120,6 +121,10 @@ Storage), ``az://`` (Azure Blob Storage), and ``azureml://`` (Azure ML).
     # Read annotations from S3
     ann = wfdb.rdann("s3://my-bucket/wfdb-data/100", "atr")
 
+    # Write a record and its annotations to S3
+    record.wrsamp(write_dir="s3://my-bucket/wfdb-data")
+    ann.wrann(write_dir="s3://my-bucket/wfdb-data")
+
     # For PhysioNet databases, use pn_dir with the database name:
     record = wfdb.rdrecord("100", pn_dir="mitdb")
     ann = wfdb.rdann("100", "atr", pn_dir="mitdb")
@@ -129,9 +134,17 @@ provider-specific mechanism (e.g., ``~/.aws/credentials`` for S3,
 ``GOOGLE_APPLICATION_CREDENTIALS`` for GCS). The ``fsspec`` library
 handles credential discovery automatically.
 
+Cloud writing also works with ``wfdb.wrsamp``, ``MultiRecord.wrsamp``, and
+``wfdb.wrann``. WFDB-Python first writes the files to a temporary local
+directory, then uploads them. A write needs enough local space for the
+complete record. The main header is uploaded last, but replacing a record
+with multiple files is not atomic: readers may see a mix of old and new
+files while an upload is in progress. ``physionet://`` destinations and
+``.wfdb`` archives in cloud storage are not supported.
+
 .. note::
 
-    Cloud URIs must be passed as ``record_name``, not ``pn_dir``.
+    When reading, pass cloud URIs as ``record_name``, not ``pn_dir``.
     The ``pn_dir`` parameter is reserved for PhysioNet database names
     (e.g., ``"mitdb"`` or ``"mimic4wdb/0.1.0"``), which are resolved
     against the configured PhysioNet index URL.

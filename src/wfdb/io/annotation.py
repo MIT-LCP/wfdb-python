@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from wfdb.io import _header, download, record, util
+from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import _fsspec_open
 from wfdb.io.archive import WFDBArchive, is_archive_path
 
@@ -290,13 +291,19 @@ class Annotation:
         write_fs : bool, optional
             Whether to write the `fs` attribute to the file.
         write_dir : str, optional
-            The output directory in which the header is written.
+            The local directory or cloud URI in which to write the file.
 
         Returns
         -------
         N/A
 
         """
+        if is_cloud_path(write_dir):
+            check_cloud_write(write_dir)
+            with staged_cloud_write(write_dir) as staging:
+                self.wrann(write_fs=write_fs, write_dir=staging)
+            return
+
         for field in ["record_name", "extension"]:
             if getattr(self, field) is None:
                 raise Exception(
@@ -1837,7 +1844,7 @@ def wrann(
         `custom_labels` is defined, `custom_labels` must contain `label_store`
         in its mapping. ie. it must come in format 1 or 3 above.
     write_dir : str, optional
-        The directory in which to write the annotation file
+        The local directory or cloud URI in which to write the annotation file.
 
     Returns
     -------
