@@ -122,8 +122,8 @@ SEGMENT_SPECS = pd.DataFrame(
     columns=_SPECIFICATION_COLUMNS,
     dtype="object",
     data=[
-        [(str, list), "", None, True, None, None],  # seg_name
-        [(int_types, list), " ", "seg_name", True, None, None],  # seg_len
+        [(str,), "", None, True, None, None],  # seg_name
+        [int_types, " ", "seg_name", True, None, None],  # seg_len
     ],
 )
 

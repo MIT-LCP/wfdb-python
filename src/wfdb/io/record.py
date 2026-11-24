@@ -1242,9 +1242,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     base_datetime : datetime.datetime, optional
         The date and time at the beginning of the record, equivalent to
         `datetime.combine(base_date, base_time)`.
-    seg_name : str, optional
-        The name of the segment.
-    seg_len : List[int], optional
+    seg_name : list of str, optional
+        The name of each segment.
+    seg_len : list of int, optional
         The length of each segment.
     comments : list, optional
         A list of string comments to be written to the header file.
@@ -1919,6 +1919,8 @@ ALLOWED_TYPES.update(
 
 # Fields that must be lists
 LIST_FIELDS = tuple(_header.SIGNAL_SPECS.index) + (
+    "seg_name",
+    "seg_len",
     "comments",
     "e_p_signal",
     "e_d_signal",
