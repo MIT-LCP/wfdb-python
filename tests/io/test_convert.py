@@ -566,9 +566,8 @@ class TestEdfToWfdb:
         converted = read_edf(str(output))
         assert converted.fs == 360
         assert isinstance(converted.fs, int)
-        np.testing.assert_allclose(
-            converted.p_signal[:3600], original.p_signal, atol=1e-10
-        )
+        assert converted.sig_len == original.sig_len
+        np.testing.assert_allclose(converted.p_signal, original.p_signal, atol=1e-10)
 
     def test_read_edf_record_can_be_written(self, tmp_path):
         """The baseline of a converted record satisfies WFDB field checks."""
