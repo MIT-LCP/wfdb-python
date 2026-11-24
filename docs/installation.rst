@@ -23,7 +23,9 @@ files with ``Internal psf_fseek() failed``. Use SoundFile 0.13.1 or newer to
 get updated bundled libraries.
 
 If SoundFile uses a system-installed ``libsndfile`` instead, the system's
-``libFLAC`` must be updated separately. Versions 1.4.0 through 1.4.2 have
+``libFLAC`` must be updated separately. This is the case on Linux systems with
+glibc older than 2.28, for which SoundFile 0.13.1 has no wheel with bundled
+libraries. Versions 1.4.0 through 1.4.2 have
 a known seek failure; use libFLAC 1.4.3 or newer. See the reports for
 `older libFLAC versions <https://github.com/MIT-LCP/wfdb-python/issues/486>`_
 and `libFLAC 1.4.0--1.4.2 <https://github.com/MIT-LCP/wfdb-python/issues/488>`_.
