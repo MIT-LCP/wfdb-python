@@ -1047,8 +1047,8 @@ def rdedfann(
         {
             'onset_time': list of %H:%M:%S.fff strings denoting the annotation
                           onset times,
-            'sample_num': list of integers denoting the annotation onset
-                          sample numbers,
+            'sample_num': list of annotation onset sample numbers, rounded to
+                          the nearest sample (half-sample ties to even),
             'comment': list of comments (`aux_note`) for the annotations,
             'duration': list of floats denoting the duration of the event
         }
@@ -1186,7 +1186,7 @@ def rdedfann(
             hours, rem = divmod(onset, 3600)
             minutes, seconds = divmod(rem, 60)
             onset_time = f"{hours:02.0f}:{minutes:02.0f}:{seconds:06.3f}"
-            sample_num = int(onset * rec.sig_len)
+            sample_num = int(np.rint(onset * rec.fs))
             duration = float(ann_split[1])
             comment = " ".join(ann_split[2:])
             if verbose:
@@ -1219,7 +1219,7 @@ def rdedfann(
         record_name = _split_path(record_name)[1].split(".")[0]
         extension = "atr"
         fs = rec.fs
-        sample = (df_out["onset"].to_numpy() * fs).astype(np.int64)
+        sample = np.rint(df_out["onset"].to_numpy() * fs).astype(np.int64)
         # Assume each annotation is a comment
         symbol = ['"'] * len(df_out.index)
         subtype = np.array([22] * len(df_out.index))

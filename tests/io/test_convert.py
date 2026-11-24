@@ -23,6 +23,53 @@ class TestEdfToWfdb:
         info = rdedfann("sample-data/test_edfann.edf")
         assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
 
+    @pytest.mark.parametrize("onset, expected_sample", [(1.3, 42), (1.265625, 40)])
+    def test_rdedfann_sample_num_uses_fs(self, tmp_path, onset, expected_sample):
+        """Both return modes round onset seconds to the nearest sample."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("768", 8),
+            ("EDF+C", 44),
+            ("2", 8),
+            ("1", 8),
+            ("2", 4),
+        ]
+        signal_fields = [
+            (["ECG", "EDF Annotations"], 16),
+            (["", ""], 80),
+            (["mV", ""], 8),
+            (["-32767", "-1"], 8),
+            (["32767", "1"], 8),
+            (["-32767", "-32768"], 8),
+            (["32767", "32767"], 8),
+            (["", ""], 80),
+            (["32", "32"], 8),
+            (["", ""], 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        for values, width in signal_fields:
+            header += "".join(value.ljust(width) for value in values)
+        ecg_block = np.zeros(32, dtype="<i2").tobytes()
+        first_block = ecg_block + b"+0\x14\x14\x00".ljust(64, b"\x00")
+        second_block = ecg_block + (
+            b"+1\x14\x14\x00" + f"+{onset}\x15.5\x14Event\x14\x00".encode()
+        ).ljust(64, b"\x00")
+        edf_file = tmp_path / "onset.edf"
+        edf_file.write_bytes(header.encode() + first_block + second_block)
+
+        metadata = read_edf(str(edf_file), header_only=True, rdedfann_flag=True)
+        assert metadata["fs"] == 32
+        assert metadata["sig_len"] == 64
+        info = rdedfann(str(edf_file))
+        assert info["sample_num"] == [expected_sample]
+        assert info["comment"] == ["Event"]
+        annotation = rdedfann(str(edf_file), info_only=False, record_only=True)
+        assert annotation.sample[0] == expected_sample
+
     def test_rdedfann_ignores_physical_calibration(self, tmp_path):
         """Annotation bytes have the same meaning with different EDF scales."""
         source = "sample-data/test_edfann.edf"
