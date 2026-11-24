@@ -4,6 +4,7 @@ import multiprocessing.dummy
 import os
 import posixpath
 import re
+import shutil
 import tempfile
 
 import numpy as np
@@ -1054,6 +1055,50 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         return pd.DataFrame(data=data, index=index, columns=self.sig_name)
 
 
+def _move_files_into_place(source_dir, target_dir):
+    """Move every file in a directory into another directory, all or none.
+
+    A file that replaces an existing file gets that file's permissions. If a
+    move fails, the files that were already moved are removed and the files
+    they replaced are restored, before the error is raised again, so that
+    `target_dir` is left as it was.
+
+    Parameters
+    ----------
+    source_dir : str
+        The directory of the files to move. The files that are replaced are
+        kept in a folder in it until all the files have been moved.
+    target_dir : str
+        The directory to move the files into, on the same file system.
+
+    Returns
+    -------
+    N/A
+
+    """
+    names = sorted(os.listdir(source_dir))
+    replaced_dir = os.path.join(source_dir, ".replaced")
+    os.mkdir(replaced_dir)
+    moved = []
+    replaced = []
+    try:
+        for name in names:
+            new_file = os.path.join(source_dir, name)
+            target = os.path.join(target_dir, name)
+            if os.path.lexists(target):
+                shutil.copymode(target, new_file)
+                os.replace(target, os.path.join(replaced_dir, name))
+                replaced.append(name)
+            os.replace(new_file, target)
+            moved.append(name)
+    except BaseException:
+        for name in moved:
+            os.remove(os.path.join(target_dir, name))
+        for name in replaced:
+            os.replace(os.path.join(replaced_dir, name), os.path.join(target_dir, name))
+        raise
+
+
 class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
     """The class representing multi-segment WFDB records.
 
@@ -1221,8 +1266,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
             dir=write_dir or os.curdir, prefix=".wfdb-"
         ) as staging:
             self._write_segments(expanded, staging, None)
-            for name in os.listdir(staging):
-                os.replace(os.path.join(staging, name), os.path.join(write_dir, name))
+            _move_files_into_place(staging, write_dir or os.curdir)
 
     def _write_segments(self, expanded, write_dir, wfdb_archive):
         """Write the multi-segment header, and the files of each segment.

@@ -1,3 +1,6 @@
+import os
+import stat
+
 import numpy as np
 import pytest
 
@@ -246,3 +249,52 @@ class TestMultiRecordWriting:
         assert [p.name for p in (tmp_path / "out").iterdir()] == ["041s.wfdb"]
         assert not (tmp_path / "041s.wfdb").exists()
         assert wfdb.rdrecord("out/041s.wfdb").sig_len == record.sig_len
+
+    @pytest.mark.skipif(os.name == "nt", reason="POSIX file permissions")
+    def test_overwriting_keeps_file_permissions(self, tmp_path):
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        record.wrsamp(write_dir=str(tmp_path))
+        (tmp_path / "041s01.dat").chmod(0o600)
+
+        record.wrsamp(write_dir=str(tmp_path))
+
+        mode = stat.S_IMODE((tmp_path / "041s01.dat").stat().st_mode)
+        assert mode == 0o600
+
+    @staticmethod
+    def fail_second_move(monkeypatch, target):
+        """Make the second move of a new file into `target` fail."""
+        real_replace = os.replace
+        moves = []
+
+        def replace(src, dst):
+            into_target = os.path.dirname(os.path.abspath(dst)) == str(target)
+            if into_target and ".replaced" not in str(src):
+                moves.append(dst)
+                if len(moves) == 2:
+                    raise OSError("disk full")
+            real_replace(src, dst)
+
+        monkeypatch.setattr(os, "replace", replace)
+
+    def test_failed_move_leaves_no_files(self, tmp_path, monkeypatch):
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        self.fail_second_move(monkeypatch, tmp_path)
+
+        with pytest.raises(OSError, match="disk full"):
+            record.wrsamp(write_dir=str(tmp_path))
+
+        assert list(tmp_path.iterdir()) == []
+
+    def test_failed_move_restores_the_record_it_replaces(self, tmp_path, monkeypatch):
+        record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
+        record.wrsamp(write_dir=str(tmp_path))
+        before = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
+        for segment in record.segments:
+            segment.d_signal = segment.d_signal // 2
+        self.fail_second_move(monkeypatch, tmp_path)
+
+        with pytest.raises(OSError, match="disk full"):
+            record.wrsamp(write_dir=str(tmp_path))
+
+        assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == before
