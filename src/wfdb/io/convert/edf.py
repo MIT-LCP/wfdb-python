@@ -1093,9 +1093,11 @@ def rdedfann(
         {
             'onset_time': list of %H:%M:%S.fff strings denoting the annotation
                           onset times,
-            'sample_num': list of annotation onset sample numbers, rounded to
-                          the nearest sample (half-sample ties to even). For
-                          annotation-only files without `fs`, values are None,
+            'sample_num': list of annotation onset sample numbers using `fs`,
+                          rounded to the nearest sample (half-sample ties to
+                          even). For annotation-only files without `fs`,
+                          values are None,
+            'fs': the sampling frequency used for `sample_num`, or None,
             'comment': list of comments (`aux_note`) for the annotations,
             'duration': list of floats denoting the duration of the event
         }
@@ -1103,6 +1105,11 @@ def rdedfann(
     Else, this function will return either the WFDB Annotation format of the
     information of the file if `record_only` is set to True, or nothing if
     neither are set to True though a WFDB Annotation file will be created.
+    If `fs` differs from the WFDB frame rate, annotation sample numbers are not
+    frame indexes in the Record returned by `read_edf`. Divide by the
+    annotation rate to align their times; `plot_wfdb` does this conversion.
+    When saving an object returned by `record_only=True`, use
+    ``annotation.wrann(write_fs=True)`` to retain its time resolution.
 
     Parameters
     ----------
@@ -1137,8 +1144,10 @@ def rdedfann(
         annotation text uses UTF-8, as required by the format.
     fs : float, optional
         Sampling frequency for annotation sample numbers. By default, use the
-        signal frame rate. Annotation-only files have no signal rate; provide
-        this value to produce sample numbers or a WFDB Annotation object/file.
+        fastest physiologic signal rate, which may exceed the WFDB frame rate
+        returned by `read_edf`. Annotation-only files have no signal rate;
+        provide this value to produce sample numbers or a WFDB Annotation
+        object/file.
 
     Returns
     -------
@@ -1217,7 +1226,12 @@ def rdedfann(
 
     if fs is not None and (not np.isfinite(fs) or fs <= 0):
         raise ValueError("fs must be a positive, finite sampling frequency")
-    sample_fs = rec.fs if fs is None else fs
+    if fs is not None:
+        sample_fs = fs
+    elif rec.fs is not None:
+        sample_fs = rec.fs * max(rec.samps_per_frame)
+    else:
+        sample_fs = None
     if sample_fs is None and not info_only:
         raise ValueError("fs is required to write annotation-only EDF files")
 
@@ -1259,6 +1273,7 @@ def rdedfann(
         return {
             "onset_time": onset_times,
             "sample_num": sample_nums,
+            "fs": sample_fs,
             "comment": comments,
             "duration": durations,
         }
