@@ -1165,30 +1165,31 @@ def rdedfann(
         os.remove(record_name)
 
     # EDF+ annotation characters are packed into the two bytes of each digital
-    # sample. Their meaning is independent of the channel's physical scaling.
-    annotation_string = rec._edf_annotation_bytes.decode(annotation_encoding)
-    for rep in ["\x00", "\x14", "\x15"]:
-        annotation_string = annotation_string.replace(rep, " ")
-
-    # Parse the resulting annotation string
+    # sample. Split TALs and fields at their byte delimiters before decoding
+    # text, so punctuation inside an annotation cannot be mistaken for a TAL.
     onsets = []
     onset_times = []
     sample_nums = []
     comments = []
     durations = []
-    all_anns = annotation_string.split("+")
-    for ann in all_anns:
-        if ann == "":
+    for tal in rec._edf_annotation_bytes.split(b"\x00"):
+        if not tal:
             continue
-        try:
-            ann_split = ann.strip().split(" ")
-            onset = float(ann_split[0])
-            hours, rem = divmod(onset, 3600)
-            minutes, seconds = divmod(rem, 60)
-            onset_time = f"{hours:02.0f}:{minutes:02.0f}:{seconds:06.3f}"
-            sample_num = int(np.rint(onset * rec.fs))
-            duration = float(ann_split[1])
-            comment = " ".join(ann_split[2:])
+        fields = tal.split(b"\x14")
+        if len(fields) < 2:
+            continue
+        timestamp = fields[0].split(b"\x15", 1)
+        onset = float(timestamp[0].decode("ascii"))
+        duration = float(timestamp[1].decode("ascii")) if len(timestamp) == 2 else 0.0
+        sign = "-" if onset < 0 else ""
+        hours, rem = divmod(abs(onset), 3600)
+        minutes, seconds = divmod(rem, 60)
+        onset_time = f"{sign}{hours:02.0f}:{minutes:02.0f}:{seconds:06.3f}"
+        sample_num = int(np.rint(onset * rec.fs))
+        for annotation in fields[1:]:
+            if not annotation:
+                continue
+            comment = annotation.decode(annotation_encoding)
             if verbose:
                 print(f"{onset_time}\t{sample_num}\t{comment}\t\tduration: {duration}")
             onsets.append(onset)
@@ -1196,8 +1197,6 @@ def rdedfann(
             sample_nums.append(sample_num)
             comments.append(comment)
             durations.append(duration)
-        except IndexError:
-            continue
 
     if info_only:
         return {
