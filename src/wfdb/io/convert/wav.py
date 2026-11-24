@@ -137,6 +137,8 @@ def wfdb_to_wav(
         record.block_size = record.n_sig * [0]
         record.fmt = record.n_sig * ["16"]
         record.samps_per_frame = record.n_sig * [1]
+        # The samples written are already aligned
+        record.skew = None
         record.init_value = sig_data[0][: record.n_sig].tolist()
         record.byte_offset = record.n_sig * [44]
         # Write the header file
