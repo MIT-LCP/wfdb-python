@@ -2086,3 +2086,54 @@ class TestWriteAppliedSkew:
         np.testing.assert_array_equal(
             written.segments[0].d_signal, record.segments[0].d_signal
         )
+
+
+class TestWarnAboutReplacingOtherFiles:
+    """Writing a renamed copy next to the original warns (#153)."""
+
+    @staticmethod
+    def read_100(tmp_path):
+        record = wfdb.rdrecord("sample-data/100", physical=False, sampto=100)
+        record.wrsamp(write_dir=str(tmp_path))
+        return record
+
+    def test_renamed_copy_with_the_original_file_names_warns(self, tmp_path):
+        record = self.read_100(tmp_path)
+        record.record_name = "100_cloned"
+
+        with pytest.warns(
+            UserWarning, match=r"replaces existing signal files 100\.dat"
+        ):
+            record.wrsamp(write_dir=str(tmp_path))
+
+    @pytest.mark.parametrize(
+        "change", ["none", "rename both", "rename in another folder", "archive"]
+    )
+    def test_no_warning(self, tmp_path, recwarn, change):
+        record = self.read_100(tmp_path)
+        write_dir = tmp_path
+        archive = None
+        if change != "none":
+            record.record_name = "100_copy"
+        if change == "rename both":
+            record.file_name = ["100_copy.dat"] * record.n_sig
+        elif change == "rename in another folder":
+            write_dir = tmp_path / "other"
+            write_dir.mkdir()
+        elif change == "archive":
+            archive = "100_copy.wfdb"
+
+        record.wrsamp(write_dir=str(write_dir), wfdb_archive=archive)
+
+        assert not [w for w in recwarn if "replaces existing" in str(w.message)]
+
+    def test_signal_files_named_with_a_suffix_do_not_warn(self, tmp_path, recwarn):
+        """Signal files whose names start with the record name are its own."""
+        record = wfdb.rdrecord("sample-data/100", physical=False, sampto=100)
+        record.record_name = "rec_0001"
+        record.file_name = ["rec_0001e.dat"] * record.n_sig
+        record.wrsamp(write_dir=str(tmp_path))
+
+        record.wrsamp(write_dir=str(tmp_path))
+
+        assert not [w for w in recwarn if "replaces existing" in str(w.message)]
