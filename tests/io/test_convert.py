@@ -119,8 +119,14 @@ class TestEdfToWfdb:
         """EDF format conversion to MIT for uniform sample rates."""
         # Uniform sample rates
         record_MIT = rdrecord("sample-data/n16").__dict__
-        record_EDF = read_edf("sample-data/n16.edf").__dict__
+        converted = read_edf("sample-data/n16.edf")
+        record_EDF = converted.__dict__
         assert record_EDF["adc_res"] == [16] * 5
+        assert record_EDF["checksum"][0] == 56364
+        np.testing.assert_equal(
+            record_EDF["checksum"],
+            [int(channel.sum() % 65536) for channel in converted.adc().T],
+        )
 
         fields = list(record_MIT.keys())
         # Original MIT format method of checksum is outdated, sometimes
@@ -217,10 +223,8 @@ class TestEdfToWfdb:
         assert np.array_equal(test_results, target_results)
 
     def test_float_checksum(self, tmp_path):
-        """Each channel of the float signal is summed separately."""
-        # Two signals of ten samples, each read as a physical value of about 0.2.
-        # Summing the rows of the array in order can differ by floating-point
-        # rounding from summing each channel separately.
+        """Checksums sum converted digital samples rather than physical values."""
+        # Two channels of ten digital samples, each with physical value 0.2.
         n_sig = 2
         record_fields = [
             ("0", 8),
@@ -255,7 +259,8 @@ class TestEdfToWfdb:
 
         record = read_edf(str(edf_file))
         np.testing.assert_allclose(record.p_signal, 0.2)
-        assert record.checksum == [2, 2]
+        assert record.checksum == [20, 20]
+        np.testing.assert_array_equal(record.adc(), 2)
 
     def test_edf_mixed_rate_scaling(self, tmp_path):
         """Average high-rate samples before applying the physical scale."""
@@ -294,6 +299,8 @@ class TestEdfToWfdb:
         record = read_edf(str(edf_file))
         assert record.samps_per_frame == [2, 1]
         np.testing.assert_allclose(record.p_signal, [[1.5, 5], [3.5, 10]])
+        np.testing.assert_array_equal(record.adc(), [[3, 10], [7, 20]])
+        assert record.checksum == [10, 30]
 
     def test_edf_fractional_baseline(self, tmp_path):
         """EDF physical extrema map exactly, even with a fractional offset."""
@@ -387,6 +394,7 @@ class TestEdfToWfdb:
             record.p_signal[:, 0], [(32767 - sample) / 65535 for sample in samples]
         )
         np.testing.assert_array_equal(record.adc()[:, 0], expected_digital)
+        assert record.checksum == [sum(expected_digital) % 65536]
 
         record.wrsamp(write_dir=str(tmp_path))
         np.testing.assert_allclose(
