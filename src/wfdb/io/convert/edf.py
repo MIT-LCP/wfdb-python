@@ -47,7 +47,8 @@ def read_edf(
         The path of the input EDF file to be read, including its
         extension. This can also be a cloud URI, such as
         'physionet://chbmit/1.0.0/chb01/chb01_01.edf' or 's3://...', which
-        is read without saving a copy of the file.
+        is read without saving a copy of the file. With `header_only`,
+        only the header is read.
     pn_dir : str, optional
         Option used to stream data from Physionet. The Physionet
         database directory from which to find the required record files.
@@ -376,6 +377,7 @@ def read_edf(
     )
 
     if header_only:
+        edf_file.close()
         return {
             "fs": fs,
             "sig_len": sig_len,

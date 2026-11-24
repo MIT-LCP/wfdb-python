@@ -580,3 +580,59 @@ def test_record_converters_read_physionet_uris(
     assert sorted(p.name for p in workdir.iterdir()) == ["100m.hea", "100m.mat"]
     expected = sigavg(str(local), "atr", stop_range=1, return_df=True)
     assert averaged.equals(expected)
+
+
+class CountingFile:
+    """A file that counts the bytes read from it."""
+
+    def __init__(self, f, counts):
+        self._f = f
+        self._counts = counts
+
+    def read(self, *args):
+        data = self._f.read(*args)
+        self._counts.append(len(data))
+        return data
+
+    def __getattr__(self, name):
+        return getattr(self._f, name)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._f.close()
+
+
+@pytest.mark.parametrize("protocol", ["physionet", "memory"])
+def test_read_edf_header_only_reads_only_the_header(
+    physionet_cache, offline, monkeypatch, protocol
+):
+    """A URI is read as needed, so header_only does not fetch the signals."""
+    from wfdb.io.convert.edf import read_edf
+
+    if protocol == "physionet":
+        cache_sample_files(physionet_cache, "demo", ["n16.edf"])
+        uri = "physionet://demo/1.0/n16.edf"
+    else:
+        fsspec.filesystem("memory").pipe(
+            "/header-only/n16.edf", (SAMPLE_DATA / "n16.edf").read_bytes()
+        )
+        uri = "memory://header-only/n16.edf"
+    filesystem = type(fsspec.filesystem(protocol))
+    real_open = filesystem._open
+    counts = []
+    monkeypatch.setattr(
+        filesystem,
+        "_open",
+        lambda self, *args, **kwargs: CountingFile(
+            real_open(self, *args, **kwargs), counts
+        ),
+    )
+
+    header = read_edf(uri, header_only=True)
+
+    assert sum(counts) == 256 * (header["n_sig"] + 1)
+    assert sum(counts) < (SAMPLE_DATA / "n16.edf").stat().st_size
+    if protocol == "memory":
+        fsspec.filesystem("memory").rm("/header-only", recursive=True)
