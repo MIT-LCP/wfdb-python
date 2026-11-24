@@ -412,9 +412,19 @@ def read_edf(
     sig_data = np.empty((sig_len, n_sig))
     # Read the rest of the file, ignoring a final odd byte
     data = edf_file.read()
-    temp_sig_data = np.frombuffer(data, dtype=np.int16, count=len(data) // 2)
+    temp_sig_data = np.frombuffer(data, dtype="<i2", count=len(data) // 2)
     temp_sig_data = temp_sig_data.reshape((-1, sum(samps_per_block)))
     temp_all_sigs = np.hsplit(temp_sig_data, np.cumsum(samps_per_block)[:-1])
+
+    if rdedfann_flag:
+        annotation_channels = [
+            i for i, name in enumerate(sig_name) if name == "EDF Annotations"
+        ]
+        annotation_bytes = b"".join(
+            temp_all_sigs[i][block].tobytes()
+            for block in range(num_blocks)
+            for i in annotation_channels
+        )
 
     uniform_rate = all(spf == samps_per_frame[0] for spf in samps_per_frame)
     for i in range(n_sig):
@@ -489,6 +499,9 @@ def read_edf(
     )
 
     record.base_datetime = base_datetime
+
+    if rdedfann_flag:
+        record._edf_annotation_bytes = annotation_bytes
 
     return record
 
@@ -1142,18 +1155,11 @@ def rdedfann(
     if pn_dir is not None and delete_file:
         os.remove(record_name)
 
-    # Convert from array of integers to ASCII strings. With the EDF calibration
-    # offset corrected, annotation samples already contain their byte values.
-    annotation_string = ""
-    for chunk in rec.p_signal.flatten().astype(np.int64):
-        if chunk == 0:
-            continue
-        else:
-            adjusted_hex = hex(struct.unpack("<H", struct.pack(">H", chunk))[0])
-            annotation_string += bytes.fromhex(adjusted_hex[2:]).decode(encoding)
-            # Remove all of the whitespace
-            for rep in ["\x00", "\x14", "\x15"]:
-                annotation_string = annotation_string.replace(rep, " ")
+    # EDF+ annotation characters are packed into the two bytes of each digital
+    # sample. Their meaning is independent of the channel's physical scaling.
+    annotation_string = rec._edf_annotation_bytes.decode(encoding)
+    for rep in ["\x00", "\x14", "\x15"]:
+        annotation_string = annotation_string.replace(rep, " ")
 
     # Parse the resulting annotation string
     onsets = []

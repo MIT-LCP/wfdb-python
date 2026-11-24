@@ -23,6 +23,26 @@ class TestEdfToWfdb:
         info = rdedfann("sample-data/test_edfann.edf")
         assert info["comment"][:2] == ["Sleep stage W", "Sleep stage W"]
 
+    def test_rdedfann_ignores_physical_calibration(self, tmp_path):
+        """Annotation bytes have the same meaning with different EDF scales."""
+        source = "sample-data/test_edfann.edf"
+        expected = rdedfann(source)
+        data = bytearray(Path(source).read_bytes())
+        n_sig = int(data[252:256])
+        labels = [
+            data[256 + 16 * i : 256 + 16 * (i + 1)].decode().strip()
+            for i in range(n_sig)
+        ]
+        channel = labels.index("EDF Annotations")
+        physical_min = 256 + n_sig * (16 + 80 + 8) + 8 * channel
+        physical_max = physical_min + 8 * n_sig
+        data[physical_min : physical_min + 8] = b"-1".ljust(8, b" ")
+        data[physical_max : physical_max + 8] = b"1".ljust(8, b" ")
+        altered = tmp_path / "scaled_ann.edf"
+        altered.write_bytes(data)
+
+        assert rdedfann(str(altered)) == expected
+
     def test_rdedfann_keeps_local_file(self, tmp_path):
         """The delete_file option does not remove a local EDF file."""
         source = "sample-data/test_edfann.edf"
