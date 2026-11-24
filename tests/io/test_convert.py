@@ -144,8 +144,9 @@ class TestEdfToWfdb:
 
     def test_float_checksum(self, tmp_path):
         """Each channel of the float signal is summed separately."""
-        # Two signals of ten samples, each read as a physical value of about 0.1.
-        # Summing the rows of the array in order would give 0.9999999999999999.
+        # Two signals of ten samples, each read as a physical value of about 0.2.
+        # Summing the rows of the array in order can differ by floating-point
+        # rounding from summing each channel separately.
         n_sig = 2
         record_fields = [
             ("0", 8),
@@ -179,8 +180,8 @@ class TestEdfToWfdb:
         edf_file.write_bytes(header.encode() + samples.tobytes())
 
         record = read_edf(str(edf_file))
-        np.testing.assert_allclose(record.p_signal, 0.1)
-        assert record.checksum == [1, 1]
+        np.testing.assert_allclose(record.p_signal, 0.2)
+        assert record.checksum == [2, 2]
 
     def test_edf_mixed_rate_scaling(self, tmp_path):
         """Average high-rate samples before applying the physical scale."""
@@ -218,7 +219,68 @@ class TestEdfToWfdb:
 
         record = read_edf(str(edf_file))
         assert record.samps_per_frame == [2, 1]
-        np.testing.assert_allclose(record.p_signal, [[1, 4.5], [3, 9.5]])
+        np.testing.assert_allclose(record.p_signal, [[1.5, 5], [3.5, 10]])
+
+    def test_edf_fractional_baseline(self, tmp_path):
+        """EDF physical extrema map exactly, even with a fractional offset."""
+        record_fields = [
+            ("0", 8),
+            ("", 80),
+            ("", 80),
+            ("01.01.00", 8),
+            ("00.00.00", 8),
+            ("512", 8),
+            ("", 44),
+            ("1", 8),
+            ("1", 8),
+            ("1", 4),
+        ]
+        signal_fields = [
+            ("ECG", 16),
+            ("", 80),
+            ("mV", 8),
+            ("-100", 8),
+            ("100", 8),
+            ("-32768", 8),
+            ("32767", 8),
+            ("", 80),
+            ("2", 8),
+            ("", 32),
+        ]
+        header = "".join(value.ljust(width) for value, width in record_fields)
+        header += "".join(value.ljust(width) for value, width in signal_fields)
+        edf_file = tmp_path / "fractional_baseline.edf"
+        edf_file.write_bytes(
+            header.encode() + np.array([-32768, 32767], dtype="<i2").tobytes()
+        )
+
+        record = read_edf(str(edf_file))
+        np.testing.assert_allclose(record.p_signal[:, 0], [-100, 100])
+
+    def test_edf_round_trip_has_no_digital_offset(self, tmp_path):
+        """Reading a converted WFDB record does not shift every sample."""
+        output = tmp_path / "100.edf"
+        wfdb_to_edf("sample-data/100", sampto=3600, output_filename=str(output))
+
+        original = rdrecord("sample-data/100", sampto=3600)
+        converted = read_edf(str(output))
+        np.testing.assert_allclose(
+            converted.p_signal[:3600], original.p_signal, atol=1e-10
+        )
+
+    def test_edf_mixed_rate_uses_consistent_frame_count(self, tmp_path):
+        """Read a converted file with fractional fs and varied sample rates."""
+        output = tmp_path / "drive02.edf"
+        wfdb_to_edf("sample-data/drive02", sampto=1000, output_filename=str(output))
+
+        record = read_edf(str(output))
+        assert record.fs == 15.5
+        assert record.samps_per_frame == [32, 2, 1, 1, 2]
+        assert record.sig_len == 1085
+        assert record.p_signal.shape == (1085, 5)
+        header = read_edf(str(output), header_only=True)
+        assert header["fs"] == record.fs
+        assert header["sig_len"] == record.sig_len
 
     def test_wfdb_to_edf_interleaves_blocks(self, tmp_path):
         """Write each channel's samples once per EDF data block."""
