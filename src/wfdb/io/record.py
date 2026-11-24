@@ -1856,7 +1856,15 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 sig_attr = "d_signal"
             # Figure out the largest required dtype
             dtype = _signal._np_dtype(return_res, discrete=True)
-            nan_vals = np.array([_signal._digi_nan(fields["fmt"])], dtype=dtype)
+            # A channel absent from every selected variable-layout segment has
+            # no known format. Keep it as an all-missing channel using the
+            # requested dtype's minimum value as its missing-sample marker.
+            unknown_fmt_nan = np.iinfo(dtype).min
+            nan_values = [
+                _signal._digi_nan(fmt) if fmt is not None else unknown_fmt_nan
+                for fmt in fields["fmt"]
+            ]
+            nan_vals = np.array([nan_values], dtype=dtype)
 
         samps_per_frame = fields["samps_per_frame"]
 
@@ -2450,6 +2458,12 @@ def rdrecord(
     `channels=[0, 1, 2]` is specified when reading a 12 channel record,
     the 'n_sig' attribute will be 3, not 12.
 
+    When a digital variable-layout window has no samples for a requested
+    channel, its format and calibration fields are unknown. Its samples use
+    the minimum integer value of the requested `return_res` as a missing-value
+    marker. A wider window that contains the channel may instead use that
+    channel's format-specific missing-value marker for the same samples.
+
     The `rdsamp` function exists as a simple alternative to `rdrecord`
     for the common purpose of extracting the physical signals and a few
     important descriptor fields.
@@ -2795,6 +2809,8 @@ def iter_dataframes(
     default `rdrecord` behavior. Multi-segment records are merged into a
     single DataFrame for each window. Record and segment headers are reused
     within one iterator, including for remote sources.
+    Digital variable-layout reads look ahead in segment headers when needed
+    so missing values are consistent across chunks.
 
     Parameters
     ----------
@@ -2858,6 +2874,14 @@ def iter_dataframes(
             "sampto must be greater than sampfrom and no more than sig_len"
         )
 
+    need_formats = (
+        stop - start > chunk_size
+        and not physical
+        and isinstance(header, MultiRecord)
+        and header.layout == "variable"
+    )
+    known_formats = {}
+
     def chunks():
         for first in range(start, stop, chunk_size):
             last = min(first + chunk_size, stop)
@@ -2867,7 +2891,7 @@ def iter_dataframes(
                 else contextlib.nullcontext()
             )
             with archive as wfdb_archive:
-                frame = _rdrecord(
+                record = _rdrecord(
                     record_name=record_name,
                     sampfrom=first,
                     sampto=last,
@@ -2883,7 +2907,38 @@ def iter_dataframes(
                     warn_empty=False,
                     wfdb_archive=wfdb_archive,
                     header_cache=header_cache,
-                ).to_dataframe()
+                )
+                if need_formats and first == start and record.n_sig:
+                    wanted_names = set(record.sig_name)
+                    known_formats.update(
+                        (name, fmt)
+                        for name, fmt in zip(record.sig_name, record.fmt)
+                        if fmt is not None
+                    )
+                    if len(known_formats) < len(wanted_names):
+                        seg_numbers, _ = header._required_segments(start, stop)
+                        for seg_num in seg_numbers:
+                            seg_name = header.seg_name[seg_num]
+                            if seg_name == "~":
+                                continue
+                            segment = _read_record_header(
+                                seg_name,
+                                dir_name,
+                                pn_dir,
+                                wfdb_archive,
+                                header_cache,
+                            )
+                            for name, fmt in zip(segment.sig_name, segment.fmt):
+                                if name in wanted_names and fmt is not None:
+                                    known_formats.setdefault(name, fmt)
+                            if len(known_formats) == len(wanted_names):
+                                break
+            if known_formats:
+                for ch, (name, fmt) in enumerate(zip(record.sig_name, record.fmt)):
+                    if fmt is None and name in known_formats:
+                        record.d_signal[:, ch] = _signal._digi_nan(known_formats[name])
+            frame = record.to_dataframe()
+            del record
             frame.index = _sample_time_index(
                 header.fs, first, last, header.base_datetime
             )

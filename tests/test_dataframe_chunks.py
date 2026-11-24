@@ -71,6 +71,22 @@ def test_chunks_cross_variable_layout_boundary():
     pd.testing.assert_frame_equal(pd.concat(chunks), expected)
 
 
+@pytest.mark.parametrize("return_res", [8, 16, 32, 64])
+def test_digital_chunks_with_absent_variable_layout_channels(return_res):
+    path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+    chunks = list(
+        wfdb.iter_dataframes(
+            path, 1000, sampto=7500, physical=False, return_res=return_res
+        )
+    )
+
+    assert len(chunks) == 8
+    expected = wfdb.rdrecord(
+        path, sampto=7500, physical=False, return_res=return_res
+    ).to_dataframe()
+    pd.testing.assert_frame_equal(pd.concat(chunks), expected)
+
+
 def test_missing_header_length_is_inferred():
     path = "sample-data/drive02-no-len"
     chunks = list(wfdb.iter_dataframes(path, chunk_size=7, sampto=20))
