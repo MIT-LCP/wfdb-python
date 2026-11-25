@@ -7,6 +7,130 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.3.0 (Nov 2026)
+------------------------
+
+This release adds cloud writing for records and annotations, chunked DataFrame
+reads, and support for writing flattened multi-segment records. It also
+corrects EDF calibration, mixed-rate reads, and EDF+ annotation timing and
+decoding. EDF+ annotation channels are no longer treated as physiologic
+signals; writing annotations from an annotation-only EDF file now requires an
+explicit sampling frequency. See the entries below for details.
+
+**Write WFDB records and annotations to cloud storage**
+  ``wrsamp`` and ``wrann`` now accept cloud URIs in ``write_dir``, including
+  S3, Google Cloud Storage, Azure Blob Storage, and in-memory filesystems.
+
+**Iterate over long records as DataFrame chunks**
+  ``wfdb.iter_dataframes`` reads one sample window at a time and yields
+  pandas DataFrames with continuous time indexes, avoiding a full-record
+  signal allocation. Ranged reads also work when the header omits the signal
+  length.
+
+**Reuse headers while iterating over DataFrame chunks**
+  ``wfdb.iter_dataframes`` now reads each record and segment header only once
+  per iterator, reducing requests for remote records.
+
+**Correct EDF ADC resolution metadata**
+  ``read_edf`` now reports the bit width of the inclusive digital range, so
+  full 12-bit and 16-bit EDF channels report ``adc_res`` 12 and 16.
+
+**Preserve EDF+ annotation timing with mixed signal rates**
+  ``rdedfann`` now uses the fastest physiologic signal rate for annotation
+  sample numbers by default. The selected rate is returned as ``fs`` in the
+  info dictionary and stored in written WFDB annotation files.
+
+**Correct EDF+ annotation sample numbers**
+  ``rdedfann`` now converts onset times to sample numbers using the record's
+  sampling frequency and rounds to the nearest sample in both return modes.
+
+**Exclude EDF+ annotation channels from signal rates**
+  ``read_edf`` now calculates sampling frequency and signal frames from
+  physiologic channels only, and no longer includes ``EDF Annotations`` in
+  ``sig_name`` or ``p_signal``. Annotation-only files have no signal rate:
+  ``rdedfann`` returns ``None`` sample numbers unless ``fs`` is supplied, and
+  writing a WFDB annotation from one now requires ``fs``.
+
+**Decode EDF+ annotations from their original bytes**
+  ``rdedfann`` now reads annotation text from the EDF digital samples, so
+  physical calibration and other channels' sample rates do not alter it.
+  EDF+ annotation text is decoded as UTF-8 by default.
+
+**Make records read from EDF writable**
+  ``read_edf`` now stores the computed baseline as a list, so its returned
+  record can be written with ``Record.wrsamp``.
+
+**Speed up EDF conversion and correct mixed-rate scaling**
+  EDF writing now assembles data by block without per-sample Python lists.
+  EDF reading averages higher-rate channels with NumPy and applies their ADC
+  gain correctly when sample rates differ.
+
+**Correct checksums in records read from EDF files**
+  ``read_edf`` now computes channel checksums from the converted digital
+  samples, including channels with inverted scales or averaged samples.
+
+**Avoid an extra EDF data record at exact block boundaries**
+  ``wfdb_to_edf`` no longer appends a full block of padding when the input
+  signal length is an exact multiple of the EDF data record length.
+
+**Write EDF records with inverted physical ranges**
+  ``read_edf`` now reflects the digital scale of inverted channels so the
+  returned record has a positive WFDB gain and can be written with ``wrsamp``.
+  The shared signal file uses format 32 only when a converted sample cannot
+  be stored as valid format 16 data.
+
+**Parse EDF+ annotation delimiters correctly**
+  ``rdedfann`` now preserves plus signs in annotation text, handles negative
+  onsets, optional durations, and multiple annotations in a TAL.
+
+**Evaluate filter gain at the requested frequency**
+  ``processing.get_filter_gain`` no longer rounds up to a fixed frequency grid.
+  This also fixes an ``IndexError`` at the Nyquist frequency and frequencies
+  just below it.
+
+**Preserve source segment ranges on flattened records**
+  ``rdrecord`` now retains source segment names and frame ranges, including
+  empty segments, in the ``source_segments`` attribute when flattening a
+  multi-segment record. Each range is a ``wfdb.io.SourceSegment`` named tuple
+  of ``(name, start, stop)``.
+
+**Display annotation notes on plots**
+  ``plot_wfdb`` can now display annotation auxiliary notes beside their markers
+  when called with ``plot_aux=True``. Annotations on channels beyond the
+  record's signals are now drawn on the correct axes, even when some channels
+  have no annotations.
+
+**Correct EDF calibration and mixed-rate reads**
+  ``read_edf`` no longer shifts physical values by one digital unit, and it
+  reads files with differing per-signal sample counts consistently. EDF+
+  annotation decoding uses the corrected values. Physical samples can differ
+  from the WFDB C ``edf2mit`` output by up to one digital unit when the EDF
+  offset is fractional, because its baseline is rounded to an integer.
+
+**Improve the README and PyPI project page**
+  Add a task-focused quick start, clearer feature and documentation links, and
+  more useful PyPI project metadata, including a link to the WFDB project site.
+
+**Validate multi-segment header fields as lists**
+  ``seg_name`` and ``seg_len`` must be lists with correctly typed elements.
+  Invalid values now raise a clear ``TypeError`` before writing a header.
+
+**Avoid FLAC seek failures in older SoundFile builds**
+  Require SoundFile 0.13.1 or newer so supported wheels use updated bundled
+  FLAC libraries. Document the separate system-library requirement.
+
+**Read digital variable-layout records with absent channels**
+  ``rdrecord`` and ``iter_dataframes`` now handle windows where a requested
+  channel has no samples in any selected segment. Those channels are filled
+  with a missing-value marker instead of raising ``KeyError``.
+
+**Write flattened multi-segment records**
+  Records returned by ``rdrecord`` with ``m2s=True`` can now be written after
+  assigning a new record name and signal file names. Missing write metadata is
+  filled in, and incompatible or unknown formats are converted to format 32.
+  The caller's record is not changed. Records with conflicting source units
+  require an explicit ``units`` value.
+
 Version 5.2.0 (Nov 2026)
 ------------------------
 
