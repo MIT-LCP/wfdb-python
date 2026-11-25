@@ -245,9 +245,10 @@ def get_filter_gain(b, a, f_gain, fs):
         List of linear filter b coefficients.
     a : list
         List of linear filter a coefficients.
-    f_gain : int, float, optional
-        The frequency at which to calculate the gain.
-    fs : int, float, optional
+    f_gain : int, float
+        The frequency at which to calculate the gain, in the same units as
+        `fs`. Evaluated at this frequency, including the Nyquist frequency.
+    fs : int, float
         The sampling frequency of the system.
 
     Returns
@@ -256,14 +257,9 @@ def get_filter_gain(b, a, f_gain, fs):
         The passband gain at the desired frequency.
 
     """
-    # Save the passband gain
-    w, h = signal.freqz(b, a)
     w_gain = f_gain * 2 * np.pi / fs
-
-    ind = np.where(w >= w_gain)[0][0]
-    gain = abs(h[ind])
-
-    return gain
+    _, h = signal.freqz(b, a, worN=[w_gain])
+    return abs(h[0])
 
 
 def normalize(X):
