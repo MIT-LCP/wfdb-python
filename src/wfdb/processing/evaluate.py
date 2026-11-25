@@ -7,6 +7,15 @@ from wfdb.io.download import get_record_list
 from wfdb.io.record import rdsamp
 
 
+def _sample_difference(reference, test):
+    # Widen integer scalars before subtracting, without truncating float inputs.
+    if isinstance(reference, np.integer):
+        reference = int(reference)
+    if isinstance(test, np.integer):
+        test = int(test)
+    return reference - test
+
+
 class Comparitor:
     """The class to implement and hold comparisons between two sets of annotations.
 
@@ -54,11 +63,11 @@ class Comparitor:
     """
 
     def __init__(self, ref_sample, test_sample, window_width, signal=None):
-        if len(ref_sample) > 1 and len(test_sample) > 1:
-            if min(np.diff(ref_sample)) < 0 or min(np.diff(test_sample)) < 0:
-                raise ValueError(
-                    "The sample locations must be monotonically" + " increasing"
-                )
+        # Compare adjacent values directly: subtraction can overflow integer dtypes.
+        if np.any(np.less(ref_sample[1:], ref_sample[:-1])) or np.any(
+            np.less(test_sample[1:], test_sample[:-1])
+        ):
+            raise ValueError("The sample locations must be monotonically increasing")
 
         self.ref_sample = ref_sample
         self.test_sample = test_sample
@@ -207,8 +216,10 @@ class Comparitor:
                     # The previous test annotation is inspected
                     closest_samp_num = closest_samp_num - 1
                     smallest_samp_diff = abs(
-                        self.ref_sample[ref_samp_num]
-                        - self.test_sample[closest_samp_num]
+                        _sample_difference(
+                            self.ref_sample[ref_samp_num],
+                            self.test_sample[closest_samp_num],
+                        )
                     )
                     # Assign the reference-test pair if close enough
                     if smallest_samp_diff < self.window_width:
@@ -263,7 +274,7 @@ class Comparitor:
 
         ref_samp = self.ref_sample[ref_samp_num]
         test_samp = self.test_sample[start_test_samp_num]
-        samp_diff = ref_samp - test_samp
+        samp_diff = _sample_difference(ref_samp, test_samp)
 
         # Initialize running parameters
         closest_samp_num = start_test_samp_num
@@ -272,7 +283,7 @@ class Comparitor:
         # Iterate through the testing samples
         for test_samp_num in range(start_test_samp_num, self.n_test):
             test_samp = self.test_sample[test_samp_num]
-            samp_diff = ref_samp - test_samp
+            samp_diff = _sample_difference(ref_samp, test_samp)
             abs_samp_diff = abs(samp_diff)
 
             # Found a better match
