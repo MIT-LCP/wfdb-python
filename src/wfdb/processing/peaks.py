@@ -84,8 +84,16 @@ def find_local_peaks(sig, radius):
 
     # TODO: Fix flat mountain scenarios.
     sig = np.asarray(sig)
-    if np.min(sig) == np.max(sig):
+    min_value, max_value = np.min(sig), np.max(sig)
+    if min_value == max_value:
         return np.empty(0)
+
+    # maximum_filter1d uses doubles internally, losing small differences in
+    # 64-bit integers outside the exact integer range of a double.
+    if sig.dtype.kind in "iu" and (
+        int(min_value) < -(1 << 53) or int(max_value) > (1 << 53)
+    ):
+        return _scan_local_peaks(sig, radius)
 
     # The search continues at least one sample later
     step = max(radius, 1)
