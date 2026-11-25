@@ -134,10 +134,10 @@ def sigavg(
 
         for c, i in enumerate(indices):
             for j in range(rec.n_sig):
-                try:
+                # A negative NumPy index wraps to the end of the record.
+                # Pad both ends with zero instead of using unrelated samples.
+                if 0 <= samp + i < rec.sig_len:
                     initial_sig_avgs[c][j] += rec.d_signal[samp + i][j]
-                except IndexError:
-                    initial_sig_avgs[c][j] += 0
         n_beats += 1
 
     if n_beats < 1:
