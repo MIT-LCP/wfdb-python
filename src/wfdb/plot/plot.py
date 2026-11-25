@@ -129,6 +129,7 @@ def plot_items(
     return_fig_axes=False,
     sampling_freq=None,
     ann_freq=None,
+    ann_aux=None,
 ):
     """Subplot individual channels of signals and/or annotations.
 
@@ -160,6 +161,9 @@ def plot_items(
         corresponding to a different channel. List items should be lists of
         strings. The symbols are plotted over the corresponding `ann_samp`
         index locations.
+    ann_aux : list, optional
+        Annotation notes to display beside the markers, grouped by channel
+        in the same order as `ann_samp`. Empty notes are not displayed.
     fs : int, float, optional
         The sampling frequency of the signals and/or annotations. Used to
         calculate time intervals if `time_units` is not 'samples'. Also
@@ -276,6 +280,7 @@ def plot_items(
                 axes,
                 sampling_freq=sampling_freq,
                 ann_freq=ann_freq,
+                ann_aux=ann_aux,
             )
 
         if ecg_grids:
@@ -505,6 +510,7 @@ def _plot_annotation(
     axes,
     sampling_freq=None,
     ann_freq=None,
+    ann_aux=None,
 ):
     """Plot annotations, possibly overlaid on signals.
 
@@ -518,6 +524,8 @@ def _plot_annotation(
         The number of annotations contained in the dat file.
     ann_sym : list
         The values of the annotation symbol locations.
+    ann_aux : list
+        The annotation notes to display at the marker locations.
     signal : 1d or 2d numpy array or list
         The signal or signals to be plotted.  If signal is a
         one-dimensional array, it is assumed to represent a single channel.
@@ -611,6 +619,17 @@ def _plot_annotation(
             if ann_sym is not None and ann_sym[ch] is not None:
                 for i, s in enumerate(ann_sym[ch]):
                     axes[ch].annotate(s, (ann_samp[ch][i] / downsample_factor, y[i]))
+
+            if ann_aux is not None and ann_aux[ch] is not None:
+                for i, note in enumerate(ann_aux[ch]):
+                    if note:
+                        axes[ch].annotate(
+                            note,
+                            (ann_samp[ch][i] / downsample_factor, y[i]),
+                            xytext=(4, 8),
+                            textcoords="offset points",
+                            fontsize="small",
+                        )
 
 
 def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
@@ -849,6 +868,7 @@ def plot_wfdb(
     sharex="auto",
     xlabel=None,
     ylabel=None,
+    plot_aux=False,
 ):
     """Subplot individual channels of a WFDB record and/or annotation.
 
@@ -865,6 +885,7 @@ def plot_wfdb(
     If the annotation object is input, the function will extract from it:
       - sample locations, from the `sample` attribute
       - symbols, from the `symbol` attribute
+      - auxiliary notes, from the `aux_note` attribute when `plot_aux` is True
       - the annotation channels, from the `chan` attribute
       - the sampling frequency, from the `fs` attribute if present, and if fs
         was not already extracted from the `record` argument.
@@ -877,6 +898,9 @@ def plot_wfdb(
         The Annotation object to be plotted.
     plot_sym : bool, optional
         Whether to plot the annotation symbols on the graph.
+    plot_aux : bool, optional
+        Whether to display nonempty annotation auxiliary notes beside their
+        markers. Defaults to False.
     time_units : str, optional
         The x axis unit. Allowed options are: 'samples', 'seconds',
         'minutes', and 'hours'.
@@ -936,11 +960,14 @@ def plot_wfdb(
         signal,
         ann_samp,
         ann_sym,
+        ann_aux,
         fs,
         default_ylabel,
         record_name,
         sig_units,
-    ) = _get_wfdb_plot_items(record=record, annotation=annotation, plot_sym=plot_sym)
+    ) = _get_wfdb_plot_items(
+        record=record, annotation=annotation, plot_sym=plot_sym, plot_aux=plot_aux
+    )
 
     if record:
         if record.e_p_signal is not None or record.e_d_signal is not None:
@@ -976,6 +1003,7 @@ def plot_wfdb(
         signal=signal,
         ann_samp=ann_samp,
         ann_sym=ann_sym,
+        ann_aux=ann_aux,
         fs=fs,
         time_units=time_units,
         xlabel=xlabel,
@@ -993,7 +1021,7 @@ def plot_wfdb(
     )
 
 
-def _get_wfdb_plot_items(record, annotation, plot_sym):
+def _get_wfdb_plot_items(record, annotation, plot_sym, plot_aux=False):
     """Get items to plot from WFDB objects.
 
     Parameters
@@ -1004,6 +1032,8 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
         The Annotation object to be plotted
     plot_sym : bool
         Whether to plot the annotation symbols on the graph.
+    plot_aux : bool
+        Whether to plot auxiliary notes beside annotation markers.
 
     Returns
     -------
@@ -1030,6 +1060,8 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
         corresponding to a different channel. List items should be lists of
         strings. The symbols are plotted over the corresponding `ann_samp`
         index locations.
+    ann_aux : list
+        Annotation notes grouped by channel and aligned with `ann_samp`.
     fs : int, float
         The sampling frequency of the signals and/or annotations. Used to
         calculate time intervals if `time_units` is not 'samples'. Also
@@ -1100,6 +1132,13 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
         else:
             ann_sym = None
 
+        if plot_aux and annotation.aux_note is not None:
+            ann_aux = n_ann_chans * [None]
+            for ch in ann_chans:
+                ann_aux[ch] = [annotation.aux_note[ci] for ci in chan_inds[ch]]
+        else:
+            ann_aux = None
+
         # Try to get fs from annotation if not already in record
         if fs is None:
             fs = annotation.fs
@@ -1108,6 +1147,7 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
     else:
         ann_samp = None
         ann_sym = None
+        ann_aux = None
 
     # Cleaning: remove empty channels and set labels and styles.
 
@@ -1124,22 +1164,24 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
         # Need to update ylabels and annotation values
         if sig_chans != all_chans:
             compact_ann_samp = []
-            if plot_sym:
-                compact_ann_sym = []
-            else:
-                compact_ann_sym = None
+            compact_ann_sym = [] if ann_sym is not None else None
+            compact_ann_aux = [] if ann_aux is not None else None
             ylabel = []
             for ch in all_chans:  # ie. 0, 1, 9
-                if ch in ann_chans:
-                    compact_ann_samp.append(ann_samp[ch])
-                    if plot_sym:
-                        compact_ann_sym.append(ann_sym[ch])
+                compact_ann_samp.append(
+                    ann_samp[ch] if ch in ann_chans else np.empty(0, dtype="int")
+                )
+                if compact_ann_sym is not None:
+                    compact_ann_sym.append(ann_sym[ch] if ch in ann_chans else None)
+                if compact_ann_aux is not None:
+                    compact_ann_aux.append(ann_aux[ch] if ch in ann_chans else None)
                 if ch in sig_chans:
                     ylabel.append("".join([sig_name[ch], sig_units[ch]]))
                 else:
                     ylabel.append("ch_%d/NU" % ch)
             ann_samp = compact_ann_samp
             ann_sym = compact_ann_sym
+            ann_aux = compact_ann_aux
         # Signals encompass annotations
         else:
             ylabel = ["/".join(pair) for pair in zip(sig_name, sig_units)]
@@ -1149,9 +1191,11 @@ def _get_wfdb_plot_items(record, annotation, plot_sym):
         ann_samp = [a for a in ann_samp if a.size]
         if ann_sym is not None:
             ann_sym = [a for a in ann_sym if a]
-        ylabel = ["ch_%d/NU" % ch for ch in ann_chans]
+        if ann_aux is not None:
+            ann_aux = [a for a in ann_aux if a]
+        ylabel = ["ch_%d/NU" % ch for ch in sorted(ann_chans)]
 
-    return signal, ann_samp, ann_sym, fs, ylabel, record_name, sig_units
+    return signal, ann_samp, ann_sym, ann_aux, fs, ylabel, record_name, sig_units
 
 
 def plot_all_records(directory=""):
