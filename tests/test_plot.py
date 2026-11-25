@@ -207,6 +207,98 @@ def test_plot_wfdb_custom_axis_labels():
     assert [ax.get_xlabel() for ax in fig.axes] == ["", "Time (s)"]
 
 
+def test_plot_wfdb_aux_notes_are_optional_and_aligned():
+    """Display only nonempty notes at the associated channel and sample."""
+    record = wfdb.rdrecord("sample-data/100", sampto=360)
+    annotation = wfdb.Annotation(
+        record_name="100",
+        extension="atr",
+        sample=np.array([36, 72, 108, 144]),
+        symbol=["N", "N", "V", "N"],
+        chan=np.array([0, 1, 0, 1]),
+        aux_note=["First alarm\x00", None, "Second alarm", "\x00"],
+        fs=360,
+    )
+
+    default = wfdb.plot_wfdb(record, annotation, return_fig=True)
+    assert all(not ax.texts for ax in default.axes)
+    plt.close(default)
+
+    fig = wfdb.plot_wfdb(
+        record, annotation, plot_sym=True, plot_aux=True, return_fig=True
+    )
+    plt.close(fig)
+
+    assert [text.get_text() for text in fig.axes[0].texts] == [
+        "N",
+        "V",
+        "First alarm",
+        "Second alarm",
+    ]
+    assert [text.get_text() for text in fig.axes[1].texts] == ["N", "N"]
+    notes = fig.axes[0].texts[2:]
+    assert [text.xy[0] for text in notes] == [0.1, 0.3]
+    assert [text.xy[1] for text in notes] == [
+        record.p_signal[36, 0],
+        record.p_signal[108, 0],
+    ]
+
+
+def test_plot_wfdb_aux_notes_with_sparse_channels():
+    """Keep notes with markers when annotation channels have gaps."""
+    record = wfdb.rdrecord("sample-data/100", sampto=360)
+    annotation = wfdb.Annotation(
+        record_name="100",
+        extension="atr",
+        sample=np.array([36, 72]),
+        chan=np.array([0, 3]),
+        aux_note=["Lead note", "Extra channel note"],
+        fs=360,
+    )
+
+    fig = wfdb.plot_wfdb(record, annotation, plot_aux=True, return_fig=True)
+    plt.close(fig)
+
+    assert len(fig.axes) == 3
+    assert [text.get_text() for text in fig.axes[0].texts] == ["Lead note"]
+    assert not fig.axes[1].texts
+    assert [text.get_text() for text in fig.axes[2].texts] == ["Extra channel note"]
+    assert fig.axes[2].texts[0].xy == (0.2, 0)
+
+
+def test_plot_wfdb_aux_notes_without_signal():
+    """Show notes on annotation-only plots without empty middle channels."""
+    annotation = wfdb.Annotation(
+        record_name="alarms",
+        extension="al",
+        sample=np.array([10, 20]),
+        chan=np.array([0, 2]),
+        aux_note=["Alarm one", "Alarm two"],
+        fs=100,
+    )
+
+    fig = wfdb.plot_wfdb(annotation=annotation, plot_aux=True, return_fig=True)
+    plt.close(fig)
+
+    assert len(fig.axes) == 2
+    assert [ax.get_ylabel() for ax in fig.axes] == ["ch_0/NU", "ch_2/NU"]
+    assert [text.get_text() for ax in fig.axes for text in ax.texts] == [
+        "Alarm one",
+        "Alarm two",
+    ]
+    assert [ax.texts[0].xy for ax in fig.axes] == [(0.1, 0), (0.2, 0)]
+
+
+def test_plot_wfdb_rhythm_note_has_no_nul():
+    """Show the bundled MIT-BIH rhythm note without its NUL terminator."""
+    annotation = wfdb.rdann("sample-data/100", "atr", sampto=100)
+
+    fig = wfdb.plot_wfdb(annotation=annotation, plot_aux=True, return_fig=True)
+    plt.close(fig)
+
+    assert [text.get_text() for text in fig.axes[0].texts] == ["(N"]
+
+
 class TestPlotInternal:
     """Unit tests for internal wfdb.plot.plot functions"""
 
