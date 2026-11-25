@@ -45,6 +45,11 @@ docs = [
     "sphinx==9.0.4",
 ]
 
+[tool.uv]
+# fonttools 4.69.0 has no sdist or wheels for most supported CI environments.
+# Remove this exclusion after a complete upstream release is available.
+constraint-dependencies = ["fonttools!=4.69.0"]
+
 [tool.towncrier]
 directory = "changelog.d"
 filename = "docs/changes.rst"
