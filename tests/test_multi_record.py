@@ -1,3 +1,4 @@
+import copy
 import os
 import stat
 
@@ -249,6 +250,7 @@ class TestMultiRecordWriting:
         )
         record.record_name = "flat"
         record.file_name = ["flat.dat"] * record.n_sig
+        original = copy.deepcopy(record)
 
         record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
         reread = wfdb.rdrecord(
@@ -260,6 +262,8 @@ class TestMultiRecordWriting:
         else:
             field = "e_d_signal" if expanded else "d_signal"
         np.testing.assert_equal(getattr(reread, field), getattr(record, field))
+        assert record == original
+        assert record.source_segments == original.source_segments
 
     @pytest.mark.parametrize("expanded", [True, False])
     def test_write_flattened_variable_record(self, tmp_path, expanded):
@@ -273,15 +277,18 @@ class TestMultiRecordWriting:
         )
         record.record_name = "flat"
         record.file_name = ["flat.dat"] * record.n_sig
+        original_record = copy.deepcopy(record)
 
         record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
         reread = wfdb.rdrecord(str(tmp_path / "flat"), smooth_frames=not expanded)
 
-        assert record.fmt == reread.fmt == ["32"] * record.n_sig
+        assert reread.fmt == ["32"] * record.n_sig
         original = record.e_p_signal if expanded else record.p_signal.T
         written = reread.e_p_signal if expanded else reread.p_signal.T
         for expected, actual in zip(original, written):
             np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-9)
+        assert record == original_record
+        assert record.source_segments == original_record.source_segments
 
     @pytest.mark.parametrize("expanded", [True, False])
     def test_write_flattened_variable_digital_record(self, tmp_path, expanded):
@@ -299,6 +306,7 @@ class TestMultiRecordWriting:
         )
         record.record_name = "flat"
         record.file_name = ["flat.dat"] * record.n_sig
+        original_record = copy.deepcopy(record)
 
         record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
         reread = wfdb.rdrecord(
@@ -312,6 +320,8 @@ class TestMultiRecordWriting:
         np.testing.assert_array_equal(output[0][~valid], -(2**31))
         for channel in output[1:]:
             np.testing.assert_array_equal(channel, -(2**31))
+        assert record == original_record
+        assert record.source_segments == original_record.source_segments
 
     def test_write_flattened_record_requires_resolved_units(self, tmp_path):
         """Do not silently label a channel whose source units conflict."""

@@ -946,9 +946,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         that is not listed by this record's own header in `write_dir`.
 
         Records flattened from multi-segment records are prepared for writing
-        when this method is called. Channels without a known format, or with
-        incompatible formats sharing a file, use format 32. If the source
-        segments have conflicting units, set `units` explicitly first.
+        on a copy, leaving this object unchanged. Channels without a known
+        format, or with incompatible formats sharing a file, use format 32.
+        This can increase the output file size. Missing samples use that
+        format's digital missing marker; channels with no samples have
+        placeholder gain and baseline values. If the source segments have
+        conflicting units, set `units` explicitly first.
 
         Parameters
         ----------
@@ -988,8 +991,23 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                 self.wrsamp(expanded=expanded, write_dir=staging)
             return
 
-        if getattr(self, "layout", None) in ("fixed", "variable"):
-            self._prepare_flattened_write(expanded)
+        if getattr(self, "source_segments", None) is not None:
+            writable = copy.copy(self)
+            for field, value in vars(self).items():
+                if isinstance(value, list):
+                    setattr(writable, field, value.copy())
+            writable.source_segments = None
+            writable._prepare_flattened_write(expanded)
+            if not expanded and writable.d_signal is None:
+                writable.d_signal = writable.adc()
+            elif expanded and writable.e_d_signal is None:
+                writable.e_d_signal = writable.adc(expanded=True)
+            writable.set_d_features(expanded=expanded)
+            writable.set_defaults()
+            writable.wrsamp(
+                expanded=expanded, write_dir=write_dir, wfdb_archive=wfdb_archive
+            )
+            return
 
         converted = None
         if not expanded and self.d_signal is None and self.p_signal is not None:
@@ -1007,10 +1025,6 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.skew = None
 
         try:
-            if getattr(self, "layout", None) in ("fixed", "variable"):
-                self.set_d_features(expanded=expanded)
-                self.set_defaults()
-
             # A record whose signals have no files, such as the layout header
             # of a variable layout multi-segment record, has no samples:
             # only its header is written.
