@@ -1,4 +1,5 @@
-**Avoid wrapping waveform averages before the record starts**
-  ``processing.sigavg`` pads samples before the start of a record with zero,
-  matching its existing end-of-record padding, instead of including unrelated
-  samples from the end of the record through negative NumPy indices.
+**Pad waveform averages with zero in physical units**
+  ``processing.sigavg`` no longer includes unrelated end-of-record samples
+  through negative NumPy indices. Out-of-range positions at either end use
+  the channel's digital baseline so padding is zero after calibration,
+  including records with a nonzero baseline.
