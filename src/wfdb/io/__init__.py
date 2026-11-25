@@ -25,6 +25,7 @@ from wfdb.io.record import (
     SIGNAL_CLASSES,
     MultiRecord,
     Record,
+    SourceSegment,
     dl_database,
     iter_dataframes,
     rdheader,

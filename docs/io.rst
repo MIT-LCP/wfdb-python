@@ -34,6 +34,9 @@ headers are reused within one iterator, including for remote records:
     :members: get_frame_number, get_elapsed_time, get_absolute_time,
               multi_to_single, contained_ranges, contained_combined_ranges
 
+.. autoclass:: wfdb.io.SourceSegment
+    :no-index:
+
 
 WFDB Annotations
 ----------------
