@@ -8,6 +8,7 @@ import posixpath
 import re
 import shutil
 import tempfile
+import typing
 import warnings
 
 import numpy as np
@@ -157,6 +158,30 @@ SIG_UNITS = {
     "uc": "nd",
     "vtip": "mV",
 }
+
+
+class SourceSegment(typing.NamedTuple):
+    """The range of a flattened record's frames that came from one segment.
+
+    `Record.source_segments` holds one of these for each segment of a
+    multi-segment record that contributed frames. It unpacks and compares like
+    a ``(name, start, stop)`` tuple.
+
+    Attributes
+    ----------
+    name : str
+        The name of the segment, or ``"~"`` for an empty segment.
+    start : int
+        The first frame of the segment in the flattened record.
+    stop : int
+        The frame after the last frame of the segment, so that the segment
+        covers ``start`` to ``stop - 1``.
+
+    """
+
+    name: str
+    start: int
+    stop: int
 
 
 class BaseRecord:
@@ -764,10 +789,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         A list of strings giving the signal name of each signal channel.
     comments : list, optional
         A list of string comments to be written to the header file.
-    source_segments : list of tuple, optional
-        For a record flattened from a multi-segment record, tuples of
-        ``(segment_name, start, stop)`` giving the source segment and its
-        half-open range in the returned record's frames. Empty segments have
+    source_segments : list of SourceSegment, optional
+        For a record flattened from a multi-segment record, the name of each
+        source segment and its range of the returned record's frames, as
+        `SourceSegment` tuples of ``(name, start, stop)``. Empty segments have
         the name ``"~"``. The zero-length layout header is omitted. This
         metadata is kept in memory and is not written to a WFDB header.
 
@@ -1775,7 +1800,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for name, length in zip(names, self.seg_len):
             stop = start + int(length)
             if stop > start:
-                source_segments.append((name, start, stop))
+                source_segments.append(SourceSegment(name, start, stop))
             start = stop
 
         # Remove multirecord fields

@@ -21,6 +21,18 @@ class TestMultiRecordRanges:
         ]
         assert np.isnan(record.p_signal[:24740]).all()
 
+    def test_source_segments_are_named_tuples(self):
+        """Ranges can be used by field name or unpacked as plain tuples."""
+        path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        record = wfdb.rdrecord(path, sampfrom=1000, sampto=26000)
+
+        gap, data = record.source_segments
+        assert isinstance(gap, wfdb.io.SourceSegment)
+        assert (gap.name, gap.start, gap.stop) == ("~", 0, 24740)
+        name, start, stop = data
+        assert (name, start, stop) == ("3234460_0001", 24740, 25000)
+        assert np.isnan(record.p_signal[gap.start : gap.stop]).all()
+
     def test_flattened_range_inside_empty_segment(self):
         """A digital read retains the empty segment's clipped boundaries."""
         path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
