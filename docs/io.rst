@@ -60,6 +60,35 @@ The same checks are available from Python:
 .. automodule:: wfdb.io.check
     :members: check_record, check_dataset, CheckIssue
 
+Physical units and format ranges
+--------------------------------
+
+When writing a record with ``wrsamp``, digital values must fit the chosen
+WFDB format. ``Record.adc`` converts physical values with
+``round(physical * adc_gain + baseline)`` and does not clip. ``wrsamp`` then
+raises ``IndexError`` if those digital values fall outside the format's
+allowed range (for format 212, -2048 to 2047). It does not silently clip or
+wrap, and it does not warn before raising.
+
+Format 212 is a 12-bit two's-complement encoding. Some PhysioNet databases,
+including the MIT-BIH Arrhythmia Database, use an 11-bit ADC with gain 200
+adu/mV and baseline 1024, so stored samples typically lie in 0 to 2047, or
+-5.12 mV to +5.115 mV. That is narrower than format 212's full digital range
+at the same gain and baseline (-15.36 mV to +5.115 mV).
+
+Other databases can exceed that 11-bit / format-212 representable range at
+MIT-BIH gain. In the published St Petersburg INCART 12-lead Arrhythmia
+Database (75 records), 12.09% of raw lead-II samples fall outside -5.12 mV
+to +5.115 mV (4,196,356 of 34,695,000). That is a property of the recorded
+physical values, not of ``wfdb`` clipping on read. If you convert those
+values to MIT-BIH-like format 212 parameters, ``wrsamp`` will raise rather
+than clamp. Choose a format and gain that cover the physical range, or
+requantize explicitly, and count how many samples would not fit before
+writing.
+
+The INCART documentation says gains vary from 250 to 1100 adu/mV. The
+``.hea`` files actually use 240 to 1063 adu/mV (seven records have gain 240
+or 248). Always read the gain from the header.
 
 WFDB Annotations
 ----------------
