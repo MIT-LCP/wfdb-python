@@ -67,23 +67,27 @@ When writing a record with ``wrsamp``, digital values must fit the chosen
 WFDB format. ``Record.adc`` converts physical values with
 ``round(physical * adc_gain + baseline)`` and does not clip. ``wrsamp`` then
 raises ``IndexError`` if those digital values fall outside the format's
-allowed range (for format 212, -2048 to 2047). It does not silently clip or
+storage range (for format 212, -2048 to 2047). It does not silently clip or
 wrap, and it does not warn before raising.
 
-Format 212 is a 12-bit two's-complement encoding. Some PhysioNet databases,
-including the MIT-BIH Arrhythmia Database, use an 11-bit ADC with gain 200
-adu/mV and baseline 1024, so stored samples typically lie in 0 to 2047, or
--5.12 mV to +5.115 mV. That is narrower than format 212's full digital range
-at the same gain and baseline (-15.36 mV to +5.115 mV).
+Format 212 stores 12-bit two's-complement values, but digital -2048 is its
+missing-sample marker: ``wrsamp`` accepts it and ``rdrecord`` returns NaN.
+The usable signal range is therefore -2047 to 2047. At gain 200 adu/mV and
+baseline 1024 that is -15.355 mV to +5.115 mV.
 
-Other databases can exceed that 11-bit / format-212 representable range at
-MIT-BIH gain. In the published St Petersburg INCART 12-lead Arrhythmia
-Database (75 records), 12.09% of raw lead-II samples fall outside -5.12 mV
-to +5.115 mV (4,196,356 of 34,695,000). That is a property of the recorded
-physical values, not of ``wfdb`` clipping on read. If you convert those
-values to MIT-BIH-like format 212 parameters, ``wrsamp`` will raise rather
-than clamp. Choose a format and gain that cover the physical range, or
-requantize explicitly, and count how many samples would not fit before
+Some PhysioNet databases, including the MIT-BIH Arrhythmia Database, were
+digitized with an 11-bit ADC at gain 200 and baseline 1024, so their stored
+samples lie in 0 to 2047 (-5.12 mV to +5.115 mV). That ADC range is
+narrower than what format 212 can store at the same gain and baseline, so
+values below -5.12 mV still write and read back correctly.
+
+As an example of data that does not fit, in the St Petersburg INCART
+12-lead Arrhythmia Database (version 1.0.0, 75 records, lead II only, no
+missing samples), converting to gain 200 and baseline 1024 puts 2,153,612
+of 34,695,000 samples (6.21%) outside format 212's storage range, so
+``wrsamp`` would raise. A further 27 samples land exactly on -2048 and would
+read back as NaN. Choose a format and gain that cover the physical range,
+or requantize explicitly, and count how many samples would not fit before
 writing.
 
 The INCART documentation says gains vary from 250 to 1100 adu/mV. The
