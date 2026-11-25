@@ -945,6 +945,11 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         warning is given when writing would replace an existing signal file
         that is not listed by this record's own header in `write_dir`.
 
+        Records flattened from multi-segment records are prepared for writing
+        when this method is called. Channels without a known format, or with
+        incompatible formats sharing a file, use format 32. If the source
+        segments have conflicting units, set `units` explicitly first.
+
         Parameters
         ----------
         expanded : bool, optional
@@ -983,6 +988,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
                 self.wrsamp(expanded=expanded, write_dir=staging)
             return
 
+        if getattr(self, "layout", None) in ("fixed", "variable"):
+            self._prepare_flattened_write(expanded)
+
         converted = None
         if not expanded and self.d_signal is None and self.p_signal is not None:
             self.d_signal = self.adc()
@@ -999,6 +1007,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.skew = None
 
         try:
+            if getattr(self, "layout", None) in ("fixed", "variable"):
+                self.set_d_features(expanded=expanded)
+                self.set_defaults()
+
             # A record whose signals have no files, such as the layout header
             # of a variable layout multi-segment record, has no samples:
             # only its header is written.
@@ -1047,6 +1059,73 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             self.skew = skew
             if converted:
                 setattr(self, converted, None)
+
+    def _prepare_flattened_write(self, expanded):
+        """Complete write metadata for a record flattened from a MultiRecord."""
+        if self.units is None:
+            raise ValueError(
+                "Flattened record has inconsistent units; set units before writing"
+            )
+        self.units = [unit if unit is not None else "NU" for unit in self.units]
+
+        formats_complete = self.fmt is not None and all(
+            fmt is not None for fmt in self.fmt
+        )
+        formats_share_files = False
+        if formats_complete and self.file_name is not None:
+            formats_by_file = {}
+            for name, fmt in zip(self.file_name, self.fmt):
+                if name in formats_by_file and formats_by_file[name] != fmt:
+                    formats_share_files = True
+                    break
+                formats_by_file[name] = fmt
+        complete_gain = self.adc_gain is not None and all(
+            gain is not None for gain in self.adc_gain
+        )
+        complete_baseline = self.baseline is not None and all(
+            value is not None for value in self.baseline
+        )
+
+        if self.p_signal is not None or self.e_p_signal is not None:
+            if not (
+                formats_complete
+                and not formats_share_files
+                and complete_gain
+                and complete_baseline
+            ):
+                self.fmt = ["32"] * self.n_sig
+                self.adc_gain, self.baseline = self.calc_adc_params()
+            return
+
+        if not formats_complete or formats_share_files:
+            old_formats = self.fmt or [None] * self.n_sig
+            new_nan = _signal._digi_nan("32")
+            signals = self.e_d_signal if expanded else self.d_signal.T
+            recoded = []
+            for signal, fmt in zip(signals, old_formats):
+                old_nan = (
+                    _signal._digi_nan(fmt)
+                    if fmt is not None
+                    else np.iinfo(signal.dtype).min
+                )
+                signal = signal.astype("int64", copy=True)
+                if old_nan is not None:
+                    signal[signal == old_nan] = new_nan
+                recoded.append(signal)
+            if expanded:
+                self.e_d_signal = recoded
+            else:
+                self.d_signal = np.column_stack(recoded)
+            self.fmt = ["32"] * self.n_sig
+
+        self.adc_gain = [
+            gain if gain is not None else 1.0
+            for gain in (self.adc_gain or [None] * self.n_sig)
+        ]
+        self.baseline = [
+            value if value is not None else 0
+            for value in (self.baseline or [None] * self.n_sig)
+        ]
 
     def _warn_about_replacing_other_files(self, write_dir):
         """Warn if writing would replace signal files of another record.
