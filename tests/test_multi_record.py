@@ -1,3 +1,4 @@
+import copy
 import os
 import stat
 
@@ -235,6 +236,105 @@ class TestMultiRecordWriting:
         assert record_write.sig_name == record.sig_name
         for segment, expected_signal in zip(record_write.segments, expected_signals):
             np.testing.assert_array_equal(segment.d_signal, expected_signal)
+
+    @pytest.mark.parametrize("physical", [True, False])
+    @pytest.mark.parametrize("expanded", [True, False])
+    def test_write_flattened_fixed_record(self, tmp_path, physical, expanded):
+        """A fixed-layout record can be written after flattening."""
+        record = wfdb.rdrecord(
+            "sample-data/multi-segment/fixed1/v102s",
+            sampfrom=74990,
+            sampto=75010,
+            physical=physical,
+            smooth_frames=not expanded,
+        )
+        record.record_name = "flat"
+        record.file_name = ["flat.dat"] * record.n_sig
+        original = copy.deepcopy(record)
+
+        record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
+        reread = wfdb.rdrecord(
+            str(tmp_path / "flat"), physical=physical, smooth_frames=not expanded
+        )
+
+        if physical:
+            field = "e_p_signal" if expanded else "p_signal"
+        else:
+            field = "e_d_signal" if expanded else "d_signal"
+        np.testing.assert_equal(getattr(reread, field), getattr(record, field))
+        assert record == original
+        assert record.source_segments == original.source_segments
+
+    @pytest.mark.parametrize("expanded", [True, False])
+    def test_write_flattened_variable_record(self, tmp_path, expanded):
+        """Missing channels and an empty segment survive physical writing."""
+        path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+        record = wfdb.rdrecord(
+            path,
+            sampfrom=3700,
+            sampto=3800,
+            smooth_frames=not expanded,
+        )
+        record.record_name = "flat"
+        record.file_name = ["flat.dat"] * record.n_sig
+        original_record = copy.deepcopy(record)
+
+        record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
+        reread = wfdb.rdrecord(str(tmp_path / "flat"), smooth_frames=not expanded)
+
+        assert reread.fmt == ["32"] * record.n_sig
+        original = record.e_p_signal if expanded else record.p_signal.T
+        written = reread.e_p_signal if expanded else reread.p_signal.T
+        for expected, actual in zip(original, written):
+            np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-9)
+        assert record == original_record
+        assert record.source_segments == original_record.source_segments
+
+    @pytest.mark.parametrize("expanded", [True, False])
+    def test_write_flattened_variable_digital_record(self, tmp_path, expanded):
+        """Unknown-format missing samples get the new format's marker."""
+        path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+        record = wfdb.rdrecord(
+            path,
+            sampfrom=3700,
+            sampto=3800,
+            physical=False,
+            smooth_frames=not expanded,
+        )
+        original = (
+            record.e_d_signal[0].copy() if expanded else record.d_signal[:, 0].copy()
+        )
+        record.record_name = "flat"
+        record.file_name = ["flat.dat"] * record.n_sig
+        original_record = copy.deepcopy(record)
+
+        record.wrsamp(write_dir=str(tmp_path), expanded=expanded)
+        reread = wfdb.rdrecord(
+            str(tmp_path / "flat"), physical=False, smooth_frames=not expanded
+        )
+
+        assert reread.fmt == ["32"] * record.n_sig
+        output = reread.e_d_signal if expanded else reread.d_signal.T
+        valid = original != -128
+        np.testing.assert_array_equal(output[0][valid], original[valid])
+        np.testing.assert_array_equal(output[0][~valid], -(2**31))
+        for channel in output[1:]:
+            np.testing.assert_array_equal(channel, -(2**31))
+        assert record == original_record
+        assert record.source_segments == original_record.source_segments
+
+    def test_write_flattened_record_requires_resolved_units(self, tmp_path):
+        """Do not silently label a channel whose source units conflict."""
+        path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+        record = wfdb.rdrecord(path, sampfrom=3700, sampto=3800)
+        record.record_name = "flat"
+        record.file_name = ["flat.dat"] * record.n_sig
+        record.units = None
+
+        with pytest.raises(ValueError, match="inconsistent units"):
+            record.wrsamp(write_dir=str(tmp_path))
+
+        assert list(tmp_path.iterdir()) == []
 
     def test_segment_length_mismatch_writes_no_files(self, tmp_path):
         record = wfdb.rdrecord(self.record_path, m2s=False, physical=False)
