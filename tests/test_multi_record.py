@@ -10,6 +10,68 @@ import wfdb
 class TestMultiRecordRanges:
     """Test logic that deduces relevant segments/ranges for given signals."""
 
+    def test_flattened_variable_ranges_include_clipped_empty_segment(self):
+        """Preserve explicit gaps separately from missing channel samples."""
+        path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        record = wfdb.rdrecord(path, sampfrom=1000, sampto=26000)
+
+        assert record.source_segments == [
+            ("~", 0, 24740),
+            ("3234460_0001", 24740, 25000),
+        ]
+        assert np.isnan(record.p_signal[:24740]).all()
+
+    def test_flattened_range_inside_empty_segment(self):
+        """A digital read retains the empty segment's clipped boundaries."""
+        path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        record = wfdb.rdrecord(path, sampfrom=1000, sampto=2000, physical=False)
+
+        assert record.source_segments == [("~", 0, 1000)]
+
+    def test_flattened_fixed_ranges_cover_requested_window(self):
+        """Fixed-layout segment ranges use the returned frame coordinates."""
+        record = wfdb.rdrecord(
+            "sample-data/multi-segment/041s/041s",
+            sampfrom=500,
+            sampto=1500,
+            physical=False,
+            smooth_frames=False,
+        )
+
+        assert record.source_segments == [
+            ("041s01", 0, 500),
+            ("041s02", 500, 1000),
+        ]
+
+    def test_single_segment_has_no_source_ranges(self):
+        """Ordinary records have no multi-segment provenance."""
+        record = wfdb.rdrecord("sample-data/100", sampto=100)
+
+        assert record.source_segments is None
+
+    def test_flattened_in_memory_record_uses_segment_names(self):
+        """Direct conversion works when a MultiRecord has no seg_name list."""
+        segment = wfdb.Record(
+            record_name="segment",
+            n_sig=1,
+            fs=1,
+            sig_len=2,
+            p_signal=np.array([[1.0], [2.0]]),
+            fmt=["16"],
+            adc_gain=[1.0],
+            baseline=[0],
+            units=["mV"],
+            sig_name=["I"],
+            samps_per_frame=[1],
+        )
+        multi = wfdb.MultiRecord(
+            segments=[segment], layout="fixed", n_sig=1, fs=1, sig_len=2
+        )
+
+        record = multi.multi_to_single(physical=True)
+
+        assert record.source_segments == [("segment", 0, 2)]
+
     def test_contained_ranges_simple_cases(self):
         record = wfdb.MultiRecord(
             segments=[

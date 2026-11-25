@@ -764,6 +764,12 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         A list of strings giving the signal name of each signal channel.
     comments : list, optional
         A list of string comments to be written to the header file.
+    source_segments : list of tuple, optional
+        For a record flattened from a multi-segment record, tuples of
+        ``(segment_name, start, stop)`` giving the source segment and its
+        half-open range in the returned record's frames. Empty segments have
+        the name ``"~"``. The zero-length layout header is omitted. This
+        metadata is kept in memory and is not written to a WFDB header.
 
     Examples
     --------
@@ -803,6 +809,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         block_size=None,
         sig_name=None,
         comments=None,
+        source_segments=None,
     ):
         # Note the lack of the 'n_seg' field. Single segment records cannot
         # have this field. Even n_seg = 1 makes the header a multi-segment
@@ -839,6 +846,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
         self.init_value = init_value
         self.checksum = checksum
         self.block_size = block_size
+        self.source_segments = source_segments
         # The skew already applied to the signals when they were read, if any
         self._applied_skew = None
 
@@ -859,9 +867,10 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             Determines if the objects are equal (True) or not equal (False).
 
         """
-        # How the signals were read does not affect whether records are equal
-        att1 = {k: v for k, v in self.__dict__.items() if k != "_applied_skew"}
-        att2 = {k: v for k, v in other.__dict__.items() if k != "_applied_skew"}
+        # Read provenance does not affect whether record contents are equal.
+        read_metadata = {"_applied_skew", "source_segments"}
+        att1 = {k: v for k, v in self.__dict__.items() if k not in read_metadata}
+        att2 = {k: v for k, v in other.__dict__.items() if k not in read_metadata}
 
         if set(att1.keys()) != set(att2.keys()):
             if verbose:
@@ -1752,6 +1761,23 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         # The fields to transfer to the new object
         fields = self.__dict__.copy()
 
+        # Retain the original segment boundaries as read, before dropping the
+        # multi-segment header fields. _arrange_fields has already clipped
+        # seg_len to the requested sample window.
+        source_segments = []
+        start = 0
+        names = self.seg_name
+        if names is None:
+            names = [
+                segment.record_name if segment is not None else "~"
+                for segment in self.segments
+            ]
+        for name, length in zip(names, self.seg_len):
+            stop = start + int(length)
+            if stop > start:
+                source_segments.append((name, start, stop))
+            start = stop
+
         # Remove multirecord fields
         for attr in ["segments", "seg_name", "seg_len", "n_seg"]:
             del fields[attr]
@@ -1924,6 +1950,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         record = Record()
         for field in fields:
             setattr(record, field, fields[field])
+        record.source_segments = source_segments
         setattr(record, sig_attr, combined_signal)
 
         # Use the signal to set record features
