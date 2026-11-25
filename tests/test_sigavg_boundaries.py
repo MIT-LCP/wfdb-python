@@ -72,3 +72,78 @@ def test_sigavg_interior_and_end_padding_unchanged(tmp_path, sample):
         for offset in [-2, -1, 0, 1]
     ]
     assert_allclose(result["ECG"], expected)
+
+
+@pytest.mark.parametrize("samples", [[0], [9], [0, 5, 9]])
+@pytest.mark.parametrize("baseline,gain", [(100, 2), (-120, 4)])
+def test_sigavg_padding_is_zero_in_physical_units(tmp_path, samples, baseline, gain):
+    physical = np.array([3, -2, 0, 1, 4, -1, 2, 0, -3, 5])
+    digital = baseline + gain * physical
+    wfdb.wrsamp(
+        "calibrated",
+        fs=10,
+        units=["mV"],
+        sig_name=["ECG"],
+        d_signal=digital[:, None],
+        fmt=["16"],
+        adc_gain=[gain],
+        baseline=[baseline],
+        write_dir=str(tmp_path),
+    )
+    wfdb.wrann(
+        "calibrated",
+        "atr",
+        sample=np.array(samples),
+        symbol=["N"] * len(samples),
+        fs=10,
+        write_dir=str(tmp_path),
+    )
+    result = processing.sigavg(
+        str(tmp_path / "calibrated"),
+        "atr",
+        return_df=True,
+        start_range=-0.2,
+        stop_range=0.2,
+        stop_time=1,
+    )
+    expected = [
+        sum(
+            physical[sample + offset] if 0 <= sample + offset < len(physical) else 0
+            for sample in samples
+        )
+        / len(samples)
+        for offset in [-2, -1, 0, 1]
+    ]
+    assert_allclose(result["ECG"], np.round(expected, 5))
+
+
+@pytest.mark.parametrize("sample", [0, 9])
+def test_sigavg_flat_zero_physical_signal_stays_zero_at_boundaries(tmp_path, sample):
+    wfdb.wrsamp(
+        "flat",
+        fs=10,
+        units=["mV"],
+        sig_name=["ECG"],
+        d_signal=np.full((10, 1), 100, dtype=np.int64),
+        fmt=["16"],
+        adc_gain=[2],
+        baseline=[100],
+        write_dir=str(tmp_path),
+    )
+    wfdb.wrann(
+        "flat",
+        "atr",
+        sample=np.array([sample]),
+        symbol=["N"],
+        fs=10,
+        write_dir=str(tmp_path),
+    )
+    result = processing.sigavg(
+        str(tmp_path / "flat"),
+        "atr",
+        return_df=True,
+        start_range=-0.2,
+        stop_range=0.2,
+        stop_time=1,
+    )
+    assert_allclose(result["ECG"], 0)
