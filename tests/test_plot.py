@@ -213,10 +213,10 @@ def test_plot_wfdb_aux_notes_are_optional_and_aligned():
     annotation = wfdb.Annotation(
         record_name="100",
         extension="atr",
-        sample=np.array([36, 72, 108]),
-        symbol=["N", "N", "V"],
-        chan=np.array([0, 1, 0]),
-        aux_note=["First alarm", None, "Second alarm"],
+        sample=np.array([36, 72, 108, 144]),
+        symbol=["N", "N", "V", "N"],
+        chan=np.array([0, 1, 0, 1]),
+        aux_note=["First alarm\x00", None, "Second alarm", "\x00"],
         fs=360,
     )
 
@@ -235,7 +235,7 @@ def test_plot_wfdb_aux_notes_are_optional_and_aligned():
         "First alarm",
         "Second alarm",
     ]
-    assert [text.get_text() for text in fig.axes[1].texts] == ["N"]
+    assert [text.get_text() for text in fig.axes[1].texts] == ["N", "N"]
     notes = fig.axes[0].texts[2:]
     assert [text.xy[0] for text in notes] == [0.1, 0.3]
     assert [text.xy[1] for text in notes] == [
@@ -287,6 +287,16 @@ def test_plot_wfdb_aux_notes_without_signal():
         "Alarm two",
     ]
     assert [ax.texts[0].xy for ax in fig.axes] == [(0.1, 0), (0.2, 0)]
+
+
+def test_plot_wfdb_rhythm_note_has_no_nul():
+    """Show the bundled MIT-BIH rhythm note without its NUL terminator."""
+    annotation = wfdb.rdann("sample-data/100", "atr", sampto=100)
+
+    fig = wfdb.plot_wfdb(annotation=annotation, plot_aux=True, return_fig=True)
+    plt.close(fig)
+
+    assert [text.get_text() for text in fig.axes[0].texts] == ["(N"]
 
 
 class TestPlotInternal:

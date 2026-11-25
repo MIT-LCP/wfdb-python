@@ -622,14 +622,18 @@ def _plot_annotation(
 
             if ann_aux is not None and ann_aux[ch] is not None:
                 for i, note in enumerate(ann_aux[ch]):
-                    if note:
-                        axes[ch].annotate(
-                            note,
-                            (ann_samp[ch][i] / downsample_factor, y[i]),
-                            xytext=(4, 8),
-                            textcoords="offset points",
-                            fontsize="small",
-                        )
+                    if note is None:
+                        continue
+                    note = note.rstrip("\x00")
+                    if not note:
+                        continue
+                    axes[ch].annotate(
+                        note,
+                        (ann_samp[ch][i] / downsample_factor, y[i]),
+                        xytext=(4, 8),
+                        textcoords="offset points",
+                        fontsize="small",
+                    )
 
 
 def _plot_ecg_grids(ecg_grids, fs, units, time_units, axes, sampling_freq=None):
