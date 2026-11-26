@@ -181,6 +181,51 @@ def test_check_record_reads_later_segment_first_frame(tmp_path, in_archive):
     assert "signal_read" in [issue.code for issue in wfdb.check_record(target)]
 
 
+def test_check_dataset_lists_same_files_as_before(tmp_path):
+    """Without ignore, every header and archive below the root is checked."""
+    _write_record(tmp_path / "a" / "b", "deep", signal_name="missing.dat")
+    _write_record(tmp_path / ".git", "hidden", signal_name="missing.dat")
+    issues = wfdb.check_dataset(tmp_path)
+    assert sorted(issue.path.name for issue in issues) == ["missing.dat"] * 2
+
+
+def test_check_dataset_skips_ignored_folders_and_files(tmp_path):
+    """Ignored folders are not read, and ignored files are not checked."""
+    _write_record(tmp_path, "good")
+    _write_record(tmp_path / ".git", "hidden", signal_name="missing.dat")
+    _write_record(tmp_path / "drafts", "draft", signal_name="missing.dat")
+    _write_record(tmp_path, "scratch", signal_name="missing.dat")
+    seen = []
+
+    def ignore(path):
+        seen.append(path)
+        return path.parts[0] in (".git", "drafts") or path.name == "scratch.hea"
+
+    assert wfdb.check_dataset(tmp_path, ignore=ignore) == []
+    # The contents of ignored folders are never offered to the filter
+    assert Path(".git") in seen
+    assert Path(".git", "hidden.hea") not in seen
+
+
+def test_check_dataset_still_checks_ignored_segments(tmp_path):
+    """A segment is checked through its parent even if its own file is ignored."""
+    _write_record(tmp_path, "segment", signal_name="missing.dat")
+    (tmp_path / "parent.hea").write_text("parent/1 1 250 2\nsegment 2\n")
+    issues = wfdb.check_dataset(
+        tmp_path, ignore=lambda path: path.name == "segment.hea"
+    )
+    assert [issue.code for issue in issues] == ["missing_signal"]
+
+
+def test_check_dataset_ignores_archives(tmp_path):
+    record = _write_record(tmp_path / "src", signal_name="missing.dat")
+    _archive_records(tmp_path, "bad", [record])
+    issues = wfdb.check_dataset(
+        tmp_path, ignore=lambda path: path.parts[0] == "src" or path.suffix == ".wfdb"
+    )
+    assert issues == []
+
+
 def test_check_dataset_checks_bad_archive(tmp_path):
     record = _write_record(tmp_path, signal_name="missing.dat")
     archive = _archive_records(tmp_path, "good", [record])

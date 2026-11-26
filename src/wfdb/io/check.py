@@ -1,5 +1,6 @@
 """Check local WFDB records before sharing them."""
 
+import os
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
@@ -147,31 +148,66 @@ def check_record(record_name):
     return issues
 
 
-def check_dataset(directory):
+def check_dataset(directory, ignore=None):
     """Check every WFDB header and archive below a local directory.
 
     Parameters
     ----------
     directory : str or pathlib.Path
         Root directory of the dataset to check.
+    ignore : callable, optional
+        A function that is given the path of each folder and file below
+        `directory`, relative to it, and returns True to skip it. The contents
+        of a skipped folder are not read. A record that is skipped is still
+        checked as a segment of a multi-segment record that is not skipped.
 
     Returns
     -------
     list of CheckIssue
         Problems found across all records.
+
+    Examples
+    --------
+    Skip version control folders:
+
+    >>> import wfdb
+    >>> issues = wfdb.check_dataset(
+    ...     "sample-data", ignore=lambda path: ".git" in path.parts
+    ... )
+
     """
     directory = Path(directory)
     if not directory.is_dir():
         raise NotADirectoryError(directory)
 
+    headers, archives = _dataset_files(directory, ignore)
     issues = []
     checked = {}
-    for header in sorted(directory.rglob("*.hea")):
+    for header in headers:
         source = _Source(header.parent)
         _check_record(source, header.stem, issues, checked, set())
-    for archive in sorted(directory.rglob("*.wfdb")):
+    for archive in archives:
         _check_archive(archive, issues)
     return issues
+
+
+def _dataset_files(directory, ignore):
+    """List the headers and archives below a directory, in sorted order."""
+    headers = []
+    archives = []
+    for folder, subfolders, files in os.walk(directory):
+        folder = Path(folder)
+        relative = folder.relative_to(directory)
+        if ignore is not None:
+            subfolders[:] = [name for name in subfolders if not ignore(relative / name)]
+        for name in files:
+            if ignore is not None and ignore(relative / name):
+                continue
+            if name.endswith(".hea"):
+                headers.append(folder / name)
+            elif name.endswith(".wfdb"):
+                archives.append(folder / name)
+    return sorted(headers), sorted(archives)
 
 
 def _check_archive(path, issues):
