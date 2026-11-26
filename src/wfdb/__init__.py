@@ -6,6 +6,7 @@ from wfdb.io.annotation import (
     show_ann_labels,
     wrann,
 )
+from wfdb.io.check import CheckIssue, check_dataset, check_record
 from wfdb.io.datasource import (
     DataSource,
     DataSourceType,

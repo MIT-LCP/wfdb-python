@@ -23,6 +23,9 @@ dependencies = [
     "physionet >= 0.7.2",
 ]
 
+[project.scripts]
+wfdb = "wfdb.cli:main"
+
 [project.urls]
 homepage = "https://github.com/MIT-LCP/wfdb-python/"
 repository = "https://github.com/MIT-LCP/wfdb-python/"
