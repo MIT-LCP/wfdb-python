@@ -117,6 +117,27 @@ def test_check_does_not_call_valid_segment_count_a_directory_prefix(tmp_path):
     assert "directory prefix" not in issues[0].message
 
 
+@pytest.mark.parametrize("name", ["2", "3"])
+def test_check_does_not_call_numeric_multisegment_name_a_prefix(tmp_path, name):
+    record = tmp_path / name
+    record.with_suffix(".hea").write_text(f"{name}/{name} 1 250 4\ninvalid segment\n")
+
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "invalid syntax in segment line" in issues[0].message
+    assert "directory prefix" not in issues[0].message
+
+
+def test_check_explains_prefixed_numeric_multisegment_name(tmp_path):
+    record = tmp_path / "2"
+    record.with_suffix(".hea").write_text("dir/2/2 1 250 4\nseg 2\nseg 2\n")
+
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "record name 'dir/2/2' contains a directory prefix" in issues[0].message
+    assert "expected '2/2'" in issues[0].message
+
+
 def test_check_signal_example_uses_file_found_beside_header(tmp_path):
     record = tmp_path / "r"
     record.with_suffix(".hea").write_text(

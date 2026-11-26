@@ -327,10 +327,11 @@ def _describe_header_error(source, name, error):
     token = line.split()[0]
     parts = token.split("/")
     expected_token = None
-    if len(parts) >= 2 and parts[-1] == name:
+    if len(parts) >= 2 and parts[-2] == name and parts[-1].isdigit():
+        if len(parts) >= 3:
+            expected_token = f"{name}/{parts[-1]}"
+    elif len(parts) >= 2 and parts[-1] == name:
         expected_token = name
-    elif len(parts) >= 3 and parts[-2] == name and parts[-1].isdigit():
-        expected_token = f"{name}/{parts[-1]}"
     elif "record line" in str(error) and len(parts) >= 2 and not parts[-1].isdigit():
         expected_token = name
     if expected_token is not None and token != expected_token:
