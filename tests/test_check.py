@@ -46,6 +46,39 @@ def test_check_record_rejects_broken_header_from_issue_528(tmp_path):
     )
     issues = wfdb.check_record(record)
     assert [issue.code for issue in issues] == ["header"]
+    assert "line 1" in issues[0].message
+    assert "ge_median_beats_wfdb/good" in issues[0].message
+    assert "expected 'good'" in issues[0].message
+    assert "line 2" in issues[0].message
+    assert "'good.dat' is beside the header" in issues[0].message
+
+
+def test_check_explains_flattened_dataset_header(tmp_path, capsys):
+    record = tmp_path / "00001_medians"
+    record.with_suffix(".hea").write_text(
+        "ge_median_beats_wfdb/00001_medians 2 500 600\n"
+        "ge_median_beats_wfdb/00001_medians.dat 32 200 32 0 0 0 0 I\n"
+        "ge_median_beats_wfdb/00001_medians.dat 32 200 32 0 0 0 0 II\n"
+    )
+    record.with_suffix(".dat").write_bytes(b"\0" * 4800)
+
+    assert main(["check", str(record)]) == 1
+    output = capsys.readouterr().out
+    assert "line 1: record name" in output
+    assert "expected '00001_medians'" in output
+    assert "lines 2-3: 2 signal file reference(s)" in output
+    assert "'00001_medians.dat' is beside the header" in output
+
+    header = record.with_suffix(".hea")
+    header.write_text(
+        header.read_text().replace(
+            "ge_median_beats_wfdb/00001_medians 2", "00001_medians 2"
+        )
+    )
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "lines 2-3: 2 signal file reference(s)" in issues[0].message
+    assert "'00001_medians.dat' is beside the header" in issues[0].message
 
 
 def test_check_record_rejects_wrong_name_and_missing_signal(tmp_path):
