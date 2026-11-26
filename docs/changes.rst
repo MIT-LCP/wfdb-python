@@ -7,6 +7,37 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.4.0 (Nov 2026)
+------------------------
+
+This release adds a command and Python API for checking local WFDB records
+before sharing them. It also fixes precision errors in annotation comparisons
+and peak detection, and corrects signal averaging at record boundaries. The
+documentation now explains format 212's usable range and missing-sample value.
+
+**Check local WFDB records before sharing**
+  Use ``wfdb check PATH`` or the ``check_record`` and ``check_dataset`` Python
+  functions to find malformed headers, mismatched record names, missing signal
+  or segment files, inconsistent segments, truncated uncompressed signal files,
+  and signal data that cannot be read. The same checks apply to ``.wfdb``
+  archives.
+
+**Avoid integer overflow when comparing annotation samples**
+  ``processing.compare_annotations`` and ``Comparitor`` widen NumPy integer
+  sample positions before subtracting them, so unsigned positions can match
+  nearby later detections and large signed differences do not wrap.
+
+**Preserve small differences in large integer local-peak inputs**
+  ``processing.find_local_peaks`` uses its exact scanning path for integer
+  values outside the range represented exactly by a double, avoiding false
+  or missing peaks caused by rounding in the fast maximum filter.
+
+**Pad waveform averages with zero in physical units**
+  ``processing.sigavg`` no longer includes unrelated end-of-record samples
+  through negative NumPy indices. Out-of-range positions at either end use
+  the channel's digital baseline so padding is zero after calibration,
+  including records with a nonzero baseline.
+
 Version 5.3.0 (Nov 2026)
 ------------------------
 
