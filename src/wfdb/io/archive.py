@@ -154,6 +154,10 @@ class WFDBArchive:
         """Return the uncompressed size of a file in the archive, in bytes."""
         return self._getinfo(file_name).file_size
 
+    def is_symlink(self, file_name):
+        """Return whether a ZIP entry is a symbolic link."""
+        return stat.S_ISLNK(self._getinfo(file_name).external_attr >> 16)
+
     def open(self, file_name):
         """Open a file in the archive for reading as a binary file object."""
         self._require_mode("r")

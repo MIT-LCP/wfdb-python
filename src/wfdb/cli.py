@@ -14,10 +14,13 @@ def main(argv=None):
     check.add_argument("path", type=Path, help="record or dataset directory")
     args = parser.parse_args(argv)
 
-    if args.path.is_dir():
-        issues = check_dataset(args.path)
-    else:
-        issues = check_record(args.path)
+    try:
+        if args.path.is_dir():
+            issues = check_dataset(args.path)
+        else:
+            issues = check_record(args.path)
+    except ValueError as exc:
+        parser.error(str(exc))
 
     for issue in issues:
         print(f"{issue.path}: {issue.code}: {issue.message}")

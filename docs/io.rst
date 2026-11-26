@@ -43,9 +43,10 @@ Checking WFDB records
 
 Run ``wfdb check PATH`` before sharing a record or a dataset directory. The
 command checks each local header and ``.wfdb`` archive, follows multi-segment
-references, verifies signal file references, and reads one frame of each
-record. It exits with status 1 if it finds a problem. It does not check all
-samples or annotation files.
+references, compares segment lengths and fixed-layout signals, verifies signal
+file references and the minimum size of uncompressed signal files, and reads
+the first frame of each segment. It exits with status 1 if it finds a problem.
+It does not scan all samples or annotation files.
 
 The same checks are available from Python:
 

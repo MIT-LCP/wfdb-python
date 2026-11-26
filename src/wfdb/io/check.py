@@ -1,10 +1,18 @@
 """Check local WFDB records before sharing them."""
 
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 
+from wfdb.io import _signal
 from wfdb.io.archive import WFDBArchive
-from wfdb.io.record import MultiRecord, _parse_header_content, rdheader, rdrecord
+from wfdb.io.record import (
+    MultiRecord,
+    _parse_header_content,
+    _rdrecord,
+    rdheader,
+    rdrecord,
+)
 
 
 @dataclass(frozen=True)
@@ -14,7 +22,8 @@ class CheckIssue:
     Attributes
     ----------
     path : pathlib.Path
-        The header or signal file associated with the problem.
+        The header or signal file associated with the problem. For an archive,
+        this is the path of the ``.wfdb`` file.
     code : str
         A stable identifier for the kind of problem.
     message : str
@@ -26,13 +35,86 @@ class CheckIssue:
     message: str
 
 
+class _Source:
+    """Read a record from a directory or an open .wfdb archive."""
+
+    def __init__(self, path, archive=None, main_name=None):
+        self.path = path.resolve()
+        self.archive = archive
+        self.main_name = main_name
+
+    def key(self, name):
+        return (self.path, name)
+
+    def header_path(self, name):
+        return self.path if self.archive else self.path / f"{name}.hea"
+
+    def signal_path(self, name):
+        return self.path if self.archive else self.path / name
+
+    def header_exists(self, name):
+        return self.exists(f"{name}.hea")
+
+    def exists(self, name):
+        if self.archive:
+            return self.archive.exists(name)
+        return (self.path / name).is_file()
+
+    def is_symlink(self, name):
+        if self.archive:
+            return self.archive.is_symlink(name)
+        return (self.path / name).is_symlink()
+
+    def file_size(self, name):
+        if self.archive:
+            return self.archive.file_size(name)
+        return (self.path / name).stat().st_size
+
+    def read_header(self, name):
+        if self.archive:
+            archive_name = None if name == self.main_name else name
+            return _parse_header_content(self.archive.read_header(archive_name))
+        return rdheader(str(self.path / name))
+
+    def read_first_frame(self, name):
+        if not self.archive:
+            rdrecord(str(self.path / name), sampto=1, physical=False)
+            return
+        # Read a segment using the already-open archive. Passing the archive
+        # path to rdrecord would only read the master's first segment.
+        _rdrecord(
+            record_name=name,
+            sampfrom=0,
+            sampto=1,
+            channels=None,
+            physical=False,
+            pn_dir=None,
+            m2s=True,
+            smooth_frames=True,
+            ignore_skew=False,
+            return_res=64,
+            force_channels=True,
+            channel_names=None,
+            warn_empty=False,
+            wfdb_archive=self.archive,
+        )
+
+    def issue(self, name, code, message, file_name=None):
+        if self.archive:
+            target = file_name or f"{name}.hea"
+            return CheckIssue(self.path, code, f"{target}: {message}")
+        path = self.signal_path(file_name) if file_name else self.header_path(name)
+        return CheckIssue(path, code, message)
+
+
 def check_record(record_name):
     """Check one local WFDB record and return its problems.
 
-    The header is parsed with the normal WFDB reader. The check also verifies
-    that the header names the expected record, that referenced signal and
-    segment files exist, and that the first signal frame can be read. It does
-    not scan all samples or annotations.
+    The header is parsed with the normal WFDB reader. The check verifies
+    record and segment names, fixed-layout signals, referenced files, the
+    minimum size of uncompressed signal files, and the first signal frame.
+    It does not scan all samples or annotations. Both ordinary records and
+    ``.wfdb`` archives use the same checks.
 
     Parameters
     ----------
@@ -47,18 +129,21 @@ def check_record(record_name):
     Examples
     --------
     >>> import wfdb
-    >>> issues = wfdb.check_record("sample-data/100")
-    >>> issues
+    >>> wfdb.check_record("sample-data/100")
     []
     """
     path = Path(record_name)
     if path.suffix == ".hea":
         path = path.with_suffix("")
+    if path.suffix not in ("", ".wfdb"):
+        raise ValueError("Expected a record name, .hea file, or .wfdb archive")
+
     issues = []
     if path.suffix == ".wfdb":
         _check_archive(path, issues)
     else:
-        _check_local_record(path, issues, set(), set())
+        source = _Source(path.parent)
+        _check_record(source, path.name, issues, {}, set())
     return issues
 
 
@@ -80,171 +165,220 @@ def check_dataset(directory):
         raise NotADirectoryError(directory)
 
     issues = []
-    checked = set()
+    checked = {}
     for header in sorted(directory.rglob("*.hea")):
-        _check_local_record(header.with_suffix(""), issues, checked, set())
+        source = _Source(header.parent)
+        _check_record(source, header.stem, issues, checked, set())
     for archive in sorted(directory.rglob("*.wfdb")):
         _check_archive(archive, issues)
     return issues
 
 
-def _check_local_record(path, issues, checked, active):
-    path = path.resolve()
-    if path in active:
-        issues.append(
-            CheckIssue(path.with_suffix(".hea"), "cycle", "Segment reference cycle")
-        )
-        return
-    if path in checked:
-        return
-    checked.add(path)
-    active.add(path)
-    header_path = path.with_suffix(".hea")
-    try:
-        header = rdheader(str(path))
-    except Exception as exc:
-        issues.append(CheckIssue(header_path, "header", str(exc)))
-        active.remove(path)
-        return
-
-    if header.record_name != path.name:
-        issues.append(
-            CheckIssue(
-                header_path,
-                "record_name",
-                f"Header names {header.record_name!r}; expected {path.name!r}",
-            )
-        )
-
-    if isinstance(header, MultiRecord):
-        if len(header.seg_name) != header.n_seg:
-            issues.append(
-                CheckIssue(
-                    header_path, "segments", "Segment count does not match header"
-                )
-            )
-        if sum(header.seg_len) != header.sig_len:
-            issues.append(
-                CheckIssue(
-                    header_path, "length", "Segment lengths do not sum to record length"
-                )
-            )
-        for segment in header.seg_name:
-            if segment != "~":
-                _check_local_record(path.parent / segment, issues, checked, active)
-        active.remove(path)
-        return
-
-    if len(header.file_name or []) != header.n_sig:
-        issues.append(
-            CheckIssue(header_path, "signals", "Signal count does not match header")
-        )
-        active.remove(path)
-        return
-
-    missing = False
-    for name in sorted(set(header.file_name or [])):
-        if name == "~":
-            continue
-        signal_path = path.parent / name
-        if not signal_path.is_file():
-            issues.append(
-                CheckIssue(
-                    signal_path, "missing_signal", "Referenced signal file is missing"
-                )
-            )
-            missing = True
-
-    if missing or header.n_sig == 0 or all(name == "~" for name in header.file_name):
-        active.remove(path)
-        return
-    if header.sig_len == 0:
-        active.remove(path)
-        return
-    try:
-        rdrecord(str(path), sampto=1, physical=False)
-    except Exception as exc:
-        issues.append(CheckIssue(header_path, "signal_read", str(exc)))
-    active.remove(path)
-
-
 def _check_archive(path, issues):
-    issue_count = len(issues)
+    if path.is_symlink():
+        issues.append(CheckIssue(path, "symlink", "Archive is a symbolic link"))
+        return
     try:
         with WFDBArchive(path) as archive:
-            header_name = archive.header_file_name()
-            header = _check_archive_record(
-                archive, Path(header_name).stem, issues, set(), set(), main=True
-            )
-            if (
-                header is not None
-                and len(issues) == issue_count
-                and header.n_sig
-                and header.sig_len != 0
-            ):
-                rdrecord(str(path), sampto=1, physical=False)
+            for entry in archive.namelist():
+                if archive.is_symlink(entry):
+                    issues.append(
+                        CheckIssue(path, "symlink", f"{entry}: symbolic link")
+                    )
+                    return
+            name = Path(archive.header_file_name()).stem
+            source = _Source(path, archive, name)
+            _check_record(source, name, issues, {}, set())
     except Exception as exc:
         issues.append(CheckIssue(path, "archive", str(exc)))
 
 
-def _check_archive_record(archive, name, issues, checked, active, main=False):
-    if name in active:
-        issues.append(
-            CheckIssue(
-                Path(archive.path), "cycle", f"{name}.hea: segment reference cycle"
+def _check_record(
+    source, name, issues, checked, active, expected_len=None, is_segment=False
+):
+    key = source.key(name)
+    if key in active:
+        issues.append(source.issue(name, "cycle", "Segment reference cycle"))
+        return None
+    if key in checked:
+        header = checked[key]
+        _check_segment_length(source, name, header, expected_len, issues)
+        if is_segment and isinstance(header, MultiRecord):
+            issues.append(
+                source.issue(
+                    name, "nested_segment", "A segment cannot be multi-segment"
+                )
             )
-        )
+        return header
+
+    if not source.header_exists(name):
+        code = "missing_segment" if is_segment else "header"
+        issues.append(source.issue(name, code, "Header file is missing"))
+        checked[key] = None
         return None
-    if name in checked:
+    if source.is_symlink(f"{name}.hea"):
+        issues.append(source.issue(name, "symlink", "Header is a symbolic link"))
+        checked[key] = None
         return None
-    checked.add(name)
-    active.add(name)
+
+    active.add(key)
     try:
-        content = archive.read_header(None if main else name)
-        header = _parse_header_content(content)
-    except Exception as exc:
-        issues.append(CheckIssue(Path(archive.path), "header", f"{name}.hea: {exc}"))
-        active.remove(name)
-        return None
+        try:
+            header = source.read_header(name)
+        except Exception as exc:
+            issues.append(source.issue(name, "header", str(exc)))
+            checked[key] = None
+            return None
+        checked[key] = header
 
-    if header.record_name != name:
-        issues.append(
-            CheckIssue(
-                Path(archive.path),
-                "record_name",
-                f"{name}.hea names {header.record_name!r}; expected {name!r}",
+        if header.record_name != name:
+            issues.append(
+                source.issue(
+                    name,
+                    "record_name",
+                    f"Header names {header.record_name!r}; expected {name!r}",
+                )
             )
-        )
+        _check_segment_length(source, name, header, expected_len, issues)
 
-    if isinstance(header, MultiRecord):
-        if len(header.seg_name) != header.n_seg:
-            issues.append(
-                CheckIssue(
-                    Path(archive.path), "segments", f"{name}.hea: wrong segment count"
-                )
-            )
-        if sum(header.seg_len) != header.sig_len:
-            issues.append(
-                CheckIssue(
-                    Path(archive.path), "length", f"{name}.hea: wrong segment length"
-                )
-            )
-        for segment in header.seg_name:
-            if segment != "~":
-                _check_archive_record(archive, segment, issues, checked, active)
-    else:
-        if len(header.file_name or []) != header.n_sig:
-            issues.append(
-                CheckIssue(
-                    Path(archive.path), "signals", f"{name}.hea: wrong signal count"
-                )
-            )
-        for signal_name in sorted(set(header.file_name or [])):
-            if signal_name != "~" and not archive.exists(signal_name):
+        if isinstance(header, MultiRecord):
+            if is_segment:
                 issues.append(
-                    CheckIssue(
-                        Path(archive.path), "missing_signal", f"Missing {signal_name}"
+                    source.issue(
+                        name, "nested_segment", "A segment cannot be multi-segment"
                     )
                 )
-    active.remove(name)
-    return header
+            else:
+                _check_segments(source, name, header, issues, checked, active)
+        else:
+            _check_signals(source, name, header, issues)
+        return header
+    finally:
+        active.remove(key)
+
+
+def _check_segment_length(source, name, header, expected_len, issues):
+    if (
+        header is not None
+        and expected_len is not None
+        and header.sig_len != expected_len
+    ):
+        issues.append(
+            source.issue(
+                name,
+                "segment_length",
+                f"Segment has {header.sig_len} samples; parent declares {expected_len}",
+            )
+        )
+
+
+def _check_segments(source, name, header, issues, checked, active):
+    if len(header.seg_name) != header.n_seg:
+        issues.append(
+            source.issue(name, "segments", "Segment count does not match header")
+        )
+    if sum(header.seg_len) != header.sig_len:
+        issues.append(
+            source.issue(name, "length", "Segment lengths do not sum to record length")
+        )
+
+    reference_signals = None
+    for segment, segment_len in zip(header.seg_name, header.seg_len):
+        if segment == "~":
+            continue
+        child = _check_record(
+            source, segment, issues, checked, active, segment_len, is_segment=True
+        )
+        if child is None or isinstance(child, MultiRecord) or header.layout != "fixed":
+            continue
+        signals = (child.n_sig, tuple(child.sig_name or []))
+        if reference_signals is None:
+            reference_signals = signals
+        elif signals != reference_signals:
+            issues.append(
+                source.issue(
+                    segment,
+                    "fixed_layout",
+                    "Signal count or names differ from the first segment",
+                )
+            )
+
+
+def _check_signals(source, name, header, issues):
+    if len(header.file_name or []) != header.n_sig:
+        issues.append(
+            source.issue(name, "signals", "Signal count does not match header")
+        )
+        return
+
+    channels = defaultdict(list)
+    for index, file_name in enumerate(header.file_name or []):
+        if file_name != "~":
+            channels[file_name].append(index)
+
+    readable = bool(channels)
+    for file_name, indices in sorted(channels.items()):
+        if not source.exists(file_name):
+            issues.append(
+                source.issue(
+                    name,
+                    "missing_signal",
+                    "Referenced signal file is missing",
+                    file_name,
+                )
+            )
+            readable = False
+            continue
+        if source.is_symlink(file_name):
+            issues.append(
+                source.issue(
+                    name, "symlink", "Signal file is a symbolic link", file_name
+                )
+            )
+            readable = False
+            continue
+        _check_signal_size(source, name, file_name, header, indices, issues)
+
+    if readable and header.sig_len != 0:
+        try:
+            source.read_first_frame(name)
+        except Exception as exc:
+            issues.append(source.issue(name, "signal_read", str(exc)))
+
+
+def _check_signal_size(source, name, file_name, header, indices, issues):
+    if header.sig_len is None:
+        return
+    formats = {header.fmt[index] for index in indices}
+    offsets = {(header.byte_offset[index] or 0) for index in indices}
+    if len(formats) != 1 or len(offsets) != 1:
+        issues.append(
+            source.issue(
+                name,
+                "signal_layout",
+                "Channels sharing a file have different formats or byte offsets",
+                file_name,
+            )
+        )
+        return
+    fmt = formats.pop()
+    if fmt in _signal.COMPRESSED_FMTS:
+        return  # FLAC size does not give a useful lower bound on sample count.
+    try:
+        samples_per_frame = sum(header.samps_per_frame[index] or 1 for index in indices)
+        required = offsets.pop() + _signal._required_byte_num(
+            "read", fmt, header.sig_len * samples_per_frame
+        )
+        actual = source.file_size(file_name)
+    except (IndexError, KeyError, OSError, TypeError, ValueError) as exc:
+        issues.append(source.issue(name, "signal_layout", str(exc), file_name))
+        return
+    if actual < required:
+        issues.append(
+            source.issue(
+                name,
+                "short_signal",
+                f"Signal file has {actual} bytes; at least {required} are required",
+                file_name,
+            )
+        )
