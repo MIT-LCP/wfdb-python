@@ -323,17 +323,25 @@ def _describe_header_error(source, name, error):
         for line_number, value in lines[1:]
         if len(value.split()) >= 3 and "/" in value.split()[0]
     ]
+    number, line = lines[0]
+    token = line.split()[0]
+    parts = token.split("/")
+    expected_token = None
+    if len(parts) >= 2 and parts[-1] == name:
+        expected_token = name
+    elif len(parts) >= 3 and parts[-2] == name and parts[-1].isdigit():
+        expected_token = f"{name}/{parts[-1]}"
+    elif "record line" in str(error) and len(parts) >= 2 and not parts[-1].isdigit():
+        expected_token = name
+    if expected_token is not None and token != expected_token:
+        message = (
+            f"line {number}: record name {token!r} contains a directory "
+            f"prefix; expected {expected_token!r} to match the header filename"
+        )
+        if signal_lines:
+            message += "; " + _describe_signal_paths(source, signal_lines)
+        return message
     if "record line" in str(error):
-        number, line = lines[0]
-        token = line.split()[0]
-        if "/" in token and not token.rsplit("/", 1)[1].isdigit():
-            message = (
-                f"line {number}: record name {token!r} contains a directory "
-                f"prefix; expected {name!r} to match the header filename"
-            )
-            if signal_lines:
-                message += "; " + _describe_signal_paths(source, signal_lines)
-            return message
         return f"line {number}: {error}; record line is {line!r}"
     if "signal line" in str(error) and signal_lines:
         return _describe_signal_paths(source, signal_lines)
@@ -342,16 +350,25 @@ def _describe_header_error(source, name, error):
 
 def _describe_signal_paths(source, signal_lines):
     """Describe signal filenames that retain an obsolete directory prefix."""
-    first_line, first_file = signal_lines[0]
-    basename = Path(first_file).name
+    first_line = signal_lines[0][0]
+    example_file = next(
+        (
+            file_name
+            for _, file_name in signal_lines
+            if source.exists(Path(file_name).name)
+        ),
+        signal_lines[0][1],
+    )
+    basename = Path(example_file).name
     location = (
         f"line {first_line}"
         if len(signal_lines) == 1
         else f"lines {first_line}-{signal_lines[-1][0]}"
     )
     message = (
-        f"{location}: {len(signal_lines)} signal file reference(s) contain a "
-        f"directory prefix (e.g. {first_file!r}); "
+        f"{location}: {len(signal_lines)} signal file "
+        f"{'reference contains' if len(signal_lines) == 1 else 'references contain'} a "
+        f"directory prefix (e.g. {example_file!r}); "
     )
     if source.exists(basename):
         return message + f"{basename!r} is beside the header; remove the prefix"

@@ -66,7 +66,7 @@ def test_check_explains_flattened_dataset_header(tmp_path, capsys):
     output = capsys.readouterr().out
     assert "line 1: record name" in output
     assert "expected '00001_medians'" in output
-    assert "lines 2-3: 2 signal file reference(s)" in output
+    assert "lines 2-3: 2 signal file references" in output
     assert "'00001_medians.dat' is beside the header" in output
 
     header = record.with_suffix(".hea")
@@ -77,8 +77,57 @@ def test_check_explains_flattened_dataset_header(tmp_path, capsys):
     )
     issues = wfdb.check_record(record)
     assert [issue.code for issue in issues] == ["header"]
-    assert "lines 2-3: 2 signal file reference(s)" in issues[0].message
+    assert "lines 2-3: 2 signal file references" in issues[0].message
     assert "'00001_medians.dat' is beside the header" in issues[0].message
+
+
+@pytest.mark.parametrize("in_archive", [False, True])
+def test_check_explains_numeric_record_name_with_old_directory(tmp_path, in_archive):
+    record = tmp_path / "100"
+    record.with_suffix(".hea").write_text(
+        "mitdb/100 1 360 2\nmitdb/100.dat 16 200 11 0 0 0 0 MLII\n"
+    )
+    record.with_suffix(".dat").write_bytes(b"\0" * 4)
+    target = _archive_records(tmp_path, "100", [record]) if in_archive else record
+
+    issues = wfdb.check_record(target)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "line 1: record name 'mitdb/100'" in issues[0].message
+    assert "expected '100'" in issues[0].message
+    assert "line 2: 1 signal file reference contains" in issues[0].message
+    assert "'100.dat' is beside the header" in issues[0].message
+
+
+def test_check_explains_prefixed_multisegment_name(tmp_path):
+    record = tmp_path / "m"
+    record.with_suffix(".hea").write_text("dir/m/2 1 250 4\nseg 2\nseg 2\n")
+
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "line 1: record name 'dir/m/2'" in issues[0].message
+    assert "expected 'm/2'" in issues[0].message
+
+
+def test_check_does_not_call_valid_segment_count_a_directory_prefix(tmp_path):
+    record = tmp_path / "m"
+    record.with_suffix(".hea").write_text("m/2 1 250 4\ninvalid segment\n")
+
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "directory prefix" not in issues[0].message
+
+
+def test_check_signal_example_uses_file_found_beside_header(tmp_path):
+    record = tmp_path / "r"
+    record.with_suffix(".hea").write_text(
+        "r 2 250 2\ndir/a.dat 16 200 11 0 0 0 0 I\ndir/b.dat 16 200 11 0 0 0 0 II\n"
+    )
+    (tmp_path / "b.dat").write_bytes(b"\0" * 4)
+
+    issues = wfdb.check_record(record)
+    assert [issue.code for issue in issues] == ["header"]
+    assert "(e.g. 'dir/b.dat')" in issues[0].message
+    assert "'b.dat' is beside the header" in issues[0].message
 
 
 def test_check_record_rejects_wrong_name_and_missing_signal(tmp_path):
