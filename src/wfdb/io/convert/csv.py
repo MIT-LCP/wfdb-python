@@ -458,7 +458,7 @@ def csv2ann(
             raise Exception("""`fs` must be provided if `time_onset` is True
                             since it is required to convert time onsets to
                             samples""")
-        sample = (df_out["onset"].to_numpy() * fs).astype(np.int64)
+        sample = np.rint(df_out["onset"].to_numpy() * fs).astype(np.int64)
     else:
         sample = df_out["onset"].to_numpy()
     # Assume each annotation is a comment
