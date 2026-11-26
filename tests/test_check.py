@@ -217,6 +217,14 @@ def test_check_dataset_still_checks_ignored_segments(tmp_path):
     assert [issue.code for issue in issues] == ["missing_signal"]
 
 
+def test_check_dataset_still_checks_ignored_signal_files(tmp_path):
+    """Ignore selects records; a checked record's signal files are checked."""
+    record = _write_record(tmp_path, "rec")
+    record.with_suffix(".dat").write_bytes(b"\x00\x00")
+    issues = wfdb.check_dataset(tmp_path, ignore=lambda path: path.name == "rec.dat")
+    assert [issue.code for issue in issues] == ["short_signal"]
+
+
 def test_check_dataset_ignores_archives(tmp_path):
     record = _write_record(tmp_path / "src", signal_name="missing.dat")
     _archive_records(tmp_path, "bad", [record])

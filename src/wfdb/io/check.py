@@ -156,10 +156,12 @@ def check_dataset(directory, ignore=None):
     directory : str or pathlib.Path
         Root directory of the dataset to check.
     ignore : callable, optional
-        A function that is given the path of each folder and file below
-        `directory`, relative to it, and returns True to skip it. The contents
-        of a skipped folder are not read. A record that is skipped is still
-        checked as a segment of a multi-segment record that is not skipped.
+        A function that chooses which records to check. It is given the path
+        of each folder and file below `directory`, relative to it, and returns
+        True to skip it. Headers and archives that are skipped are not checked,
+        and the contents of a skipped folder are not read. Files that a checked
+        record refers to are still checked, even if `ignore` would skip them:
+        its signal files, and its segments if it is a multi-segment record.
 
     Returns
     -------
