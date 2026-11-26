@@ -7,6 +7,18 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.5.0 (Nov 2026)
+------------------------
+
+This release adds a way to omit excluded folders and records from the local
+WFDB checker, useful when validating a mixed dataset before publication.
+
+**Filter records when checking a dataset**
+  ``check_dataset`` has an ``ignore`` argument, a function that returns True
+  for paths to skip. It chooses which headers and archives to check, and the
+  contents of skipped folders are not read. Signal files and segments that a
+  checked record refers to are still checked.
+
 Version 5.4.0 (Nov 2026)
 ------------------------
 
