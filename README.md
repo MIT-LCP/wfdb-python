@@ -77,6 +77,25 @@ This writes `example.hea` and `example.dat` in the current directory. See
 [`wrann`](https://wfdb.readthedocs.io/en/latest/io.html#wfdb.io.wrann)
 to write annotations.
 
+## Check records before sharing
+
+Check a local record or dataset directory for common WFDB file problems:
+
+```sh
+wfdb check path/to/record.hea
+wfdb check path/to/dataset
+```
+
+The command checks `.hea` files and `.wfdb` archives, including header syntax,
+record names, referenced signal and segment files, and the first signal frame.
+It reports the affected file and exits with status 1 when it finds a problem.
+Other files in the dataset, such as PDFs and CSVs, are ignored. This is a
+preflight check; it does not read every sample or validate annotations.
+See the [record checking documentation][record-checking] for the Python
+`check_record()` and `check_dataset()` functions.
+
+[record-checking]: https://wfdb.readthedocs.io/en/latest/io.html#checking-wfdb-records
+
 ## What else can you do?
 
 - **Work with remote data:** Read PhysioNet records with `pn_dir` or a
