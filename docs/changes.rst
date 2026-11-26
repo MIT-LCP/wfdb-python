@@ -7,6 +7,14 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.5.1 (Nov 2026)
+------------------------
+
+**Explain malformed header references in wfdb check**
+  When a header still contains directory prefixes after a dataset is
+  reorganized, ``wfdb check`` now identifies the affected lines and shows the
+  record and signal filenames expected beside the header.
+
 Version 5.5.0 (Nov 2026)
 ------------------------
 
