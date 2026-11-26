@@ -60,6 +60,39 @@ The same checks are available from Python:
 .. automodule:: wfdb.io.check
     :members: check_record, check_dataset, CheckIssue
 
+Physical units and format ranges
+--------------------------------
+
+When writing a record with ``wrsamp``, digital values must fit the chosen
+WFDB format. ``Record.adc`` converts physical values with
+``round(physical * adc_gain + baseline)`` and does not clip. ``wrsamp`` then
+raises ``IndexError`` if those digital values fall outside the format's
+storage range (for format 212, -2048 to 2047). It does not silently clip or
+wrap, and it does not warn before raising.
+
+Format 212 stores 12-bit two's-complement values, but digital -2048 is its
+missing-sample marker: ``wrsamp`` accepts it and ``rdrecord`` returns NaN.
+The usable signal range is therefore -2047 to 2047. At gain 200 adu/mV and
+baseline 1024 that is -15.355 mV to +5.115 mV.
+
+Some PhysioNet databases, including the MIT-BIH Arrhythmia Database, were
+digitized with an 11-bit ADC at gain 200 and baseline 1024, so their stored
+samples lie in 0 to 2047 (-5.12 mV to +5.115 mV). That ADC range is
+narrower than what format 212 can store at the same gain and baseline, so
+values below -5.12 mV still write and read back correctly.
+
+As an example of data that does not fit, in the St Petersburg INCART
+12-lead Arrhythmia Database (version 1.0.0, 75 records, lead II only, no
+missing samples), converting to gain 200 and baseline 1024 puts 2,153,612
+of 34,695,000 samples (6.21%) outside format 212's storage range, so
+``wrsamp`` would raise. A further 27 samples land exactly on -2048 and would
+read back as NaN. Choose a format and gain that cover the physical range,
+or requantize explicitly, and count how many samples would not fit before
+writing.
+
+The INCART documentation says gains vary from 250 to 1100 adu/mV. The
+``.hea`` files actually use 240 to 1063 adu/mV (seven records have gain 240
+or 248). Always read the gain from the header.
 
 WFDB Annotations
 ----------------
