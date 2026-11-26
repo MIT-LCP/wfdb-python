@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "wfdb"
-version = "5.3.0"
+version = "5.4.0"
 description = "Read, write, plot, and process physiologic waveforms and annotations."
 authors = [{name = "The Laboratory for Computational Physiology", email = "contact@physionet.org"}]
 license = "MIT"
