@@ -1005,6 +1005,16 @@ class TestCsv2Ann:
         assert ann.symbol == ['"', '"']
         assert ann.aux_note == ["p-wave", "qrs"]
 
+    def test_time_onsets_rounded(self, tmp_path):
+        """Time onsets are rounded to the nearest sample, not truncated."""
+        csv_file = tmp_path / "example.csv"
+        # 0.29 * 100 == 28.999999999999996 in floating point
+        csv_file.write_text("onset,description\n0.29,a\n0.57,b\n1.13,c\n")
+
+        ann = csv2ann(str(csv_file), fs=100, record_only=True)
+
+        assert ann.sample.tolist() == [29, 57, 113]
+
     def test_sample_onsets_no_header(self, tmp_path):
         """Sample onsets are used as-is when time_onset is False."""
         csv_file = tmp_path / "example.csv"
