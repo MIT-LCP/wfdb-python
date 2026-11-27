@@ -14,7 +14,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-from wfdb.io import _header, _signal, _url, download, header, util
+from wfdb.io import _header, _signal, _url, download, util
 from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
@@ -2453,51 +2453,29 @@ def _parse_header_content(header_content):
         The record described by the header.
 
     """
-    # Separate comment and non-comment lines
-    header_lines, comment_lines = header.parse_header_content(header_content)
+    parsed = _header._parse_header_fields(header_content)
 
-    # Get fields from record line
-    record_fields = _header._parse_record_line(header_lines[0])
-
-    # Single segment header - Process signal specification lines
-    if record_fields["n_seg"] is None:
-        # Create a single-segment WFDB record object
+    if isinstance(parsed, _header._ParsedSingleSegmentHeader):
         record = Record()
-
-        # There are signals
-        if len(header_lines) > 1:
-            # Read the fields from the signal lines
-            signal_fields = _header._parse_signal_lines(header_lines[1:])
-            # Set the object's signal fields
-            for field in signal_fields:
-                setattr(record, field, signal_fields[field])
-
-        # Set the object's record line fields
-        for field in record_fields:
+        if parsed.signal_fields is not None:
+            for field, value in parsed.signal_fields.items():
+                setattr(record, field, value)
+        for field, value in parsed.record_fields.items():
             if field == "n_seg":
                 continue
-            setattr(record, field, record_fields[field])
-    # Multi segment header - Process segment specification lines
+            setattr(record, field, value)
     else:
-        # Create a multi-segment WFDB record object
         record = MultiRecord()
-        # Read the fields from the segment lines
-        segment_fields = _header._read_segment_lines(header_lines[1:])
-        # Set the object's segment fields
-        for field in segment_fields:
-            setattr(record, field, segment_fields[field])
-        # Set the objects' record fields
-        for field in record_fields:
-            setattr(record, field, record_fields[field])
-
-        # Determine whether the record is fixed or variable
+        for field, value in parsed.segment_fields.items():
+            setattr(record, field, value)
+        for field, value in parsed.record_fields.items():
+            setattr(record, field, value)
         if record.seg_len[0] == 0:
             record.layout = "variable"
         else:
             record.layout = "fixed"
 
-    # Set the comments field
-    record.comments = [line.strip(" \t#") for line in comment_lines]
+    record.comments = parsed.comments
 
     return record
 

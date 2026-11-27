@@ -2,13 +2,20 @@ import datetime
 import re
 import warnings
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from wfdb.io import _signal, util
-from wfdb.io.header import HeaderSyntaxError, rx_record, rx_segment, rx_signal
+from wfdb.io.header import (
+    HeaderSyntaxError,
+    parse_header_content,
+    rx_record,
+    rx_segment,
+    rx_signal,
+)
 
 """
 Notes
@@ -129,6 +136,24 @@ SEGMENT_SPECS = pd.DataFrame(
 
 # Specifications of all WFDB header fields, except for comments
 FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
+
+
+@dataclass(frozen=True)
+class _ParsedSingleSegmentHeader:
+    """Fields parsed from a header containing signal lines."""
+
+    record_fields: dict[str, Any]
+    signal_fields: dict[str, list[Any]] | None
+    comments: list[str]
+
+
+@dataclass(frozen=True)
+class _ParsedMultiSegmentHeader:
+    """Fields parsed from a header containing segment lines."""
+
+    record_fields: dict[str, Any]
+    segment_fields: dict[str, list[Any]]
+    comments: list[str]
 
 
 class BaseHeaderMixin:
@@ -1246,3 +1271,21 @@ def _read_segment_lines(segment_lines):
             segment_fields["seg_len"][i] = int(segment_fields["seg_len"][i])
 
     return segment_fields
+
+
+def _parse_header_fields(
+    header_content: str,
+) -> _ParsedSingleSegmentHeader | _ParsedMultiSegmentHeader:
+    """Parse a header into its single- or multi-segment field structure."""
+    header_lines, comment_lines = parse_header_content(header_content)
+    record_fields = _parse_record_line(header_lines[0])
+    comments = [line.strip(" \t#") for line in comment_lines]
+
+    if record_fields["n_seg"] is None:
+        signal_fields = (
+            _parse_signal_lines(header_lines[1:]) if len(header_lines) > 1 else None
+        )
+        return _ParsedSingleSegmentHeader(record_fields, signal_fields, comments)
+
+    segment_fields = _read_segment_lines(header_lines[1:])
+    return _ParsedMultiSegmentHeader(record_fields, segment_fields, comments)
