@@ -62,19 +62,20 @@ def test_rdsamp_legacy_tuple_and_field_names():
     record = wfdb.rdrecord("sample-data/100", sampfrom=2, sampto=6, channels=[1])
 
     np.testing.assert_array_equal(signals, record.p_signal)
-    assert set(fields) == {
-        "fs",
-        "sig_len",
-        "n_sig",
-        "base_date",
-        "base_time",
-        "units",
-        "sig_name",
-        "comments",
+    assert fields == {
+        "fs": 360,
+        "sig_len": 4,
+        "n_sig": 1,
+        "base_date": None,
+        "base_time": None,
+        "units": ["mV"],
+        "sig_name": ["V5"],
+        "comments": [
+            "unnecessary comment",
+            "69 M 1085 1629 x1",
+            "Aldomet, Inderal",
+        ],
     }
-    assert fields["sig_len"] == 4
-    assert fields["n_sig"] == 1
-    assert fields["sig_name"] == record.sig_name
 
 
 def test_positional_read_arguments_keep_their_current_order():
@@ -119,16 +120,21 @@ def test_record_and_annotation_remain_pickleable():
 def test_multirecord_pickle_preserves_loaded_segments():
     """MultiRecord serialization preserves its segment metadata and values."""
     original = wfdb.rdrecord(
-        "sample-data/multi-segment/fixed1/v102s", sampto=8, m2s=False
+        "sample-data/multi-segment/fixed1/v102s",
+        sampfrom=74999,
+        sampto=75001,
+        m2s=False,
     )
     restored = pickle.loads(pickle.dumps(original))
 
     assert isinstance(restored, wfdb.MultiRecord)
-    assert restored.seg_name == original.seg_name
-    assert restored.seg_len == original.seg_len
-    assert len(restored.segments) == len(original.segments)
+    assert (restored.fs, restored.n_sig, restored.sig_len) == (250, 4, 2)
+    assert restored.layout == original.layout == "fixed"
+    assert restored.n_seg == original.n_seg == 2
+    assert restored.seg_name == original.seg_name == ["v102s_1", "v102s_2"]
+    assert restored.seg_len == original.seg_len == [1, 1]
+    assert len(restored.segments) == len(original.segments) == 2
     for first, second in zip(restored.segments, original.segments):
-        if second is None:
-            assert first is None
-        else:
-            assert first == second
+        assert first is not None and second is not None
+        assert first.sig_len == second.sig_len == 1
+        assert first == second
