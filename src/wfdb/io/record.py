@@ -892,6 +892,9 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             Determines if the objects are equal (True) or not equal (False).
 
         """
+        if not isinstance(other, Record):
+            return False
+
         # Read provenance does not affect whether record contents are equal.
         read_metadata = {"_applied_skew", "source_segments"}
         att1 = {k: v for k, v in self.__dict__.items() if k not in read_metadata}
@@ -913,14 +916,24 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
 
             if isinstance(v1, np.ndarray):
                 # Necessary for nans
-                np.testing.assert_array_equal(v1, v2)
-            elif (
-                isinstance(v1, list)
-                and len(v1) == len(v2)
-                and all(isinstance(e, np.ndarray) for e in v1)
-            ):
-                for e1, e2 in zip(v1, v2):
-                    np.testing.assert_array_equal(e1, e2)
+                try:
+                    np.testing.assert_array_equal(v1, v2)
+                except AssertionError:
+                    if verbose:
+                        print("Mismatch in attribute: %s" % k, v1, v2)
+                    return False
+            elif isinstance(v1, list) and any(isinstance(e, np.ndarray) for e in v1):
+                if len(v1) != len(v2) or not all(isinstance(e, np.ndarray) for e in v2):
+                    if verbose:
+                        print("Mismatch in attribute: %s" % k, v1, v2)
+                    return False
+                try:
+                    for e1, e2 in zip(v1, v2):
+                        np.testing.assert_array_equal(e1, e2)
+                except AssertionError:
+                    if verbose:
+                        print("Mismatch in attribute: %s" % k, v1, v2)
+                    return False
             else:
                 if v1 != v2:
                     if verbose:
