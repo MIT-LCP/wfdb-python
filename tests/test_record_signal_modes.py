@@ -1,4 +1,4 @@
-"""Loaded signal value layouts for single-segment reads."""
+"""Loaded signal value layouts for single and multi-segment reads."""
 
 import numpy as np
 import pytest
@@ -32,6 +32,34 @@ def test_multifrequency_record_uses_one_signal_field(physical, expanded):
         )
     else:
         assert values.shape == (3, 6)
+        assert values.dtype == f"{'float' if physical else 'int'}32"
+
+
+@pytest.mark.parametrize("physical", [False, True])
+@pytest.mark.parametrize("expanded", [False, True])
+def test_flattened_multisegment_record_uses_one_signal_field(physical, expanded):
+    """Combining segments preserves the selected value mode and frame count."""
+    record = wfdb.rdrecord(
+        "sample-data/multi-segment/fixed1/v102s",
+        sampfrom=74999,
+        sampto=75001,
+        physical=physical,
+        smooth_frames=not expanded,
+        return_res=32,
+    )
+    field = ("e_" if expanded else "") + ("p_signal" if physical else "d_signal")
+    fields = ("p_signal", "d_signal", "e_p_signal", "e_d_signal")
+
+    assert (record.sig_len, record.n_sig) == (2, 4)
+    assert [name for name in fields if getattr(record, name) is not None] == [field]
+    values = getattr(record, field)
+    if expanded:
+        assert [len(signal) for signal in values] == [2] * 4
+        assert all(
+            signal.dtype == f"{'float' if physical else 'int'}32" for signal in values
+        )
+    else:
+        assert values.shape == (2, 4)
         assert values.dtype == f"{'float' if physical else 'int'}32"
 
 
