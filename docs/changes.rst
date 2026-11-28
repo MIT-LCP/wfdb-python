@@ -7,6 +7,31 @@ This page lists recent changes in the `wfdb` package (since version 4.0.0) that 
 
 .. towncrier release notes start
 
+Version 5.6.0 (Nov 2026)
+------------------------
+
+This release prepares the record reader for a clearer API while preserving
+existing public calls. It also includes two fixes and a calibration note.
+
+**Clarify baseline and ADC zero in record headers**
+  Document how physical samples are calibrated when ``baseline`` and
+  ``adc_zero`` differ, using the MIT-BIH Noise Stress Test Database as an
+  example.
+
+**Return false for records with different signal values**
+  Comparing ``Record`` objects with unequal uniform or expanded signal arrays
+  now returns ``False`` instead of raising an exception.
+
+**Prepare record I/O for a clearer API**
+  Record reads now keep source headers, selected ranges, and loaded signal
+  modes in separate internal structures. The existing public readers and
+  mutable record attributes retain their behavior.
+
+**Round csv2ann time onsets to the nearest sample**
+  ``csv2ann`` with ``time_onset=True`` now rounds onset times to the nearest
+  sample instead of truncating them, so 0.29 seconds at 100 Hz gives sample 29
+  instead of 28.
+
 Version 5.5.1 (Nov 2026)
 ------------------------
 
