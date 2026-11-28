@@ -175,4 +175,6 @@ def test_cached_header_lists_are_independent(path, field):
     second = record._cached_record_header(path, None, None, cache)
     assert getattr(second, field) == original
     getattr(second, field).append("changed again")
-    assert getattr(cache[(path, None)], field) == original
+    cached = cache[(path, None)]
+    fields = cached.signal_fields if field == "sig_name" else cached.segment_fields
+    assert fields[field] == original
