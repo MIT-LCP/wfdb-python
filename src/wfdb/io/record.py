@@ -2390,6 +2390,42 @@ class _SingleSegmentReadResult(typing.NamedTuple):
     return_res: int
 
 
+class _LoadedSignalValues(typing.NamedTuple):
+    """Signal values with explicit physical/digital and frame layout modes."""
+
+    values: "np.ndarray | list[np.ndarray]"
+    physical: bool
+    expanded: bool
+
+    def set_on_record(self, record: Record) -> None:
+        """Validate the mode and fill only its matching legacy signal field."""
+        if self.expanded:
+            if not isinstance(self.values, list) or len(self.values) != record.n_sig:
+                raise ValueError("Expanded signals must have one array per channel")
+            arrays = self.values
+            dimensions = 1
+        else:
+            if not isinstance(self.values, np.ndarray):
+                raise ValueError("Uniform signals must be a two-dimensional array")
+            arrays = [self.values]
+            dimensions = 2
+        kind = "f" if self.physical else "iu"
+        if any(
+            not isinstance(array, np.ndarray)
+            or array.ndim != dimensions
+            or array.dtype.kind not in kind
+            for array in arrays
+        ):
+            raise ValueError("Signal values do not match their loaded mode")
+
+        field = ("e_" if self.expanded else "") + (
+            "p_signal" if self.physical else "d_signal"
+        )
+        for name in ("p_signal", "d_signal", "e_p_signal", "e_d_signal"):
+            setattr(record, name, None)
+        setattr(record, field, self.values)
+
+
 def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
     """Build a selected `Record` without changing its source header."""
     record = read.record
@@ -2400,12 +2436,14 @@ def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
         smooth_frames=read.smooth_frames,
     )
 
+    expanded = not read.smooth_frames
     if read.physical:
-        record.dac(
-            expanded=not read.smooth_frames,
-            return_res=read.return_res,
-            inplace=True,
-        )
+        record.dac(expanded=expanded, return_res=read.return_res, inplace=True)
+    if read.physical:
+        values = record.e_p_signal if expanded else record.p_signal
+    else:
+        values = record.e_d_signal if expanded else record.d_signal
+    _LoadedSignalValues(values, read.physical, expanded).set_on_record(record)
 
     if not read.ignore_skew and record.skew is not None and any(record.skew):
         record._applied_skew = list(record.skew)
