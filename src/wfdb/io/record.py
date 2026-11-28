@@ -10,6 +10,7 @@ import shutil
 import tempfile
 import typing
 import warnings
+from dataclasses import replace
 
 import numpy as np
 import pandas as pd
@@ -2314,17 +2315,40 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     >>> ecg_record = wfdb.rdheader('100', pn_dir='mitdb')
 
     """
-    dir_name, base_record_name = _split_path(record_name)
-    file_name = f"{base_record_name}.hea"
+    dir_name, _ = _split_path(record_name)
 
     # Read the header, and any segment headers, from a .wfdb archive
     if is_archive_path(record_name):
         _check_archive_read_args(record_name, pn_dir)
         with WFDBArchive(record_name, mode="r") as archive:
-            record = _parse_header_content(archive.read_header())
+            parsed = _read_header_fields(record_name, pn_dir, archive)
+            record = _record_from_header_fields(parsed)
             if rd_segments:
                 _read_segment_headers(record, dir_name, pn_dir, archive)
         return record
+
+    parsed = _read_header_fields(record_name, pn_dir)
+    record = _record_from_header_fields(parsed)
+
+    # If specified, read the segment headers of a multi-segment record
+    if rd_segments:
+        _read_segment_headers(record, dir_name, pn_dir, None)
+
+    return record
+
+
+def _read_header_fields(record_name, pn_dir, wfdb_archive=None):
+    """Read and parse a source header without creating a public record."""
+    if wfdb_archive is not None:
+        segment_name = None if is_archive_path(record_name) else record_name
+        return _header._parse_header_fields(wfdb_archive.read_header(segment_name))
+    if is_archive_path(record_name):
+        _check_archive_read_args(record_name, pn_dir)
+        with WFDBArchive(record_name, mode="r") as archive:
+            return _header._parse_header_fields(archive.read_header())
+
+    dir_name, base_record_name = _split_path(record_name)
+    file_name = f"{base_record_name}.hea"
 
     # If this is a cloud path, use fsspec to open the file
     if any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
@@ -2349,39 +2373,62 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
         ) as f:
             header_content = f.read()
 
-    record = _parse_header_content(header_content)
+    return _header._parse_header_fields(header_content)
 
-    # If specified, read the segment headers of a multi-segment record
-    if rd_segments:
-        _read_segment_headers(record, dir_name, pn_dir, None)
+
+class _SingleSegmentReadResult(typing.NamedTuple):
+    """Keep the source header and selected samples separate during a read."""
+
+    source_header: _header._ParsedSingleSegmentHeader
+    record: Record
+    values: list[np.ndarray]
+    channels: tuple[int, ...]
+    sampfrom: int
+    physical: bool
+    smooth_frames: bool
+    ignore_skew: bool
+    return_res: int
+
+
+def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
+    """Build a selected `Record` without changing its source header."""
+    record = read.record
+    record.e_d_signal = read.values
+    record._arrange_fields(
+        channels=read.channels,
+        sampfrom=read.sampfrom,
+        smooth_frames=read.smooth_frames,
+    )
+
+    if read.physical:
+        record.dac(
+            expanded=not read.smooth_frames,
+            return_res=read.return_res,
+            inplace=True,
+        )
+
+    if not read.ignore_skew and record.skew is not None and any(record.skew):
+        record._applied_skew = list(record.skew)
 
     return record
 
 
-def _copy_record_header(record):
-    """Copy a parsed header and its mutable metadata lists."""
-    copied = copy.copy(record)
-    for field, value in vars(record).items():
-        if isinstance(value, list):
-            setattr(copied, field, value.copy())
-    return copied
+def _cached_header_fields(record_name, pn_dir, wfdb_archive, header_cache):
+    """Read source header fields, or reuse an iterator's cached fields."""
+    key = (os.fspath(record_name), pn_dir)
+    if header_cache is not None and key in header_cache:
+        return header_cache[key]
+
+    parsed = _read_header_fields(record_name, pn_dir, wfdb_archive)
+    if header_cache is not None:
+        header_cache[key] = parsed
+    return parsed
 
 
 def _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache):
-    """Read a header, or copy an iterator's cached header metadata."""
-    key = (os.fspath(record_name), pn_dir)
-    if header_cache is not None and key in header_cache:
-        return _copy_record_header(header_cache[key])
-
-    if wfdb_archive is not None:
-        segment_name = None if is_archive_path(record_name) else record_name
-        record = _parse_header_content(wfdb_archive.read_header(segment_name))
-    else:
-        record = rdheader(record_name, pn_dir=pn_dir, rd_segments=False)
-
-    if header_cache is not None:
-        header_cache[key] = _copy_record_header(record)
-    return record
+    """Build an independent record from source header fields."""
+    parsed = _cached_header_fields(record_name, pn_dir, wfdb_archive, header_cache)
+    return _record_from_header_fields(parsed)
 
 
 def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive, header_cache=None):
@@ -2453,13 +2500,17 @@ def _parse_header_content(header_content):
         The record described by the header.
 
     """
-    parsed = _header._parse_header_fields(header_content)
+    return _record_from_header_fields(_header._parse_header_fields(header_content))
+
+
+def _record_from_header_fields(parsed):
+    """Materialize an independent legacy record from parsed source fields."""
 
     if isinstance(parsed, _header._ParsedSingleSegmentHeader):
         record = Record()
         if parsed.signal_fields is not None:
             for field, value in parsed.signal_fields.items():
-                setattr(record, field, value)
+                setattr(record, field, value.copy())
         for field, value in parsed.record_fields.items():
             if field == "n_seg":
                 continue
@@ -2467,7 +2518,7 @@ def _parse_header_content(header_content):
     else:
         record = MultiRecord()
         for field, value in parsed.segment_fields.items():
-            setattr(record, field, value)
+            setattr(record, field, value.copy())
         for field, value in parsed.record_fields.items():
             setattr(record, field, value)
         if record.seg_len[0] == 0:
@@ -2475,7 +2526,7 @@ def _parse_header_content(header_content):
         else:
             record.layout = "fixed"
 
-    record.comments = parsed.comments
+    record.comments = parsed.comments.copy()
 
     return record
 
@@ -2672,14 +2723,21 @@ def _rdrecord(
     if pn_dir is not None:
         record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
 
-    record = _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache)
+    source_header = _cached_header_fields(
+        record_name, pn_dir, wfdb_archive, header_cache
+    )
+    record = _record_from_header_fields(source_header)
 
     # If the header omits the signal length, infer it from the first dat file
     # before validating a requested window. This also permits ranged reads.
     if record.sig_len is None:
         record.sig_len = _record_sig_len(record, dir_name, pn_dir, wfdb_archive)
+        source_header = replace(
+            source_header,
+            record_fields={**source_header.record_fields, "sig_len": record.sig_len},
+        )
         if header_cache is not None:
-            header_cache[(os.fspath(record_name), pn_dir)].sig_len = record.sig_len
+            header_cache[(os.fspath(record_name), pn_dir)] = source_header
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2741,10 +2799,7 @@ def _rdrecord(
 
     # A single segment record
     elif isinstance(record, Record):
-        no_file = False
-        sig_data = None
-
-        record.e_d_signal = _signal._rd_segment(
+        values = _signal._rd_segment(
             file_name=record.file_name,
             dir_name=dir_name,
             pn_dir=pn_dir,
@@ -2759,38 +2814,24 @@ def _rdrecord(
             sampto=sampto,
             channels=channels,
             ignore_skew=ignore_skew,
-            no_file=no_file,
-            sig_data=sig_data,
+            no_file=False,
+            sig_data=None,
             return_res=return_res,
             wfdb_archive=wfdb_archive,
         )
-
-        # Only 1 sample/frame, or frames are smoothed. Return uniform numpy array
-        if smooth_frames:
-            # Arrange/edit the object fields to reflect user channel
-            # and/or signal range input
-            record._arrange_fields(
-                channels=channels, sampfrom=sampfrom, smooth_frames=True
+        record = _record_from_single_segment_read(
+            _SingleSegmentReadResult(
+                source_header=source_header,
+                record=record,
+                values=values,
+                channels=tuple(channels),
+                sampfrom=sampfrom,
+                physical=physical,
+                smooth_frames=smooth_frames,
+                ignore_skew=ignore_skew,
+                return_res=return_res,
             )
-
-            if physical:
-                # Perform inplace dac to get physical signal
-                record.dac(expanded=False, return_res=return_res, inplace=True)
-
-        # Return each sample of the signals with multiple samples per frame
-        else:
-            # Arrange/edit the object fields to reflect user channel
-            # and/or signal range input
-            record._arrange_fields(
-                channels=channels, sampfrom=sampfrom, smooth_frames=False
-            )
-
-            if physical:
-                # Perform dac to get physical signal
-                record.dac(expanded=True, return_res=return_res, inplace=True)
-
-        if not ignore_skew and record.skew is not None and any(record.skew):
-            record._applied_skew = list(record.skew)
+        )
 
     # A multi segment record
     else:
@@ -2988,7 +3029,8 @@ def iter_dataframes(
 
     if pn_dir is not None:
         record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
-    header = rdheader(record_name, pn_dir=pn_dir)
+    source_header = _read_header_fields(record_name, pn_dir)
+    header = _record_from_header_fields(source_header)
     dir_name, _ = _split_path(record_name)
     if not any(dir_name.startswith(proto) for proto in CLOUD_PROTOCOLS):
         dir_name = os.path.abspath(dir_name)
@@ -2999,7 +3041,11 @@ def iter_dataframes(
     else:
         sig_len = _record_sig_len(header, dir_name, pn_dir, None)
     header.sig_len = sig_len
-    header_cache = {(os.fspath(record_name), pn_dir): header}
+    source_header = replace(
+        source_header,
+        record_fields={**source_header.record_fields, "sig_len": sig_len},
+    )
+    header_cache = {(os.fspath(record_name), pn_dir): source_header}
 
     start = operator.index(sampfrom)
     stop = sig_len if sampto is None else operator.index(sampto)
