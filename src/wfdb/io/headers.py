@@ -34,8 +34,12 @@ class SignalHeader:
 
 
 @dataclass(frozen=True)
-class SegmentHeader:
-    """Describe one segment line in a multi-segment WFDB header."""
+class SegmentReference:
+    """Name and frame count of a segment listed in a multi-segment header.
+
+    The referenced segment's header is not loaded. Read that header separately
+    to inspect its signal names, units, and calibration.
+    """
 
     name: str
     n_frames: int
@@ -79,7 +83,7 @@ class MultiSegmentHeader(_HeaderBase):
     """
 
     n_segments: int
-    segments: tuple[SegmentHeader, ...]
+    segments: tuple[SegmentReference, ...]
 
     @property
     def layout(self) -> str | None:
@@ -128,7 +132,7 @@ def _from_parsed_header(
         return SingleSegmentHeader(**common, signals=signals)
 
     segments = tuple(
-        SegmentHeader(name=segment.seg_name, n_frames=segment.seg_len)
+        SegmentReference(name=segment.seg_name, n_frames=segment.seg_len)
         for segment in parsed.segments
     )
     return MultiSegmentHeader(**common, n_segments=record_line.n_seg, segments=segments)

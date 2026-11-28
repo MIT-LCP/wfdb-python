@@ -82,10 +82,17 @@ def test_multisegment_headers_expose_segment_lines_only(tmp_path):
     assert isinstance(fixed, wfdb.MultiSegmentHeader)
     assert fixed.layout == "fixed"
     assert fixed.n_segments == 2
+    assert isinstance(fixed.segments[0], wfdb.SegmentReference)
+    assert isinstance(fixed.segments[0], wfdb.io.SegmentReference)
     assert [(segment.name, segment.n_frames) for segment in fixed.segments] == [
         ("041s01", 1000),
         ("041s02", 1000),
     ]
+    first_segment = wfdb.read_header(
+        Path("sample-data/multi-segment/041s") / fixed.segments[0].name
+    )
+    assert isinstance(first_segment, wfdb.SingleSegmentHeader)
+    assert first_segment.signals[0].name == "III"
     assert fixed.base_datetime == datetime.datetime(1994, 10, 26, 8, 26, 4)
 
     source = Path("sample-data/multi-segment/p000878/p000878-2137-10-26-16-57.hea")

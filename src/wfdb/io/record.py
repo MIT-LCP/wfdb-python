@@ -19,7 +19,11 @@ from wfdb.io import _header, _signal, _url, download, util
 from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
-from wfdb.io.headers import _from_parsed_header
+from wfdb.io.headers import (
+    MultiSegmentHeader,
+    SingleSegmentHeader,
+    _from_parsed_header,
+)
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -2289,14 +2293,18 @@ def _resolve_pn_dir(record_name, pn_dir):
     return record_name, pn_dir
 
 
-def read_header(path, *, pn_dir=None):
+def read_header(
+    path: str | os.PathLike[str], *, pn_dir: str | None = None
+) -> SingleSegmentHeader | MultiSegmentHeader:
     """Read one WFDB header into an immutable, typed description.
 
     A single-segment header has ``signals``; a multi-segment header has
     ``segments``. This function reads only the requested header file. It does
-    not load signal samples or follow multi-segment references. Values include
-    WFDB header defaults, but ``n_frames`` stays ``None`` if the header omits
-    the signal length; this function does not infer it from a signal file.
+    not load signal samples or follow multi-segment references. Read a
+    referenced segment header separately to obtain its signal metadata. This
+    function does not replace ``rdheader(..., rd_segments=True)``. Values
+    include WFDB header defaults, but ``n_frames`` stays ``None`` if the
+    header omits the signal length; it is not inferred from a signal file.
 
     Parameters
     ----------

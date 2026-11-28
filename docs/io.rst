@@ -18,8 +18,26 @@ Its ``signals`` or ``segments`` entries describe the source file, while
 ``n_frames`` counts base sample frames, and remains ``None`` when the header
 omits the length. ``n_signals`` is the declared number of channels.
 For a multi-segment record, ``read_header`` reads the main header only; each
-segment entry contains its name and length, without loading that segment's
-header or samples.
+``SegmentReference`` contains a name and length. To inspect a segment's
+signal names, units, or calibration, pass its path to ``read_header`` in a
+separate call. This also works for a variable-layout record's zero-length
+layout segment. A ``~`` entry represents a gap and has no header to read.
+For recursive loading of segment headers, use ``rdheader(...,
+rd_segments=True)``. ``read_header`` describes one physical header per call;
+it does not replace that recursive API.
+
+.. code-block:: python
+
+    import wfdb
+
+    multi = wfdb.read_header("sample-data/multi-segment/041s/041s")
+    assert isinstance(multi, wfdb.MultiSegmentHeader)
+    first = wfdb.read_header(
+        "sample-data/multi-segment/041s/" + multi.segments[0].name
+    )
+    assert isinstance(first, wfdb.SingleSegmentHeader)
+    print(first.signals[0].name)
+
 In a signal header, an omitted ``baseline`` is resolved to ``adc_zero`` if
 present, or zero otherwise. Omitted optional fields such as ``adc_zero``,
 ``adc_res``, and ``init_value`` remain ``None`` so callers can distinguish
@@ -34,7 +52,7 @@ them from values explicitly stated in the file.
 .. autoclass:: wfdb.io.SignalHeader
     :no-index:
 
-.. autoclass:: wfdb.io.SegmentHeader
+.. autoclass:: wfdb.io.SegmentReference
     :no-index:
 
 Use ``iter_dataframes`` to process long recordings without loading the whole

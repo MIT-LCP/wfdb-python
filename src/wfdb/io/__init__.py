@@ -23,7 +23,7 @@ from wfdb.io.download import (
 )
 from wfdb.io.headers import (
     MultiSegmentHeader,
-    SegmentHeader,
+    SegmentReference,
     SignalHeader,
     SingleSegmentHeader,
 )
