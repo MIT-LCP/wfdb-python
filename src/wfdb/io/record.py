@@ -2083,7 +2083,7 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
         for field in fields:
             setattr(record, field, fields[field])
         record.source_segments = source_segments
-        setattr(record, sig_attr, combined_signal)
+        _LoadedSignalValues(combined_signal, physical, expanded).set_on_record(record)
 
         # Use the signal to set record features
         if physical:
