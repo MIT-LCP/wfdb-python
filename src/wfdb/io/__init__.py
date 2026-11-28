@@ -21,6 +21,12 @@ from wfdb.io.download import (
     get_record_list,
     set_db_index_url,
 )
+from wfdb.io.headers import (
+    MultiSegmentHeader,
+    SegmentReference,
+    SignalHeader,
+    SingleSegmentHeader,
+)
 from wfdb.io.record import (
     SIGNAL_CLASSES,
     MultiRecord,
@@ -31,6 +37,7 @@ from wfdb.io.record import (
     rdheader,
     rdrecord,
     rdsamp,
+    read_header,
     sampfreq,
     signame,
     wfdbdesc,

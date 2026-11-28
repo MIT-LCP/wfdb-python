@@ -9,8 +9,64 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, iter_dataframes, wrsamp, sampfreq,
-              signame, wfdbdesc, wfdbtime
+    :members: rdrecord, rdheader, read_header, rdsamp, iter_dataframes,
+              wrsamp, sampfreq, signame, wfdbdesc, wfdbtime
+
+``read_header`` returns a structured, immutable description of one WFDB header.
+Its ``signals`` or ``segments`` entries describe the source file, while
+``rdheader`` continues to return a mutable ``Record`` or ``MultiRecord``.
+``n_frames`` counts base sample frames, and remains ``None`` when the header
+omits the length. ``n_signals`` is the declared number of channels.
+For a multi-segment record, ``read_header`` reads the main header only; each
+``SegmentReference`` contains a name and length. To inspect a segment's
+signal names, units, or calibration, pass its path to ``read_header`` in a
+separate call. For a local ``.wfdb`` archive, pass the archive path with
+``segment=reference.name`` instead. Both approaches work for a
+variable-layout record's zero-length layout segment. A ``~`` entry represents
+a gap and has no header to read.
+For recursive loading of segment headers, use ``rdheader(...,
+rd_segments=True)``. ``read_header`` describes one physical header per call;
+it does not replace that recursive API.
+
+.. code-block:: python
+
+    import wfdb
+
+    multi = wfdb.read_header("sample-data/multi-segment/041s/041s")
+    assert isinstance(multi, wfdb.MultiSegmentHeader)
+    first = wfdb.read_header(
+        "sample-data/multi-segment/041s/" + multi.segments[0].name
+    )
+    assert isinstance(first, wfdb.SingleSegmentHeader)
+    print(first.signals[0].name)
+
+For a multi-segment archive, read the main header and a referenced segment
+from the same archive:
+
+.. code-block:: python
+
+    multi = wfdb.read_header("041s.wfdb")
+    assert isinstance(multi, wfdb.MultiSegmentHeader)
+    first = wfdb.read_header("041s.wfdb", segment=multi.segments[0].name)
+    assert isinstance(first, wfdb.SingleSegmentHeader)
+    print(first.signals[0].name)
+
+In a signal header, an omitted ``baseline`` is resolved to ``adc_zero`` if
+present, or zero otherwise. Omitted optional fields such as ``adc_zero``,
+``adc_res``, and ``init_value`` remain ``None`` so callers can distinguish
+them from values explicitly stated in the file.
+
+.. autoclass:: wfdb.io.SingleSegmentHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.MultiSegmentHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.SignalHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.SegmentReference
+    :no-index:
 
 Use ``iter_dataframes`` to process long recordings without loading the whole
 signal into memory. Each chunk is a pandas DataFrame with the same columns
