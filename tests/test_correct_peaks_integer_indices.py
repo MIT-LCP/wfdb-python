@@ -84,3 +84,26 @@ def test_correct_peaks_python_integer_list():
     signal = np.zeros(100)
     signal[[1, 70]] = 5
     assert_array_equal(processing.correct_peaks(signal, [72, 2], 5, 9, "up"), [70, 1])
+
+
+@pytest.mark.parametrize("direction", ["up", "down", "both", "compare"])
+@pytest.mark.parametrize("value", [np.iinfo(np.intp).max + 1, np.iinfo(np.uint64).max])
+def test_correct_peaks_rejects_uint64_outside_platform_index_range(value, direction):
+    signal = np.zeros(20)
+    signal[1] = 5
+    guesses = np.array([value], dtype=np.uint64)
+    original = guesses.copy()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        with pytest.raises(ValueError, match="platform index range"):
+            processing.correct_peaks(signal, guesses, 5, 9, direction)
+    assert_array_equal(guesses, original)
+
+
+def test_correct_peaks_rejects_mixed_valid_and_unrepresentable_uint64():
+    signal = np.zeros(20)
+    signal[1] = 5
+    with pytest.raises(ValueError, match="platform index range"):
+        processing.correct_peaks(
+            signal, np.array([2, np.iinfo(np.uint64).max], dtype=np.uint64), 5, 9, "up"
+        )
