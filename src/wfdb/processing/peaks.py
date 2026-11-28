@@ -281,6 +281,20 @@ def shift_peaks(sig, peak_inds, search_radius, peak_up):
         Array of the corrected peak indices.
 
     """
+    # Valid sample indices fit in np.intp. Widen before window arithmetic:
+    # unsigned subtraction wraps near zero, narrow integers can wrap at the
+    # right edge, and uint64 plus signed shifts can otherwise become float64.
+    peak_inds = np.asarray(peak_inds)
+    if peak_inds.dtype.kind in "iu":
+        limits = np.iinfo(np.intp)
+        if peak_inds.size and (
+            np.any(peak_inds > limits.max) or np.any(peak_inds < limits.min)
+        ):
+            raise ValueError(
+                "peak_inds contains a value outside the platform index range"
+            )
+        peak_inds = peak_inds.astype(np.intp, copy=False)
+
     sig_len = sig.shape[0]
     n_peaks = len(peak_inds)
     # The indices to shift each peak ind by
