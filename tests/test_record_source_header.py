@@ -46,5 +46,16 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
     source = cache[(path, None)]
     assert isinstance(source, _header._ParsedSingleSegmentHeader)
     assert source.record_fields["sig_len"] == 650000
-    assert source.signal_fields["sig_name"] == ["MLII", "V5"]
-    assert source.signal_fields["file_name"] == ["100.dat", "100.dat"]
+    assert [signal.sig_name for signal in source.signals] == ["MLII", "V5"]
+    assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
+
+
+def test_parsed_signal_lines_keep_skew_with_their_signals():
+    """Signals sharing a file can carry different skew values."""
+    source = record._read_header_fields("sample-data/100skew", pn_dir=None)
+
+    assert isinstance(source, _header._ParsedSingleSegmentHeader)
+    assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
+    assert [signal.skew for signal in source.signals] == [None, 3]
+    header = record._record_from_header_fields(source)
+    assert header.skew == [None, 3]

@@ -139,11 +139,31 @@ FIELD_SPECS = pd.concat((RECORD_SPECS, SIGNAL_SPECS, SEGMENT_SPECS))
 
 
 @dataclass(frozen=True)
+class _ParsedSignalLine:
+    """Fields from one signal line in a single-segment header."""
+
+    file_name: str | None
+    fmt: str | None
+    samps_per_frame: int | None
+    skew: int | None
+    byte_offset: int | None
+    adc_gain: float | None
+    baseline: int | None
+    units: str | None
+    adc_res: int | None
+    adc_zero: int | None
+    init_value: int | None
+    checksum: int | None
+    block_size: int | None
+    sig_name: str | None
+
+
+@dataclass(frozen=True)
 class _ParsedSingleSegmentHeader:
     """Fields parsed from a header containing signal lines."""
 
     record_fields: dict[str, Any]
-    signal_fields: dict[str, list[Any]] | None
+    signals: tuple[_ParsedSignalLine, ...] | None
     comments: list[str]
 
 
@@ -1282,10 +1302,16 @@ def _parse_header_fields(
     comments = [line.strip(" \t#") for line in comment_lines]
 
     if record_fields["n_seg"] is None:
-        signal_fields = (
-            _parse_signal_lines(header_lines[1:]) if len(header_lines) > 1 else None
-        )
-        return _ParsedSingleSegmentHeader(record_fields, signal_fields, comments)
+        signals = None
+        if len(header_lines) > 1:
+            signal_fields = _parse_signal_lines(header_lines[1:])
+            signals = tuple(
+                _ParsedSignalLine(
+                    **{field: signal_fields[field][ch] for field in SIGNAL_SPECS.index}
+                )
+                for ch in range(len(header_lines) - 1)
+            )
+        return _ParsedSingleSegmentHeader(record_fields, signals, comments)
 
     segment_fields = _read_segment_lines(header_lines[1:])
     return _ParsedMultiSegmentHeader(record_fields, segment_fields, comments)
