@@ -185,6 +185,15 @@ class SourceSegment(typing.NamedTuple):
     stop: int
 
 
+class _SegmentReadSelection(typing.NamedTuple):
+    """Keep a segment's source range and selected channels together."""
+
+    number: int
+    start: int
+    stop: int
+    channels: tuple[int, ...]
+
+
 class BaseRecord:
     """The base WFDB class extended by the Record and MultiRecord classes.
 
@@ -1770,20 +1779,15 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         return required_channels
 
-    def _arrange_fields(
-        self, seg_numbers, seg_ranges, channels, sampfrom=0, force_channels=True
-    ):
+    def _arrange_fields(self, segment_reads, channels, sampfrom=0, force_channels=True):
         """Arrange the fields to reflect user channel and/or signal range inputs.
 
         Updates layout specification header if necessary.
 
         Parameters
         ----------
-        seg_numbers : list
-            List of integer segment numbers read.
-        seg_ranges: list
-            List of integer pairs, giving the sample ranges for each
-            segment number read.
+        segment_reads : list of _SegmentReadSelection
+            Segment numbers, source sample ranges, and channel selections.
         channels : list
             List of channel numbers specified
         sampfrom : int
@@ -1800,26 +1804,23 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
 
         """
         # Update seg_len values for relevant segments
-        for i in range(len(seg_numbers)):
-            self.seg_len[seg_numbers[i]] = seg_ranges[i][1] - seg_ranges[i][0]
+        for selection in segment_reads:
+            self.seg_len[selection.number] = selection.stop - selection.start
+
+        first_seg = segment_reads[0].number
+        last_seg = segment_reads[-1].number
 
         # Get rid of the segments and segment line parameters
         # outside the desired segment range
         if self.layout == "fixed":
             self.n_sig = len(channels)
-            self.segments = self.segments[seg_numbers[0] : seg_numbers[-1] + 1]
-            self.seg_name = self.seg_name[seg_numbers[0] : seg_numbers[-1] + 1]
-            self.seg_len = self.seg_len[seg_numbers[0] : seg_numbers[-1] + 1]
+            self.segments = self.segments[first_seg : last_seg + 1]
+            self.seg_name = self.seg_name[first_seg : last_seg + 1]
+            self.seg_len = self.seg_len[first_seg : last_seg + 1]
         else:
-            self.segments = [self.segments[0]] + self.segments[
-                seg_numbers[0] : seg_numbers[-1] + 1
-            ]
-            self.seg_name = [self.seg_name[0]] + self.seg_name[
-                seg_numbers[0] : seg_numbers[-1] + 1
-            ]
-            self.seg_len = [self.seg_len[0]] + self.seg_len[
-                seg_numbers[0] : seg_numbers[-1] + 1
-            ]
+            self.segments = [self.segments[0]] + self.segments[first_seg : last_seg + 1]
+            self.seg_name = [self.seg_name[0]] + self.seg_name[first_seg : last_seg + 1]
+            self.seg_len = [self.seg_len[0]] + self.seg_len[first_seg : last_seg + 1]
 
             # Update the layout specification segment. At this point it
             # should match the full original header
@@ -1860,7 +1861,9 @@ class MultiRecord(BaseRecord, _header.MultiHeaderMixin):
                 )
 
         # Update record specification parameters
-        self.sig_len = sum([sr[1] - sr[0] for sr in seg_ranges])
+        self.sig_len = sum(
+            selection.stop - selection.start for selection in segment_reads
+        )
         self.n_seg = len(self.segments)
         self._adjust_datetime(sampfrom=sampfrom)
 
@@ -2921,20 +2924,26 @@ def _rdrecord(
         seg_channels = record._required_channels(
             seg_numbers, channels, dir_name, pn_dir, wfdb_archive, header_cache
         )
+        segment_reads = [
+            _SegmentReadSelection(number, read_range[0], read_range[1], tuple(wanted))
+            for number, read_range, wanted in zip(
+                seg_numbers, seg_ranges, seg_channels, strict=True
+            )
+        ]
 
         # Read the desired samples in the relevant segments
-        for i in range(len(seg_numbers)):
-            seg_num = seg_numbers[i]
+        for selection in segment_reads:
+            seg_num = selection.number
             # Empty segment or segment with no relevant channels
-            if record.seg_name[seg_num] == "~" or len(seg_channels[i]) == 0:
+            if record.seg_name[seg_num] == "~" or not selection.channels:
                 record.segments[seg_num] = None
             elif wfdb_archive is not None:
                 # Read the segment from the same archive
                 record.segments[seg_num] = _rdrecord(
                     record_name=record.seg_name[seg_num],
-                    sampfrom=seg_ranges[i][0],
-                    sampto=seg_ranges[i][1],
-                    channels=seg_channels[i],
+                    sampfrom=selection.start,
+                    sampto=selection.stop,
+                    channels=list(selection.channels),
                     physical=physical,
                     pn_dir=None,
                     m2s=True,
@@ -2954,9 +2963,9 @@ def _rdrecord(
                     segment_name = _join_path(dir_name, segment_name)
                 record.segments[seg_num] = _rdrecord(
                     record_name=segment_name,
-                    sampfrom=seg_ranges[i][0],
-                    sampto=seg_ranges[i][1],
-                    channels=seg_channels[i],
+                    sampfrom=selection.start,
+                    sampto=selection.stop,
+                    channels=list(selection.channels),
                     physical=physical,
                     pn_dir=pn_dir,
                     m2s=True,
@@ -2973,8 +2982,7 @@ def _rdrecord(
         # Arrange the fields of the layout specification segment, and
         # the overall object, to reflect user input.
         record._arrange_fields(
-            seg_numbers=seg_numbers,
-            seg_ranges=seg_ranges,
+            segment_reads=segment_reads,
             channels=channels,
             sampfrom=sampfrom,
             force_channels=force_channels,
