@@ -2,32 +2,49 @@
 
 import numpy as np
 
-from wfdb.io import record
+import wfdb
+from wfdb.io import _header, record
 
 
-def test_selected_records_do_not_change_the_source_header():
-    """Legacy edits to one loaded view leave source fields and other views alone."""
-    source = record._read_header_fields("sample-data/100", pn_dir=None)
+def test_cached_single_segment_reads_keep_source_fields_unchanged():
+    """Editing one loaded window does not change another or the cached source."""
+    path = "sample-data/100"
+    cache = {}
 
-    def read_channel(channel):
-        result = record._SingleSegmentReadResult(
-            source_header=source,
-            values=[np.array([1, 2, 3], dtype=np.int16)],
-            channels=(channel,),
-            sampfrom=2,
+    def read(sampfrom, sampto, channels):
+        return record._rdrecord(
+            record_name=path,
+            sampfrom=sampfrom,
+            sampto=sampto,
+            channels=channels,
             physical=False,
+            pn_dir=None,
+            m2s=True,
             smooth_frames=True,
             ignore_skew=False,
             return_res=64,
+            force_channels=True,
+            channel_names=None,
+            warn_empty=False,
+            wfdb_archive=None,
+            header_cache=cache,
         )
-        return record._record_from_single_segment_read(result)
 
-    first = read_channel(1)
+    first = read(2, 6, [1])
     first.sig_name[0] = "changed"
-    second = read_channel(0)
+    first.file_name[0] = "changed.dat"
+    first.sig_len = 999
 
+    second = read(10, 12, [0])
+    expected = wfdb.rdrecord(path, sampfrom=10, sampto=12, channels=[0], physical=False)
+    assert second.sig_name == ["MLII"]
+    assert second.sig_len == 2
+    assert second.n_sig == 1
+    assert second.file_name == ["100.dat"]
+    np.testing.assert_array_equal(second.d_signal, expected.d_signal)
+
+    source = cache[(path, None)]
+    assert isinstance(source, _header._ParsedSingleSegmentHeader)
     assert source.record_fields["sig_len"] == 650000
     assert source.signal_fields["sig_name"] == ["MLII", "V5"]
-    assert (first.sig_len, first.n_sig) == (3, 1)
-    assert second.sig_name == ["MLII"]
-    np.testing.assert_array_equal(second.d_signal[:, 0], [1, 2, 3])
+    assert source.signal_fields["file_name"] == ["100.dat", "100.dat"]

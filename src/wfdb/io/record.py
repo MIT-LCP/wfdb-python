@@ -2380,6 +2380,7 @@ class _SingleSegmentReadResult(typing.NamedTuple):
     """Keep the source header and selected samples separate during a read."""
 
     source_header: _header._ParsedSingleSegmentHeader
+    record: Record
     values: list[np.ndarray]
     channels: tuple[int, ...]
     sampfrom: int
@@ -2391,7 +2392,7 @@ class _SingleSegmentReadResult(typing.NamedTuple):
 
 def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
     """Build a selected `Record` without changing its source header."""
-    record = _record_from_header_fields(read.source_header)
+    record = read.record
     record.e_d_signal = read.values
     record._arrange_fields(
         channels=read.channels,
@@ -2821,6 +2822,7 @@ def _rdrecord(
         record = _record_from_single_segment_read(
             _SingleSegmentReadResult(
                 source_header=source_header,
+                record=record,
                 values=values,
                 channels=tuple(channels),
                 sampfrom=sampfrom,
