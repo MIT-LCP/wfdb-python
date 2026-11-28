@@ -60,6 +60,29 @@ The same checks are available from Python:
 .. automodule:: wfdb.io.check
     :members: check_record, check_dataset, CheckIssue
 
+Baseline and ADC zero
+---------------------
+
+The `WFDB header specification
+<https://physionet.org/physiotools/wag/header-5.htm>`_ defines ``baseline``
+as the digital sample value that corresponds to zero physical units.
+``adc_zero`` describes the midpoint of the digitizer's input range. These
+values can differ. When reading physical samples, WFDB uses
+``(digital_sample - baseline) / adc_gain``, even if ``adc_zero`` has another
+value.
+
+The `MIT-BIH Noise Stress Test Database
+<https://physionet.org/content/nstdb/1.0.0/>`_ illustrates why this matters.
+Record ``118e24`` has gain 200 adu/mV, baseline 1024, and ADC zero 0. Its
+noise-free opening contains digital samples 1024 lower than those of the
+source MIT-BIH Arrhythmia Database record ``118``, whose baseline and ADC zero
+are both 1024. Applying each record's header calibration makes the physical
+samples in ``118e24`` 5.12 mV lower than those in ``118`` over that interval.
+WFDB-Python follows the published headers here; replacing ``baseline`` with
+``adc_zero`` would change the meaning of the stored calibration. See
+`issue #752 <https://github.com/MIT-LCP/wfdb-python/issues/752>`_ for a
+reproducible comparison with the WFDB C tools.
+
 Physical units and format ranges
 --------------------------------
 
