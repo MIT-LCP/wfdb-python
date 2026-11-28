@@ -1,5 +1,6 @@
 """Keep source metadata separate from selected records."""
 
+import copy
 import datetime
 import pickle
 
@@ -8,6 +9,12 @@ import pytest
 
 import wfdb
 from wfdb.io import _header, record
+
+
+class SlottedRecord(wfdb.Record):
+    """A user-defined record with extra state outside its attribute dict."""
+
+    __slots__ = ("tag",)
 
 
 @pytest.mark.parametrize(
@@ -141,6 +148,18 @@ def test_private_read_source_is_not_pickled(m2s):
             for segment in restored.segments
             if segment is not None
         )
+
+
+def test_slotted_record_state_survives_pickle_and_deepcopy():
+    """Removing private provenance does not discard subclass slot values."""
+    selected = SlottedRecord()
+    selected.tag = "kept"
+    selected._read_source = wfdb.rdrecord("sample-data/100", sampto=2)._read_source
+
+    for restored in (pickle.loads(pickle.dumps(selected)), copy.deepcopy(selected)):
+        assert isinstance(restored, SlottedRecord)
+        assert restored.tag == "kept"
+        assert not hasattr(restored, "_read_source")
 
 
 def test_parsed_signal_lines_keep_skew_with_their_signals():

@@ -272,8 +272,16 @@ class BaseRecord:
 
     def __getstate__(self):
         """Serialize records without private read provenance."""
-        state = self.__dict__.copy()
-        state.pop("_read_source", None)
+        state = object.__getstate__(self)
+        if isinstance(state, tuple):
+            attributes, slots = state
+            if attributes is not None:
+                attributes = attributes.copy()
+                attributes.pop("_read_source", None)
+            return attributes, slots
+        if state is not None:
+            state = state.copy()
+            state.pop("_read_source", None)
         return state
 
     @property
