@@ -63,6 +63,19 @@ def test_read_header_needs_no_signal_file(tmp_path):
     assert not path.with_suffix(".dat").exists()
 
 
+def test_omitted_optional_signal_fields_remain_none(tmp_path):
+    """Keep omitted fields distinct from effective format defaults."""
+    path = Path(tmp_path) / "t.hea"
+    path.write_text("t 1 100 1\nt.dat 16\n")
+
+    signal = wfdb.read_header(path.with_suffix("")).signals[0]
+
+    assert signal.baseline == 0
+    assert signal.adc_zero is None
+    assert signal.adc_res is None
+    assert signal.init_value is None
+
+
 def test_multisegment_headers_expose_segment_lines_only(tmp_path):
     """A multi-segment header does not require its segment header files."""
     fixed = wfdb.read_header("sample-data/multi-segment/041s/041s")

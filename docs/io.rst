@@ -20,6 +20,10 @@ omits the length. ``n_signals`` is the declared number of channels.
 For a multi-segment record, ``read_header`` reads the main header only; each
 segment entry contains its name and length, without loading that segment's
 header or samples.
+In a signal header, an omitted ``baseline`` is resolved to ``adc_zero`` if
+present, or zero otherwise. Omitted optional fields such as ``adc_zero``,
+``adc_res``, and ``init_value`` remain ``None`` so callers can distinguish
+them from values explicitly stated in the file.
 
 .. autoclass:: wfdb.io.SingleSegmentHeader
     :no-index:

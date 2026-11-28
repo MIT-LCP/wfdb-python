@@ -10,9 +10,11 @@ from wfdb.io import _header
 class SignalHeader:
     """Describe one signal line in a single-segment WFDB header.
 
-    The values reflect WFDB's interpreted header defaults. They describe the
-    stored signal, including its file layout and calibration, not a selected
-    or aligned array returned by ``rdrecord``.
+    The values describe the stored signal, including its file layout and
+    calibration, not a selected or aligned array returned by ``rdrecord``.
+    ``baseline`` is resolved to ``adc_zero`` when given, or zero otherwise.
+    Omitted optional fields such as ``adc_zero``, ``adc_res``, and
+    ``init_value`` remain ``None`` even when WFDB defines an effective default.
     """
 
     name: str | None
