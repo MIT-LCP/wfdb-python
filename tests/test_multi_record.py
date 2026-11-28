@@ -22,6 +22,21 @@ class TestMultiRecordRanges:
         ]
         assert np.isnan(record.p_signal[:24740]).all()
 
+    def test_selected_segments_keep_ranges_and_channels_aligned(self):
+        """A selected view keeps each segment's clipped range and channels."""
+        path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
+        record = wfdb.rdrecord(
+            path, sampfrom=1000, sampto=26000, channels=[0], m2s=False
+        )
+
+        assert record.seg_name == ["3234460_layout", "~", "3234460_0001"]
+        assert record.seg_len == [0, 24740, 260]
+        assert record.sig_len == 25000
+        assert record.n_seg == len(record.segments) == 3
+        assert record.segments[1] is None
+        assert record.segments[2].sig_len == 260
+        assert record.segments[2].sig_name == ["II"]
+
     def test_source_segments_are_named_tuples(self):
         """Ranges can be used by field name or unpacked as plain tuples."""
         path = "sample-data/multi-segment/s25047/s25047-2704-05-04-10-44"
