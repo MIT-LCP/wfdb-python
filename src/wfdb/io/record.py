@@ -2457,7 +2457,6 @@ def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
     expanded = not read.smooth_frames
     if read.physical:
         record.dac(expanded=expanded, return_res=read.return_res, inplace=True)
-    if read.physical:
         values = record.e_p_signal if expanded else record.p_signal
     else:
         values = record.e_d_signal if expanded else record.d_signal
