@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 import wfdb
+from wfdb.io.record import _LoadedSignalValues
 
 
 @pytest.mark.parametrize("physical", [False, True])
@@ -51,3 +52,23 @@ def test_physical_values_keep_missing_samples_after_skew(smooth_frames):
         (digital_values[:-3] - digital.baseline[1]) / digital.adc_gain[1],
     )
     assert np.isnan(physical_values[-3:]).all()
+
+
+def test_uniform_mode_rejects_wrong_channel_count():
+    """A uniform array must match both the frame and channel counts."""
+    record = wfdb.Record(sig_len=3, n_sig=2)
+    values = _LoadedSignalValues(np.zeros((3, 1), dtype=np.int16), False, False)
+
+    with pytest.raises(ValueError, match="Uniform signal shape"):
+        values.set_on_record(record)
+    assert record.d_signal is None
+
+
+def test_expanded_mode_rejects_wrong_sample_count():
+    """Expanded channels must contain their frame count times their rate."""
+    record = wfdb.Record(sig_len=3, n_sig=1, samps_per_frame=[2])
+    values = _LoadedSignalValues([np.zeros(2, dtype=np.int16)], False, True)
+
+    with pytest.raises(ValueError, match="expected 6"):
+        values.set_on_record(record)
+    assert record.e_d_signal is None

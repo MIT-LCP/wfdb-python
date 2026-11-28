@@ -2417,6 +2417,24 @@ class _LoadedSignalValues(typing.NamedTuple):
             for array in arrays
         ):
             raise ValueError("Signal values do not match their loaded mode")
+        if self.expanded:
+            spf = record.samps_per_frame
+            if spf is None or len(spf) != record.n_sig:
+                raise ValueError("Expanded signals need samples per frame")
+            for ch, (array, samples_per_frame) in enumerate(zip(arrays, spf)):
+                expected = record.sig_len * (
+                    1 if samples_per_frame is None else samples_per_frame
+                )
+                if len(array) != expected:
+                    raise ValueError(
+                        f"Expanded signal {ch} has {len(array)} samples; "
+                        f"expected {expected}"
+                    )
+        elif self.values.shape != (record.sig_len, record.n_sig):
+            raise ValueError(
+                f"Uniform signal shape {self.values.shape} does not match "
+                f"({record.sig_len}, {record.n_sig})"
+            )
 
         field = ("e_" if self.expanded else "") + (
             "p_signal" if self.physical else "d_signal"
