@@ -1,6 +1,7 @@
 """Keep source metadata separate from selected records."""
 
 import datetime
+import pickle
 
 import numpy as np
 import pytest
@@ -77,11 +78,33 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
     assert second.file_name == ["100.dat"]
     np.testing.assert_array_equal(second.d_signal, expected.d_signal)
 
-    source = cache[(path, None)]
+    source = cache[(path, None)].source
     assert isinstance(source, _header._ParsedSingleSegmentHeader)
     assert source.record_fields.sig_len == 650000
     assert [signal.sig_name for signal in source.signals] == ["MLII", "V5"]
     assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
+
+
+def test_inferred_length_does_not_change_source_header(monkeypatch):
+    """Direct and cached reads keep an omitted source length unset."""
+    path = "sample-data/100-no-len"
+    direct = wfdb.rdrecord(path, sampfrom=2, sampto=6)
+    assert direct.sig_len == 4
+    assert direct._read_source.header.record_fields.sig_len is None
+
+    seen_source_lengths = []
+    original_read = record._rdrecord
+
+    def capture_read(*args, **kwargs):
+        loaded = original_read(*args, **kwargs)
+        seen_source_lengths.append(loaded._read_source.header.record_fields.sig_len)
+        return loaded
+
+    monkeypatch.setattr(record, "_rdrecord", capture_read)
+    chunks = list(wfdb.iter_dataframes(path, chunk_size=2, sampfrom=2, sampto=6))
+
+    assert [len(chunk) for chunk in chunks] == [2, 2]
+    assert seen_source_lengths == [None, None]
 
 
 @pytest.mark.parametrize("m2s", [True, False])
@@ -100,6 +123,24 @@ def test_multisegment_read_keeps_original_header_and_selection(m2s):
         ("041s01", 1000),
         ("041s02", 1000),
     ]
+
+
+@pytest.mark.parametrize("m2s", [True, False])
+def test_private_read_source_is_not_pickled(m2s):
+    """Saved records do not depend on the new private source type."""
+    path = "sample-data/multi-segment/041s/041s"
+    loaded = wfdb.rdrecord(path, sampto=8, m2s=m2s)
+    restored = pickle.loads(pickle.dumps(loaded))
+
+    assert not hasattr(restored, "_read_source")
+    if m2s:
+        assert restored == loaded
+    else:
+        assert all(
+            not hasattr(segment, "_read_source")
+            for segment in restored.segments
+            if segment is not None
+        )
 
 
 def test_parsed_signal_lines_keep_skew_with_their_signals():
