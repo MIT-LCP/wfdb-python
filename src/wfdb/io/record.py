@@ -2299,7 +2299,7 @@ def read_header(
     pn_dir: str | None = None,
     segment: str | None = None,
 ) -> SingleSegmentHeader | MultiSegmentHeader:
-    """Read one WFDB header into an immutable, typed description.
+    """Read one WFDB header into an immutable, structured description.
 
     A single-segment header has ``signals``; a multi-segment header has
     ``segments``. This function reads only the requested header file. It does
@@ -2354,7 +2354,7 @@ def rdheader(record_name, pn_dir=None, rd_segments=False):
     """Read a WFDB header file and return a `Record` or `MultiRecord`.
 
     The record descriptors are the attributes of the returned object.
-    Use ``read_header`` for an immutable, typed header description.
+    Use ``read_header`` for an immutable, structured header description.
 
     Parameters
     ----------

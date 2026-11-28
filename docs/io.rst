@@ -12,7 +12,7 @@ WFDB Records
     :members: rdrecord, rdheader, read_header, rdsamp, iter_dataframes,
               wrsamp, sampfreq, signame, wfdbdesc, wfdbtime
 
-``read_header`` returns a typed, immutable description of one WFDB header.
+``read_header`` returns a structured, immutable description of one WFDB header.
 Its ``signals`` or ``segments`` entries describe the source file, while
 ``rdheader`` continues to return a mutable ``Record`` or ``MultiRecord``.
 ``n_frames`` counts base sample frames, and remains ``None`` when the header

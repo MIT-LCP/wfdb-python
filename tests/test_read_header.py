@@ -11,7 +11,7 @@ import pytest
 import wfdb
 
 
-def test_single_segment_header_is_typed_and_immutable():
+def test_single_segment_header_is_structured_and_immutable():
     """A signal header groups calibration and storage fields per channel."""
     header = wfdb.read_header("sample-data/100")
 
@@ -45,7 +45,7 @@ def test_single_segment_header_is_typed_and_immutable():
 
 
 def test_signal_header_keeps_source_skew():
-    """The typed header describes file skew even when a read aligns values."""
+    """The structured header describes skew even when a read aligns values."""
     header = wfdb.read_header("sample-data/100skew")
 
     assert [signal.skew for signal in header.signals] == [None, 3]
@@ -117,7 +117,7 @@ def test_omitted_length_remains_unknown_in_source_header():
 
 
 def test_read_header_from_archive(tmp_path):
-    """The typed reader accepts the same local archive form as rdheader."""
+    """The new reader accepts the same local archive form as rdheader."""
     path = Path(tmp_path) / "100.wfdb"
     with zipfile.ZipFile(path, "w") as archive:
         archive.write("sample-data/100.hea", "100.hea")
