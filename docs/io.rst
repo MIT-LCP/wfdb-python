@@ -20,8 +20,10 @@ omits the length. ``n_signals`` is the declared number of channels.
 For a multi-segment record, ``read_header`` reads the main header only; each
 ``SegmentReference`` contains a name and length. To inspect a segment's
 signal names, units, or calibration, pass its path to ``read_header`` in a
-separate call. This also works for a variable-layout record's zero-length
-layout segment. A ``~`` entry represents a gap and has no header to read.
+separate call. For a local ``.wfdb`` archive, pass the archive path with
+``segment=reference.name`` instead. Both approaches work for a
+variable-layout record's zero-length layout segment. A ``~`` entry represents
+a gap and has no header to read.
 For recursive loading of segment headers, use ``rdheader(...,
 rd_segments=True)``. ``read_header`` describes one physical header per call;
 it does not replace that recursive API.
@@ -35,6 +37,17 @@ it does not replace that recursive API.
     first = wfdb.read_header(
         "sample-data/multi-segment/041s/" + multi.segments[0].name
     )
+    assert isinstance(first, wfdb.SingleSegmentHeader)
+    print(first.signals[0].name)
+
+For a multi-segment archive, read the main header and a referenced segment
+from the same archive:
+
+.. code-block:: python
+
+    multi = wfdb.read_header("041s.wfdb")
+    assert isinstance(multi, wfdb.MultiSegmentHeader)
+    first = wfdb.read_header("041s.wfdb", segment=multi.segments[0].name)
     assert isinstance(first, wfdb.SingleSegmentHeader)
     print(first.signals[0].name)
 

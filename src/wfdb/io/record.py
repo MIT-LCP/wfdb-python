@@ -2294,14 +2294,18 @@ def _resolve_pn_dir(record_name, pn_dir):
 
 
 def read_header(
-    path: str | os.PathLike[str], *, pn_dir: str | None = None
+    path: str | os.PathLike[str],
+    *,
+    pn_dir: str | None = None,
+    segment: str | None = None,
 ) -> SingleSegmentHeader | MultiSegmentHeader:
     """Read one WFDB header into an immutable, typed description.
 
     A single-segment header has ``signals``; a multi-segment header has
     ``segments``. This function reads only the requested header file. It does
     not load signal samples or follow multi-segment references. Read a
-    referenced segment header separately to obtain its signal metadata. This
+    referenced segment header separately to obtain its signal metadata. For
+    a local ``.wfdb`` archive, pass the segment name in ``segment``. This
     function does not replace ``rdheader(..., rd_segments=True)``. Values
     include WFDB header defaults, but ``n_frames`` stays ``None`` if the
     header omits the signal length; it is not inferred from a signal file.
@@ -2315,6 +2319,10 @@ def read_header(
     pn_dir : str, optional
         PhysioNet database directory, as for ``rdheader``. An explicit
         ``physionet://`` URI is preferred for new code.
+    segment : str, optional
+        Name of a segment or layout header inside a local ``.wfdb`` archive,
+        without the ``.hea`` extension. Requires an archive path. If omitted,
+        the archive's main header is read.
 
     Returns
     -------
@@ -2331,7 +2339,15 @@ def read_header(
     'MLII'
 
     """
-    return _from_parsed_header(_read_header_fields(path, pn_dir))
+    if segment is not None:
+        if not is_archive_path(path):
+            raise ValueError("segment requires a local .wfdb archive path")
+        _check_archive_read_args(path, pn_dir)
+        with WFDBArchive(path, mode="r") as archive:
+            parsed = _header._parse_header_fields(archive.read_header(segment))
+    else:
+        parsed = _read_header_fields(path, pn_dir)
+    return _from_parsed_header(parsed)
 
 
 def rdheader(record_name, pn_dir=None, rd_segments=False):

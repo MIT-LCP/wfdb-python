@@ -128,6 +128,47 @@ def test_read_header_from_archive(tmp_path):
     assert header.signals[0].name == "MLII"
 
 
+def test_read_header_from_multisegment_archive(tmp_path):
+    """Select a referenced segment header from the same archive."""
+    source = Path("sample-data/multi-segment/041s")
+    path = Path(tmp_path) / "041s.wfdb"
+    with zipfile.ZipFile(path, "w") as archive:
+        for name in ("041s", "041s01", "041s02"):
+            archive.write(source / f"{name}.hea", f"{name}.hea")
+
+    main = wfdb.read_header(path)
+    assert isinstance(main, wfdb.MultiSegmentHeader)
+    first = wfdb.read_header(path, segment=main.segments[0].name)
+    assert isinstance(first, wfdb.SingleSegmentHeader)
+    assert first.record_name == "041s01"
+    assert first.signals[0].name == "III"
+
+    with pytest.raises(FileNotFoundError, match="missing.hea"):
+        wfdb.read_header(path, segment="missing")
+    with pytest.raises(ValueError, match="pn_dir cannot be used"):
+        wfdb.read_header(path, pn_dir="mitdb", segment="041s01")
+    with pytest.raises(ValueError, match="requires a local .wfdb archive"):
+        wfdb.read_header(source / "041s", segment="041s01")
+
+
+def test_read_layout_header_from_archive(tmp_path):
+    """A variable-layout segment can be read without signal files."""
+    source = Path("sample-data/multi-segment/p000878")
+    name = "p000878-2137-10-26-16-57"
+    path = Path(tmp_path) / f"{name}.wfdb"
+    with zipfile.ZipFile(path, "w") as archive:
+        for header in (name, "3269321_layout"):
+            archive.write(source / f"{header}.hea", f"{header}.hea")
+
+    main = wfdb.read_header(path)
+    assert isinstance(main, wfdb.MultiSegmentHeader)
+    assert main.layout == "variable"
+    layout = wfdb.read_header(path, segment=main.segments[0].name)
+    assert isinstance(layout, wfdb.SingleSegmentHeader)
+    assert layout.n_frames == 0
+    assert len(layout.signals) == main.n_signals
+
+
 def test_rdheader_keeps_legacy_return_type():
     """Existing callers still receive a mutable Record or MultiRecord."""
     single = wfdb.rdheader("sample-data/100")
