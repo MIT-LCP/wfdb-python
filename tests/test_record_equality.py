@@ -1,5 +1,7 @@
 """Equality behavior for records with loaded signal arrays."""
 
+import copy
+
 import numpy as np
 
 import wfdb
@@ -35,3 +37,12 @@ def test_record_equality_handles_expanded_signal_mismatch():
 def test_record_equality_with_other_type_is_false():
     """An unrelated object is not a record with equal contents."""
     assert wfdb.Record() != object()
+
+
+def test_read_source_does_not_change_record_equality():
+    """Source provenance is separate from the loaded record's values."""
+    first = wfdb.rdrecord("sample-data/100", sampto=8)
+    second = copy.copy(first)
+    second._read_source = None
+
+    assert first == second

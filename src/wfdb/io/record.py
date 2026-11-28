@@ -906,7 +906,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             return False
 
         # Read provenance does not affect whether record contents are equal.
-        read_metadata = {"_applied_skew", "source_segments"}
+        read_metadata = {"_applied_skew", "source_segments", "_read_source"}
         att1 = {k: v for k, v in self.__dict__.items() if k not in read_metadata}
         att2 = {k: v for k, v in other.__dict__.items() if k not in read_metadata}
 
@@ -2380,9 +2380,8 @@ def _read_header_fields(record_name, pn_dir, wfdb_archive=None):
 
 
 class _SingleSegmentReadResult(typing.NamedTuple):
-    """Keep the source header and selected samples separate during a read."""
+    """Keep selected samples and read options together during a read."""
 
-    source_header: _header._ParsedSingleSegmentHeader
     record: Record
     values: list[np.ndarray]
     channels: tuple[int, ...]
@@ -2447,8 +2446,17 @@ class _LoadedSignalValues(typing.NamedTuple):
         setattr(record, field, self.values)
 
 
+class _ReadSource(typing.NamedTuple):
+    """Preserve the source header and requested source coordinates."""
+
+    header: _header._ParsedSingleSegmentHeader | _header._ParsedMultiSegmentHeader
+    start: int
+    stop: int
+    channels: tuple[int, ...]
+
+
 def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
-    """Build a selected `Record` without changing its source header."""
+    """Build a selected `Record` from the loaded signal values."""
     record = read.record
     record.e_d_signal = read.values
     record._arrange_fields(
@@ -2588,7 +2596,7 @@ def _record_from_header_fields(parsed):
         else:
             record.layout = "fixed"
 
-    record.comments = parsed.comments.copy()
+    record.comments = list(parsed.comments)
 
     return record
 
@@ -2883,7 +2891,6 @@ def _rdrecord(
         )
         record = _record_from_single_segment_read(
             _SingleSegmentReadResult(
-                source_header=source_header,
                 record=record,
                 values=values,
                 channels=tuple(channels),
@@ -2999,6 +3006,8 @@ def _rdrecord(
     # Perform dtype conversion if necessary
     if isinstance(record, Record) and record.n_sig > 0:
         record.convert_dtype(physical, return_res, smooth_frames)
+
+    record._read_source = _ReadSource(source_header, sampfrom, sampto, tuple(channels))
 
     return record
 

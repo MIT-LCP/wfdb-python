@@ -1,4 +1,4 @@
-"""Keep source metadata separate from selected single-segment records."""
+"""Keep source metadata separate from selected records."""
 
 import datetime
 
@@ -53,9 +53,21 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
         )
 
     first = read(2, 6, [1])
+    source_read = first._read_source
+    assert isinstance(source_read.header, _header._ParsedSingleSegmentHeader)
+    assert (source_read.start, source_read.stop, source_read.channels) == (2, 6, (1,))
+    assert source_read.header.record_fields.sig_len == 650000
     first.sig_name[0] = "changed"
     first.file_name[0] = "changed.dat"
     first.sig_len = 999
+    first.comments.append("changed")
+
+    assert source_read.header.signals[1].sig_name == "V5"
+    assert source_read.header.comments == (
+        "unnecessary comment",
+        "69 M 1085 1629 x1",
+        "Aldomet, Inderal",
+    )
 
     second = read(10, 12, [0])
     expected = wfdb.rdrecord(path, sampfrom=10, sampto=12, channels=[0], physical=False)
@@ -70,6 +82,24 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
     assert source.record_fields.sig_len == 650000
     assert [signal.sig_name for signal in source.signals] == ["MLII", "V5"]
     assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
+
+
+@pytest.mark.parametrize("m2s", [True, False])
+def test_multisegment_read_keeps_original_header_and_selection(m2s):
+    """Flattened and segmented views retain the source's full segment list."""
+    path = "sample-data/multi-segment/041s/041s"
+    selected = wfdb.rdrecord(path, sampfrom=500, sampto=1500, channels=[1], m2s=m2s)
+
+    source = selected._read_source
+    assert isinstance(source.header, _header._ParsedMultiSegmentHeader)
+    assert (source.start, source.stop, source.channels) == (500, 1500, (1,))
+    assert source.header.record_fields.sig_len == 2000
+    assert [
+        (segment.seg_name, segment.seg_len) for segment in source.header.segments
+    ] == [
+        ("041s01", 1000),
+        ("041s02", 1000),
+    ]
 
 
 def test_parsed_signal_lines_keep_skew_with_their_signals():
