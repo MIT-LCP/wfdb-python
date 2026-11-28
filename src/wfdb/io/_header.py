@@ -167,10 +167,25 @@ class _ParsedSegmentLine:
 
 
 @dataclass(frozen=True)
+class _ParsedRecordLine:
+    """Fields from the record line shared by both header forms."""
+
+    record_name: str
+    n_seg: int | None
+    n_sig: int
+    fs: float | int
+    counter_freq: float | None
+    base_counter: float | None
+    sig_len: int | None
+    base_time: datetime.time | None
+    base_date: datetime.date | None
+
+
+@dataclass(frozen=True)
 class _ParsedSingleSegmentHeader:
     """Fields parsed from a header containing signal lines."""
 
-    record_fields: dict[str, Any]
+    record_fields: _ParsedRecordLine
     signals: tuple[_ParsedSignalLine, ...] | None
     comments: list[str]
 
@@ -179,7 +194,7 @@ class _ParsedSingleSegmentHeader:
 class _ParsedMultiSegmentHeader:
     """Fields parsed from a header containing segment lines."""
 
-    record_fields: dict[str, Any]
+    record_fields: _ParsedRecordLine
     segments: tuple[_ParsedSegmentLine, ...]
     comments: list[str]
 
@@ -1187,12 +1202,6 @@ def _parse_record_line(record_line: str) -> dict:
                         fs = int(fs)
                     record_fields["fs"] = fs
 
-    # This is not a standard WFDB field, but is useful to set.
-    if record_fields["base_date"] and record_fields["base_time"]:
-        record_fields["base_datetime"] = datetime.datetime.combine(
-            record_fields["base_date"], record_fields["base_time"]
-        )
-
     return record_fields
 
 
@@ -1280,10 +1289,10 @@ def _parse_header_fields(
 ) -> _ParsedSingleSegmentHeader | _ParsedMultiSegmentHeader:
     """Parse a header into its single- or multi-segment field structure."""
     header_lines, comment_lines = parse_header_content(header_content)
-    record_fields = _parse_record_line(header_lines[0])
+    record_fields = _ParsedRecordLine(**_parse_record_line(header_lines[0]))
     comments = [line.strip(" \t#") for line in comment_lines]
 
-    if record_fields["n_seg"] is None:
+    if record_fields.n_seg is None:
         signals = None
         if len(header_lines) > 1:
             signal_fields = _parse_signal_lines(header_lines[1:])

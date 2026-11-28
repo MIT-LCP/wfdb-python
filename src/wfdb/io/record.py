@@ -2571,7 +2571,7 @@ def _record_from_header_fields(parsed):
                 setattr(
                     record, field, [getattr(signal, field) for signal in parsed.signals]
                 )
-        for field, value in parsed.record_fields.items():
+        for field, value in vars(parsed.record_fields).items():
             if field == "n_seg":
                 continue
             setattr(record, field, value)
@@ -2581,7 +2581,7 @@ def _record_from_header_fields(parsed):
             setattr(
                 record, field, [getattr(segment, field) for segment in parsed.segments]
             )
-        for field, value in parsed.record_fields.items():
+        for field, value in vars(parsed.record_fields).items():
             setattr(record, field, value)
         if record.seg_len[0] == 0:
             record.layout = "variable"
@@ -2796,7 +2796,7 @@ def _rdrecord(
         record.sig_len = _record_sig_len(record, dir_name, pn_dir, wfdb_archive)
         source_header = replace(
             source_header,
-            record_fields={**source_header.record_fields, "sig_len": record.sig_len},
+            record_fields=replace(source_header.record_fields, sig_len=record.sig_len),
         )
         if header_cache is not None:
             header_cache[(os.fspath(record_name), pn_dir)] = source_header
@@ -3110,7 +3110,7 @@ def iter_dataframes(
     header.sig_len = sig_len
     source_header = replace(
         source_header,
-        record_fields={**source_header.record_fields, "sig_len": sig_len},
+        record_fields=replace(source_header.record_fields, sig_len=sig_len),
     )
     header_cache = {(os.fspath(record_name), pn_dir): source_header}
 

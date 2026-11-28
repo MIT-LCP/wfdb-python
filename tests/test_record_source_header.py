@@ -1,9 +1,31 @@
 """Keep source metadata separate from selected single-segment records."""
 
+import datetime
+
 import numpy as np
+import pytest
 
 import wfdb
 from wfdb.io import _header, record
+
+
+@pytest.mark.parametrize(
+    ("date_suffix", "expected_date"),
+    [("", None), (" 01/02/2020", datetime.date(2020, 2, 1))],
+)
+def test_parsed_record_line_preserves_base_time(date_suffix, expected_date):
+    """Materializing a typed record line keeps time with or without a date."""
+    parsed = _header._parse_header_fields(f"test 0 360 10 12:34:56{date_suffix}\n")
+    header = record._record_from_header_fields(parsed)
+
+    assert isinstance(parsed.record_fields, _header._ParsedRecordLine)
+    assert parsed.record_fields.base_time == datetime.time(12, 34, 56)
+    assert header.base_time == datetime.time(12, 34, 56)
+    assert header.base_date == expected_date
+    if expected_date is not None:
+        assert header.base_datetime == datetime.datetime.combine(
+            expected_date, datetime.time(12, 34, 56)
+        )
 
 
 def test_cached_single_segment_reads_keep_source_fields_unchanged():
@@ -45,7 +67,7 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
 
     source = cache[(path, None)]
     assert isinstance(source, _header._ParsedSingleSegmentHeader)
-    assert source.record_fields["sig_len"] == 650000
+    assert source.record_fields.sig_len == 650000
     assert [signal.sig_name for signal in source.signals] == ["MLII", "V5"]
     assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
 
