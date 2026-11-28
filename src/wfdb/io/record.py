@@ -2574,8 +2574,10 @@ def _record_from_header_fields(parsed):
             setattr(record, field, value)
     else:
         record = MultiRecord()
-        for field, value in parsed.segment_fields.items():
-            setattr(record, field, value.copy())
+        for field in _header.SEGMENT_SPECS.index:
+            setattr(
+                record, field, [getattr(segment, field) for segment in parsed.segments]
+            )
         for field, value in parsed.record_fields.items():
             setattr(record, field, value)
         if record.seg_len[0] == 0:

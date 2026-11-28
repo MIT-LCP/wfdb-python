@@ -179,4 +179,4 @@ def test_cached_header_lists_are_independent(path, field):
     if field == "sig_name":
         assert [signal.sig_name for signal in cached.signals] == original
     else:
-        assert cached.segment_fields[field] == original
+        assert [getattr(segment, field) for segment in cached.segments] == original

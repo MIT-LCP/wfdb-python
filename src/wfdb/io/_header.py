@@ -159,6 +159,14 @@ class _ParsedSignalLine:
 
 
 @dataclass(frozen=True)
+class _ParsedSegmentLine:
+    """Fields from one segment line in a multi-segment header."""
+
+    seg_name: str
+    seg_len: int
+
+
+@dataclass(frozen=True)
 class _ParsedSingleSegmentHeader:
     """Fields parsed from a header containing signal lines."""
 
@@ -172,7 +180,7 @@ class _ParsedMultiSegmentHeader:
     """Fields parsed from a header containing segment lines."""
 
     record_fields: dict[str, Any]
-    segment_fields: dict[str, list[Any]]
+    segments: tuple[_ParsedSegmentLine, ...]
     comments: list[str]
 
 
@@ -1256,41 +1264,15 @@ def _parse_signal_lines(signal_lines):
 
 
 def _read_segment_lines(segment_lines):
-    """Extract fields from segment line strings into a dictionary.
-
-    Parameters
-    ----------
-    segment_line : list
-        The name of the segment line that will be used to extact fields.
-
-    Returns
-    -------
-    segment_fields : dict
-        The fields for the given segment line.
-
-    """
-    # Dictionary for segment fields
-    segment_fields = {}
-
-    # Each dictionary field is a list
-    for field in SEGMENT_SPECS.index:
-        segment_fields[field] = [None] * len(segment_lines)
-
-    # Read string fields from signal line
-    for i in range(len(segment_lines)):
-        match = rx_segment.match(segment_lines[i])
+    """Parse segment lines into paired names and lengths."""
+    segments = []
+    for segment_line in segment_lines:
+        match = rx_segment.match(segment_line)
         if match is None:
             raise HeaderSyntaxError("invalid syntax in segment line")
-        (
-            segment_fields["seg_name"][i],
-            segment_fields["seg_len"][i],
-        ) = match.groups()
-
-        # Typecast strings for numerical field
-        if field == "seg_len":
-            segment_fields["seg_len"][i] = int(segment_fields["seg_len"][i])
-
-    return segment_fields
+        seg_name, seg_len = match.groups()
+        segments.append(_ParsedSegmentLine(seg_name, int(seg_len)))
+    return tuple(segments)
 
 
 def _parse_header_fields(
@@ -1313,5 +1295,5 @@ def _parse_header_fields(
             )
         return _ParsedSingleSegmentHeader(record_fields, signals, comments)
 
-    segment_fields = _read_segment_lines(header_lines[1:])
-    return _ParsedMultiSegmentHeader(record_fields, segment_fields, comments)
+    segments = _read_segment_lines(header_lines[1:])
+    return _ParsedMultiSegmentHeader(record_fields, segments, comments)
