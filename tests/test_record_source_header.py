@@ -59,3 +59,22 @@ def test_parsed_signal_lines_keep_skew_with_their_signals():
     assert [signal.skew for signal in source.signals] == [None, 3]
     header = record._record_from_header_fields(source)
     assert header.skew == [None, 3]
+
+
+def test_parsed_segment_lines_keep_names_with_lengths():
+    """Empty and layout segments retain their lengths in parsed headers."""
+    path = "sample-data/multi-segment/p000878/p000878-2137-10-26-16-57"
+    source = record._read_header_fields(path, pn_dir=None)
+
+    assert isinstance(source, _header._ParsedMultiSegmentHeader)
+    assert [(segment.seg_name, segment.seg_len) for segment in source.segments[:3]] == [
+        ("3269321_layout", 0),
+        ("~", 3750),
+        ("3269321_0001", 2000),
+    ]
+
+    header = record._record_from_header_fields(source)
+    assert header.seg_name[:3] == ["3269321_layout", "~", "3269321_0001"]
+    assert header.seg_len[:3] == [0, 3750, 2000]
+    header.seg_name[1] = "changed"
+    assert source.segments[1].seg_name == "~"
