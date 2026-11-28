@@ -1,12 +1,20 @@
-"""Keep source metadata separate from selected single-segment records."""
+"""Keep source metadata separate from selected records."""
 
+import copy
 import datetime
+import pickle
 
 import numpy as np
 import pytest
 
 import wfdb
 from wfdb.io import _header, record
+
+
+class SlottedRecord(wfdb.Record):
+    """A user-defined record with extra state outside its attribute dict."""
+
+    __slots__ = ("tag",)
 
 
 @pytest.mark.parametrize(
@@ -53,9 +61,21 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
         )
 
     first = read(2, 6, [1])
+    source_read = first._read_source
+    assert isinstance(source_read.header, _header._ParsedSingleSegmentHeader)
+    assert (source_read.start, source_read.stop, source_read.channels) == (2, 6, (1,))
+    assert source_read.header.record_fields.sig_len == 650000
     first.sig_name[0] = "changed"
     first.file_name[0] = "changed.dat"
     first.sig_len = 999
+    first.comments.append("changed")
+
+    assert source_read.header.signals[1].sig_name == "V5"
+    assert source_read.header.comments == (
+        "unnecessary comment",
+        "69 M 1085 1629 x1",
+        "Aldomet, Inderal",
+    )
 
     second = read(10, 12, [0])
     expected = wfdb.rdrecord(path, sampfrom=10, sampto=12, channels=[0], physical=False)
@@ -65,11 +85,81 @@ def test_cached_single_segment_reads_keep_source_fields_unchanged():
     assert second.file_name == ["100.dat"]
     np.testing.assert_array_equal(second.d_signal, expected.d_signal)
 
-    source = cache[(path, None)]
+    source = cache[(path, None)].source
     assert isinstance(source, _header._ParsedSingleSegmentHeader)
     assert source.record_fields.sig_len == 650000
     assert [signal.sig_name for signal in source.signals] == ["MLII", "V5"]
     assert [signal.file_name for signal in source.signals] == ["100.dat"] * 2
+
+
+def test_inferred_length_does_not_change_source_header(monkeypatch):
+    """Direct and cached reads keep an omitted source length unset."""
+    path = "sample-data/100-no-len"
+    direct = wfdb.rdrecord(path, sampfrom=2, sampto=6)
+    assert direct.sig_len == 4
+    assert direct._read_source.header.record_fields.sig_len is None
+
+    seen_source_lengths = []
+    original_read = record._rdrecord
+
+    def capture_read(*args, **kwargs):
+        loaded = original_read(*args, **kwargs)
+        seen_source_lengths.append(loaded._read_source.header.record_fields.sig_len)
+        return loaded
+
+    monkeypatch.setattr(record, "_rdrecord", capture_read)
+    chunks = list(wfdb.iter_dataframes(path, chunk_size=2, sampfrom=2, sampto=6))
+
+    assert [len(chunk) for chunk in chunks] == [2, 2]
+    assert seen_source_lengths == [None, None]
+
+
+@pytest.mark.parametrize("m2s", [True, False])
+def test_multisegment_read_keeps_original_header_and_selection(m2s):
+    """Flattened and segmented views retain the source's full segment list."""
+    path = "sample-data/multi-segment/041s/041s"
+    selected = wfdb.rdrecord(path, sampfrom=500, sampto=1500, channels=[1], m2s=m2s)
+
+    source = selected._read_source
+    assert isinstance(source.header, _header._ParsedMultiSegmentHeader)
+    assert (source.start, source.stop, source.channels) == (500, 1500, (1,))
+    assert source.header.record_fields.sig_len == 2000
+    assert [
+        (segment.seg_name, segment.seg_len) for segment in source.header.segments
+    ] == [
+        ("041s01", 1000),
+        ("041s02", 1000),
+    ]
+
+
+@pytest.mark.parametrize("m2s", [True, False])
+def test_private_read_source_is_not_pickled(m2s):
+    """Saved records do not depend on the new private source type."""
+    path = "sample-data/multi-segment/041s/041s"
+    loaded = wfdb.rdrecord(path, sampto=8, m2s=m2s)
+    restored = pickle.loads(pickle.dumps(loaded))
+
+    assert not hasattr(restored, "_read_source")
+    if m2s:
+        assert restored == loaded
+    else:
+        assert all(
+            not hasattr(segment, "_read_source")
+            for segment in restored.segments
+            if segment is not None
+        )
+
+
+def test_slotted_record_state_survives_pickle_and_deepcopy():
+    """Removing private provenance does not discard subclass slot values."""
+    selected = SlottedRecord()
+    selected.tag = "kept"
+    selected._read_source = wfdb.rdrecord("sample-data/100", sampto=2)._read_source
+
+    for restored in (pickle.loads(pickle.dumps(selected)), copy.deepcopy(selected)):
+        assert isinstance(restored, SlottedRecord)
+        assert restored.tag == "kept"
+        assert not hasattr(restored, "_read_source")
 
 
 def test_parsed_signal_lines_keep_skew_with_their_signals():

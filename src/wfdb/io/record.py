@@ -270,6 +270,20 @@ class BaseRecord:
         self.comments = comments
         self.sig_name = sig_name
 
+    def __getstate__(self):
+        """Serialize records without private read provenance."""
+        state = object.__getstate__(self)
+        if isinstance(state, tuple):
+            attributes, slots = state
+            if attributes is not None:
+                attributes = attributes.copy()
+                attributes.pop("_read_source", None)
+            return attributes, slots
+        if state is not None:
+            state = state.copy()
+            state.pop("_read_source", None)
+        return state
+
     @property
     def base_datetime(self):
         if self.base_date is None or self.base_time is None:
@@ -906,7 +920,7 @@ class Record(BaseRecord, _header.HeaderMixin, _signal.SignalMixin):
             return False
 
         # Read provenance does not affect whether record contents are equal.
-        read_metadata = {"_applied_skew", "source_segments"}
+        read_metadata = {"_applied_skew", "source_segments", "_read_source"}
         att1 = {k: v for k, v in self.__dict__.items() if k not in read_metadata}
         att2 = {k: v for k, v in other.__dict__.items() if k not in read_metadata}
 
@@ -2380,9 +2394,8 @@ def _read_header_fields(record_name, pn_dir, wfdb_archive=None):
 
 
 class _SingleSegmentReadResult(typing.NamedTuple):
-    """Keep the source header and selected samples separate during a read."""
+    """Keep selected samples and read options together during a read."""
 
-    source_header: _header._ParsedSingleSegmentHeader
     record: Record
     values: list[np.ndarray]
     channels: tuple[int, ...]
@@ -2447,8 +2460,17 @@ class _LoadedSignalValues(typing.NamedTuple):
         setattr(record, field, self.values)
 
 
+class _ReadSource(typing.NamedTuple):
+    """Preserve the source header and requested source coordinates."""
+
+    header: _header._ParsedSingleSegmentHeader | _header._ParsedMultiSegmentHeader
+    start: int
+    stop: int
+    channels: tuple[int, ...]
+
+
 def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
-    """Build a selected `Record` without changing its source header."""
+    """Build a selected `Record` from the loaded signal values."""
     record = read.record
     record.e_d_signal = read.values
     record._arrange_fields(
@@ -2471,22 +2493,30 @@ def _record_from_single_segment_read(read: _SingleSegmentReadResult) -> Record:
     return record
 
 
+class _HeaderCacheEntry(typing.NamedTuple):
+    """Keep the parsed source separate from inferred read fields."""
+
+    source: _header._ParsedSingleSegmentHeader | _header._ParsedMultiSegmentHeader
+    effective: _header._ParsedSingleSegmentHeader | _header._ParsedMultiSegmentHeader
+
+
 def _cached_header_fields(record_name, pn_dir, wfdb_archive, header_cache):
-    """Read source header fields, or reuse an iterator's cached fields."""
+    """Read a source header, or reuse its source and effective cached forms."""
     key = (os.fspath(record_name), pn_dir)
     if header_cache is not None and key in header_cache:
         return header_cache[key]
 
     parsed = _read_header_fields(record_name, pn_dir, wfdb_archive)
+    entry = _HeaderCacheEntry(parsed, parsed)
     if header_cache is not None:
-        header_cache[key] = parsed
-    return parsed
+        header_cache[key] = entry
+    return entry
 
 
 def _cached_record_header(record_name, pn_dir, wfdb_archive, header_cache):
     """Build an independent record from source header fields."""
-    parsed = _cached_header_fields(record_name, pn_dir, wfdb_archive, header_cache)
-    return _record_from_header_fields(parsed)
+    entry = _cached_header_fields(record_name, pn_dir, wfdb_archive, header_cache)
+    return _record_from_header_fields(entry.effective)
 
 
 def _read_record_header(record_name, dir_name, pn_dir, wfdb_archive, header_cache=None):
@@ -2588,7 +2618,7 @@ def _record_from_header_fields(parsed):
         else:
             record.layout = "fixed"
 
-    record.comments = parsed.comments.copy()
+    record.comments = list(parsed.comments)
 
     return record
 
@@ -2785,21 +2815,26 @@ def _rdrecord(
     if pn_dir is not None:
         record_name, pn_dir = _resolve_pn_dir(record_name, pn_dir)
 
-    source_header = _cached_header_fields(
+    cached_header = _cached_header_fields(
         record_name, pn_dir, wfdb_archive, header_cache
     )
-    record = _record_from_header_fields(source_header)
+    source_header = cached_header.source
+    record = _record_from_header_fields(cached_header.effective)
 
     # If the header omits the signal length, infer it from the first dat file
     # before validating a requested window. This also permits ranged reads.
     if record.sig_len is None:
         record.sig_len = _record_sig_len(record, dir_name, pn_dir, wfdb_archive)
-        source_header = replace(
-            source_header,
-            record_fields=replace(source_header.record_fields, sig_len=record.sig_len),
-        )
         if header_cache is not None:
-            header_cache[(os.fspath(record_name), pn_dir)] = source_header
+            effective_header = replace(
+                cached_header.effective,
+                record_fields=replace(
+                    cached_header.effective.record_fields, sig_len=record.sig_len
+                ),
+            )
+            header_cache[(os.fspath(record_name), pn_dir)] = _HeaderCacheEntry(
+                source_header, effective_header
+            )
 
     # Set defaults for sampto and channels input variables
     if sampto is None:
@@ -2883,7 +2918,6 @@ def _rdrecord(
         )
         record = _record_from_single_segment_read(
             _SingleSegmentReadResult(
-                source_header=source_header,
                 record=record,
                 values=values,
                 channels=tuple(channels),
@@ -3000,6 +3034,8 @@ def _rdrecord(
     if isinstance(record, Record) and record.n_sig > 0:
         record.convert_dtype(physical, return_res, smooth_frames)
 
+    record._read_source = _ReadSource(source_header, sampfrom, sampto, tuple(channels))
+
     return record
 
 
@@ -3108,11 +3144,15 @@ def iter_dataframes(
     else:
         sig_len = _record_sig_len(header, dir_name, pn_dir, None)
     header.sig_len = sig_len
-    source_header = replace(
+    effective_header = replace(
         source_header,
         record_fields=replace(source_header.record_fields, sig_len=sig_len),
     )
-    header_cache = {(os.fspath(record_name), pn_dir): source_header}
+    header_cache = {
+        (os.fspath(record_name), pn_dir): _HeaderCacheEntry(
+            source_header, effective_header
+        )
+    }
 
     start = operator.index(sampfrom)
     stop = sig_len if sampto is None else operator.index(sampto)

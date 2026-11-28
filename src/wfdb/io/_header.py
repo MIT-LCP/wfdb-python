@@ -187,7 +187,7 @@ class _ParsedSingleSegmentHeader:
 
     record_fields: _ParsedRecordLine
     signals: tuple[_ParsedSignalLine, ...] | None
-    comments: list[str]
+    comments: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -196,7 +196,7 @@ class _ParsedMultiSegmentHeader:
 
     record_fields: _ParsedRecordLine
     segments: tuple[_ParsedSegmentLine, ...]
-    comments: list[str]
+    comments: tuple[str, ...]
 
 
 class BaseHeaderMixin:
@@ -1290,7 +1290,7 @@ def _parse_header_fields(
     """Parse a header into its single- or multi-segment field structure."""
     header_lines, comment_lines = parse_header_content(header_content)
     record_fields = _ParsedRecordLine(**_parse_record_line(header_lines[0]))
-    comments = [line.strip(" \t#") for line in comment_lines]
+    comments = tuple(line.strip(" \t#") for line in comment_lines)
 
     if record_fields.n_seg is None:
         signals = None
