@@ -2508,9 +2508,11 @@ def _record_from_header_fields(parsed):
 
     if isinstance(parsed, _header._ParsedSingleSegmentHeader):
         record = Record()
-        if parsed.signal_fields is not None:
-            for field, value in parsed.signal_fields.items():
-                setattr(record, field, value.copy())
+        if parsed.signals is not None:
+            for field in _header.SIGNAL_SPECS.index:
+                setattr(
+                    record, field, [getattr(signal, field) for signal in parsed.signals]
+                )
         for field, value in parsed.record_fields.items():
             if field == "n_seg":
                 continue
