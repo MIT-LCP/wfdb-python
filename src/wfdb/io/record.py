@@ -19,6 +19,7 @@ from wfdb.io import _header, _signal, _url, download, util
 from wfdb.io._cloud import check_cloud_write, is_cloud_path, staged_cloud_write
 from wfdb.io._coreio import CLOUD_PROTOCOLS, _fsspec_open, _join_path, _split_path
 from wfdb.io.archive import WFDBArchive, archive_for_writing, is_archive_path
+from wfdb.io.headers import _from_parsed_header
 
 # -------------- WFDB Signal Calibration and Classification ---------- #
 
@@ -2288,10 +2289,48 @@ def _resolve_pn_dir(record_name, pn_dir):
     return record_name, pn_dir
 
 
+def read_header(path, *, pn_dir=None):
+    """Read one WFDB header into an immutable, typed description.
+
+    A single-segment header has ``signals``; a multi-segment header has
+    ``segments``. This function reads only the requested header file. It does
+    not load signal samples or follow multi-segment references. Values include
+    WFDB header defaults, but ``n_frames`` stays ``None`` if the header omits
+    the signal length; this function does not infer it from a signal file.
+
+    Parameters
+    ----------
+    path : str or os.PathLike
+        Local record path or supported cloud or ``physionet://`` URI, without
+        the ``.hea`` extension. A local ``.wfdb`` archive path is also
+        accepted.
+    pn_dir : str, optional
+        PhysioNet database directory, as for ``rdheader``. An explicit
+        ``physionet://`` URI is preferred for new code.
+
+    Returns
+    -------
+    SingleSegmentHeader or MultiSegmentHeader
+        Immutable record-line fields and signal or segment entries.
+
+    Examples
+    --------
+    >>> import wfdb
+    >>> header = wfdb.read_header("sample-data/100")
+    >>> header.n_signals
+    2
+    >>> header.signals[0].name
+    'MLII'
+
+    """
+    return _from_parsed_header(_read_header_fields(path, pn_dir))
+
+
 def rdheader(record_name, pn_dir=None, rd_segments=False):
     """Read a WFDB header file and return a `Record` or `MultiRecord`.
 
     The record descriptors are the attributes of the returned object.
+    Use ``read_header`` for an immutable, typed header description.
 
     Parameters
     ----------

@@ -9,8 +9,29 @@ WFDB Records
 ---------------
 
 .. automodule:: wfdb.io
-    :members: rdrecord, rdheader, rdsamp, iter_dataframes, wrsamp, sampfreq,
-              signame, wfdbdesc, wfdbtime
+    :members: rdrecord, rdheader, read_header, rdsamp, iter_dataframes,
+              wrsamp, sampfreq, signame, wfdbdesc, wfdbtime
+
+``read_header`` returns a typed, immutable description of one WFDB header.
+Its ``signals`` or ``segments`` entries describe the source file, while
+``rdheader`` continues to return a mutable ``Record`` or ``MultiRecord``.
+``n_frames`` counts base sample frames, and remains ``None`` when the header
+omits the length. ``n_signals`` is the declared number of channels.
+For a multi-segment record, ``read_header`` reads the main header only; each
+segment entry contains its name and length, without loading that segment's
+header or samples.
+
+.. autoclass:: wfdb.io.SingleSegmentHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.MultiSegmentHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.SignalHeader
+    :no-index:
+
+.. autoclass:: wfdb.io.SegmentHeader
+    :no-index:
 
 Use ``iter_dataframes`` to process long recordings without loading the whole
 signal into memory. Each chunk is a pandas DataFrame with the same columns
